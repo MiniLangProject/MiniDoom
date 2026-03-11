@@ -1,0 +1,25 @@
+# Build artifacts
+build/
+dist/
+out/
+
+# Compiler/runtime artifacts
+*.exe
+*.pdb
+*.ilk
+*.obj
+*.o
+*.asm
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Editor / OS files
+.idea/
+.vscode/
+*.swp
+.DS_Store
+Thumbs.db
