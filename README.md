@@ -1,8 +1,10 @@
 # MiniDoom
+<img src="./icons/MiniDoom.png" width="125" align="left"/>
 
 MiniDoom is a full MiniLang port of the original DOOM engine codebase, focused on gameplay parity, classic behavior, and native Windows execution.
 
 This project keeps the original DOOM architecture and module split concept, but translates the implementation to MiniLang (`.ml`) with platform-specific runtime bindings where needed (video, audio, input, window handling).
+<br clear="right" />
 
 ## Project Goals
 
