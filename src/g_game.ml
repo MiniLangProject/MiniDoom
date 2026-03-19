@@ -80,7 +80,7 @@ function G_DeathMatchSpawnPlayer(playernum)
     end if
 
     if mthing is not void and G_CheckSpot(playernum, mthing) then
-      if typeof(players) == "array" and playernum < len(players) and players[playernum] is not void and players[playernum].mo is not void then
+      if typeof(players) == "array" and playernum < len(players) and typeof(players[playernum]) == "struct" and players[playernum].mo is not void then
         P_RemoveMobj(players[playernum].mo)
       end if
 
@@ -106,6 +106,11 @@ function G_InitNew(skill, episode, map)
   global gameepisode
   global gamemap
   global gamestate
+  global usergame
+  global paused
+  global demoplayback
+  global automapactive
+  global viewactive
 
   gameskill = skill
   gameepisode = episode
@@ -118,13 +123,20 @@ function G_InitNew(skill, episode, map)
   if typeof(players) == "array" then
     i = 0
     while i < MAXPLAYERS and i < len(players)
-      if players[i] is void then
+      if typeof(players[i]) != "struct" then
         players[i] = Player_MakeDefault()
       end if
       players[i].playerstate = playerstate_t.PST_REBORN
       i = i + 1
     end while
   end if
+
+  // Match Doom startup semantics when a new level session begins.
+  usergame = true
+  paused = false
+  demoplayback = false
+  automapactive = false
+  viewactive = true
 
   _G_ShowLoadingFrame("Loading E" + episode + "M" + map + "...")
 
@@ -351,6 +363,16 @@ function G_PlayerFinishLevel(playernum)
   if typeof(players) != "array" then return end if
   if typeof(playernum) != "int" or playernum < 0 or playernum >= len(players) then return end if
   p = players[playernum]
+  if typeof(p) != "struct" then return end if
+
+  // Keep inventory/armor/weapons across levels, but guarantee playable health floor on next spawn.
+  if typeof(p.health) != "int" then
+    p.health = MAXHEALTH
+  else if p.health < MAXHEALTH then
+    p.health = MAXHEALTH
+  end if
+  p.playerstate = playerstate_t.PST_LIVE
+
   pw =[]
   i = 0
   while i < NUMPOWERS
@@ -367,6 +389,7 @@ function G_PlayerFinishLevel(playernum)
   end while
   p.cards = cd
   p.mo = void
+  players[playernum] = p
 end function
 
 /*
@@ -516,7 +539,11 @@ function _G_ShowLoadingFrame(text)
     end if
   end if
 
-  if typeof(I_FinishUpdate) == "function" then I_FinishUpdate() end if
+  if typeof(I_LoadingPulse) == "function" then
+    I_LoadingPulse()
+  else if typeof(I_FinishUpdate) == "function" then
+    I_FinishUpdate()
+  end if
 end function
 
 /*
@@ -524,12 +551,47 @@ end function
 * Purpose: Implements the G_DoReborn routine for the game flow.
 */
 function G_DoReborn(playernum)
-  if netgame then
-    G_DoLoadLevel()
+  global gameaction
+  if not netgame then
+    // Single-player death restarts the map from scratch.
+    gameaction = gameaction_t.ga_loadlevel
     return
   end if
-  G_PlayerReborn(playernum)
-  G_DoLoadLevel()
+
+  if typeof(players) == "array" and playernum >= 0 and playernum < len(players) and typeof(players[playernum]) == "struct" and typeof(players[playernum].mo) == "struct" then
+    players[playernum].mo.player = void
+  end if
+
+  if deathmatch then
+    if typeof(G_DeathMatchSpawnPlayer) == "function" then
+      G_DeathMatchSpawnPlayer(playernum)
+    end if
+    return
+  end if
+
+  if typeof(playerstarts) == "array" and playernum >= 0 and playernum < len(playerstarts) and playerstarts[playernum] is not void and typeof(G_CheckSpot) == "function" and G_CheckSpot(playernum, playerstarts[playernum]) then
+    if typeof(P_SpawnPlayer) == "function" then
+      P_SpawnPlayer(playerstarts[playernum])
+    end if
+    return
+  end if
+
+  i = 0
+  while i < MAXPLAYERS
+    if typeof(playerstarts) == "array" and i >= 0 and i < len(playerstarts) and playerstarts[i] is not void and typeof(G_CheckSpot) == "function" and G_CheckSpot(playernum, playerstarts[i]) then
+      st = playerstarts[i]
+      fake = mapthing_t(st.x, st.y, st.angle, playernum + 1, st.options)
+      if typeof(P_SpawnPlayer) == "function" then
+        P_SpawnPlayer(fake)
+      end if
+      return
+    end if
+    i = i + 1
+  end while
+
+  if typeof(playerstarts) == "array" and playernum >= 0 and playernum < len(playerstarts) and playerstarts[playernum] is not void and typeof(P_SpawnPlayer) == "function" then
+    P_SpawnPlayer(playerstarts[playernum])
+  end if
 end function
 
 /*
@@ -567,15 +629,17 @@ function G_DoCompleted()
   if gamemode != GameMode_t.commercial and gamemap == 9 then
     i = 0
     while i < MAXPLAYERS
-      if typeof(players) == "array" and i < len(players) and players[i] is not void then
-        players[i].didsecret = true
+      if typeof(players) == "array" and i < len(players) and typeof(players[i]) == "struct" then
+        p = players[i]
+        p.didsecret = true
+        players[i] = p
       end if
       i = i + 1
     end while
   end if
 
   didsecret = false
-  if typeof(players) == "array" and consoleplayer >= 0 and consoleplayer < len(players) and players[consoleplayer] is not void then
+  if typeof(players) == "array" and consoleplayer >= 0 and consoleplayer < len(players) and typeof(players[consoleplayer]) == "struct" then
     if typeof(players[consoleplayer].didsecret) == "bool" then
       didsecret = players[consoleplayer].didsecret
     else if players[consoleplayer].didsecret then
@@ -629,7 +693,7 @@ function G_DoCompleted()
     ssecret = 0
     stime = leveltime
     fr =[0, 0, 0, 0]
-    if typeof(players) == "array" and i < len(players) and players[i] is not void then
+    if typeof(players) == "array" and i < len(players) and typeof(players[i]) == "struct" then
       if typeof(players[i].killcount) == "int" then skills = players[i].killcount end if
       if typeof(players[i].itemcount) == "int" then sitems = players[i].itemcount end if
       if typeof(players[i].secretcount) == "int" then ssecret = players[i].secretcount end if
@@ -724,12 +788,14 @@ function G_DoSaveGame()
 
   length = save_p
   ok = M_WriteFile(name, savebuffer, length)
-  if ok and typeof(players) == "array" and consoleplayer >= 0 and consoleplayer < len(players) and players[consoleplayer] is not void then
+  if ok and typeof(players) == "array" and consoleplayer >= 0 and consoleplayer < len(players) and typeof(players[consoleplayer]) == "struct" then
+    cp = players[consoleplayer]
     if typeof(GGSAVED) == "string" then
-      players[consoleplayer].message = GGSAVED
+      cp.message = GGSAVED
     else
-      players[consoleplayer].message = "game saved."
+      cp.message = "game saved."
     end if
+    players[consoleplayer] = cp
   end if
   global _G_saveDesc
   _G_saveDesc = ""
@@ -1072,8 +1138,10 @@ function G_WorldDone()
   global secretexit
   global gameaction
 
-  if secretexit and typeof(players) == "array" and consoleplayer >= 0 and consoleplayer < len(players) and players[consoleplayer] is not void then
-    players[consoleplayer].didsecret = true
+  if secretexit and typeof(players) == "array" and consoleplayer >= 0 and consoleplayer < len(players) and typeof(players[consoleplayer]) == "struct" then
+    cp = players[consoleplayer]
+    cp.didsecret = true
+    players[consoleplayer] = cp
   end if
 
   gameaction = gameaction_t.ga_worlddone
@@ -1085,13 +1153,11 @@ function G_WorldDone()
 end function
 
 /*
-* Function: G_Ticker
-* Purpose: Advances per-tick logic for the game flow.
+* Function: G_ProcessPendingGameAction
+* Purpose: Executes deferred game actions without advancing world simulation.
 */
-function G_Ticker()
+function G_ProcessPendingGameAction()
   global gameaction
-  global demoplayback
-  global gamestate
 
   if typeof(gameaction) == "void" then
     gameaction = gameaction_t.ga_nothing
@@ -1119,6 +1185,36 @@ function G_Ticker()
     end if
 
     gameaction = gameaction_t.ga_nothing
+  end if
+end function
+
+/*
+* Function: G_ProcessGameActionOnly
+* Purpose: Processes deferred game actions while skipping gameplay tick simulation.
+*/
+function G_ProcessGameActionOnly()
+  G_ProcessPendingGameAction()
+end function
+
+/*
+* Function: G_Ticker
+* Purpose: Advances per-tick logic for the game flow.
+*/
+function G_Ticker()
+  global demoplayback
+  global gamestate
+
+  G_ProcessPendingGameAction()
+
+  // Netgame respawns are driven by playerstate transition set in P_DeathThink.
+  if netgame and typeof(playeringame) == "array" and typeof(players) == "array" then
+    i = 0
+    while i < MAXPLAYERS and i < len(playeringame) and i < len(players)
+      if playeringame[i] and typeof(players[i]) == "struct" and players[i].playerstate == playerstate_t.PST_REBORN then
+        G_DoReborn(i)
+      end if
+      i = i + 1
+    end while
   end if
 
   if gamestate == gamestate_t.GS_LEVEL then
@@ -1451,7 +1547,7 @@ function G_Responder(ev)
     if side < -MAXPLMOVE then side = -MAXPLMOVE end if
 
     deadLocal = false
-    if typeof(players) == "array" and consoleplayer >= 0 and consoleplayer < len(players) and players[consoleplayer] is not void then
+    if typeof(players) == "array" and consoleplayer >= 0 and consoleplayer < len(players) and typeof(players[consoleplayer]) == "struct" then
       lp = players[consoleplayer]
       if lp.playerstate == playerstate_t.PST_DEAD then deadLocal = true end if
       if typeof(lp.health) == "int" and lp.health <= 0 then deadLocal = true end if

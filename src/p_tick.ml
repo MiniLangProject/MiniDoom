@@ -176,7 +176,7 @@ function P_Ticker()
   if paused then return end if
 
   if (not netgame) and menuactive and(not demoplayback) then
-    if typeof(players) == "array" and consoleplayer >= 0 and consoleplayer < len(players) and players[consoleplayer] is not void and players[consoleplayer].viewz != 1 then
+    if typeof(players) == "array" and consoleplayer >= 0 and consoleplayer < len(players) and typeof(players[consoleplayer]) == "struct" and players[consoleplayer].viewz != 1 then
       return
     end if
   end if
@@ -184,7 +184,7 @@ function P_Ticker()
   i = 0
   while i < MAXPLAYERS
     if i < len(playeringame) and playeringame[i] then
-      if typeof(P_PlayerThink) == "function" and i < len(players) then
+      if typeof(P_PlayerThink) == "function" and i < len(players) and typeof(players[i]) == "struct" then
         P_PlayerThink(players[i])
       end if
     end if

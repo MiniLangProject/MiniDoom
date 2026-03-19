@@ -280,6 +280,40 @@ function _PI_PlayerIndex(player)
 end function
 
 /*
+* Function: _PI_PlayerIndexForThing
+* Purpose: Resolves player slot by player struct first, then by owning mobj.
+*/
+function _PI_PlayerIndexForThing(player, thing)
+  idx = _PI_PlayerIndex(player)
+  if idx >= 0 then return idx end if
+  if thing is void then return -1 end if
+  if typeof(players) != "array" then return -1 end if
+  i = 0
+  while i < len(players)
+    pi = players[i]
+    if typeof(pi) == "struct" and typeof(pi.mo) == "struct" and pi.mo == thing then
+      return i
+    end if
+    i = i + 1
+  end while
+  return -1
+end function
+
+/*
+* Function: _PI_CommitTouchedPlayer
+* Purpose: Writes pickup-mutated player state back to global slot and touching mobj.
+*/
+function _PI_CommitTouchedPlayer(toucher, player, pidx)
+  if typeof(player) != "struct" then return end if
+  if typeof(players) == "array" and pidx >= 0 and pidx < len(players) then
+    players[pidx] = player
+  end if
+  if typeof(toucher) == "struct" then
+    toucher.player = player
+  end if
+end function
+
+/*
 * Function: P_GiveAmmo
 * Purpose: Implements the P_GiveAmmo routine for the gameplay and world simulation.
 */
@@ -451,7 +485,11 @@ function P_TouchSpecialThing(special, toucher)
     return
   end if
 
+  pidx = _PI_PlayerIndexForThing(toucher.player, toucher)
   player = toucher.player
+  if typeof(players) == "array" and pidx >= 0 and pidx < len(players) and typeof(players[pidx]) == "struct" then
+    player = players[pidx]
+  end if
   if player is void then return end if
 
   if toucher.health <= 0 then return end if
@@ -495,37 +533,55 @@ function P_TouchSpecialThing(special, toucher)
       player.message = GOTBLUECARD
     end if
     P_GiveCard(player, it_bluecard)
-    if netgame then return end if
+    if netgame then
+      _PI_CommitTouchedPlayer(toucher, player, pidx)
+      return
+    end if
   else if spr == spritenum_t.SPR_YKEY then
     if not _PI_HasCard(player, it_yellowcard) then
       player.message = GOTYELWCARD
     end if
     P_GiveCard(player, it_yellowcard)
-    if netgame then return end if
+    if netgame then
+      _PI_CommitTouchedPlayer(toucher, player, pidx)
+      return
+    end if
   else if spr == spritenum_t.SPR_RKEY then
     if not _PI_HasCard(player, it_redcard) then
       player.message = GOTREDCARD
     end if
     P_GiveCard(player, it_redcard)
-    if netgame then return end if
+    if netgame then
+      _PI_CommitTouchedPlayer(toucher, player, pidx)
+      return
+    end if
   else if spr == spritenum_t.SPR_BSKU then
     if not _PI_HasCard(player, it_blueskull) then
       player.message = GOTBLUESKUL
     end if
     P_GiveCard(player, it_blueskull)
-    if netgame then return end if
+    if netgame then
+      _PI_CommitTouchedPlayer(toucher, player, pidx)
+      return
+    end if
   else if spr == spritenum_t.SPR_YSKU then
     if not _PI_HasCard(player, it_yellowskull) then
       player.message = GOTYELWSKUL
     end if
     P_GiveCard(player, it_yellowskull)
-    if netgame then return end if
+    if netgame then
+      _PI_CommitTouchedPlayer(toucher, player, pidx)
+      return
+    end if
   else if spr == spritenum_t.SPR_RSKU then
     if not _PI_HasCard(player, it_redskull) then
       player.message = GOTREDSKULL
     end if
     P_GiveCard(player, it_redskull)
-    if netgame then return end if
+    if netgame then
+      _PI_CommitTouchedPlayer(toucher, player, pidx)
+      return
+    end if
 
   else if spr == spritenum_t.SPR_STIM then
     if not P_GiveBody(player, 10) then return end if
@@ -648,9 +704,13 @@ function P_TouchSpecialThing(special, toucher)
   if (special.flags & mobjflag_t.MF_COUNTITEM) != 0 then
     player.itemcount = player.itemcount + 1
   end if
+  _PI_CommitTouchedPlayer(toucher, player, pidx)
   P_RemoveMobj(special)
   player.bonuscount = player.bonuscount + BONUSADD
-  if player == players[consoleplayer] and typeof(S_StartSound) == "function" then
+  _PI_CommitTouchedPlayer(toucher, player, pidx)
+  if pidx == consoleplayer and typeof(S_StartSound) == "function" then
+    S_StartSound(void, sound)
+  else if player == players[consoleplayer] and typeof(S_StartSound) == "function" then
     S_StartSound(void, sound)
   end if
 end function
@@ -680,8 +740,10 @@ function P_KillMobj(source, target)
       end if
     end if
   else if (not netgame) and((target.flags & mobjflag_t.MF_COUNTKILL) != 0) then
-    if typeof(players) == "array" and len(players) > 0 and players[0] is not void then
-      players[0].killcount = players[0].killcount + 1
+    if typeof(players) == "array" and len(players) > 0 and typeof(players[0]) == "struct" then
+      p0 = players[0]
+      p0.killcount = p0.killcount + 1
+      players[0] = p0
     end if
   end if
 
@@ -696,7 +758,7 @@ function P_KillMobj(source, target)
     target.player.playerstate = playerstate_t.PST_DEAD
 
     pidx = _PI_PlayerIndex(target.player)
-    if pidx >= 0 and typeof(players) == "array" and pidx < len(players) and players[pidx] is not void then
+    if pidx >= 0 and typeof(players) == "array" and pidx < len(players) and typeof(players[pidx]) == "struct" then
       pp = players[pidx]
       pp.playerstate = playerstate_t.PST_DEAD
       pp.mo = target

@@ -33,7 +33,8 @@ import m_swap
 import s_sound
 import doomstat
 import sounds
-import m_menu
+import mp_state
+import mp_platform
 
 import std.fs as fs
 
@@ -85,6 +86,25 @@ function _MMENU_IDiv(a, b)
   q = a / b
   if q >= 0 then return std.math.floor(q) end if
   return std.math.ceil(q)
+end function
+
+/*
+* Function: _MMENU_ToInt
+* Purpose: Converts values to integers with fallback handling.
+*/
+function _MMENU_ToInt(v, fallback)
+  if typeof(v) == "int" then return v end if
+  if typeof(v) == "float" then
+    if v >= 0 then return std.math.floor(v) end if
+    return std.math.ceil(v)
+  end if
+  n = toNumber(v)
+  if typeof(n) == "int" then return n end if
+  if typeof(n) == "float" then
+    if n >= 0 then return std.math.floor(n) end if
+    return std.math.ceil(n)
+  end if
+  return fallback
 end function
 
 /*
@@ -337,6 +357,14 @@ tempstring = ""
 
 MainMenu = 0
 MainDef = 0
+MultiplayerMenu = 0
+MultiplayerDef = 0
+MPHostMenu = 0
+MPHostDef = 0
+MPJoinMenu = 0
+MPJoinDef = 0
+MPNameMenu = 0
+MPNameDef = 0
 
 EpisodeMenu = 0
 EpiDef = 0
@@ -370,12 +398,37 @@ quitsounds = 0
 quitsounds2 = 0
 
 const main_newgame = 0
-const main_options = 1
-const main_loadgame = 2
-const main_savegame = 3
-const main_readthis = 4
-const main_quitdoom = 5
-const main_end = 6
+const main_multiplayer = 1
+const main_options = 2
+const main_loadgame = 3
+const main_savegame = 4
+const main_readthis = 5
+const main_quitdoom = 6
+const main_end = 7
+
+const mp_main_host = 0
+const mp_main_join = 1
+const mp_main_name = 2
+const mp_main_end = 3
+
+const mp_host_mode_item = 0
+const mp_host_map = 1
+const mp_host_skill_item = 2
+const mp_host_players = 3
+const mp_host_fraglimit = 4
+const mp_host_timelimit = 5
+const mp_host_port_item = 6
+const mp_host_start = 7
+const mp_host_end = 8
+
+const mp_join_host_item = 0
+const mp_join_port_item = 1
+const mp_join_start = 2
+const mp_join_end = 3
+
+const mp_name_edit = 0
+const mp_name_done = 1
+const mp_name_end = 2
 
 const ep1 = 0
 const ep2 = 1
@@ -409,6 +462,83 @@ const sound_end = 4
 
 const load_end = 6
 
+mpNameEnter = 0
+mpNameCharIndex = 0
+mpNameBuf = 0
+mpNameOld = 0
+mpJoinHostEnter = 0
+mpJoinHostCharIndex = 0
+mpJoinHostBuf = 0
+mpJoinHostOld = 0
+
+/*
+* Function: _MMENU_BuildMainMenu
+* Purpose: Creates the main menu item array including multiplayer entry.
+*/
+function _MMENU_BuildMainMenu()
+  return [
+  _MI(1, "M_NGAME", M_NewGame, 110),
+  _MI(1, "", M_Multiplayer, 109),
+  _MI(1, "M_OPTION", M_Options, 111),
+  _MI(1, "M_LOADG", M_LoadGame, 108),
+  _MI(1, "M_SAVEG", M_SaveGame, 115),
+  _MI(1, "M_RDTHIS", M_ReadThis, 114),
+  _MI(1, "M_QUITG", M_QuitDOOM, 113)
+]
+end function
+
+/*
+* Function: _MMENU_BuildMultiplayerMenu
+* Purpose: Creates the multiplayer root menu item array.
+*/
+function _MMENU_BuildMultiplayerMenu()
+  return [
+  _MI(1, "", M_MPHostMenuOpen, 104),
+  _MI(1, "", M_MPJoinMenuOpen, 106),
+  _MI(1, "", M_MPNameMenuOpen, 112)
+]
+end function
+
+/*
+* Function: _MMENU_BuildMPHostMenu
+* Purpose: Creates host setup menu item array.
+*/
+function _MMENU_BuildMPHostMenu()
+  return [
+  _MI(2, "", M_MPHostMode, 109),
+  _MI(2, "", M_MPHostMap, 97),
+  _MI(2, "", M_MPHostSkill, 115),
+  _MI(2, "", M_MPHostPlayers, 112),
+  _MI(2, "", M_MPHostFragLimit, 102),
+  _MI(2, "", M_MPHostTimeLimit, 116),
+  _MI(2, "", M_MPHostPort, 111),
+  _MI(1, "", M_MPHostStart, 13)
+]
+end function
+
+/*
+* Function: _MMENU_BuildMPJoinMenu
+* Purpose: Creates join setup menu item array.
+*/
+function _MMENU_BuildMPJoinMenu()
+  return [
+  _MI(1, "", M_MPJoinEditHost, 104),
+  _MI(2, "", M_MPJoinPort, 112),
+  _MI(1, "", M_MPJoinStart, 13)
+]
+end function
+
+/*
+* Function: _MMENU_BuildMPNameMenu
+* Purpose: Creates player-name editor menu item array.
+*/
+function _MMENU_BuildMPNameMenu()
+  return [
+  _MI(1, "", M_MPNameEdit, 110),
+  _MI(1, "", M_MPNameDone, 100)
+]
+end function
+
 /*
 * Function: _BuildMenus
 * Purpose: Implements the _BuildMenus routine for the internal module support.
@@ -416,6 +546,14 @@ const load_end = 6
 function _BuildMenus()
   global MainMenu
   global MainDef
+  global MultiplayerMenu
+  global MultiplayerDef
+  global MPHostMenu
+  global MPHostDef
+  global MPJoinMenu
+  global MPJoinDef
+  global MPNameMenu
+  global MPNameDef
   global EpisodeMenu
   global EpiDef
   global NewGameMenu
@@ -435,15 +573,20 @@ function _BuildMenus()
   global quitsounds
   global quitsounds2
 
-  MainMenu =[
-  _MI(1, "M_NGAME", M_NewGame, 110),
-  _MI(1, "M_OPTION", M_Options, 111),
-  _MI(1, "M_LOADG", M_LoadGame, 108),
-  _MI(1, "M_SAVEG", M_SaveGame, 115),
-  _MI(1, "M_RDTHIS", M_ReadThis, 114),
-  _MI(1, "M_QUITG", M_QuitDOOM, 113)
-]
+  MainMenu = _MMENU_BuildMainMenu()
   MainDef = _Menu(main_end, 0, MainMenu, M_DrawMainMenu, 97, 64, 0)
+
+  MultiplayerMenu = _MMENU_BuildMultiplayerMenu()
+  MultiplayerDef = _Menu(mp_main_end, MainDef, MultiplayerMenu, M_DrawMultiplayerMenu, 72, 74, 0)
+
+  MPHostMenu = _MMENU_BuildMPHostMenu()
+  MPHostDef = _Menu(mp_host_end, MultiplayerDef, MPHostMenu, M_DrawMPHostMenu, 36, 44, 0)
+
+  MPJoinMenu = _MMENU_BuildMPJoinMenu()
+  MPJoinDef = _Menu(mp_join_end, MultiplayerDef, MPJoinMenu, M_DrawMPJoinMenu, 42, 74, 0)
+
+  MPNameMenu = _MMENU_BuildMPNameMenu()
+  MPNameDef = _Menu(mp_name_end, MultiplayerDef, MPNameMenu, M_DrawMPNameMenu, 42, 84, 0)
 
   EpisodeMenu =[
   _MI(1, "M_EPI1", M_Episode, 107),
@@ -849,6 +992,597 @@ end function
 */
 function M_DrawMainMenu()
   V_DrawPatchDirect(94, 2, 0, W_CacheLumpName("M_DOOM", PU_CACHE))
+  y = MainDef.y + LINEHEIGHT * main_multiplayer + 1
+  _MMENU_WriteTextMenuSized(MainDef.x, y, "MULTIPLAYER")
+end function
+
+/*
+* Function: _MMENU_ClampInt
+* Purpose: Clamps integer values for multiplayer setup fields.
+*/
+function _MMENU_ClampInt(v, lo, hi)
+  vi = _MMENU_ToInt(v, 0)
+  lo_i = _MMENU_ToInt(lo, 0)
+  hi_i = _MMENU_ToInt(hi, lo_i)
+  if hi_i < lo_i then
+    t = lo_i
+    lo_i = hi_i
+    hi_i = t
+  end if
+  if vi < lo_i then return lo_i end if
+  if vi > hi_i then return hi_i end if
+  return vi
+end function
+
+/*
+* Function: _MMENU_MPModeName
+* Purpose: Returns localized text for multiplayer mode value.
+*/
+function _MMENU_MPModeName(mode)
+  if mode == MP_MODE_DEATHMATCH then return "DEATHMATCH" end if
+  return "COOPERATIVE"
+end function
+
+/*
+* Function: _MMENU_MPSkillName
+* Purpose: Returns UI text for host-selected skill level.
+*/
+function _MMENU_MPSkillName(skill)
+  s = _MMENU_ToInt(skill, MP_SKILL_MEDIUM)
+  if s <= MP_SKILL_BABY then return "I'M TOO YOUNG TO DIE" end if
+  if s == MP_SKILL_EASY then return "HEY, NOT TOO ROUGH" end if
+  if s == MP_SKILL_MEDIUM then return "HURT ME PLENTY" end if
+  if s == MP_SKILL_HARD then return "ULTRA-VIOLENCE" end if
+  if s == MP_SKILL_NIGHTMARE then return "NIGHTMARE!" end if
+  return "HURT ME PLENTY"
+end function
+
+/*
+* Function: _MMENU_MPLimitText
+* Purpose: Formats deathmatch limits, including unlimited mode.
+*/
+function _MMENU_MPLimitText(v)
+  if typeof(v) != "int" then return "0" end if
+  if v <= 0 then return "UNLIMITED" end if
+  return v
+end function
+
+/*
+* Function: _MMENU_ToUpperAsciiString
+* Purpose: Converts a string to uppercase for ASCII letters.
+*/
+function _MMENU_ToUpperAsciiString(s0)
+  if typeof(s0) != "string" then return "" end if
+  b = bytes(s0)
+  i = 0
+  while i < len(b)
+    if b[i] >= 97 and b[i] <= 122 then b[i] = b[i] - 32 end if
+    i = i + 1
+  end while
+  return decode(b)
+end function
+
+/*
+* Function: _MMENU_ParseUnsignedTail
+* Purpose: Parses a positive integer from a string tail, returning -1 on failure.
+*/
+function _MMENU_ParseUnsignedTail(s0, startIdx)
+  if typeof(s0) != "string" then return -1 end if
+  b = bytes(s0)
+  if startIdx < 0 or startIdx >= len(b) then return -1 end if
+  i = startIdx
+  v = 0
+  seen = false
+  while i < len(b)
+    c = b[i]
+    if c < 48 or c > 57 then return -1 end if
+    seen = true
+    v = v * 10 +(c - 48)
+    i = i + 1
+  end while
+  if not seen then return -1 end if
+  return v
+end function
+
+/*
+* Function: _MMENU_ParseMapToken
+* Purpose: Parses MAPxx or ExMy map token and returns [episode,map].
+*/
+function _MMENU_ParseMapToken(mapToken)
+  up = _MMENU_ToUpperAsciiString(mapToken)
+  b = bytes(up)
+  if len(b) >= 5 and b[0] == 77 and b[1] == 65 and b[2] == 80 then
+    n = _MMENU_ParseUnsignedTail(up, 3)
+    if n > 0 then return [1, n] end if
+  end if
+
+  if len(b) >= 4 and b[0] == 69 and b[2] == 77 then
+    e = b[1] - 48
+    m = b[3] - 48
+    if e >= 1 and e <= 9 and m >= 1 and m <= 9 then
+      return [e, m]
+    end if
+  end if
+  return [1, 1]
+end function
+
+/*
+* Function: _MMENU_StartMultiplayerGame
+* Purpose: Starts local game session immediately using current MP session settings.
+*/
+function _MMENU_StartMultiplayerGame(mode, skill, mapToken, localSlot)
+  global netgame
+  global deathmatch
+  global startskill
+  global startepisode
+  global startmap
+  global autostart
+  global playeringame
+  global consoleplayer
+  global displayplayer
+  global advancedemo
+  global demoplayback
+  global usergame
+  global paused
+
+  m = _MMENU_ToInt(mode, MP_MODE_COOP)
+  if m != MP_MODE_DEATHMATCH then m = MP_MODE_COOP end if
+  sk = _MMENU_ClampInt(skill, MP_SKILL_BABY, MP_SKILL_NIGHTMARE)
+  slot = _MMENU_ClampInt(_MMENU_ToInt(localSlot, 0), 0, MAXPLAYERS - 1)
+
+  parsed = _MMENU_ParseMapToken(mapToken)
+  e = 1
+  mp = 1
+  if typeof(parsed) == "array" and len(parsed) >= 2 then
+    e = _MMENU_ToInt(parsed[0], 1)
+    mp = _MMENU_ToInt(parsed[1], 1)
+  end if
+
+  if gamemode == GameMode_t.commercial then
+    e = 1
+    mp = _MMENU_ClampInt(mp, 1, 32)
+  else
+    maxEpisode = 4
+    if gamemode == GameMode_t.shareware then
+      maxEpisode = 1
+    else if gamemode == GameMode_t.registered then
+      maxEpisode = 3
+    end if
+    e = _MMENU_ClampInt(e, 1, maxEpisode)
+    mp = _MMENU_ClampInt(mp, 1, 9)
+  end if
+
+  netgame = true
+  deathmatch = (m == MP_MODE_DEATHMATCH)
+  startskill = sk
+  startepisode = e
+  startmap = mp
+  autostart = true
+  advancedemo = false
+  demoplayback = false
+  usergame = true
+  paused = false
+  consoleplayer = slot
+  displayplayer = slot
+
+  if typeof(playeringame) == "array" then
+    i = 0
+    while i < len(playeringame)
+      playeringame[i] = false
+      i = i + 1
+    end while
+    if 0 < len(playeringame) then playeringame[0] = true end if
+    if slot >= 0 and slot < len(playeringame) then playeringame[slot] = true end if
+  end if
+
+  if typeof(S_StopMusic) == "function" then
+    S_StopMusic()
+  end if
+  G_DeferedInitNew(sk, e, mp)
+end function
+
+/*
+* Function: _MMENU_SyncMPBuffers
+* Purpose: Synchronizes editable menu buffers with multiplayer settings.
+*/
+function _MMENU_SyncMPBuffers()
+  global mpNameBuf
+  global mpNameOld
+  global mpNameCharIndex
+  global mpJoinHostBuf
+  global mpJoinHostOld
+  global mpJoinHostCharIndex
+  if typeof(mpNameBuf) != "bytes" then mpNameBuf = bytes(MP_MAX_NAME_LEN + 1, 0) end if
+  if typeof(mpNameOld) != "bytes" then mpNameOld = bytes(MP_MAX_NAME_LEN + 1, 0) end if
+  if typeof(mpJoinHostBuf) != "bytes" then mpJoinHostBuf = bytes(64, 0) end if
+  if typeof(mpJoinHostOld) != "bytes" then mpJoinHostOld = bytes(64, 0) end if
+  _cstrFromString(mpNameBuf, MP_GetPlayerName())
+  _cstrCopy(mpNameOld, mpNameBuf)
+  mpNameCharIndex = _cstrLen(mpNameBuf)
+  _cstrFromString(mpJoinHostBuf, mp_join_host)
+  _cstrCopy(mpJoinHostOld, mpJoinHostBuf)
+  mpJoinHostCharIndex = _cstrLen(mpJoinHostBuf)
+end function
+
+/*
+* Function: M_Multiplayer
+* Purpose: Opens the multiplayer root menu.
+*/
+function M_Multiplayer(choice)
+  choice = choice
+  MP_ClampSettings()
+  MP_RebuildMapList()
+  _MMENU_SyncMPBuffers()
+  M_SetupNextMenu(MultiplayerDef)
+end function
+
+/*
+* Function: M_DrawMultiplayerMenu
+* Purpose: Draws the multiplayer root menu.
+*/
+function M_DrawMultiplayerMenu()
+  _MMENU_WriteTextMenuSized(96, 20, "MULTIPLAYER")
+  y0 = MultiplayerDef.y + LINEHEIGHT * mp_main_host
+  y1 = MultiplayerDef.y + LINEHEIGHT * mp_main_join
+  y2 = MultiplayerDef.y + LINEHEIGHT * mp_main_name
+  _MMENU_WriteTextMenuSized(MultiplayerDef.x, y0, "HOST GAME")
+  _MMENU_WriteTextMenuSized(MultiplayerDef.x, y1, "JOIN GAME")
+  _MMENU_WriteTextMenuSized(MultiplayerDef.x, y2, "PLAYER NAME")
+end function
+
+/*
+* Function: M_MPHostMenuOpen
+* Purpose: Opens host setup menu and refreshes map/options state.
+*/
+function M_MPHostMenuOpen(choice)
+  choice = choice
+  MP_ClampSettings()
+  MP_RebuildMapList()
+  _MMENU_SyncMPBuffers()
+  M_SetupNextMenu(MPHostDef)
+end function
+
+/*
+* Function: M_MPJoinMenuOpen
+* Purpose: Opens join setup menu and refreshes editable host values.
+*/
+function M_MPJoinMenuOpen(choice)
+  choice = choice
+  MP_ClampSettings()
+  _MMENU_SyncMPBuffers()
+  M_SetupNextMenu(MPJoinDef)
+end function
+
+/*
+* Function: M_MPNameMenuOpen
+* Purpose: Opens player-name editor menu.
+*/
+function M_MPNameMenuOpen(choice)
+  choice = choice
+  _MMENU_SyncMPBuffers()
+  M_SetupNextMenu(MPNameDef)
+end function
+
+/*
+* Function: M_DrawMPHostMenu
+* Purpose: Draws host setup values for multiplayer dedicated server start.
+*/
+function M_DrawMPHostMenu()
+  MP_ClampSettings()
+  MP_RebuildMapList()
+  _MMENU_WriteTextMenuSized(108, 16, "HOST GAME")
+  y = MPHostDef.y
+  x = MPHostDef.x
+  y0 = y + LINEHEIGHT * mp_host_mode_item
+  y1 = y + LINEHEIGHT * mp_host_map
+  y2 = y + LINEHEIGHT * mp_host_skill_item
+  y3 = y + LINEHEIGHT * mp_host_players
+  y4 = y + LINEHEIGHT * mp_host_fraglimit
+  y5 = y + LINEHEIGHT * mp_host_timelimit
+  y6 = y + LINEHEIGHT * mp_host_port_item
+  y7 = y + LINEHEIGHT * mp_host_start
+  modeText = _MMENU_MPModeName(mp_host_mode)
+  mapText = MP_GetSelectedMap()
+  skillText = _MMENU_MPSkillName(mp_host_skill)
+  fragText = _MMENU_MPLimitText(mp_dm_frag_limit)
+  timeText = _MMENU_MPLimitText(mp_dm_time_limit)
+  _MMENU_WriteTextMenuSized(x, y0, "MODE: " + modeText)
+  _MMENU_WriteTextMenuSized(x, y1, "MAP: " + mapText)
+  _MMENU_WriteTextMenuSized(x, y2, "SKILL: " + skillText)
+  _MMENU_WriteTextMenuSized(x, y3, "MAX PLAYERS: " + mp_host_max_players)
+  _MMENU_WriteTextMenuSized(x, y4, "FRAG LIMIT: " + fragText)
+  _MMENU_WriteTextMenuSized(x, y5, "TIME LIMIT: " + timeText)
+  _MMENU_WriteTextMenuSized(x, y6, "PORT: " + mp_host_port)
+  _MMENU_WriteTextMenuSized(x, y7, "START HOST")
+end function
+
+/*
+* Function: M_DrawMPJoinMenu
+* Purpose: Draws join setup values and live host/name text editors.
+*/
+function M_DrawMPJoinMenu()
+  _MMENU_WriteTextMenuSized(108, 16, "JOIN GAME")
+  y = MPJoinDef.y
+  x = MPJoinDef.x
+  y0 = y + LINEHEIGHT * mp_join_host_item
+  y1 = y + LINEHEIGHT * mp_join_port_item
+  y2 = y + LINEHEIGHT * mp_join_start
+  hostText = decodeZ(mpJoinHostBuf)
+  _MMENU_WriteTextMenuSized(x, y0, "HOST: " + hostText)
+  if mpJoinHostEnter != 0 then
+    hostLine = "HOST: " + hostText
+    tx = x + _MMENU_StringWidthMenuSized(hostLine)
+    _MMENU_WriteTextMenuSized(tx, y0, "_")
+  end if
+  _MMENU_WriteTextMenuSized(x, y1, "PORT: " + mp_join_port)
+  _MMENU_WriteTextMenuSized(x, y2, "JOIN")
+end function
+
+/*
+* Function: M_DrawMPNameMenu
+* Purpose: Draws player name editor with caret during text entry.
+*/
+function M_DrawMPNameMenu()
+  _MMENU_WriteTextMenuSized(86, 24, "PLAYER NAME")
+  y = MPNameDef.y
+  x = MPNameDef.x
+  y0 = y + LINEHEIGHT * mp_name_edit
+  y1 = y + LINEHEIGHT * mp_name_done
+  nameText = decodeZ(mpNameBuf)
+  _MMENU_WriteTextMenuSized(x, y0, "NAME: " + nameText)
+  if mpNameEnter != 0 then
+    nameLine = "NAME: " + nameText
+    tx = x + _MMENU_StringWidthMenuSized(nameLine)
+    _MMENU_WriteTextMenuSized(tx, y0, "_")
+  end if
+  _MMENU_WriteTextMenuSized(x, y1, "DONE")
+end function
+
+/*
+* Function: M_MPHostMode
+* Purpose: Toggles host game mode between cooperative and deathmatch.
+*/
+function M_MPHostMode(choice)
+  choice = choice
+  if mp_host_mode == MP_MODE_COOP then
+    MP_SetMode(MP_MODE_DEATHMATCH)
+  else
+    MP_SetMode(MP_MODE_COOP)
+  end if
+  MP_ClampSettings()
+end function
+
+/*
+* Function: M_MPHostMap
+* Purpose: Cycles host-selected map through detected WAD map list.
+*/
+function M_MPHostMap(choice)
+  if choice == 0 then
+    MP_StepMap(-1)
+  else
+    MP_StepMap(1)
+  end if
+end function
+
+/*
+* Function: M_MPHostSkill
+* Purpose: Adjusts host-selected skill level.
+*/
+function M_MPHostSkill(choice)
+  global mp_host_skill
+  if choice == 0 then
+    mp_host_skill = mp_host_skill - 1
+  else
+    mp_host_skill = mp_host_skill + 1
+  end if
+  mp_host_skill = _MMENU_ClampInt(mp_host_skill, MP_SKILL_BABY, MP_SKILL_NIGHTMARE)
+end function
+
+/*
+* Function: M_MPHostPlayers
+* Purpose: Adjusts host maximum players within protocol bounds.
+*/
+function M_MPHostPlayers(choice)
+  global mp_host_max_players
+  if choice == 0 then
+    mp_host_max_players = mp_host_max_players - 1
+  else
+    mp_host_max_players = mp_host_max_players + 1
+  end if
+  MP_ClampSettings()
+end function
+
+/*
+* Function: M_MPHostFragLimit
+* Purpose: Adjusts deathmatch frag limit (0 means unlimited).
+*/
+function M_MPHostFragLimit(choice)
+  global mp_dm_frag_limit
+  if choice == 0 then
+    mp_dm_frag_limit = mp_dm_frag_limit - 5
+  else
+    mp_dm_frag_limit = mp_dm_frag_limit + 5
+  end if
+  if mp_dm_frag_limit < 0 then mp_dm_frag_limit = 0 end if
+  if mp_dm_frag_limit > 250 then mp_dm_frag_limit = 250 end if
+  MP_ClampSettings()
+end function
+
+/*
+* Function: M_MPHostTimeLimit
+* Purpose: Adjusts deathmatch time limit in minutes (0 means unlimited).
+*/
+function M_MPHostTimeLimit(choice)
+  global mp_dm_time_limit
+  if choice == 0 then
+    mp_dm_time_limit = mp_dm_time_limit - 5
+  else
+    mp_dm_time_limit = mp_dm_time_limit + 5
+  end if
+  if mp_dm_time_limit < 0 then mp_dm_time_limit = 0 end if
+  if mp_dm_time_limit > 180 then mp_dm_time_limit = 180 end if
+  MP_ClampSettings()
+end function
+
+/*
+* Function: M_MPHostPort
+* Purpose: Adjusts dedicated server listen port.
+*/
+function M_MPHostPort(choice)
+  global mp_host_port
+  if choice == 0 then
+    mp_host_port = mp_host_port - 1
+  else
+    mp_host_port = mp_host_port + 1
+  end if
+  MP_ClampSettings()
+end function
+
+/*
+* Function: M_MPHostStart
+* Purpose: Starts dedicated host bootstrap through platform multiplayer hooks.
+*/
+function M_MPHostStart(choice)
+  choice = choice
+  MP_ClampSettings()
+  MP_RebuildMapList()
+  _MMENU_SyncMPBuffers()
+
+  if not MP_UpdateIwadFingerprint() then
+    M_StartMessage("MP host failed: unable to hash active IWAD.", 0, false)
+    return
+  end if
+
+  if typeof(I_SetLoadingStatus) == "function" then I_SetLoadingStatus("Starting multiplayer host...") end if
+  if typeof(I_LoadingPulse) == "function" then I_LoadingPulse() end if
+
+  if typeof(MP_PlatformHostGame) == "function" then
+    hostPort = mp_host_port
+    hostMode = mp_host_mode
+    hostSkill = mp_host_skill
+    hostMap = MP_GetSelectedMap()
+    hostPlayers = mp_host_max_players
+    hostFrag = mp_dm_frag_limit
+    hostTime = mp_dm_time_limit
+    ok = MP_PlatformHostGame(hostPort, hostMode, hostSkill, hostMap, hostPlayers, hostFrag, hostTime)
+    if ok then
+      _MMENU_StartMultiplayerGame(hostMode, hostSkill, hostMap, 0)
+      M_ClearMenus()
+      return
+    end if
+  end if
+
+  if typeof(I_SetLoadingStatus) == "function" then I_SetLoadingStatus("") end if
+  reason = "Multiplayer host startup failed."
+  if typeof(MP_PlatformGetLastError) == "function" then
+    r = MP_PlatformGetLastError()
+    if typeof(r) == "string" and r != "" then reason = r end if
+  end if
+  M_StartMessage(reason, 0, false)
+end function
+
+/*
+* Function: M_MPJoinEditHost
+* Purpose: Enters text edit mode for join target host string.
+*/
+function M_MPJoinEditHost(choice)
+  global mpJoinHostEnter
+  global mpJoinHostCharIndex
+  choice = choice
+  _MMENU_SyncMPBuffers()
+  mpJoinHostEnter = 1
+  mpJoinHostCharIndex = _cstrLen(mpJoinHostBuf)
+  _cstrCopy(mpJoinHostOld, mpJoinHostBuf)
+end function
+
+/*
+* Function: M_MPJoinPort
+* Purpose: Adjusts join target UDP port.
+*/
+function M_MPJoinPort(choice)
+  global mp_join_port
+  if choice == 0 then
+    mp_join_port = mp_join_port - 1
+  else
+    mp_join_port = mp_join_port + 1
+  end if
+  MP_ClampSettings()
+end function
+
+/*
+* Function: M_MPJoinStart
+* Purpose: Starts multiplayer join handshake via platform networking hooks.
+*/
+function M_MPJoinStart(choice)
+  global mp_join_host
+  choice = choice
+  MP_ClampSettings()
+  mp_join_host = decodeZ(mpJoinHostBuf)
+  if mp_join_host == "" then
+    M_StartMessage("Please enter a host address.", 0, false)
+    return
+  end if
+  if not MP_UpdateIwadFingerprint() then
+    M_StartMessage("MP join failed: unable to hash active IWAD.", 0, false)
+    return
+  end if
+
+  if typeof(I_SetLoadingStatus) == "function" then I_SetLoadingStatus("Joining multiplayer game...") end if
+  if typeof(I_LoadingPulse) == "function" then I_LoadingPulse() end if
+
+  if typeof(MP_PlatformJoinGame) == "function" then
+    ok = MP_PlatformJoinGame(mp_join_host, mp_join_port, MP_GetPlayerName())
+    if ok then
+      sessionMode = mp_host_mode
+      sessionSkill = mp_host_skill
+      sessionMap = MP_GetSelectedMap()
+      if typeof(MP_PlatformGetSessionMode) == "function" then sessionMode = MP_PlatformGetSessionMode() end if
+      if typeof(MP_PlatformGetSessionSkill) == "function" then sessionSkill = MP_PlatformGetSessionSkill() end if
+      if typeof(MP_PlatformGetSessionMap) == "function" then sessionMap = MP_PlatformGetSessionMap() end if
+      localSlot = 0
+      if typeof(MP_PlatformGetLocalPlayerSlot) == "function" then localSlot = MP_PlatformGetLocalPlayerSlot() end if
+      _MMENU_StartMultiplayerGame(sessionMode, sessionSkill, sessionMap, localSlot)
+      M_ClearMenus()
+      return
+    end if
+  end if
+
+  if typeof(I_SetLoadingStatus) == "function" then I_SetLoadingStatus("") end if
+  reason = "Multiplayer join failed."
+  if typeof(MP_PlatformGetLastError) == "function" then
+    r = MP_PlatformGetLastError()
+    if typeof(r) == "string" and r != "" then reason = r end if
+  end if
+  M_StartMessage(reason, 0, false)
+end function
+
+/*
+* Function: M_MPNameEdit
+* Purpose: Enters text edit mode for multiplayer player name.
+*/
+function M_MPNameEdit(choice)
+  global mpNameEnter
+  global mpNameCharIndex
+  choice = choice
+  _MMENU_SyncMPBuffers()
+  mpNameEnter = 1
+  mpNameCharIndex = _cstrLen(mpNameBuf)
+  _cstrCopy(mpNameOld, mpNameBuf)
+end function
+
+/*
+* Function: M_MPNameDone
+* Purpose: Applies name changes and closes player-name editor menu.
+*/
+function M_MPNameDone(choice)
+  global mpNameEnter
+  choice = choice
+  if mpNameEnter != 0 then
+    mpNameEnter = 0
+  end if
+  MP_SetPlayerName(decodeZ(mpNameBuf))
+  _MMENU_SyncMPBuffers()
+  M_SetupNextMenu(MultiplayerDef)
 end function
 
 /*
@@ -1283,12 +2017,204 @@ function M_WriteText(x, y, string)
   end while
 end function
 
+/*
+* Function: _MMENU_DrawPatchScale2
+* Purpose: Draws a Doom patch scaled to 2x into the destination screen.
+*/
+function _MMENU_DrawPatchScale2(x, y, scrn, patch)
+  if typeof(patch) != "bytes" then return end if
+  if len(patch) < 8 then return end if
+  width = _patchWidth(patch)
+  height = _patchHeight(patch)
+  if width <= 0 or height <= 0 then return end if
+
+  // decode signed offsets directly (same format used by V_DrawPatch)
+  topoffset = patch[6] + (patch[7] << 8)
+  if topoffset >= 32768 then topoffset = topoffset - 65536 end if
+  leftoffset = patch[4] + (patch[5] << 8)
+  if leftoffset >= 32768 then leftoffset = leftoffset - 65536 end if
+
+  dy0 = y - topoffset * 2
+  dx0 = x - leftoffset * 2
+  if scrn == 0 then
+    V_MarkRect(dx0, dy0, width * 2, height * 2)
+  end if
+
+  destscreen = screens[scrn]
+  for col = 0 to width - 1
+    if 8 + col * 4 + 3 >= len(patch) then break end if
+    colofs = patch[8 + col * 4] | (patch[9 + col * 4] << 8) | (patch[10 + col * 4] << 16) | (patch[11 + col * 4] << 24)
+    p = colofs
+    while true
+      if p < 0 or p + 1 >= len(patch) then break end if
+      topdelta = patch[p]
+      if topdelta == 255 then break end if
+      length = patch[p + 1]
+      src = p + 3
+      if src < 0 or src + length - 1 >= len(patch) then break end if
+      dx = dx0 + col * 2
+      if dx >= 0 and dx < SCREENWIDTH then
+        for i = 0 to length - 1
+          sy = dy0 + (topdelta + i) * 2
+          if sy >= 0 and sy < SCREENHEIGHT then
+            c = patch[src + i]
+            destscreen[sy * SCREENWIDTH + dx] = c
+            if dx + 1 < SCREENWIDTH then destscreen[sy * SCREENWIDTH + dx + 1] = c end if
+            if sy + 1 < SCREENHEIGHT then
+              destscreen[(sy + 1) * SCREENWIDTH + dx] = c
+              if dx + 1 < SCREENWIDTH then destscreen[(sy + 1) * SCREENWIDTH + dx + 1] = c end if
+            end if
+          end if
+        end for
+      end if
+      p = p + length + 4
+    end while
+  end for
+end function
+
+/*
+* Function: _MMENU_StringWidthMenuSized
+* Purpose: Returns text width in pixels for 2x multiplayer menu font rendering.
+*/
+function _MMENU_StringWidthMenuSized(string)
+  b = _bytesOf(string)
+  w = 0
+  i = 0
+  while i < len(b)
+    c = b[i]
+    if c == 0 or c == 10 then break end if
+    c = _toupperByte(c) - HU_FONTSTART
+    if c < 0 or c >= HU_FONTSIZE then
+      w = w + 10
+    else
+      patch = hu_font[c]
+      w = w + _patchWidth(patch) * 2 + 2
+    end if
+    i = i + 1
+  end while
+  return w
+end function
+
+/*
+* Function: _MMENU_WriteTextMenuSized
+* Purpose: Draws highlighted menu text for multiplayer entries with menu-like visual weight.
+*/
+function _MMENU_WriteTextMenuSized(x, y, string)
+  b = _bytesOf(string)
+  cx = x
+  cy = y
+  i = 0
+  while i < len(b)
+    c = b[i]
+    i = i + 1
+    if c == 0 then break end if
+    if c == 10 then
+      cx = x
+      cy = cy + 14
+      continue
+    end if
+
+    c = _toupperByte(c) - HU_FONTSTART
+    if c < 0 or c >= HU_FONTSIZE then
+      cx = cx + 10
+      continue
+    end if
+
+    patch = hu_font[c]
+    w = _patchWidth(patch) * 2
+    if cx + w + 2 > SCREENWIDTH then break end if
+
+    _MMENU_DrawPatchScale2(cx, cy, 0, patch)
+    cx = cx + w + 2
+  end while
+end function
+
 _joywait = 0
 _mousewait = 0
 _mousey_acc = 0
 _lasty = 0
 _mousex_acc = 0
 _lastx = 0
+
+/*
+* Function: _MMENU_HandleMPNameEditKey
+* Purpose: Handles key input while multiplayer player-name editor is active.
+*/
+function _MMENU_HandleMPNameEditKey(ch)
+  global mpNameEnter
+  global mpNameCharIndex
+  if mpNameEnter == 0 then return false end if
+
+  if ch == KEY_BACKSPACE then
+    if mpNameCharIndex > 0 then
+      mpNameCharIndex = mpNameCharIndex - 1
+      mpNameBuf[mpNameCharIndex] = 0
+    end if
+    return true
+  end if
+
+  if ch == KEY_ESCAPE then
+    mpNameEnter = 0
+    _cstrCopy(mpNameBuf, mpNameOld)
+    mpNameCharIndex = _cstrLen(mpNameBuf)
+    return true
+  end if
+
+  if ch == KEY_ENTER then
+    mpNameEnter = 0
+    MP_SetPlayerName(decodeZ(mpNameBuf))
+    _MMENU_SyncMPBuffers()
+    return true
+  end if
+
+  if ch >= 32 and ch <= 126 and mpNameCharIndex < MP_MAX_NAME_LEN then
+    mpNameBuf[mpNameCharIndex] = ch
+    mpNameCharIndex = mpNameCharIndex + 1
+    mpNameBuf[mpNameCharIndex] = 0
+  end if
+  return true
+end function
+
+/*
+* Function: _MMENU_HandleMPJoinHostEditKey
+* Purpose: Handles key input while multiplayer join-host editor is active.
+*/
+function _MMENU_HandleMPJoinHostEditKey(ch)
+  global mpJoinHostEnter
+  global mpJoinHostCharIndex
+  global mp_join_host
+  if mpJoinHostEnter == 0 then return false end if
+
+  if ch == KEY_BACKSPACE then
+    if mpJoinHostCharIndex > 0 then
+      mpJoinHostCharIndex = mpJoinHostCharIndex - 1
+      mpJoinHostBuf[mpJoinHostCharIndex] = 0
+    end if
+    return true
+  end if
+
+  if ch == KEY_ESCAPE then
+    mpJoinHostEnter = 0
+    _cstrCopy(mpJoinHostBuf, mpJoinHostOld)
+    mpJoinHostCharIndex = _cstrLen(mpJoinHostBuf)
+    return true
+  end if
+
+  if ch == KEY_ENTER then
+    mpJoinHostEnter = 0
+    mp_join_host = decodeZ(mpJoinHostBuf)
+    MP_ClampSettings()
+    _MMENU_SyncMPBuffers()
+    return true
+  end if
+
+  if ch >= 32 and ch <= 126 and mpJoinHostCharIndex < len(mpJoinHostBuf) - 1 then
+    mpJoinHostBuf[mpJoinHostCharIndex] = ch
+    mpJoinHostCharIndex = mpJoinHostCharIndex + 1
+    mpJoinHostBuf[mpJoinHostCharIndex] = 0
+  end if
+  return true
+end function
 
 /*
 * Function: M_Responder
@@ -1384,6 +2310,14 @@ function M_Responder(ev)
   end if
 
   if ch == -1 then return false end if
+
+  if _MMENU_HandleMPNameEditKey(ch) then
+    return true
+  end if
+
+  if _MMENU_HandleMPJoinHostEditKey(ch) then
+    return true
+  end if
 
   if saveStringEnter != 0 then
     if ch == KEY_BACKSPACE then
@@ -1715,8 +2649,12 @@ function M_Responder(ev)
     */
     function M_ClearMenus()
       global menuactive
+      global mpNameEnter
+      global mpJoinHostEnter
 
       menuactive = false
+      mpNameEnter = 0
+      mpJoinHostEnter = 0
     end function
 
     /*
@@ -1726,9 +2664,13 @@ function M_Responder(ev)
     function M_SetupNextMenu(menudef)
       global currentMenu
       global itemOn
+      global mpNameEnter
+      global mpJoinHostEnter
 
       currentMenu = menudef
       itemOn = currentMenu.lastOn
+      mpNameEnter = 0
+      mpJoinHostEnter = 0
       _MMENU_ClampCursor()
     end function
 
@@ -1736,14 +2678,16 @@ function M_Responder(ev)
     * Function: M_Ticker
     * Purpose: Advances per-tick logic for the utility/math layer.
     */
-    function M_Ticker()
-      global skullAnimCounter
-      global whichSkull
+function M_Ticker()
+  global skullAnimCounter
+  global whichSkull
 
-      skullAnimCounter = skullAnimCounter - 1
-      if skullAnimCounter <= 0 then
-        whichSkull = whichSkull ^ 1
-        skullAnimCounter = 8
+  if typeof(MP_PlatformPump) == "function" then MP_PlatformPump() end if
+
+  skullAnimCounter = skullAnimCounter - 1
+  if skullAnimCounter <= 0 then
+    whichSkull = whichSkull ^ 1
+    skullAnimCounter = 8
       end if
     end function
 
@@ -1764,8 +2708,19 @@ function M_Responder(ev)
       global quickSaveSlot
       global savegamestrings
       global saveOldString
+      global mp_host_skill
+      global mpNameEnter
+      global mpNameCharIndex
+      global mpNameBuf
+      global mpNameOld
+      global mpJoinHostEnter
+      global mpJoinHostCharIndex
+      global mpJoinHostBuf
+      global mpJoinHostOld
 
       _BuildMenus()
+      MP_ClampSettings()
+      MP_RebuildMapList()
 
       currentMenu = MainDef
       menuactive = false
@@ -1785,6 +2740,20 @@ function M_Responder(ev)
         savegamestrings = savegamestrings +[bytes(SAVESTRINGSIZE, 0)]
       end for
       saveOldString = bytes(SAVESTRINGSIZE, 0)
+
+      if typeof(mp_host_skill) != "int" then
+        mp_host_skill = MP_SKILL_MEDIUM
+      end if
+      mp_host_skill = _MMENU_ClampInt(mp_host_skill, MP_SKILL_BABY, MP_SKILL_NIGHTMARE)
+      mpNameEnter = 0
+      mpNameCharIndex = 0
+      mpNameBuf = bytes(MP_MAX_NAME_LEN + 1, 0)
+      mpNameOld = bytes(MP_MAX_NAME_LEN + 1, 0)
+      mpJoinHostEnter = 0
+      mpJoinHostCharIndex = 0
+      mpJoinHostBuf = bytes(64, 0)
+      mpJoinHostOld = bytes(64, 0)
+      _MMENU_SyncMPBuffers()
 
       if gamemode == GameMode_t.commercial then
 

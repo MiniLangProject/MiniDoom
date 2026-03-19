@@ -632,7 +632,7 @@ function P_ArchivePlayers()
 
     p = void
     if typeof(players) == "array" and i < len(players) then p = players[i] end if
-    if p is void then p = Player_MakeDefault() end if
+    if typeof(p) != "struct" then p = Player_MakeDefault() end if
     _PSV_ArchivePlayerV2(p)
   end for
 end function
@@ -656,7 +656,7 @@ function P_UnArchivePlayers()
     end if
 
     if not ingame then
-      if typeof(players) == "array" and i < len(players) and players[i] is void then
+      if typeof(players) == "array" and i < len(players) and typeof(players[i]) != "struct" then
         players[i] = Player_MakeDefault()
       end if
       continue
@@ -664,7 +664,7 @@ function P_UnArchivePlayers()
 
     p = void
     if typeof(players) == "array" and i < len(players) then p = players[i] end if
-    if p is void then p = Player_MakeDefault() end if
+    if typeof(p) != "struct" then p = Player_MakeDefault() end if
 
     if ver >= 2 then
       _PSV_UnArchivePlayerV2(p)
@@ -952,9 +952,11 @@ function _PSV_ReadMobj()
   end if
 
   mo.player = void
-  if pidx >= 0 and typeof(players) == "array" and pidx < len(players) and players[pidx] is not void then
-    mo.player = players[pidx]
-    players[pidx].mo = mo
+  if pidx >= 0 and typeof(players) == "array" and pidx < len(players) and typeof(players[pidx]) == "struct" then
+    pp = players[pidx]
+    mo.player = pp
+    pp.mo = mo
+    players[pidx] = pp
   end if
   return mo
 end function
@@ -1007,7 +1009,11 @@ function P_UnArchiveThinkers()
   if typeof(players) == "array" then
     i = 0
     while i < len(players)
-      if players[i] is not void then players[i].mo = void end if
+      if typeof(players[i]) == "struct" then
+        p = players[i]
+        p.mo = void
+        players[i] = p
+      end if
       i = i + 1
     end while
   end if

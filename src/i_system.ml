@@ -25,6 +25,7 @@ import i_sound
 import d_net
 import g_game
 import i_system
+import mp_platform
 import std.math
 
 /*
@@ -118,6 +119,7 @@ end function
 function I_Quit()
 
   if typeof(D_QuitNetGame) == "function" then D_QuitNetGame() end if
+  if typeof(MP_PlatformShutdown) == "function" then MP_PlatformShutdown() end if
   if typeof(I_ShutdownSound) == "function" then I_ShutdownSound() end if
   if typeof(I_ShutdownMusic) == "function" then I_ShutdownMusic() end if
   if typeof(M_SaveDefaults) == "function" then M_SaveDefaults() end if
@@ -165,6 +167,7 @@ function I_Error(msg)
   end if
 
   if typeof(D_QuitNetGame) == "function" then D_QuitNetGame() end if
+  if typeof(MP_PlatformShutdown) == "function" then MP_PlatformShutdown() end if
   if typeof(I_ShutdownGraphics) == "function" then I_ShutdownGraphics() end if
 
   _I_ExitProcess(1)

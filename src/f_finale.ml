@@ -109,7 +109,7 @@ end function
 function _F_AnyPlayerButtons()
   i = 0
   while i < MAXPLAYERS
-    if typeof(players) == "array" and i < len(players) and players[i] is not void then
+    if typeof(players) == "array" and i < len(players) and typeof(players[i]) == "struct" then
       if typeof(players[i].cmd) != "void" and typeof(players[i].cmd.buttons) == "int" and players[i].cmd.buttons != 0 then
         return true
       end if

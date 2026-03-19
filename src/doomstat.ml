@@ -48,7 +48,12 @@ singledemo = false
 consoleplayer = 0
 displayplayer = 0
 
-players =[void, void, void, void]
+players =[
+Player_MakeDefault(),
+Player_MakeDefault(),
+Player_MakeDefault(),
+Player_MakeDefault()
+]
 playeringame =[false, false, false, false]
 
 startskill = skill_t.sk_medium

@@ -252,6 +252,8 @@ _i_mousePrevY = 0
 _i_mousePrevButtons = 0
 _i_fullscreen = false
 _i_cursorHidden = false
+_i_loadingStatusText = ""
+_i_loadingAnimPhase = 0
 
 /*
 * Function: _I_ToIntOr
@@ -310,6 +312,11 @@ function _I_UpdateWindowTitle()
 
   if _i_hwnd is void then return end if
 
+  if typeof(_i_loadingStatusText) == "string" and len(_i_loadingStatusText) > 0 then
+    _I_SetWindowTitle(_i_titleBase + " | " + _i_loadingStatusText)
+    return
+  end if
+
   now = std.time.ticks()
   if typeof(now) != "int" then return end if
 
@@ -334,6 +341,58 @@ function _I_UpdateWindowTitle()
 
   _i_fpsWindowStart = now
   _i_fpsFrameCount = 0
+end function
+
+/*
+* Function: _I_DrawLoadingIndicator
+* Purpose: Renders a small animated loading marker in the lower-right corner of the software framebuffer.
+*/
+function _I_DrawLoadingIndicator()
+  global _i_loadingAnimPhase
+  if not _i_inited then return end if
+  if typeof(screens) != "array" or len(screens) <= 0 then return end if
+  fb = screens[0]
+  if typeof(fb) != "bytes" then return end if
+  if len(fb) < SCREENWIDTH * SCREENHEIGHT then return end if
+
+  size = 14
+  x0 = SCREENWIDTH - size - 6
+  y0 = SCREENHEIGHT - size - 6
+  if x0 < 0 or y0 < 0 then return end if
+
+  y = 0
+  while y < size
+    base = (y0 + y) * SCREENWIDTH + x0
+    x = 0
+    while x < size
+      fb[base + x] = 0
+      x = x + 1
+    end while
+    y = y + 1
+  end while
+
+  phase = _I_ToIntOr(_i_loadingAnimPhase, 0) & 3
+  dotx = [2, size - 5, size - 5, 2]
+  doty = [2, 2, size - 5, size - 5]
+  i = 0
+  while i < 4
+    c = 96
+    if i == phase then c = 248 end if
+    px = x0 + dotx[i]
+    py = y0 + doty[i]
+    yy = 0
+    while yy < 3
+      row = (py + yy) * SCREENWIDTH + px
+      xx = 0
+      while xx < 3
+        fb[row + xx] = c
+        xx = xx + 1
+      end while
+      yy = yy + 1
+    end while
+    i = i + 1
+  end while
+  _i_loadingAnimPhase = _i_loadingAnimPhase + 1
 end function
 
 /*
@@ -1078,15 +1137,32 @@ end function
 * Purpose: Loads and prepares data required by the platform layer.
 */
 function I_SetLoadingStatus(text)
+  global _i_loadingStatusText
+  global _i_loadingAnimPhase
   if not _i_inited then return end if
 
   if typeof(text) != "string" then text = "" end if
+  _i_loadingStatusText = text
   if len(text) == 0 then
+    _i_loadingAnimPhase = 0
     _I_SetWindowTitle(_i_titleBase + " | FPS: " + _i_fpsValue)
   else
     _I_SetWindowTitle(_i_titleBase + " | " + text)
   end if
   _I_PumpMessages()
+end function
+
+/*
+* Function: I_LoadingPulse
+* Purpose: Pumps window/audio updates and draws an animated loading marker while heavy loading code runs.
+*/
+function I_LoadingPulse()
+  if not _i_inited then return end if
+  _I_PumpMessages()
+  _I_DrawLoadingIndicator()
+  if typeof(I_FinishUpdate) == "function" then I_FinishUpdate() end if
+  if typeof(I_UpdateSound) == "function" then I_UpdateSound() end if
+  if typeof(I_SubmitSound) == "function" then I_SubmitSound() end if
 end function
 
 /*

@@ -30,6 +30,7 @@ import f_wipe
 import m_argv
 import m_misc
 import m_menu
+import mp_platform
 import i_system
 import i_sound
 import i_video
@@ -127,6 +128,29 @@ function _D_ProfileAdd(slot, delta)
     _d_prof_other_ms = _d_prof_other_ms + delta
   else
     _d_prof_vid_ms = _d_prof_vid_ms + delta
+  end if
+end function
+
+/*
+* Function: _D_DrawMPDebugOverlay
+* Purpose: Renders multiplayer debug telemetry text overlay when MP runtime is active.
+*/
+function _D_DrawMPDebugOverlay()
+  if typeof(MP_PlatformGetDebugOverlayText) != "function" then return end if
+  txt = MP_PlatformGetDebugOverlayText()
+  if typeof(D_NetMPDebugOverlayText) == "function" then
+    dtxt = D_NetMPDebugOverlayText()
+    if typeof(dtxt) == "string" and dtxt != "" then
+      if txt == "" then
+        txt = dtxt
+      else
+        txt = txt + "\n" + dtxt
+      end if
+    end if
+  end if
+  if typeof(txt) != "string" or txt == "" then return end if
+  if typeof(M_WriteText) == "function" then
+    M_WriteText(2, 2, txt)
   end if
 end function
 
@@ -313,8 +337,10 @@ function D_DoAdvanceDemo()
   global pagetic
   global pagename
 
-  if typeof(players) == "array" and typeof(consoleplayer) == "int" and consoleplayer >= 0 and consoleplayer < len(players) and players[consoleplayer] is not void then
-    players[consoleplayer].playerstate = playerstate_t.PST_LIVE
+  if typeof(players) == "array" and typeof(consoleplayer) == "int" and consoleplayer >= 0 and consoleplayer < len(players) and typeof(players[consoleplayer]) == "struct" then
+    cp = players[consoleplayer]
+    cp.playerstate = playerstate_t.PST_LIVE
+    players[consoleplayer] = cp
   end if
   advancedemo = false
   usergame = false
@@ -973,7 +999,12 @@ function D_Display()
 
   if typeof(I_UpdateNoBlit) == "function" then I_UpdateNoBlit() end if
   if typeof(M_Drawer) == "function" then M_Drawer() end if
-  if typeof(NetUpdate) == "function" then NetUpdate() end if
+  _D_DrawMPDebugOverlay()
+  mpAuthoritative = false
+  if typeof(MP_PlatformIsHosting) == "function" and MP_PlatformIsHosting() then mpAuthoritative = true end if
+  if typeof(MP_PlatformIsClientConnected) == "function" and MP_PlatformIsClientConnected() then mpAuthoritative = true end if
+  // TryRunTics already runs NetUpdate in authoritative MP mode; avoid duplicate per-frame network ticks here.
+  if (not mpAuthoritative) and typeof(NetUpdate) == "function" then NetUpdate() end if
 
   wipegamestate = gamestate
 
@@ -1044,6 +1075,7 @@ function D_Display()
 
     if typeof(I_UpdateNoBlit) == "function" then I_UpdateNoBlit() end if
     if typeof(M_Drawer) == "function" then M_Drawer() end if
+    _D_DrawMPDebugOverlay()
     if typeof(I_FinishUpdate) == "function" then
       if profiling then
         t0 = _D_TimeMs()
@@ -1096,7 +1128,7 @@ function D_DoomLoop()
     end if
 
     if typeof(S_UpdateSounds) == "function" then
-      if typeof(players) == "array" and typeof(consoleplayer) == "int" and consoleplayer >= 0 and consoleplayer < len(players) and players[consoleplayer] is not void then
+      if typeof(players) == "array" and typeof(consoleplayer) == "int" and consoleplayer >= 0 and consoleplayer < len(players) and typeof(players[consoleplayer]) == "struct" then
         S_UpdateSounds(players[consoleplayer].mo)
       else
         S_UpdateSounds(void)

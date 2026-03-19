@@ -128,6 +128,7 @@ struct mobj_t
   lastlook
   spawnpoint
   tracer
+  mpuid
 end struct
 
 const ITEMQUESIZE = 128
@@ -137,6 +138,9 @@ iquehead = 0
 iquetail = 0
 _pm_thinker_nodes =[]
 _pm_thinker_owners =[]
+_pm_thinker_ids =[]
+_pm_next_thinker_id = 1
+_pm_next_netuid = 1
 
 /*
 * Function: _InitItemRespawnQueue
@@ -163,8 +167,32 @@ end function
 function inline _PM_RegisterThinker(node, owner)
   global _pm_thinker_nodes
   global _pm_thinker_owners
+  global _pm_thinker_ids
+  global _pm_next_thinker_id
+  i = len(_pm_thinker_nodes) - 1
+  while i >= 0
+    if _pm_thinker_nodes[i] == node then
+      _pm_thinker_owners[i] = owner
+      if i >= len(_pm_thinker_ids) then
+        _pm_thinker_ids = _pm_thinker_ids +[_pm_next_thinker_id]
+        _pm_next_thinker_id = _pm_next_thinker_id + 1
+      else if _PM_ToInt(_pm_thinker_ids[i], 0) <= 0 then
+        _pm_thinker_ids[i] = _pm_next_thinker_id
+        _pm_next_thinker_id = _pm_next_thinker_id + 1
+      end if
+      if _pm_next_thinker_id <= 0 then _pm_next_thinker_id = 1 end if
+      return
+    end if
+    i = i - 1
+  end while
+
+  tid = _PM_ToInt(_pm_next_thinker_id, 1)
+  if tid <= 0 then tid = 1 end if
+  _pm_next_thinker_id = tid + 1
+  if _pm_next_thinker_id <= 0 then _pm_next_thinker_id = 1 end if
   _pm_thinker_nodes = _pm_thinker_nodes +[node]
   _pm_thinker_owners = _pm_thinker_owners +[owner]
+  _pm_thinker_ids = _pm_thinker_ids +[tid]
 end function
 
 /*
@@ -185,17 +213,37 @@ function inline _PM_ResolveThinkerOwner(node)
 end function
 
 /*
+* Function: _PM_ResolveThinkerId
+* Purpose: Returns stable thinker registration id used for multiplayer actor mapping.
+*/
+function inline _PM_ResolveThinkerId(node)
+  i = len(_pm_thinker_nodes) - 1
+  while i >= 0
+    if _pm_thinker_nodes[i] == node then
+      if i < len(_pm_thinker_ids) then
+        return _PM_ToInt(_pm_thinker_ids[i], 0)
+      end if
+      return 0
+    end if
+    i = i - 1
+  end while
+  return 0
+end function
+
+/*
 * Function: _PM_UnregisterThinker
 * Purpose: Advances per-tick logic for the internal module support.
 */
 function inline _PM_UnregisterThinker(node)
   global _pm_thinker_nodes
   global _pm_thinker_owners
+  global _pm_thinker_ids
   i = len(_pm_thinker_nodes) - 1
   while i >= 0
     if _pm_thinker_nodes[i] == node then
       _pm_thinker_nodes[i] = 0
       _pm_thinker_owners[i] = 0
+      if i < len(_pm_thinker_ids) then _pm_thinker_ids[i] = 0 end if
       return
     end if
     i = i - 1
@@ -266,6 +314,19 @@ function _PM_MobjTypeIndex(v)
 end function
 
 /*
+* Function: _PM_AllocNetUid
+* Purpose: Allocates a positive per-mobj uid used by multiplayer replication.
+*/
+function inline _PM_AllocNetUid()
+  global _pm_next_netuid
+  idv = _PM_ToInt(_pm_next_netuid, 1)
+  if idv <= 0 then idv = 1 end if
+  _pm_next_netuid = idv + 1
+  if _pm_next_netuid <= 0 then _pm_next_netuid = 1 end if
+  return idv
+end function
+
+/*
 * Function: _Mobj_Default
 * Purpose: Implements the _Mobj_Default routine for the internal module support.
 */
@@ -289,7 +350,8 @@ function _Mobj_Default()
   void,
   0,
   mapthing_t(0, 0, 0, 0, 0),
-  void
+  void,
+  0
 )
 end function
 
@@ -416,6 +478,7 @@ function P_SpawnMobj(x, y, z, type)
   mo.y = y
   mo.z = z
   mo.type = typeIdx
+  mo.mpuid = _PM_AllocNetUid()
   mo.lastlook = P_Random() % MAXPLAYERS
 
   if mo.thinker is void then
@@ -695,13 +758,13 @@ function P_SpawnPlayer(mthing)
   end if
 
   p = players[pnum]
-  if p is void then
+  if typeof(p) != "struct" then
     p = Player_MakeDefault()
   end if
   if p.playerstate == playerstate_t.PST_REBORN then
     if typeof(G_PlayerReborn) == "function" then
       G_PlayerReborn(pnum)
-      if typeof(players) == "array" and pnum < len(players) and players[pnum] is not void then
+      if typeof(players) == "array" and pnum < len(players) and typeof(players[pnum]) == "struct" then
         p = players[pnum]
       end if
     else

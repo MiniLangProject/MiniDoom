@@ -87,7 +87,8 @@ function inline P_DivlineSide(x, y, node)
 
   if node.dy == 0 then
 
-    if x == node.y then return 2 end if
+    // Vanilla source has a known typo here (x == node->y); keep y-check for stable LOS.
+    if y == node.y then return 2 end if
     if y <= node.y then
       if node.dx < 0 then return 1 else return 0 end if
     end if

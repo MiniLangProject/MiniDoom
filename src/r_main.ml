@@ -985,7 +985,19 @@ function R_RenderPlayerView(player)
   global _r_prof_planes_ms
   global _r_prof_masked_ms
 
-  _R_SetupFrame(player)
+  renderPlayer = player
+  if renderPlayer is void or renderPlayer.mo is void or renderPlayer.mo.subsector is void then
+    if typeof(viewplayer) == "struct" and viewplayer.mo is not void and viewplayer.mo.subsector is not void then
+      renderPlayer = viewplayer
+    end if
+  end if
+
+  _R_SetupFrame(renderPlayer)
+
+  // In client-authoritative snapshot gaps, keep drawing the last valid pose instead of blanking.
+  if renderPlayer is void or renderPlayer.mo is void or renderPlayer.mo.subsector is void then
+    return
+  end if
 
   if _r_prof_enabled then
     t0 = _R_TimeMs()
@@ -1005,7 +1017,13 @@ function R_RenderPlayerView(player)
     R_ClearSprites()
   end if
 
-  if typeof(NetUpdate) == "function" then NetUpdate() end if
+  if typeof(NetUpdate) == "function" then
+    if typeof(_DNet_MPIsAuthoritative) == "function" and _DNet_MPIsAuthoritative() then
+      // Avoid authoritative state mutation while a frame is mid-render.
+    else
+      NetUpdate()
+    end if
+  end if
   if _r_prof_enabled then
     t0 = _R_TimeMs()
     R_RenderBSPNode(numnodes - 1)
@@ -1013,7 +1031,13 @@ function R_RenderPlayerView(player)
   else
     R_RenderBSPNode(numnodes - 1)
   end if
-  if typeof(NetUpdate) == "function" then NetUpdate() end if
+  if typeof(NetUpdate) == "function" then
+    if typeof(_DNet_MPIsAuthoritative) == "function" and _DNet_MPIsAuthoritative() then
+      // Avoid authoritative state mutation while a frame is mid-render.
+    else
+      NetUpdate()
+    end if
+  end if
   if _r_prof_enabled then
     t0 = _R_TimeMs()
     R_DrawPlanes()
@@ -1021,7 +1045,13 @@ function R_RenderPlayerView(player)
   else
     R_DrawPlanes()
   end if
-  if typeof(NetUpdate) == "function" then NetUpdate() end if
+  if typeof(NetUpdate) == "function" then
+    if typeof(_DNet_MPIsAuthoritative) == "function" and _DNet_MPIsAuthoritative() then
+      // Avoid authoritative state mutation while a frame is mid-render.
+    else
+      NetUpdate()
+    end if
+  end if
   if _r_prof_enabled then
     t0 = _R_TimeMs()
     R_DrawMasked()
@@ -1029,7 +1059,13 @@ function R_RenderPlayerView(player)
   else
     R_DrawMasked()
   end if
-  if typeof(NetUpdate) == "function" then NetUpdate() end if
+  if typeof(NetUpdate) == "function" then
+    if typeof(_DNet_MPIsAuthoritative) == "function" and _DNet_MPIsAuthoritative() then
+      // Avoid authoritative state mutation while a frame is mid-render.
+    else
+      NetUpdate()
+    end if
+  end if
 
   if _r_prof_enabled then
     _r_prof_frames = _r_prof_frames + 1

@@ -1337,7 +1337,7 @@ function A_BossDeath(mo)
   anyAlive = false
   i = 0
   while i < MAXPLAYERS
-    if i < len(playeringame) and playeringame[i] and i < len(players) and players[i] is not void and players[i].health > 0 then
+    if i < len(playeringame) and playeringame[i] and i < len(players) and typeof(players[i]) == "struct" and players[i].health > 0 then
       anyAlive = true
       break
     end if

@@ -157,14 +157,8 @@ end function
 * Purpose: Implements the _RT_MakeEmptyFrame routine for the internal module support.
 */
 function inline _RT_MakeEmptyFrame()
-  lumps =[]
-  flips =[]
-  i = 0
-  while i < 8
-    lumps = lumps +[-1]
-    flips = flips +[0]
-    i = i + 1
-  end while
+  lumps = array(8, -1)
+  flips = array(8, 0)
   return spriteframe_t(-1, lumps, flips)
 end function
 
@@ -405,10 +399,10 @@ end function
 * Purpose: Implements the _RT_BuildSpriteDef routine for the internal module support.
 */
 function _RT_BuildSpriteDef(sprname)
-  frames =[]
+  frames = array(29)
   i = 0
   while i < 29
-    frames = frames +[_RT_MakeEmptyFrame()]
+    frames[i] = _RT_MakeEmptyFrame()
     i = i + 1
   end while
 
@@ -440,7 +434,7 @@ function _RT_BuildSpriteDef(sprname)
     return spritedef_t(0,[])
   end if
 
-  framesOut =[]
+  framesOut = array(maxframe + 1)
   fi = 0
   while fi <= maxframe
     sf = frames[fi]
@@ -457,7 +451,7 @@ function _RT_BuildSpriteDef(sprname)
         r = r + 1
       end while
     end if
-    framesOut = framesOut +[sf]
+    framesOut[fi] = sf
     fi = fi + 1
   end while
 
@@ -496,9 +490,10 @@ function R_ClearSprites()
   global _rt_rejNoVis
 
   if len(vissprites) == 0 then
+    vissprites = array(MAXVISSPRITES)
     i = 0
     while i < MAXVISSPRITES
-      vissprites = vissprites +[_makeVisSprite()]
+      vissprites[i] = _makeVisSprite()
       i = i + 1
     end while
   end if
@@ -522,12 +517,8 @@ function R_ClearSprites()
   _rt_rejNoVis = 0
 
   if len(negonearray) == 0 then
-    x = 0
-    while x < SCREENWIDTH
-      negonearray = negonearray +[-1]
-      screenheightarray = screenheightarray +[viewheight]
-      x = x + 1
-    end while
+    negonearray = array(SCREENWIDTH, -1)
+    screenheightarray = array(SCREENWIDTH, viewheight)
   else
     x = 0
     while x < SCREENWIDTH and x < len(screenheightarray)
@@ -537,12 +528,8 @@ function R_ClearSprites()
   end if
 
   if len(_rt_clipbot_work) == 0 then
-    x = 0
-    while x < SCREENWIDTH
-      _rt_clipbot_work = _rt_clipbot_work +[-2]
-      _rt_cliptop_work = _rt_cliptop_work +[-2]
-      x = x + 1
-    end while
+    _rt_clipbot_work = array(SCREENWIDTH, -2)
+    _rt_cliptop_work = array(SCREENWIDTH, -2)
   end if
 
   if vsprsortedhead is void then
@@ -587,9 +574,10 @@ function _RT_RebuildColormapCache()
 
   levels = _RT_IDiv(len(colormaps), 256)
   if levels < 1 then levels = 1 end if
+  _rt_colormap_cache = array(levels)
   i = 0
   while i < levels
-    _rt_colormap_cache = _rt_colormap_cache +[slice(colormaps, i * 256, 256)]
+    _rt_colormap_cache[i] = slice(colormaps, i * 256, 256)
     i = i + 1
   end while
   _rt_colormap_cache_len = len(colormaps)
@@ -1028,9 +1016,7 @@ function R_SortVisSprites()
   global _rt_sorted_count
 
   if len(_rt_sorted) < MAXVISSPRITES then
-    while len(_rt_sorted) < MAXVISSPRITES
-      _rt_sorted = _rt_sorted +[void]
-    end while
+    _rt_sorted = _rt_sorted + array(MAXVISSPRITES - len(_rt_sorted))
   end if
 
   _rt_sorted_count = 0
@@ -1203,14 +1189,10 @@ function R_InitSprites(namelist)
   global sprites
 
   if len(negonearray) == 0 then
-    x = 0
-    while x < SCREENWIDTH
-      global negonearray
-      negonearray = negonearray +[-1]
-      global screenheightarray
-      screenheightarray = screenheightarray +[viewheight]
-      x = x + 1
-    end while
+    global negonearray
+    negonearray = array(SCREENWIDTH, -1)
+    global screenheightarray
+    screenheightarray = array(SCREENWIDTH, viewheight)
   end if
 
   if not _RT_IsSeq(namelist) then
@@ -1220,11 +1202,11 @@ function R_InitSprites(namelist)
   end if
 
   numsprites = len(namelist)
-  sprites =[]
+  sprites = array(numsprites)
   i = 0
   while i < numsprites
     sn = _RT_Name4(namelist[i])
-    sprites = sprites +[_RT_BuildSpriteDef(sn)]
+    sprites[i] = _RT_BuildSpriteDef(sn)
     i = i + 1
   end while
 

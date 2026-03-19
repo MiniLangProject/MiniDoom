@@ -188,9 +188,15 @@ function _RP_EnsurePlaneCapacity(needIndex)
     end if
   end while
 
-  while len(visplanes) < target
-    visplanes = visplanes +[_RP_NewPlane(0, 0, 0)]
-  end while
+  if len(visplanes) < target then
+    oldLen = len(visplanes)
+    visplanes = visplanes + array(target - oldLen)
+    i = oldLen
+    while i < target
+      visplanes[i] = _RP_NewPlane(0, 0, 0)
+      i = i + 1
+    end while
+  end if
   return needIndex < len(visplanes)
 end function
 
@@ -288,41 +294,30 @@ function R_InitPlanes()
   global _rp_default_colormap
 
   if len(floorclip) == 0 then
-    i = 0
-    while i < SCREENWIDTH
-      floorclip = floorclip +[0]
-      ceilingclip = ceilingclip +[0]
-      distscale = distscale +[0]
-      i = i + 1
-    end while
+    floorclip = array(SCREENWIDTH, 0)
+    ceilingclip = array(SCREENWIDTH, 0)
+    distscale = array(SCREENWIDTH, 0)
   end if
 
   if len(yslope) == 0 then
-    i = 0
-    while i < SCREENHEIGHT
-      yslope = yslope +[0]
-      spanstart = spanstart +[0]
-      spanstop = spanstop +[0]
-      cachedheight = cachedheight +[0]
-      cacheddistance = cacheddistance +[0]
-      cachedxstep = cachedxstep +[0]
-      cachedystep = cachedystep +[0]
-      i = i + 1
-    end while
+    yslope = array(SCREENHEIGHT, 0)
+    spanstart = array(SCREENHEIGHT, 0)
+    spanstop = array(SCREENHEIGHT, 0)
+    cachedheight = array(SCREENHEIGHT, 0)
+    cacheddistance = array(SCREENHEIGHT, 0)
+    cachedxstep = array(SCREENHEIGHT, 0)
+    cachedystep = array(SCREENHEIGHT, 0)
   end if
 
   if len(openings) == 0 then
-    i = 0
-    while i < MAXOPENINGS
-      openings = openings +[0]
-      i = i + 1
-    end while
+    openings = array(MAXOPENINGS, 0)
   end if
 
   if len(visplanes) == 0 then
+    visplanes = array(MAXVISPLANES)
     i = 0
     while i < MAXVISPLANES
-      visplanes = visplanes +[_RP_NewPlane(0, 0, 0)]
+      visplanes[i] = _RP_NewPlane(0, 0, 0)
       i = i + 1
     end while
   end if

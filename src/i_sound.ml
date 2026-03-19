@@ -385,28 +385,22 @@ function _IS_EnsureSfxCacheSize()
   oldSamples = _I_sfxSamples
   oldLengths = lengths
 
-  _I_sfxRates =[]
-  _I_sfxSamples =[]
-  lengths =[]
+  _I_sfxRates = array(target, _IS_MIX_RATE)
+  _I_sfxSamples = array(target)
+  lengths = array(target, 0)
 
   i = 0
   while i < target
     if _IS_IsSeq(oldRates) and i < len(oldRates) then
-      _I_sfxRates = _I_sfxRates +[_IS_ToInt(oldRates[i], _IS_MIX_RATE)]
-    else
-      _I_sfxRates = _I_sfxRates +[_IS_MIX_RATE]
+      _I_sfxRates[i] = _IS_ToInt(oldRates[i], _IS_MIX_RATE)
     end if
 
     if _IS_IsSeq(oldSamples) and i < len(oldSamples) then
-      _I_sfxSamples = _I_sfxSamples +[oldSamples[i]]
-    else
-      _I_sfxSamples = _I_sfxSamples +[void]
+      _I_sfxSamples[i] = oldSamples[i]
     end if
 
     if _IS_IsSeq(oldLengths) and i < len(oldLengths) then
-      lengths = lengths +[_IS_ToInt(oldLengths[i], 0)]
-    else
-      lengths = lengths +[0]
+      lengths[i] = _IS_ToInt(oldLengths[i], 0)
     end if
     i = i + 1
   end while
@@ -421,14 +415,14 @@ function inline _IS_InitStepTable()
 
   if _IS_IsSeq(_I_stepTable) and len(_I_stepTable) == 256 then return end if
 
-  _I_stepTable =[]
+  _I_stepTable = array(256, 0)
   i = 0
   while i < 256
     expn =(i - 128) / 64.0
     stepf = std.math.pow(2.0, expn) * 65536.0
     step = _IS_ToInt(stepf, 65536)
     if step < 1 then step = 1 end if
-    _I_stepTable = _I_stepTable +[step]
+    _I_stepTable[i] = step
     i = i + 1
   end while
 end function
@@ -450,33 +444,17 @@ function _IS_ResetChannels()
   global _I_chLeftVol
   global _I_chRightVol
 
-  _I_chActive =[]
-  _I_chHandle =[]
-  _I_chId =[]
-  _I_chData =[]
-  _I_chLen =[]
-  _I_chPos =[]
-  _I_chFrac =[]
-  _I_chStep =[]
-  _I_chStart =[]
-  _I_chLeftVol =[]
-  _I_chRightVol =[]
-
-  i = 0
-  while i < _IS_NUM_MIX_CHANNELS
-    _I_chActive = _I_chActive +[0]
-    _I_chHandle = _I_chHandle +[-1]
-    _I_chId = _I_chId +[-1]
-    _I_chData = _I_chData +[void]
-    _I_chLen = _I_chLen +[0]
-    _I_chPos = _I_chPos +[0]
-    _I_chFrac = _I_chFrac +[0]
-    _I_chStep = _I_chStep +[65536]
-    _I_chStart = _I_chStart +[0]
-    _I_chLeftVol = _I_chLeftVol +[0]
-    _I_chRightVol = _I_chRightVol +[0]
-    i = i + 1
-  end while
+  _I_chActive = array(_IS_NUM_MIX_CHANNELS, 0)
+  _I_chHandle = array(_IS_NUM_MIX_CHANNELS, -1)
+  _I_chId = array(_IS_NUM_MIX_CHANNELS, -1)
+  _I_chData = array(_IS_NUM_MIX_CHANNELS)
+  _I_chLen = array(_IS_NUM_MIX_CHANNELS, 0)
+  _I_chPos = array(_IS_NUM_MIX_CHANNELS, 0)
+  _I_chFrac = array(_IS_NUM_MIX_CHANNELS, 0)
+  _I_chStep = array(_IS_NUM_MIX_CHANNELS, 65536)
+  _I_chStart = array(_IS_NUM_MIX_CHANNELS, 0)
+  _I_chLeftVol = array(_IS_NUM_MIX_CHANNELS, 0)
+  _I_chRightVol = array(_IS_NUM_MIX_CHANNELS, 0)
 end function
 
 /*
@@ -665,7 +643,7 @@ function _IS_WaveInit()
 
   _I_waveReady = false
   _I_waveHandle = 0
-  _I_waveBuffers =[]
+  _I_waveBuffers = array(_IS_NUM_WAVE_BUFS)
 
   hbuf = bytes(8, 0)
   rc = waveOutOpen(hbuf, _IS_WAVE_MAPPER, _IS_WaveFormat(), void, void, 0)
@@ -704,7 +682,7 @@ function _IS_WaveInit()
       return
     end if
 
-    _I_waveBuffers = _I_waveBuffers +[_I_wavebuf_t(dptr, hptr, false)]
+    _I_waveBuffers[i] = _I_wavebuf_t(dptr, hptr, false)
     i = i + 1
   end while
 
@@ -1000,17 +978,9 @@ function _IS_MusicResetRuntime()
   global _I_musicDelay
   global _I_musicMsFrac
 
-  _I_musicChanVel =[]
-  _I_musicChanMap =[]
-  _I_musicUsedMidi =[]
-
-  i = 0
-  while i < 16
-    _I_musicChanVel = _I_musicChanVel +[127]
-    _I_musicChanMap = _I_musicChanMap +[-1]
-    _I_musicUsedMidi = _I_musicUsedMidi +[0]
-    i = i + 1
-  end while
+  _I_musicChanVel = array(16, 127)
+  _I_musicChanMap = array(16, -1)
+  _I_musicUsedMidi = array(16, 0)
 
   _I_musicUsedMidi[9] = 1
   _I_musicDelay = 0

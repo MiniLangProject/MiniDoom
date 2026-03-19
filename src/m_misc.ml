@@ -30,6 +30,7 @@ import m_menu
 import doomstat
 import dstrings
 import m_misc
+import mp_state
 import std.fs as fs
 
 /*
@@ -231,10 +232,51 @@ function _M_ParseInt(s0)
 end function
 
 /*
+* Function: _M_ParseText
+* Purpose: Parses optional quoted text value from config lines.
+*/
+function _M_ParseText(s0)
+  if typeof(s0) != "string" then return "" end if
+  s0 = _M_Trim(s0)
+  if s0 == "" then return "" end if
+  b = bytes(s0)
+  if len(b) >= 2 and b[0] == 34 and b[len(b) - 1] == 34 then
+    return decode(slice(b, 1, len(b) - 2))
+  end if
+  return s0
+end function
+
+/*
+* Function: _M_QuoteText
+* Purpose: Wraps text in quotes for config persistence.
+*/
+function _M_QuoteText(s0)
+  if typeof(s0) != "string" then s0 = "" end if
+  b = bytes(s0)
+  qb = bytes(len(b) + 2, 0)
+  qb[0] = 34
+  i = 0
+  while i < len(b)
+    qb[i + 1] = b[i]
+    i = i + 1
+  end while
+  qb[len(qb) - 1] = 34
+  return decode(qb)
+end function
+
+/*
 * Function: _M_ApplyDefaultKV
 * Purpose: Implements the _M_ApplyDefaultKV routine for the internal module support.
 */
 function _M_ApplyDefaultKV(key, val)
+  global mp_join_host
+  global mp_join_port
+  global mp_host_port
+  global mp_host_mode
+  global mp_host_skill
+  global mp_host_max_players
+  global mp_dm_frag_limit
+  global mp_dm_time_limit
   if typeof(key) != "string" or typeof(val) != "string" then return end if
   key = _M_Trim(key)
   val = _M_Trim(val)
@@ -278,6 +320,46 @@ function _M_ApplyDefaultKV(key, val)
   end if
   if key == "usegamma" and typeof(n) == "int" then
     usegamma = n
+    return
+  end if
+  if key == "mp_player_name" then
+    MP_SetPlayerName(_M_ParseText(val))
+    return
+  end if
+  if key == "mp_join_host" then
+    mp_join_host = _M_ParseText(val)
+    return
+  end if
+  if key == "mp_join_port" and typeof(n) == "int" then
+    mp_join_port = n
+    return
+  end if
+  if key == "mp_host_port" and typeof(n) == "int" then
+    mp_host_port = n
+    return
+  end if
+  if key == "mp_host_mode" and typeof(n) == "int" then
+    MP_SetMode(n)
+    return
+  end if
+  if key == "mp_host_skill" and typeof(n) == "int" then
+    mp_host_skill = n
+    return
+  end if
+  if key == "mp_host_max_players" and typeof(n) == "int" then
+    mp_host_max_players = n
+    return
+  end if
+  if key == "mp_dm_frag_limit" and typeof(n) == "int" then
+    mp_dm_frag_limit = n
+    return
+  end if
+  if key == "mp_dm_time_limit" and typeof(n) == "int" then
+    mp_dm_time_limit = n
+    return
+  end if
+  if key == "mp_map_name" then
+    MP_SetSelectedMapByName(_M_ParseText(val))
     return
   end if
 end function
@@ -459,6 +541,14 @@ end function
 function M_LoadDefaults()
   global defaultfile
   global numdefaults
+  global mp_join_host
+  global mp_join_port
+  global mp_host_port
+  global mp_host_mode
+  global mp_host_skill
+  global mp_host_max_players
+  global mp_dm_frag_limit
+  global mp_dm_time_limit
 
   mouseSensitivity = 5
   snd_SfxVolume = 8
@@ -471,9 +561,18 @@ function M_LoadDefaults()
   screenblocks = 10
   detailLevel = 0
   usegamma = 0
+  MP_SetPlayerName("Player")
+  mp_join_host = "127.0.0.1"
+  mp_join_port = MP_DEFAULT_PORT
+  mp_host_port = MP_DEFAULT_PORT
+  mp_host_mode = MP_MODE_COOP
+  mp_host_skill = MP_SKILL_MEDIUM
+  mp_host_max_players = 4
+  mp_dm_frag_limit = 20
+  mp_dm_time_limit = 10
 
   defaultfile = _M_GetDefaultFilePath()
-  numdefaults = 9
+  numdefaults = 19
 
   if typeof(defaultfile) == "string" and defaultfile != "" and fs.exists(defaultfile) and fs.isFile(defaultfile) then
     rd = fs.readAllLines(defaultfile)
@@ -485,6 +584,9 @@ function M_LoadDefaults()
       end while
     end if
   end if
+
+  MP_RebuildMapList()
+  MP_ClampSettings()
 end function
 
 /*
@@ -498,7 +600,8 @@ function M_SaveDefaults()
   if typeof(defaultfile) != "string" or defaultfile == "" then
     defaultfile = _M_GetDefaultFilePath()
   end if
-  numdefaults = 9
+  numdefaults = 19
+  MP_ClampSettings()
 
   t = ""
   t = t + "mouse_sensitivity\t\t" + mouseSensitivity + "\n"
@@ -510,6 +613,16 @@ function M_SaveDefaults()
   t = t + "screenblocks\t\t" + screenblocks + "\n"
   t = t + "detaillevel\t\t" + detailLevel + "\n"
   t = t + "usegamma\t\t" + usegamma + "\n"
+  t = t + "mp_player_name\t\t" + _M_QuoteText(MP_GetPlayerName()) + "\n"
+  t = t + "mp_join_host\t\t" + _M_QuoteText(mp_join_host) + "\n"
+  t = t + "mp_join_port\t\t" + mp_join_port + "\n"
+  t = t + "mp_host_port\t\t" + mp_host_port + "\n"
+  t = t + "mp_host_mode\t\t" + mp_host_mode + "\n"
+  t = t + "mp_host_skill\t\t" + mp_host_skill + "\n"
+  t = t + "mp_host_max_players\t\t" + mp_host_max_players + "\n"
+  t = t + "mp_dm_frag_limit\t\t" + mp_dm_frag_limit + "\n"
+  t = t + "mp_dm_time_limit\t\t" + mp_dm_time_limit + "\n"
+  t = t + "mp_map_name\t\t" + _M_QuoteText(MP_GetSelectedMap()) + "\n"
 
   if _M_ParentDirExists(defaultfile) then
     fs.writeAllText(defaultfile, t)

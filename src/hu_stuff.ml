@@ -558,7 +558,7 @@ function HU_Ticker()
   if netgame then
     i = 0
     while i < MAXPLAYERS
-      if i >= len(playeringame) or(not playeringame[i]) or i == consoleplayer or i >= len(players) or players[i] is void then
+      if i >= len(playeringame) or(not playeringame[i]) or i == consoleplayer or i >= len(players) or typeof(players[i]) != "struct" then
         i = i + 1
         continue
       end if

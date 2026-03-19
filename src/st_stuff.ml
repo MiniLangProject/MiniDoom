@@ -406,6 +406,7 @@ end function
 * Purpose: Reads or updates state used by the internal module support.
 */
 function _ST_GetCard(player, idx)
+  idx = _ST_ToInt(idx, -1)
   if player is void then return false end if
   if typeof(player.cards) != "array" then return false end if
   if idx < 0 or idx >= len(player.cards) then return false end if
@@ -417,6 +418,7 @@ end function
 * Purpose: Reads or updates state used by the internal module support.
 */
 function _ST_GetWeaponOwned(player, idx)
+  idx = _ST_ToInt(idx, -1)
   if player is void then return false end if
   if typeof(player.weaponowned) != "array" then return false end if
   if idx < 0 or idx >= len(player.weaponowned) then return false end if
@@ -428,6 +430,7 @@ end function
 * Purpose: Reads or updates state used by the internal module support.
 */
 function _ST_GetAmmo(player, idx)
+  idx = _ST_ToInt(idx, -1)
   if player is void then return 0 end if
   if typeof(player.ammo) != "array" then return 0 end if
   if idx < 0 or idx >= len(player.ammo) then return 0 end if
@@ -439,6 +442,7 @@ end function
 * Purpose: Reads or updates state used by the internal module support.
 */
 function _ST_GetMaxAmmo(player, idx)
+  idx = _ST_ToInt(idx, -1)
   if player is void then return 0 end if
   if typeof(player.maxammo) != "array" then return 0 end if
   if idx < 0 or idx >= len(player.maxammo) then return 0 end if
@@ -643,7 +647,12 @@ function ST_updateWidgets()
 
   i = 0
   while i < 6
-    if _ST_GetWeaponOwned(st_plyr, i + 1) then
+    owned = _ST_GetWeaponOwned(st_plyr, i + 1)
+    // Doom II: weapon slot 3 must light up for shotgun OR super shotgun.
+    if i == 1 and not owned and _ST_GetWeaponOwned(st_plyr, wp_supershotgun) then
+      owned = true
+    end if
+    if owned then
       st_weaponowned_refs[i][0] = 1
     else
       st_weaponowned_refs[i][0] = 0

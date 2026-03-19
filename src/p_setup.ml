@@ -100,6 +100,22 @@ function _PSET_IsSeq(v)
 end function
 
 /*
+* Function: _PSET_LoadPulse
+* Purpose: Keeps the window responsive and updates loading UI during expensive level setup phases.
+*/
+function _PSET_LoadPulse(text)
+  if typeof(text) == "string" and text != "" and typeof(I_SetLoadingStatus) == "function" then
+    I_SetLoadingStatus(text)
+  end if
+  if typeof(I_LoadingPulse) == "function" then
+    I_LoadingPulse()
+  else
+    if typeof(I_UpdateNoBlit) == "function" then I_UpdateNoBlit() end if
+    if typeof(I_FinishUpdate) == "function" then I_FinishUpdate() end if
+  end if
+end function
+
+/*
 * Function: _PS_VertexOrZero
 * Purpose: Implements the _PS_VertexOrZero routine for the internal module support.
 */
@@ -700,7 +716,7 @@ function P_SetupLevel(episode, map, playermask, skill)
   if _PSET_IsSeq(players) then
     i = 0
     while i < MAXPLAYERS and i < len(players)
-      if players[i] is void then
+      if typeof(players[i]) != "struct" then
         players[i] = Player_MakeDefault()
       end if
       p = players[i]
@@ -712,11 +728,14 @@ function P_SetupLevel(episode, map, playermask, skill)
     end while
   end if
 
-  if _PSET_IsSeq(players) and consoleplayer < len(players) and players[consoleplayer] is not void then
-    players[consoleplayer].viewz = 1
+  if _PSET_IsSeq(players) and consoleplayer < len(players) and typeof(players[consoleplayer]) == "struct" then
+    p = players[consoleplayer]
+    p.viewz = 1
+    players[consoleplayer] = p
   end if
 
   if typeof(S_Start) == "function" then S_Start() end if
+  _PSET_LoadPulse("Loading map data...")
   if typeof(Z_FreeTags) == "function" then
     Z_FreeTags(PU_LEVEL, PU_PURGELEVEL - 1)
   end if
@@ -728,27 +747,42 @@ function P_SetupLevel(episode, map, playermask, skill)
 
   leveltime = 0
 
+  _PSET_LoadPulse("Loading blockmap...")
   P_LoadBlockMap(lumpnum + ML_BLOCKMAP)
+  _PSET_LoadPulse("Loading vertexes...")
   P_LoadVertexes(lumpnum + ML_VERTEXES)
+  _PSET_LoadPulse("Loading sectors...")
   P_LoadSectors(lumpnum + ML_SECTORS)
+  _PSET_LoadPulse("Loading sidedefs...")
   P_LoadSideDefs(lumpnum + ML_SIDEDEFS)
+  _PSET_LoadPulse("Loading linedefs...")
   P_LoadLineDefs(lumpnum + ML_LINEDEFS)
+  _PSET_LoadPulse("Loading subsectors...")
   P_LoadSubsectors(lumpnum + ML_SSECTORS)
+  _PSET_LoadPulse("Loading BSP nodes...")
   P_LoadNodes(lumpnum + ML_NODES)
+  _PSET_LoadPulse("Loading segs...")
   P_LoadSegs(lumpnum + ML_SEGS)
 
+  _PSET_LoadPulse("Loading reject table...")
   rejectmatrix = W_CacheLumpNum(lumpnum + ML_REJECT, PU_LEVEL)
+  _PSET_LoadPulse("Grouping lines...")
   P_GroupLines()
 
   bodyqueslot = 0
   deathmatch_p = 0
+  _PSET_LoadPulse("Spawning map things...")
   P_LoadThings(lumpnum + ML_THINGS)
 
   if deathmatch and typeof(G_DeathMatchSpawnPlayer) == "function" then
     i = 0
     while i < MAXPLAYERS
       if i < len(playeringame) and playeringame[i] then
-        if i < len(players) then players[i].mo = void end if
+        if i < len(players) and typeof(players[i]) == "struct" then
+          p = players[i]
+          p.mo = void
+          players[i] = p
+        end if
         G_DeathMatchSpawnPlayer(i)
       end if
       i = i + 1
@@ -760,13 +794,16 @@ function P_SetupLevel(episode, map, playermask, skill)
 
   if typeof(P_SpawnSpecials) == "function" then P_SpawnSpecials() end if
   if precache then
+    _PSET_LoadPulse("Precaching textures...")
     if typeof(R_PrecacheLevel) == "function" then
       R_PrecacheLevel()
     end if
+    _PSET_LoadPulse("Precaching audio...")
     if typeof(S_PrecacheLevelAudio) == "function" then
       S_PrecacheLevelAudio()
     end if
   end if
+  _PSET_LoadPulse("Finalizing level...")
 
   if typeof(devparm) != "void" and devparm then
     print "P_SetupLevel E" + episode + "M" + map

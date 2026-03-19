@@ -27,11 +27,13 @@ import m_fixed
 import p_local
 import doomstat
 import r_main
+import mp_platform
 import std.math
 
 const S_MAX_VOLUME = 127
 const S_FRACBITS = 16
 const S_FRACUNIT = 65536
+const _S_NETMSG_SOUND = 201
 
 s_clipping_dist = 1200 * S_FRACUNIT
 s_close_dist = 160 * S_FRACUNIT
@@ -64,6 +66,17 @@ struct channel_t
   sfxinfo
   origin
   handle
+end struct
+
+/*
+* Struct: _s_net_origin_t
+* Purpose: Carries positional sound source coordinates decoded from multiplayer sound events.
+*/
+struct _s_net_origin_t
+  x
+  y
+  z
+  angle
 end struct
 
 channels =[]
@@ -117,6 +130,23 @@ function inline _S_EnumIndex(v, limit)
     i = i + 1
   end while
   return -1
+end function
+
+/*
+* Function: _S_LoadPulse
+* Purpose: Pumps window/audio updates periodically while expensive audio precache loops run.
+*/
+function inline _S_LoadPulse(iter)
+  if typeof(iter) != "int" then return end if
+  if (iter & 15) != 0 then return end if
+
+  if typeof(I_LoadingPulse) == "function" then
+    I_LoadingPulse()
+  else
+    if typeof(I_UpdateNoBlit) == "function" then I_UpdateNoBlit() end if
+    if typeof(I_UpdateSound) == "function" then I_UpdateSound() end if
+    if typeof(I_SubmitSound) == "function" then I_SubmitSound() end if
+  end if
 end function
 
 /*
@@ -238,12 +268,26 @@ function inline _S_EnsureChannels()
 end function
 
 /*
+* Function: _S_EffectiveConsoleSlot
+* Purpose: Resolves the effective local player slot, preferring multiplayer platform slot in client mode.
+*/
+function inline _S_EffectiveConsoleSlot()
+  cp = _S_ToInt(consoleplayer, 0)
+  if typeof(MP_PlatformIsClientConnected) == "function" and MP_PlatformIsClientConnected() then
+    if typeof(MP_PlatformGetLocalPlayerSlot) == "function" then
+      cp = _S_ToInt(MP_PlatformGetLocalPlayerSlot(), cp)
+    end if
+  end if
+  return cp
+end function
+
+/*
 * Function: _S_GetListener
 * Purpose: Reads or updates state used by the internal module support.
 */
 function inline _S_GetListener()
   if not _S_IsSeq(players) then return void end if
-  cp = _S_ToInt(consoleplayer, 0)
+  cp = _S_EffectiveConsoleSlot()
   if cp < 0 or cp >= len(players) then return void end if
   p = players[cp]
   if p is void then return void end if
@@ -359,6 +403,102 @@ function inline _S_AngRef(v)
     if typeof(v.mo) == "struct" and typeof(v.mo.angle) == "int" then return v.mo.angle end if
   end if
   return 0
+end function
+
+/*
+* Function: _S_WriteI32
+* Purpose: Writes one signed 32-bit integer into bytes for multiplayer sound event payloads.
+*/
+function inline _S_WriteI32(buf, off, v)
+  x = _S_ToInt(v, 0)
+  if x < 0 then x = x + 4294967296 end if
+  buf[off] = x & 255
+  buf[off + 1] =(x >> 8) & 255
+  buf[off + 2] =(x >> 16) & 255
+  buf[off + 3] =(x >> 24) & 255
+end function
+
+/*
+* Function: _S_ReadI32
+* Purpose: Reads one signed 32-bit integer from multiplayer sound event payload bytes.
+*/
+function inline _S_ReadI32(buf, off)
+  b0 = buf[off] & 255
+  b1 = buf[off + 1] & 255
+  b2 = buf[off + 2] & 255
+  b3 = buf[off + 3] & 255
+  x = b0 | (b1 << 8) | (b2 << 16) | (b3 << 24)
+  if x >= 2147483648 then x = x - 4294967296 end if
+  return x
+end function
+
+/*
+* Function: _S_MPSendSoundEvent
+* Purpose: Broadcasts one positional/non-positional sound event from host to connected clients.
+*/
+function _S_MPSendSoundEvent(origin_p, sid, volume)
+  if not(typeof(MP_PlatformIsHosting) == "function" and MP_PlatformIsHosting()) then return end if
+  if typeof(MP_PlatformNetSend) != "function" then return end if
+  if typeof(MP_PlatformGetActiveSlots) != "function" then return end if
+
+  src = _S_PosRef(origin_p)
+  flags = 0
+  sx = 0
+  sy = 0
+  sz = 0
+  sang = 0
+  if typeof(src) == "struct" then
+    flags = flags | 1
+    sx = _S_ToInt(src.x, 0)
+    sy = _S_ToInt(src.y, 0)
+  end if
+
+  payload = bytes(21, 0)
+  payload[0] = _S_NETMSG_SOUND
+  payload[1] = sid & 255
+  payload[2] = (sid >> 8) & 255
+  payload[3] = _S_Clamp(_S_ToInt(volume, snd_SfxVolume), 0, 255) & 255
+  payload[4] = flags & 255
+  _S_WriteI32(payload, 5, sx)
+  _S_WriteI32(payload, 9, sy)
+  _S_WriteI32(payload, 13, sz)
+  _S_WriteI32(payload, 17, sang)
+
+  active = MP_PlatformGetActiveSlots()
+  if not _S_IsSeq(active) then return end if
+  i = 0
+  while i < len(active)
+    slot = _S_ToInt(active[i], -1)
+    if slot >= 1 and slot < MAXPLAYERS then
+      MP_PlatformNetSend(slot, payload)
+    end if
+    i = i + 1
+  end while
+end function
+
+/*
+* Function: S_NetRecvPacket
+* Purpose: Applies one multiplayer sound packet on clients so attenuation uses local listener position.
+*/
+function S_NetRecvPacket(payload)
+  if not(typeof(MP_PlatformIsClientConnected) == "function" and MP_PlatformIsClientConnected()) then return end if
+  if typeof(payload) != "bytes" or len(payload) < 5 then return end if
+  if (payload[0] & 255) != _S_NETMSG_SOUND then return end if
+
+  sid = (payload[1] & 255) | ((payload[2] & 255) << 8)
+  vol = payload[3] & 255
+  flags = payload[4] & 255
+
+  origin = void
+  if (flags & 1) != 0 and len(payload) >= 21 then
+    ox = _S_ReadI32(payload, 5)
+    oy = _S_ReadI32(payload, 9)
+    oz = _S_ReadI32(payload, 13)
+    oa = _S_ReadI32(payload, 17)
+    origin = _s_net_origin_t(ox, oy, oz, oa)
+  end if
+
+  S_StartSoundAtVolume(origin, sid, vol)
 end function
 
 /*
@@ -507,6 +647,7 @@ function S_PrecacheLevelAudio()
       if _S_ToInt(sfx.usefulness, -1) < 1 then sfx.usefulness = 1 end if
       S_sfx[i] = sfx
     end if
+    _S_LoadPulse(i)
     i = i + 1
   end while
 
@@ -537,6 +678,8 @@ function S_StartSoundAtVolume(origin_p, sfx_id, volume)
   sid = _S_SfxId(sfx_id)
   if sid < 1 then return end if
   if not _S_IsSeq(S_sfx) or sid >= len(S_sfx) then return end if
+
+  _S_MPSendSoundEvent(origin_p, sid, volume)
 
   sfx = S_sfx[sid]
   if sfx is void then return end if
@@ -919,6 +1062,11 @@ end function
 */
 function S_UpdateSounds(listener_p)
   _S_EnsureChannels()
+  effListener = listener_p
+  if effListener is void or(typeof(MP_PlatformIsClientConnected) == "function" and MP_PlatformIsClientConnected()) then
+    l2 = _S_GetListener()
+    if l2 is not void then effListener = l2 end if
+  end if
 
   cnum = 0
   while cnum < numChannels and cnum < len(channels)
@@ -949,11 +1097,11 @@ function S_UpdateSounds(listener_p)
           end if
         end if
 
-        if c.origin is not void and listener_p is not void and listener_p != c.origin then
+        if c.origin is not void and effListener is not void and effListener != c.origin then
           vr =[volume]
           sr =[sep]
           pr =[pitch]
-          audible = S_AdjustSoundParams(listener_p, c.origin, vr, sr, pr)
+          audible = S_AdjustSoundParams(effListener, c.origin, vr, sr, pr)
           volume = _S_ToInt(vr[0], volume)
           sep = _S_ToInt(sr[0], sep)
           pitch = _S_ToInt(pr[0], pitch)

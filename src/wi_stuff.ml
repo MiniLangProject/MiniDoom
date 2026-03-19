@@ -104,12 +104,33 @@ function _WI_Abs(v)
 end function
 
 /*
+* Function: _WI_ToInt
+* Purpose: Normalizes values to int for intermission math and counters.
+*/
+function _WI_ToInt(v, fallback)
+  if typeof(v) == "int" then return v end if
+  if typeof(v) == "float" then
+    if v >= 0 then return std.math.floor(v) end if
+    return std.math.ceil(v)
+  end if
+  n = toNumber(v)
+  if typeof(n) == "int" then return n end if
+  if typeof(n) == "float" then
+    if n >= 0 then return std.math.floor(n) end if
+    return std.math.ceil(n)
+  end if
+  return fallback
+end function
+
+/*
 * Function: _WI_IDiv
 * Purpose: Implements the _WI_IDiv routine for the internal module support.
 */
 function _WI_IDiv(a, b)
-  if typeof(a) != "int" or typeof(b) != "int" or b == 0 then return 0 end if
-  q = a / b
+  ai = _WI_ToInt(a, 0)
+  bi = _WI_ToInt(b, 0)
+  if bi == 0 then return 0 end if
+  q = ai / bi
   if q >= 0 then return std.math.floor(q) end if
   return std.math.ceil(q)
 end function
@@ -192,11 +213,17 @@ const SP_TIMEY =(SCREENHEIGHT - 32)
 const NG_STATSY = 50
 const NG_STATSX = 32
 const NG_SPACINGX = 64
+const NG_NAMEX = 6
+const NG_NAMEYOFF = 10
 
 const DM_MATRIXX = 42
 const DM_MATRIXY = 68
 const DM_SPACINGX = 40
 const DM_TOTALSX = 269
+const DM_KILLERSX = 10
+const DM_KILLERSY = 100
+const DM_VICTIMSX = 5
+const DM_VICTIMSY = 50
 
 const SHOWNEXTLOCDELAY = 4
 const WI_FB = 0
@@ -218,10 +245,21 @@ cnt = 0
 bcnt = 0
 firstrefresh = 1
 sp_state = 0
+ng_state = 0
+dm_state = 0
 
 cnt_kills =[0, 0, 0, 0]
 cnt_items =[0, 0, 0, 0]
 cnt_secret =[0, 0, 0, 0]
+cnt_frags =[0, 0, 0, 0]
+dm_totals =[0, 0, 0, 0]
+dm_frags =[
+[0, 0, 0, 0],
+[0, 0, 0, 0],
+[0, 0, 0, 0],
+[0, 0, 0, 0]
+]
+dofrags = false
 cnt_time = 0
 cnt_par = 0
 cnt_pause = 0
@@ -250,6 +288,8 @@ victims = void
 total = void
 star = void
 bstar = void
+wi_p =[void, void, void, void]
+wi_bp =[void, void, void, void]
 lnames =[]
 
 lnodes =[
@@ -275,14 +315,42 @@ function _WI_GetPlr(index)
 end function
 
 /*
+* Function: _WI_PlayerIngame
+* Purpose: Returns whether a player slot is active for intermission tables.
+*/
+function _WI_PlayerIngame(index)
+  if typeof(plrs) == "array" and index >= 0 and index < len(plrs) and typeof(plrs[index]) == "struct" then
+    iv = plrs[index].inum
+    if typeof(iv) == "bool" then return iv end if
+    if typeof(iv) == "int" then return iv != 0 end if
+    if iv then return true end if
+  end if
+  if typeof(playeringame) != "array" then return false end if
+  if index < 0 or index >= len(playeringame) then return false end if
+  return playeringame[index]
+end function
+
+/*
+* Function: _WI_GetPlrFrag
+* Purpose: Reads one frag-matrix entry from wb player stats safely.
+*/
+function _WI_GetPlrFrag(playernum, target)
+  p = _WI_GetPlr(playernum)
+  if typeof(p) != "struct" or typeof(p.frags) != "array" then return 0 end if
+  if target < 0 or target >= len(p.frags) then return 0 end if
+  return _WI_ToInt(p.frags[target], 0)
+end function
+
+/*
 * Function: _WI_TargetKills
 * Purpose: Reads or updates state used by the internal module support.
 */
 function _WI_TargetKills(index)
   p = _WI_GetPlr(index)
   if p is not void and wbs is not void and wbs.maxkills > 0 then
-    return _WI_IDiv(p.skills * 100, wbs.maxkills)
+    return _WI_IDiv(_WI_ToInt(p.skills, 0) * 100, _WI_ToInt(wbs.maxkills, 1))
   end if
+  if netgame then return 0 end if
   if typeof(players) == "array" and index >= 0 and index < len(players) then
     pp = players[index]
     if pp is not void and totalkills > 0 then
@@ -299,8 +367,9 @@ end function
 function _WI_TargetItems(index)
   p = _WI_GetPlr(index)
   if p is not void and wbs is not void and wbs.maxitems > 0 then
-    return _WI_IDiv(p.sitems * 100, wbs.maxitems)
+    return _WI_IDiv(_WI_ToInt(p.sitems, 0) * 100, _WI_ToInt(wbs.maxitems, 1))
   end if
+  if netgame then return 0 end if
   if typeof(players) == "array" and index >= 0 and index < len(players) then
     pp = players[index]
     if pp is not void and totalitems > 0 then
@@ -317,11 +386,12 @@ end function
 function _WI_TargetSecrets(index)
   p = _WI_GetPlr(index)
   if p is not void and wbs is not void and wbs.maxsecret > 0 then
-    return _WI_IDiv(p.ssecret * 100, wbs.maxsecret)
+    return _WI_IDiv(_WI_ToInt(p.ssecret, 0) * 100, _WI_ToInt(wbs.maxsecret, 1))
   end if
+  if netgame then return 0 end if
   if typeof(players) == "array" and index >= 0 and index < len(players) then
     pp = players[index]
-    if pp is not void and totalsecret > 0 then
+    if typeof(pp) == "struct" and totalsecret > 0 then
       return _WI_IDiv(pp.secretcount * 100, totalsecret)
     end if
   end if
@@ -335,7 +405,7 @@ end function
 function _WI_TargetTime(index)
   p = _WI_GetPlr(index)
   if p is not void and typeof(p.stime) == "int" then return _WI_IDiv(p.stime, TICRATE) end if
-  if typeof(players) == "array" and index >= 0 and index < len(players) and players[index] is not void then
+  if typeof(players) == "array" and index >= 0 and index < len(players) and typeof(players[index]) == "struct" then
     return _WI_IDiv(leveltime, TICRATE)
   end if
   return 0
@@ -524,6 +594,54 @@ function WI_drawNum(x, y, n, digits)
 end function
 
 /*
+* Function: _WI_NumPixelWidth
+* Purpose: Computes rendered pixel width for one WI number, matching WI_drawNum semantics.
+*/
+function _WI_NumPixelWidth(n, digits)
+  if typeof(n) != "int" then n = _WI_ToInt(n, 0) end if
+  if typeof(digits) != "int" then digits = _WI_ToInt(digits, 0) end if
+  if digits < 0 then digits = 0 end if
+
+  neg = false
+  if n < 0 then
+    neg = true
+    n = -n
+  end if
+
+  txt = "" + n
+  if digits > 0 then
+    while len(bytes(txt)) < digits
+      txt = "0" + txt
+    end while
+  end if
+
+  w = 0
+  if neg and wiminus is not void then
+    w = w + _WI_PatchW(wiminus)
+  end if
+
+  b = bytes(txt)
+  i = 0
+  while i < len(b)
+    d = b[i] - 48
+    if d >= 0 and d <= 9 and d < len(num) then
+      w = w + _WI_PatchW(num[d])
+    end if
+    i = i + 1
+  end while
+  return w
+end function
+
+/*
+* Function: WI_drawNumRight
+* Purpose: Draws number right-aligned to xRight.
+*/
+function WI_drawNumRight(xRight, y, n, digits)
+  w = _WI_NumPixelWidth(n, digits)
+  return WI_drawNum(xRight - w, y, n, digits)
+end function
+
+/*
 * Function: WI_drawPercent
 * Purpose: Draws or renders output for the intermission subsystem.
 */
@@ -534,6 +652,62 @@ function WI_drawPercent(x, y, p)
     xx = xx - _WI_PatchW(percent)
   end if
   return WI_drawNum(xx, y, p, 0)
+end function
+
+/*
+* Function: WI_drawPercentAligned
+* Purpose: Draws percent with numeric part right-aligned before the percent sign.
+*/
+function WI_drawPercentAligned(x, y, p)
+  WI_drawNumRight(x, y, p, 0)
+  if percent is not void then
+    _WI_SafeDrawPatch(x, y, percent)
+  end if
+end function
+
+/*
+* Function: _WI_Substr
+* Purpose: Returns at most n bytes from the beginning of s.
+*/
+function _WI_Substr(s, n)
+  if typeof(s) != "string" then return "" end if
+  if typeof(n) != "int" or n <= 0 then return "" end if
+  b = bytes(s)
+  if n >= len(b) then return s end if
+  return decode(slice(b, 0, n))
+end function
+
+/*
+* Function: _WI_PlayerRowName
+* Purpose: Resolves readable player name for intermission net rows.
+*/
+function _WI_PlayerRowName(slot)
+  s = _WI_ToInt(slot, -1)
+  if s < 0 then return "P?" end if
+
+  nm = ""
+  if typeof(MP_PlatformGetPlayerNameBySlot) == "function" then
+    n0 = MP_PlatformGetPlayerNameBySlot(s)
+    if typeof(n0) == "string" then nm = n0 end if
+  end if
+  if nm == "" then
+    nm = "P" + (s + 1)
+  end if
+  // Keep enough room so names do not collide with KILLS column.
+  return _WI_Substr(nm, 12)
+end function
+
+/*
+* Function: _WI_DrawRowName
+* Purpose: Draws one player name at netgame row start.
+*/
+function _WI_DrawRowName(slot, x, y)
+  nm = _WI_PlayerRowName(slot)
+  if nm == "" then return end if
+  if typeof(M_DrawText) == "function" then
+    M_DrawText(x, y, false, nm)
+    return
+  end if
 end function
 
 /*
@@ -665,14 +839,16 @@ end function
 * Function: WI_fragSum
 * Purpose: Implements the WI_fragSum routine for the intermission subsystem.
 */
-function WI_fragSum(fragsArray)
-  if typeof(fragsArray) != "array" then return 0 end if
+function WI_fragSum(playernum)
   sum = 0
   i = 0
-  while i < len(fragsArray)
-    if i != me then sum = sum + fragsArray[i] end if
+  while i < MAXPLAYERS
+    if _WI_PlayerIngame(i) and i != playernum then
+      sum = sum + _WI_GetPlrFrag(playernum, i)
+    end if
     i = i + 1
   end while
+  sum = sum - _WI_GetPlrFrag(playernum, playernum)
   return sum
 end function
 
@@ -685,10 +861,25 @@ function WI_initDeathmatchStats()
   state = stateenum_t.StatCount
   global acceleratestage
   acceleratestage = 0
-  global firstrefresh
-  firstrefresh = 1
-  global cnt
-  cnt = TICRATE
+  global dm_state
+  dm_state = 1
+  global cnt_pause
+  cnt_pause = TICRATE
+
+  i = 0
+  while i < MAXPLAYERS
+    if _WI_PlayerIngame(i) then
+      j = 0
+      while j < MAXPLAYERS
+        if _WI_PlayerIngame(j) then
+          dm_frags[i][j] = 0
+        end if
+        j = j + 1
+      end while
+      dm_totals[i] = 0
+    end if
+    i = i + 1
+  end while
 end function
 
 /*
@@ -696,7 +887,76 @@ end function
 * Purpose: Advances per-tick logic for the intermission subsystem.
 */
 function WI_updateDeathmatchStats()
-  WI_updateStats()
+  global acceleratestage
+  global dm_state
+  global cnt_pause
+
+  if acceleratestage != 0 and dm_state != 4 then
+    acceleratestage = 0
+    i = 0
+    while i < MAXPLAYERS
+      if _WI_PlayerIngame(i) then
+        j = 0
+        while j < MAXPLAYERS
+          if _WI_PlayerIngame(j) then
+            dm_frags[i][j] = _WI_Clamp(_WI_GetPlrFrag(i, j), -99, 99)
+          end if
+          j = j + 1
+        end while
+        dm_totals[i] = _WI_Clamp(WI_fragSum(i), -99, 99)
+      end if
+      i = i + 1
+    end while
+    _WI_SafeStartSound(void, sfxenum_t.sfx_barexp)
+    dm_state = 4
+  end if
+
+  if dm_state == 2 then
+    if (bcnt & 3) == 0 then _WI_SafeStartSound(void, sfxenum_t.sfx_pistol) end if
+    stillticking = false
+    i = 0
+    while i < MAXPLAYERS
+      if _WI_PlayerIngame(i) then
+        j = 0
+        while j < MAXPLAYERS
+          if _WI_PlayerIngame(j) then
+            target = _WI_GetPlrFrag(i, j)
+            if dm_frags[i][j] != target then
+              if target < 0 then
+                dm_frags[i][j] = dm_frags[i][j] - 1
+              else
+                dm_frags[i][j] = dm_frags[i][j] + 1
+              end if
+              dm_frags[i][j] = _WI_Clamp(dm_frags[i][j], -99, 99)
+              stillticking = true
+            end if
+          end if
+          j = j + 1
+        end while
+        dm_totals[i] = _WI_Clamp(WI_fragSum(i), -99, 99)
+      end if
+      i = i + 1
+    end while
+    if not stillticking then
+      _WI_SafeStartSound(void, sfxenum_t.sfx_barexp)
+      dm_state = dm_state + 1
+    end if
+  else if dm_state == 4 then
+    if acceleratestage != 0 then
+      _WI_SafeStartSound(void, sfxenum_t.sfx_sgcock)
+      if gamemode == GameMode_t.commercial then
+        WI_initNoState()
+      else
+        WI_initShowNextLoc()
+      end if
+    end if
+  else if (dm_state & 1) != 0 then
+    cnt_pause = cnt_pause - 1
+    if cnt_pause <= 0 then
+      dm_state = dm_state + 1
+      cnt_pause = TICRATE
+    end if
+  end if
 end function
 
 /*
@@ -705,8 +965,44 @@ end function
 */
 function WI_drawDeathmatchStats()
   WI_slamBackground()
+  WI_drawAnimatedBack()
   WI_drawLF()
-  WI_drawStats()
+
+  if total is not void then
+    _WI_SafeDrawPatch(DM_TOTALSX - _WI_IDiv(_WI_PatchW(total), 2), DM_MATRIXY - WI_SPACINGY + 10, total)
+  end if
+  if killers is not void then _WI_SafeDrawPatch(DM_KILLERSX, DM_KILLERSY, killers) end if
+  if victims is not void then _WI_SafeDrawPatch(DM_VICTIMSX, DM_VICTIMSY, victims) end if
+
+  x = DM_MATRIXX + DM_SPACINGX
+  y = DM_MATRIXY
+  i = 0
+  while i < MAXPLAYERS
+    x = x + DM_SPACINGX
+    y = y + WI_SPACINGY
+    i = i + 1
+  end while
+
+  y = DM_MATRIXY + 10
+  w = 8
+  if num is not void and len(num) > 0 then w = _WI_PatchW(num[0]) end if
+  i = 0
+  while i < MAXPLAYERS
+    x = DM_MATRIXX + DM_SPACINGX
+    if _WI_PlayerIngame(i) then
+      j = 0
+      while j < MAXPLAYERS
+        if _WI_PlayerIngame(j) then
+          WI_drawNum(x + w, y, dm_frags[i][j], 2)
+        end if
+        x = x + DM_SPACINGX
+        j = j + 1
+      end while
+      WI_drawNum(DM_TOTALSX + w, y, dm_totals[i], 2)
+    end if
+    y = y + WI_SPACINGY
+    i = i + 1
+  end while
 end function
 
 /*
@@ -718,10 +1014,24 @@ function WI_initNetgameStats()
   state = stateenum_t.StatCount
   global acceleratestage
   acceleratestage = 0
-  global firstrefresh
-  firstrefresh = 1
-  global cnt
-  cnt = TICRATE
+  global ng_state
+  ng_state = 1
+  global cnt_pause
+  cnt_pause = TICRATE
+  global dofrags
+  dofrags = true
+
+  i = 0
+  while i < MAXPLAYERS
+    if _WI_PlayerIngame(i) then
+      cnt_kills[i] = 0
+      cnt_items[i] = 0
+      cnt_secret[i] = 0
+      cnt_frags[i] = 0
+      if WI_fragSum(i) != 0 then dofrags = true end if
+    end if
+    i = i + 1
+  end while
 end function
 
 /*
@@ -729,7 +1039,127 @@ end function
 * Purpose: Advances per-tick logic for the intermission subsystem.
 */
 function WI_updateNetgameStats()
-  WI_updateStats()
+  global acceleratestage
+  global ng_state
+  global cnt_pause
+  global dofrags
+
+  if acceleratestage != 0 and ng_state != 10 then
+    acceleratestage = 0
+    i = 0
+    while i < MAXPLAYERS
+      if _WI_PlayerIngame(i) then
+        cnt_kills[i] = _WI_TargetKills(i)
+        cnt_items[i] = _WI_TargetItems(i)
+        cnt_secret[i] = _WI_TargetSecrets(i)
+        if dofrags then cnt_frags[i] = WI_fragSum(i) end if
+      end if
+      i = i + 1
+    end while
+    _WI_SafeStartSound(void, sfxenum_t.sfx_barexp)
+    ng_state = 10
+  end if
+
+  if ng_state == 2 then
+    if (bcnt & 3) == 0 then _WI_SafeStartSound(void, sfxenum_t.sfx_pistol) end if
+    stillticking = false
+    i = 0
+    while i < MAXPLAYERS
+      if _WI_PlayerIngame(i) then
+        cnt_kills[i] = cnt_kills[i] + 2
+        tk = _WI_TargetKills(i)
+        if cnt_kills[i] >= tk then
+          cnt_kills[i] = tk
+        else
+          stillticking = true
+        end if
+      end if
+      i = i + 1
+    end while
+    if not stillticking then
+      _WI_SafeStartSound(void, sfxenum_t.sfx_barexp)
+      ng_state = ng_state + 1
+    end if
+  else if ng_state == 4 then
+    if (bcnt & 3) == 0 then _WI_SafeStartSound(void, sfxenum_t.sfx_pistol) end if
+    stillticking = false
+    i = 0
+    while i < MAXPLAYERS
+      if _WI_PlayerIngame(i) then
+        cnt_items[i] = cnt_items[i] + 2
+        ti = _WI_TargetItems(i)
+        if cnt_items[i] >= ti then
+          cnt_items[i] = ti
+        else
+          stillticking = true
+        end if
+      end if
+      i = i + 1
+    end while
+    if not stillticking then
+      _WI_SafeStartSound(void, sfxenum_t.sfx_barexp)
+      ng_state = ng_state + 1
+    end if
+  else if ng_state == 6 then
+    if (bcnt & 3) == 0 then _WI_SafeStartSound(void, sfxenum_t.sfx_pistol) end if
+    stillticking = false
+    i = 0
+    while i < MAXPLAYERS
+      if _WI_PlayerIngame(i) then
+        cnt_secret[i] = cnt_secret[i] + 2
+        ts = _WI_TargetSecrets(i)
+        if cnt_secret[i] >= ts then
+          cnt_secret[i] = ts
+        else
+          stillticking = true
+        end if
+      end if
+      i = i + 1
+    end while
+    if not stillticking then
+      _WI_SafeStartSound(void, sfxenum_t.sfx_barexp)
+      if dofrags then
+        ng_state = ng_state + 1
+      else
+        ng_state = ng_state + 3
+      end if
+    end if
+  else if ng_state == 8 then
+    if (bcnt & 3) == 0 then _WI_SafeStartSound(void, sfxenum_t.sfx_pistol) end if
+    stillticking = false
+    i = 0
+    while i < MAXPLAYERS
+      if _WI_PlayerIngame(i) then
+        cnt_frags[i] = cnt_frags[i] + 1
+        tf = WI_fragSum(i)
+        if cnt_frags[i] >= tf then
+          cnt_frags[i] = tf
+        else
+          stillticking = true
+        end if
+      end if
+      i = i + 1
+    end while
+    if not stillticking then
+      _WI_SafeStartSound(void, sfxenum_t.sfx_pldeth)
+      ng_state = ng_state + 1
+    end if
+  else if ng_state == 10 then
+    if acceleratestage != 0 then
+      _WI_SafeStartSound(void, sfxenum_t.sfx_sgcock)
+      if gamemode == GameMode_t.commercial then
+        WI_initNoState()
+      else
+        WI_initShowNextLoc()
+      end if
+    end if
+  else if (ng_state & 1) != 0 then
+    cnt_pause = cnt_pause - 1
+    if cnt_pause <= 0 then
+      ng_state = ng_state + 1
+      cnt_pause = TICRATE
+    end if
+  end if
 end function
 
 /*
@@ -738,8 +1168,36 @@ end function
 */
 function WI_drawNetgameStats()
   WI_slamBackground()
+  WI_drawAnimatedBack()
   WI_drawLF()
-  WI_drawStats()
+
+  pwidth = _WI_PatchW(percent)
+  ngx = NG_STATSX + _WI_IDiv(_WI_PatchW(star), 2)
+  if not dofrags then ngx = ngx + 32 end if
+
+  if kills is not void then _WI_SafeDrawPatch(ngx + NG_SPACINGX - _WI_PatchW(kills), NG_STATSY, kills) end if
+  if items is not void then _WI_SafeDrawPatch(ngx + 2 * NG_SPACINGX - _WI_PatchW(items), NG_STATSY, items) end if
+  if secret is not void then _WI_SafeDrawPatch(ngx + 3 * NG_SPACINGX - _WI_PatchW(secret), NG_STATSY, secret) end if
+  if dofrags and frags is not void then _WI_SafeDrawPatch(ngx + 4 * NG_SPACINGX - _WI_PatchW(frags), NG_STATSY, frags) end if
+
+  y = NG_STATSY + _WI_PatchH(kills)
+  i = 0
+  while i < MAXPLAYERS
+    if _WI_PlayerIngame(i) then
+      _WI_DrawRowName(i, NG_NAMEX, y + NG_NAMEYOFF)
+      x = ngx
+      x = x + NG_SPACINGX
+      WI_drawPercentAligned(x, y + 10, cnt_kills[i])
+      x = x + NG_SPACINGX
+      WI_drawPercentAligned(x, y + 10, cnt_items[i])
+      x = x + NG_SPACINGX
+      WI_drawPercentAligned(x, y + 10, cnt_secret[i])
+      x = x + NG_SPACINGX
+      if dofrags then WI_drawNumRight(x, y + 10, cnt_frags[i], -1) end if
+      y = y + WI_SPACINGY
+    end if
+    i = i + 1
+  end while
 end function
 
 /*
@@ -906,7 +1364,7 @@ function WI_checkForAccelerate()
       continue
     end if
 
-    if typeof(players) != "array" or i >= len(players) or players[i] is void then
+    if typeof(players) != "array" or i >= len(players) or typeof(players[i]) != "struct" then
       i = i + 1
       continue
     end if
@@ -1016,6 +1474,26 @@ function WI_loadData()
   star = _WI_CacheOrVoid("STFST01", PU_CACHE)
   global bstar
   bstar = _WI_CacheOrVoid("STFDEAD0", PU_CACHE)
+  global wi_p
+  wi_p =[]
+  global wi_bp
+  wi_bp =[]
+  pnames = ["STPB0", "STPB1", "STPB2", "STPB3"]
+  bpnames = ["WIBP1", "WIBP2", "WIBP3", "WIBP4"]
+  i = 0
+  while i < MAXPLAYERS
+    pname = "STPB0"
+    bpname = "WIBP1"
+    if i >= 0 and i < len(pnames) then pname = pnames[i] end if
+    if i >= 0 and i < len(bpnames) then bpname = bpnames[i] end if
+    pp = _WI_CacheOrVoid(pname, PU_CACHE)
+    if pp is void then pp = _WI_CacheOrVoid("STPB0", PU_CACHE) end if
+    wi_p = wi_p +[pp]
+    bp = _WI_CacheOrVoid(bpname, PU_CACHE)
+    if bp is void then bp = _WI_CacheOrVoid("WIBP1", PU_CACHE) end if
+    wi_bp = wi_bp +[bp]
+    i = i + 1
+  end while
 
   WI_initAnimatedBack()
 end function
@@ -1048,6 +1526,10 @@ function WI_unloadData()
   finished = void
   global entering
   entering = void
+  global wi_p
+  wi_p =[void, void, void, void]
+  global wi_bp
+  wi_bp =[void, void, void, void]
 end function
 
 /*
@@ -1058,7 +1540,32 @@ function WI_initVariables(wbstartstruct)
   if wbstartstruct is void then
     pnum = 0
     if typeof(consoleplayer) == "int" then pnum = consoleplayer end if
-    wbstartstruct = wbstartstruct_t(gameepisode - 1, false, gamemap - 1, gamemap, totalkills, totalitems, totalsecret, 0, 0, pnum,[])
+    plyr =[]
+    i = 0
+    while i < MAXPLAYERS
+      ingame = _WI_PlayerIngame(i)
+      skills = 0
+      sitems = 0
+      ssecret = 0
+      stime = _WI_ToInt(leveltime, 0)
+      fr =[0, 0, 0, 0]
+      if typeof(players) == "array" and i < len(players) and typeof(players[i]) == "struct" then
+        pp = players[i]
+        skills = _WI_ToInt(pp.killcount, 0)
+        sitems = _WI_ToInt(pp.itemcount, 0)
+        ssecret = _WI_ToInt(pp.secretcount, 0)
+        if typeof(pp.frags) == "array" then
+          j = 0
+          while j < MAXPLAYERS and j < len(pp.frags)
+            fr[j] = _WI_ToInt(pp.frags[j], 0)
+            j = j + 1
+          end while
+        end if
+      end if
+      plyr = plyr +[wbplayerstruct_t(ingame, skills, sitems, ssecret, stime, fr, 0)]
+      i = i + 1
+    end while
+    wbstartstruct = wbstartstruct_t(gameepisode - 1, false, gamemap - 1, gamemap, _WI_ToInt(totalkills, 1), _WI_ToInt(totalitems, 1), _WI_ToInt(totalsecret, 1), 0, 0, pnum, plyr)
   end if
 
   global wbs
@@ -1070,6 +1577,9 @@ function WI_initVariables(wbstartstruct)
     me = 0
   else
     me = wbs.pnum
+  end if
+  if netgame and typeof(consoleplayer) == "int" and consoleplayer >= 0 and consoleplayer < MAXPLAYERS then
+    me = consoleplayer
   end if
 
   if typeof(wbs.plyr) == "array" then

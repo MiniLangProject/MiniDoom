@@ -91,13 +91,10 @@ end struct
 * Purpose: Implements the _allocIntArray routine for the internal module support.
 */
 function inline _allocIntArray(n, fill)
-  a =[]
-  i = 0
-  while i < n
-    a = a +[fill]
-    i = i + 1
-  end while
-  return a
+  nn = n
+  if typeof(nn) != "int" then nn = 0 end if
+  if nn < 0 then nn = 0 end if
+  return array(nn, fill)
 end function
 
 /*
@@ -230,6 +227,22 @@ function inline _rd_enumIndex(v, limit)
     i = i + 1
   end while
   return -1
+end function
+
+/*
+* Function: _rd_loadPulse
+* Purpose: Pumps window/audio updates periodically while expensive renderer precache loops run.
+*/
+function inline _rd_loadPulse(iter)
+  if typeof(iter) != "int" then return end if
+  if (iter & 31) != 0 then return end if
+
+  if typeof(I_LoadingPulse) == "function" then
+    I_LoadingPulse()
+  else
+    if typeof(I_UpdateNoBlit) == "function" then I_UpdateNoBlit() end if
+    if typeof(I_FinishUpdate) == "function" then I_FinishUpdate() end if
+  end if
 end function
 
 /*
@@ -757,14 +770,14 @@ function R_InitTextures()
   if typeof(textures) != "array" then textures =[] end if
   numtextures = len(textures)
 
-  texturewidthmask =[]
-  textureheight =[]
-  texturecompositesize =[]
-  texturecolumnlump =[]
-  texturecolumnofs =[]
-  texturecomposite =[]
-  texturecolumncache =[]
-  texturetranslation =[]
+  texturewidthmask = array(numtextures, 0)
+  textureheight = array(numtextures, 0)
+  texturecompositesize = array(numtextures, 0)
+  texturecolumnlump = array(numtextures)
+  texturecolumnofs = array(numtextures)
+  texturecomposite = array(numtextures)
+  texturecolumncache = array(numtextures)
+  texturetranslation = array(numtextures, 0)
 
   i = 0
   while i < numtextures
@@ -781,29 +794,17 @@ function R_InitTextures()
     m = m - 1
     if m < 0 then m = 0 end if
 
-    texturewidthmask = texturewidthmask +[m]
-    textureheight = textureheight +[h << FRACBITS]
-    texturecompositesize = texturecompositesize +[0]
+    texturewidthmask[i] = m
+    textureheight[i] = h << FRACBITS
 
-    cl =[]
-    co =[]
-    x = 0
-    while x < w
-      cl = cl +[-1]
-      co = co +[0]
-      x = x + 1
-    end while
-    texturecolumnlump = texturecolumnlump +[cl]
-    texturecolumnofs = texturecolumnofs +[co]
-    texturecomposite = texturecomposite +[void]
-    cc =[]
-    x = 0
-    while x < w
-      cc = cc +[void]
-      x = x + 1
-    end while
-    texturecolumncache = texturecolumncache +[cc]
-    texturetranslation = texturetranslation +[i]
+    cl = array(w, -1)
+    co = array(w, 0)
+    texturecolumnlump[i] = cl
+    texturecolumnofs[i] = co
+    texturecomposite[i] = bytes(0, 0)
+    cc = array(w)
+    texturecolumncache[i] = cc
+    texturetranslation[i] = i
 
     i = i + 1
   end while
@@ -829,12 +830,7 @@ function inline _rd_ensureColumnCache(tex, width)
     return cols
   end if
 
-  cols =[]
-  i = 0
-  while i < width
-    cols = cols +[void]
-    i = i + 1
-  end while
+  cols = array(width)
   texturecolumncache[tex] = cols
   return cols
 end function
@@ -1004,6 +1000,7 @@ function R_PrecacheLevel()
           _rd_markPresent(flatpresent, sec.floorpic)
           _rd_markPresent(flatpresent, sec.ceilingpic)
         end if
+        _rd_loadPulse(i)
         i = i + 1
       end while
     end if
@@ -1017,6 +1014,7 @@ function R_PrecacheLevel()
         end if
         _ = W_CacheLumpNum(lump, PU_CACHE)
       end if
+      _rd_loadPulse(i)
       i = i + 1
     end while
   end if
@@ -1032,6 +1030,7 @@ function R_PrecacheLevel()
           _rd_markPresent(texturepresent, sd.midtexture)
           _rd_markPresent(texturepresent, sd.bottomtexture)
         end if
+        _rd_loadPulse(i)
         i = i + 1
       end while
     end if
@@ -1060,9 +1059,11 @@ function R_PrecacheLevel()
           end if
           _ = W_CacheLumpNum(lump, PU_CACHE)
         end if
+        _rd_loadPulse(j)
         j = j + 1
       end while
 
+      _rd_loadPulse(i)
       i = i + 1
     end while
 
@@ -1075,10 +1076,12 @@ function R_PrecacheLevel()
           c = 0
           while c < w
             _ = R_GetColumn(i, c)
+            _rd_loadPulse(c)
             c = c + 1
           end while
         end if
       end if
+      _rd_loadPulse(i)
       i = i + 1
     end while
   end if
@@ -1116,6 +1119,7 @@ function R_PrecacheLevel()
           if sidx >= 0 then spritepresent[sidx] = 1 end if
         end if
 
+        _rd_loadPulse(guard)
         cur = cur.next
         guard = guard + 1
       end while
@@ -1127,6 +1131,7 @@ function R_PrecacheLevel()
       i = 0
       while i < spritecount and i < len(spritepresent)
         spritepresent[i] = 1
+        _rd_loadPulse(i)
         i = i + 1
       end while
       _r_allSpritesPrecached = true
@@ -1159,12 +1164,15 @@ function R_PrecacheLevel()
               end if
               _ = W_CacheLumpNum(lump, PU_CACHE)
             end if
+            _rd_loadPulse(k)
             k = k + 1
           end while
         end if
+        _rd_loadPulse(j)
         j = j + 1
       end while
 
+      _rd_loadPulse(i)
       i = i + 1
     end while
   end if
