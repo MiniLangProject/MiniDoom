@@ -19,7 +19,7 @@
 
 import doomdef
 import m_argv
-import mp_sha1
+import mp_fnv1a
 import std.fs as fs
 import std.math
 
@@ -48,7 +48,7 @@ mp_map_index = 0
 mp_preferred_map_name = "MAP01"
 
 mp_iwad_path = ""
-mp_iwad_sha1_hex = ""
+mp_iwad_fnv1a_hex = ""
 
 /*
 * Function: _MP_ToInt
@@ -344,18 +344,28 @@ end function
 
 /*
 * Function: MP_UpdateIwadFingerprint
-* Purpose: Computes and stores SHA-1 of currently active IWAD file.
+* Purpose: Computes and stores a fast non-cryptographic fingerprint of currently active IWAD file.
 */
 function MP_UpdateIwadFingerprint()
   global mp_iwad_path
-  global mp_iwad_sha1_hex
-  mp_iwad_path = MP_GetIwadPath()
-  mp_iwad_sha1_hex = ""
-  if mp_iwad_path == "" then return false end if
-  raw = fs.readAllBytes(mp_iwad_path)
+  global mp_iwad_fnv1a_hex
+  newPath = MP_GetIwadPath()
+  if newPath == "" then
+    mp_iwad_path = ""
+    mp_iwad_fnv1a_hex = ""
+    return false
+  end if
+
+  // Reuse existing fingerprint while path is unchanged.
+  if mp_iwad_path == newPath and typeof(mp_iwad_fnv1a_hex) == "string" and mp_iwad_fnv1a_hex != "" then
+    return true
+  end if
+
+  raw = fs.readAllBytes(newPath)
   if typeof(raw) != "bytes" then return false end if
-  mp_iwad_sha1_hex = MP_SHA1_Hex(raw)
-  return typeof(mp_iwad_sha1_hex) == "string" and mp_iwad_sha1_hex != ""
+  mp_iwad_path = newPath
+  mp_iwad_fnv1a_hex = MP_FNV1A_Hex(raw)
+  return typeof(mp_iwad_fnv1a_hex) == "string" and mp_iwad_fnv1a_hex != ""
 end function
 
 /*

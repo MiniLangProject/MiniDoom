@@ -1153,7 +1153,7 @@ end function
 */
 function _MPPlatform_HostSendDeny(ip, port, reasonCode, reasonText, includeHash)
   fields = [_MPPLAT_PROTO, _MPPLAT_DEN, reasonCode, _MPPlatform_SanitizeField(reasonText)]
-  if includeHash then fields = fields + [mp_iwad_sha1_hex] end if
+  if includeHash then fields = fields + [mp_iwad_fnv1a_hex] end if
   _MPPlatform_SendFields(_mp_sock, ip, port, fields)
 end function
 
@@ -1175,7 +1175,7 @@ function _MPPlatform_HostSendAccept(ip, port, slot, peerId)
   _MPPlatform_ToInt(_mp_host_frag_limit_cfg, 0),
   _MPPlatform_ToInt(_mp_host_time_limit_cfg, 0),
   _MPPlatform_SanitizeField(hostName),
-  mp_iwad_sha1_hex
+  mp_iwad_fnv1a_hex
 ]
   _MPPlatform_SendFields(_mp_sock, ip, port, fields)
 end function
@@ -1206,13 +1206,13 @@ function _MPPlatform_HostHandlePacket(payload, peerIp, peerPort)
       return
     end if
 
-    if typeof(mp_iwad_sha1_hex) != "string" or mp_iwad_sha1_hex == "" then
+    if typeof(mp_iwad_fnv1a_hex) != "string" or mp_iwad_fnv1a_hex == "" then
       _MPPlatform_HostSendDeny(peerIp, peerPort, 6, "Server missing IWAD fingerprint.", false)
       return
     end if
 
-    if clientSha != mp_iwad_sha1_hex then
-      _MPPlatform_HostSendDeny(peerIp, peerPort, 3, "WAD SHA-1 mismatch.", true)
+    if clientSha != mp_iwad_fnv1a_hex then
+      _MPPlatform_HostSendDeny(peerIp, peerPort, 3, "WAD fingerprint mismatch.", true)
       return
     end if
 
@@ -1669,8 +1669,8 @@ function MP_PlatformHostGame(port, mode, skill, mapname, maxPlayers, fragLimit, 
   global _mp_game_queue_tail
   global _mp_game_queue_dropped
   MP_ClampSettings()
-  if mp_iwad_sha1_hex == "" then
-    _MPPlatform_SetError("MP host failed: missing IWAD SHA-1 fingerprint.")
+  if mp_iwad_fnv1a_hex == "" then
+    _MPPlatform_SetError("MP host failed: missing IWAD fingerprint.")
     return false
   end if
 
@@ -1796,8 +1796,8 @@ function MP_PlatformJoinGame(host, port, playerName)
   global _mp_game_queue_tail
   global _mp_game_queue_dropped
   MP_ClampSettings()
-  if mp_iwad_sha1_hex == "" then
-    _MPPlatform_SetError("MP join failed: missing IWAD SHA-1 fingerprint.")
+  if mp_iwad_fnv1a_hex == "" then
+    _MPPlatform_SetError("MP join failed: missing IWAD fingerprint.")
     return false
   end if
 
@@ -1834,7 +1834,7 @@ function MP_PlatformJoinGame(host, port, playerName)
   _MPPLAT_PROTO,
   _MPPLAT_REQ,
   _MPPlatform_SanitizeField(nm),
-  mp_iwad_sha1_hex,
+  mp_iwad_fnv1a_hex,
   MP_MODE_COOP,
   _MPPlatform_SanitizeField(MP_GetSelectedMap()),
   MP_SKILL_MEDIUM,
@@ -1883,7 +1883,7 @@ function MP_PlatformJoinGame(host, port, playerName)
     if mtype == _MPPLAT_DEN then
       reason = "Join denied by host."
       if len(parts) >= 4 and typeof(parts[3]) == "string" and parts[3] != "" then reason = parts[3] end if
-      if len(parts) >= 5 and typeof(parts[4]) == "string" and parts[4] != "" and parts[4] != mp_iwad_sha1_hex then
+      if len(parts) >= 5 and typeof(parts[4]) == "string" and parts[4] != "" and parts[4] != mp_iwad_fnv1a_hex then
         reason = reason + " (server WAD differs)"
       end if
       net.close(s)
@@ -1923,9 +1923,9 @@ function MP_PlatformJoinGame(host, port, playerName)
         part_hash = 8
       end if
 
-      if parts[part_hash] != mp_iwad_sha1_hex then
+      if parts[part_hash] != mp_iwad_fnv1a_hex then
         net.close(s)
-        _MPPlatform_SetError("MP join rejected: host WAD SHA-1 does not match local IWAD.")
+        _MPPlatform_SetError("MP join rejected: host WAD fingerprint does not match local IWAD.")
         return false
       end if
 
