@@ -359,7 +359,7 @@ end function
 * Function: MP_PlatformIsClientConnected
 * Purpose: Returns true when local runtime has an active client connection.
 */
-function MP_PlatformIsClientConnected()
+function inline MP_PlatformIsClientConnected()
   return _mp_role == _MPPLAT_ROLE_CLIENT
 end function
 
@@ -367,7 +367,7 @@ end function
 * Function: MP_PlatformGetLocalPlayerSlot
 * Purpose: Returns local player slot index used by Doom net layer.
 */
-function MP_PlatformGetLocalPlayerSlot()
+function inline MP_PlatformGetLocalPlayerSlot()
   if _mp_role == _MPPLAT_ROLE_HOST then return 0 end if
   if _mp_role == _MPPLAT_ROLE_CLIENT then
     s = _MPPlatform_ToInt(_mp_client_slot, 1)
@@ -1544,7 +1544,7 @@ end function
 * Function: MP_PlatformIsHosting
 * Purpose: Reports whether local runtime is currently acting as UDP host.
 */
-function MP_PlatformIsHosting()
+function inline MP_PlatformIsHosting()
   return _mp_role == _MPPLAT_ROLE_HOST
 end function
 
@@ -1603,7 +1603,7 @@ end function
 * Function: MP_PlatformNetRecv
 * Purpose: Pops one queued gameplay packet as [node,payload], or void if none.
 */
-function MP_PlatformNetRecv()
+function inline MP_PlatformNetRecv()
   if _mp_role == _MPPLAT_ROLE_NONE then return end if
   return _MPPlatform_PopGamePacket()
 end function

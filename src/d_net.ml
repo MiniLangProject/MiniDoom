@@ -427,7 +427,7 @@ end function
 * Function: _DNet_MPIsHost
 * Purpose: Returns true when multiplayer platform is currently hosting.
 */
-function _DNet_MPIsHost()
+function inline _DNet_MPIsHost()
   if typeof(MP_PlatformIsHosting) != "function" then return false end if
   return MP_PlatformIsHosting()
 end function
@@ -436,7 +436,7 @@ end function
 * Function: _DNet_MPIsClient
 * Purpose: Returns true when multiplayer platform is currently connected as client.
 */
-function _DNet_MPIsClient()
+function inline _DNet_MPIsClient()
   if typeof(MP_PlatformIsClientConnected) != "function" then return false end if
   return MP_PlatformIsClientConnected()
 end function
@@ -445,7 +445,7 @@ end function
 * Function: _DNet_MPIsAuthoritative
 * Purpose: Returns true while host-authoritative multiplayer runtime is active.
 */
-function _DNet_MPIsAuthoritative()
+function inline _DNet_MPIsAuthoritative()
   return _DNet_MPIsHost() or _DNet_MPIsClient()
 end function
 
@@ -779,7 +779,7 @@ end function
 * Function: _DNet_MPActiveSlots
 * Purpose: Returns currently active multiplayer slots with host slot always present.
 */
-function _DNet_MPActiveSlots()
+function inline _DNet_MPActiveSlots()
   if typeof(MP_PlatformGetActiveSlots) == "function" then
     s = MP_PlatformGetActiveSlots()
     if _DNet_IsSeq(s) and len(s) > 0 then return s end if
@@ -791,7 +791,7 @@ end function
 * Function: _DNet_MPSlotActive
 * Purpose: Checks if slot is present in active slot list.
 */
-function _DNet_MPSlotActive(active, slot)
+function inline _DNet_MPSlotActive(active, slot)
   if not _DNet_IsSeq(active) then return false end if
   i = 0
   while i < len(active)
@@ -1730,7 +1730,12 @@ end function
 function inline _DNet_MPActorUsable(mo)
   if typeof(mo) != "struct" then return false end if
   if mo.player is not void then return false end if
-  if _DNet_ToInt(mo.type, -1) < 0 then return false end if
+  ty = _DNet_ToInt(mo.type, -1)
+  if ty < 0 then return false end if
+  // Skip short-lived visual-only effects on the wire; clients render these locally from gameplay events.
+  if ty == mobjtype_t.MT_PUFF or ty == mobjtype_t.MT_BLOOD or ty == mobjtype_t.MT_SMOKE or ty == mobjtype_t.MT_TFOG or ty == mobjtype_t.MT_IFOG then
+    return false
+  end if
   // Host traversal already guarantees a live thinker node; do not reject on stale copied thinker fields.
   if typeof(mo.state) != "struct" and mo.state is not void then return false end if
   return true
@@ -2097,7 +2102,14 @@ function _DNet_MPHostCollectActorChunk(maxCount, forceAll, snapshotTick)
     scanned = scanned + 1
   end while
 
-  _dnet_mp_host_actor_cursor = (cursor + scanned) % total
+  step = scanned
+  if forceAll then
+    // During full-sync bursts we must rotate through the full registry window,
+    // otherwise the same leading chunk keeps repeating and static actors never arrive.
+    step = take
+    if step < 1 then step = 1 end if
+  end if
+  _dnet_mp_host_actor_cursor = (cursor + step) % total
   mergedCount = prioCount + outCount
   if mergedCount > take then mergedCount = take end if
   mergedIds = array(mergedCount, 0)
@@ -2118,6 +2130,40 @@ function _DNet_MPHostCollectActorChunk(maxCount, forceAll, snapshotTick)
     i = i + 1
   end while
   return [mergedIds, mergedRefs]
+end function
+
+/*
+* Function: _DNet_MPHostInvalidateActorSigById
+* Purpose: Forces one host actor id to be considered dirty for next snapshot selection.
+*/
+function inline _DNet_MPHostInvalidateActorSigById(aid)
+  global _dnet_mp_host_actor_ids
+  global _dnet_mp_host_last_actor_sig
+  if aid <= 0 then return end if
+  i = 0
+  while i < len(_dnet_mp_host_actor_ids) and i < len(_dnet_mp_host_last_actor_sig)
+    if _DNet_ToInt(_dnet_mp_host_actor_ids[i], 0) == aid then
+      _dnet_mp_host_last_actor_sig[i] = 0
+      return
+    end if
+    i = i + 1
+  end while
+end function
+
+/*
+* Function: _DNet_MPHostRequeueDroppedActorRows
+* Purpose: Re-queues actor rows trimmed by packet budget so they are retried next snapshots.
+*/
+function _DNet_MPHostRequeueDroppedActorRows(actorIds, startIdx)
+  if not _DNet_IsSeq(actorIds) then return end if
+  start = _DNet_ToInt(startIdx, 0)
+  if start < 0 then start = 0 end if
+  i = start
+  while i < len(actorIds)
+    aid = _DNet_ToInt(actorIds[i], 0)
+    if aid > 0 then _DNet_MPHostInvalidateActorSigById(aid) end if
+    i = i + 1
+  end while
 end function
 
 /*
@@ -3456,7 +3502,7 @@ end function
 * Function: _DNet_MPCmdEquals
 * Purpose: Returns true when two ticcmd structs carry the same gameplay input values.
 */
-function _DNet_MPCmdEquals(a, b)
+function inline _DNet_MPCmdEquals(a, b)
   if typeof(a) != "struct" or typeof(b) != "struct" then return false end if
   if _DNet_ToInt(a.forwardmove, 0) != _DNet_ToInt(b.forwardmove, 0) then return false end if
   if _DNet_ToInt(a.sidemove, 0) != _DNet_ToInt(b.sidemove, 0) then return false end if
@@ -3999,18 +4045,6 @@ function _DNet_MPBuildSnapshotPacket(forceAll, snapshotTick, targetSlot, targetF
   if not _DNet_IsSeq(sectorRows) then sectorRows = [] end if
   if not _DNet_IsSeq(sideRows) then sideRows = [] end if
 
-  s = _DNet_ToInt(targetSlot, -1)
-  if s >= 1 and s < MAXPLAYERS then
-    // Fullsync must still be slot-aware. Blind "first N actors" can miss nearby pickups/monsters
-    // depending on host registry order and cursor phase.
-    selectMax = _DNET_MP_MAX_ACTORS_PER_SNAPSHOT
-    pair = _DNet_MPHostSelectActorsForSlot(s, actorIds, actorRefs, selectMax, forceAll, snapshotTick)
-    if _DNet_IsSeq(pair) and len(pair) >= 2 then
-      if _DNet_IsSeq(pair[0]) then actorIds = pair[0] end if
-      if _DNet_IsSeq(pair[1]) then actorRefs = pair[1] end if
-    end if
-  end if
-
   playerCount = len(playerRows)
   actorCount = len(actorIds)
   if len(actorRefs) < actorCount then actorCount = len(actorRefs) end if
@@ -4075,6 +4109,27 @@ function _DNet_MPBuildSnapshotPacket(forceAll, snapshotTick, targetSlot, targetF
       sideCount = sideCount - 1
       size = size - 8
     end while
+  end if
+
+  if builtNow and actorCount < len(actorIds) then
+    // Actor rows selected this tick but trimmed by packet budget must be marked dirty again.
+    // Otherwise unchanged static actors can remain unsent for long periods.
+    _DNet_MPHostRequeueDroppedActorRows(actorIds, actorCount)
+
+    trimmedActorIds = array(actorCount, 0)
+    trimmedActorRefs = array(actorCount)
+    i = 0
+    while i < actorCount
+      trimmedActorIds[i] = _DNet_ToInt(actorIds[i], 0)
+      if i < len(actorRefs) then trimmedActorRefs[i] = actorRefs[i] end if
+      i = i + 1
+    end while
+    actorIds = trimmedActorIds
+    actorRefs = trimmedActorRefs
+    if _DNet_ToInt(_dnet_mp_snap_cache_tick, -1) == _DNet_ToInt(snapshotTick, 0) then
+      _dnet_mp_snap_cache_actor_ids = actorIds
+      _dnet_mp_snap_cache_actor_refs = actorRefs
+    end if
   end if
 
   // If geometry rows were trimmed for payload budget, mark them dirty again so they
@@ -4426,11 +4481,9 @@ function inline _DNet_MPHostSnapshotInterval()
   active = _DNet_ToInt(_dnet_mp_host_actor_active_count, 0)
 
   // Adapt cadence to actor load.
-  if active >= 320 then
-    interval = 4
-  else if active >= 224 then
+  if active >= 512 then
     interval = 3
-  else if active >= 128 then
+  else if active >= 384 then
     interval = 2
   end if
 
@@ -4445,14 +4498,12 @@ function inline _DNet_MPHostSnapshotInterval()
       i = i + 1
     end while
   end if
-  if peers >= 3 and interval < 3 then
-    interval = 3
-  else if peers >= 2 and interval < 2 then
+  if peers >= 3 and active >= 384 and interval < 2 then
     interval = 2
   end if
 
   if interval < 1 then interval = 1 end if
-  if interval > 4 then interval = 4 end if
+  if interval > 3 then interval = 3 end if
   return interval
 end function
 
@@ -4511,25 +4562,60 @@ function _DNet_MPHostMaybeSendSnapshot(forceAll)
     _dnet_mp_dbg_snap_skip_rate = _DNet_ToInt(_dnet_mp_dbg_snap_skip_rate, 0) + 1
     return
   end if
+  remoteSlots = []
+  needFullRows = []
+  anyNeedFull = forceAll
+  allNeedFull = true
   i = 0
   while i < len(active)
     slot = _DNet_ToInt(active[i], -1)
     if slot >= 1 and slot < MAXPLAYERS then
-      slotForceBurst = false
-      slotForce = forceAll
-      if _DNet_IsSeq(_dnet_mp_host_slot_fullsync_burst) and slot < len(_dnet_mp_host_slot_fullsync_burst) then
+      needFull = forceAll
+      if (not needFull) and _DNet_IsSeq(_dnet_mp_host_slot_fullsync_burst) and slot < len(_dnet_mp_host_slot_fullsync_burst) then
         if _DNet_ToInt(_dnet_mp_host_slot_fullsync_burst[slot], 0) > 0 then
-          slotForce = true
-          slotForceBurst = true
+          needFull = true
         end if
       end if
-      payload = _DNet_MPBuildSnapshotPacket(slotForce, gt, slot, slotForceBurst)
+      remoteSlots = remoteSlots + [slot]
+      if needFull then
+        needFullRows = needFullRows + [1]
+        anyNeedFull = true
+      else
+        needFullRows = needFullRows + [0]
+        allNeedFull = false
+      end if
+    end if
+    i = i + 1
+  end while
+
+  payloadFull = void
+  payloadDelta = void
+  if anyNeedFull then
+    payloadFull = _DNet_MPBuildSnapshotPacket(true, gt, 0, true)
+    if typeof(payloadFull) == "bytes" then
+      _dnet_mp_dbg_snap_built = _DNet_ToInt(_dnet_mp_dbg_snap_built, 0) + 1
+    end if
+  end if
+  if (not forceAll) and (not allNeedFull) then
+    payloadDelta = _DNet_MPBuildSnapshotPacket(false, gt, 0, false)
+    if typeof(payloadDelta) == "bytes" then
+      _dnet_mp_dbg_snap_built = _DNet_ToInt(_dnet_mp_dbg_snap_built, 0) + 1
+    end if
+  end if
+
+  i = 0
+  while i < len(remoteSlots)
+    slot = _DNet_ToInt(remoteSlots[i], -1)
+    if slot >= 1 and slot < MAXPLAYERS then
+      needFull = false
+      if i < len(needFullRows) then needFull = needFullRows[i] != 0 end if
+      payload = payloadDelta
+      if needFull then payload = payloadFull end if
+      _dnet_mp_dbg_snap_targets = _DNet_ToInt(_dnet_mp_dbg_snap_targets, 0) + 1
       if typeof(payload) == "bytes" then
-        _dnet_mp_dbg_snap_built = _DNet_ToInt(_dnet_mp_dbg_snap_built, 0) + 1
-        _dnet_mp_dbg_snap_targets = _DNet_ToInt(_dnet_mp_dbg_snap_targets, 0) + 1
         if MP_PlatformNetSend(slot, payload) then
           _dnet_mp_dbg_snap_sent = _DNet_ToInt(_dnet_mp_dbg_snap_sent, 0) + 1
-          if slotForceBurst and _DNet_IsSeq(_dnet_mp_host_slot_fullsync_burst) and slot < len(_dnet_mp_host_slot_fullsync_burst) then
+          if needFull and _DNet_IsSeq(_dnet_mp_host_slot_fullsync_burst) and slot < len(_dnet_mp_host_slot_fullsync_burst) then
             left = _DNet_ToInt(_dnet_mp_host_slot_fullsync_burst[slot], 0)
             if left > 0 then _dnet_mp_host_slot_fullsync_burst[slot] = left - 1 end if
           end if
@@ -5308,6 +5394,9 @@ function _DNet_MPDrainAuthoritativePackets()
   latestSnap = void
   latestPhase = void
   latestWIStats = void
+  snapApplied = 0
+  // Apply several actor/player snapshot deltas per pump to avoid starving rotating actor slices.
+  snapApplyBudget = 20
   drained = 0
   while true
     if drained >= 128 then break end if
@@ -5328,20 +5417,23 @@ function _DNet_MPDrainAuthoritativePackets()
     else if _DNet_MPIsClient() then
       if kind == _DNET_MPMSG_SNAPSHOT then
         // Snapshot coalescing must not drop geometry/switch deltas.
-        // Apply snapshots with removed/sector/side/fullsync data immediately,
-        // and only coalesce actor/player-only snapshots.
-        applyNow = false
+        // Also apply a bounded number of actor/player-only snapshots each pump so
+        // rotating actor replication (especially static objects) is not starved.
+        criticalSnap = false
         if len(payload) >= 11 then
           sflags = payload[1] & 255
           rcount = payload[8] & 255
           scount = payload[9] & 255
           sdcount = payload[10] & 255
           if (sflags & 1) != 0 or rcount > 0 or scount > 0 or sdcount > 0 then
-            applyNow = true
+            criticalSnap = true
           end if
         end if
-        if applyNow then
+        if criticalSnap then
           _DNet_MPClientApplySnapshot(payload)
+        else if snapApplied < snapApplyBudget then
+          _DNet_MPClientApplySnapshot(payload)
+          snapApplied = snapApplied + 1
         else
           latestSnap = payload
         end if
