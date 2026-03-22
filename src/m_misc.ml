@@ -269,6 +269,15 @@ end function
 * Purpose: Implements the _M_ApplyDefaultKV routine for the internal module support.
 */
 function _M_ApplyDefaultKV(key, val)
+  global mouseSensitivity
+  global snd_SfxVolume
+  global snd_MusicVolume
+  global showMessages
+  global usemouse
+  global usejoystick
+  global screenblocks
+  global detailLevel
+  global usegamma
   global mp_join_host
   global mp_join_port
   global mp_host_port
@@ -301,12 +310,10 @@ function _M_ApplyDefaultKV(key, val)
     return
   end if
   if key == "use_mouse" and typeof(n) == "int" then
-    global usemouse
     usemouse = n
     return
   end if
   if key == "use_joystick" and typeof(n) == "int" then
-    global usejoystick
     usejoystick = n
     return
   end if
@@ -316,6 +323,10 @@ function _M_ApplyDefaultKV(key, val)
   end if
   if key == "detaillevel" and typeof(n) == "int" then
     detailLevel = n
+    return
+  end if
+  if key == "brightness" and typeof(n) == "int" then
+    usegamma = n
     return
   end if
   if key == "usegamma" and typeof(n) == "int" then
@@ -614,6 +625,7 @@ function M_SaveDefaults()
   t = t + "use_joystick\t\t" + usejoystick + "\n"
   t = t + "screenblocks\t\t" + screenblocks + "\n"
   t = t + "detaillevel\t\t" + detailLevel + "\n"
+  t = t + "brightness\t\t" + usegamma + "\n"
   t = t + "usegamma\t\t" + usegamma + "\n"
   t = t + "mp_player_name\t\t" + _M_QuoteText(MP_GetPlayerName()) + "\n"
   t = t + "mp_join_host\t\t" + _M_QuoteText(mp_join_host) + "\n"

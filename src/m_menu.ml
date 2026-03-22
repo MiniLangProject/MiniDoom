@@ -448,10 +448,12 @@ const messages = 1
 const detail = 2
 const scrnsize = 3
 const option_empty1 = 4
-const mousesens = 5
-const option_empty2 = 6
-const soundvol = 7
-const opt_end = 8
+const brightness = 5
+const option_empty1b = 6
+const mousesens = 7
+const option_empty2 = 8
+const soundvol = 9
+const opt_end = 10
 
 const read1_end = 1
 const read2_end = 1
@@ -610,6 +612,8 @@ function _BuildMenus()
   _MI(1, "M_MESSG", M_ChangeMessages, 109),
   _MI(1, "M_DETAIL", M_ChangeDetail, 103),
   _MI(2, "M_SCRNSZ", M_SizeDisplay, 115),
+  _MI(-1, "", 0, 0),
+  _MI(2, "", M_ChangeBrightness, 98),
   _MI(-1, "", 0, 0),
   _MI(2, "M_MSENS", M_ChangeSensitivity, 109),
   _MI(-1, "", 0, 0),
@@ -1681,6 +1685,8 @@ function M_DrawOptions()
   V_DrawPatchDirect(OptionsDef.x + 120, OptionsDef.y + LINEHEIGHT * messages, 0,
   W_CacheLumpName(msgNames[showMessages], PU_CACHE))
 
+  _MMENU_WriteTextMenuSized(OptionsDef.x, OptionsDef.y + LINEHEIGHT * brightness, "BRIGHTNESS")
+  M_DrawThermo(OptionsDef.x, OptionsDef.y + LINEHEIGHT *(brightness + 1), 5, usegamma)
   M_DrawThermo(OptionsDef.x, OptionsDef.y + LINEHEIGHT *(mousesens + 1), 10, mouseSensitivity)
   M_DrawThermo(OptionsDef.x, OptionsDef.y + LINEHEIGHT *(scrnsize + 1), 9, screenSize)
 end function
@@ -1814,6 +1820,7 @@ end function
 * Purpose: Implements the M_ChangeSensitivity routine for the utility/math layer.
 */
 function M_ChangeSensitivity(choice)
+  global mouseSensitivity
   if choice == 0 then
     if mouseSensitivity > 0 then mouseSensitivity = mouseSensitivity - 1 end if
   else if choice == 1 then
@@ -1844,6 +1851,32 @@ function M_ChangeDetail(choice)
       end if
       players[consoleplayer] = p
     end if
+  end if
+end function
+
+/*
+* Function: M_ChangeBrightness
+* Purpose: Adjusts gamma-based brightness level from options menu.
+*/
+function M_ChangeBrightness(choice)
+  global usegamma
+
+  if choice == 0 then
+    if usegamma > 0 then usegamma = usegamma - 1 end if
+  else if choice == 1 then
+    if usegamma < 4 then usegamma = usegamma + 1 end if
+  end if
+
+  if typeof(players) == "array" and consoleplayer >= 0 and consoleplayer < len(players) then
+    p = players[consoleplayer]
+    if p is not void then
+      p.message = gammamsg[usegamma]
+      players[consoleplayer] = p
+    end if
+  end if
+
+  if typeof(I_SetPalette) == "function" and typeof(W_CacheLumpName) == "function" then
+    I_SetPalette(W_CacheLumpName("PLAYPAL", PU_CACHE))
   end if
 end function
 
@@ -1929,9 +1962,25 @@ end function
 */
 function M_StopMessage()
   global menuactive
+  global messageLastMenuActive
   global messageToPrint
+  wasMenuActive = menuactive
   menuactive = messageLastMenuActive
   messageToPrint = 0
+  if wasMenuActive and not menuactive then
+    _MMENU_RequestStatusBarRefresh()
+  end if
+end function
+
+/*
+* Function: _MMENU_RequestStatusBarRefresh
+* Purpose: Forces one full status bar redraw after menu overlays are closed.
+*/
+function inline _MMENU_RequestStatusBarRefresh()
+  global st_firsttime
+  if typeof(st_firsttime) == "bool" then
+    st_firsttime = true
+  end if
 end function
 
 /*
@@ -2650,15 +2699,19 @@ function M_Responder(ev)
     * Function: M_ClearMenus
     * Purpose: Implements the M_ClearMenus routine for the utility/math layer.
     */
-    function M_ClearMenus()
-      global menuactive
-      global mpNameEnter
-      global mpJoinHostEnter
+function M_ClearMenus()
+  global menuactive
+  global mpNameEnter
+  global mpJoinHostEnter
 
-      menuactive = false
-      mpNameEnter = 0
-      mpJoinHostEnter = 0
-    end function
+  wasMenuActive = menuactive
+  menuactive = false
+  mpNameEnter = 0
+  mpJoinHostEnter = 0
+  if wasMenuActive then
+    _MMENU_RequestStatusBarRefresh()
+  end if
+end function
 
     /*
     * Function: M_SetupNextMenu

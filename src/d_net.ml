@@ -136,7 +136,8 @@ const _DNET_MPMSG_SOUND = 201
 const _DNET_MP_CHAT_BROADCAST = 5
 const _DNET_MP_SNAPSHOT_INTERVAL = 1
 const _DNET_MP_FULL_SNAPSHOT_PERIOD = 35
-const _DNET_MP_INPUT_KEEPALIVE_TICS = 2
+const _DNET_MP_INPUT_KEEPALIVE_TICS = 1
+const _DNET_MP_INPUT_ACTIVE_REDUNDANT_COPIES = 2
 const _DNET_MP_REMOTE_CMD_STALE_TICS = 6
 const _DNET_MP_PHASE_INTERVAL = 4
 const _DNET_MP_WISTATS_RETRY_TICS = 12
@@ -3691,6 +3692,19 @@ function _DNet_MPSendInputCmd(cmd)
   _DNet_MPWriteI16(payload, 14, _DNet_ToInt(cmd.consistancy, 0))
   _DNet_MPWriteI16(payload, 16, _DNet_ToInt(cmd.chatchar, 0))
   if MP_PlatformNetSend(1, payload) then
+    activeCmd = false
+    if _DNet_ToInt(cmd.forwardmove, 0) != 0 then activeCmd = true end if
+    if _DNet_ToInt(cmd.sidemove, 0) != 0 then activeCmd = true end if
+    if _DNet_ToInt(cmd.angleturn, 0) != 0 then activeCmd = true end if
+    if _DNet_ToInt(cmd.buttons, 0) != 0 then activeCmd = true end if
+    if _DNet_ToInt(cmd.chatchar, 0) != 0 then activeCmd = true end if
+    if activeCmd and _DNET_MP_INPUT_ACTIVE_REDUNDANT_COPIES > 1 then
+      dup = 1
+      while dup < _DNET_MP_INPUT_ACTIVE_REDUNDANT_COPIES
+        MP_PlatformNetSend(1, payload)
+        dup = dup + 1
+      end while
+    end if
     _dnet_mp_last_input_send_tic = nowtic
     _dnet_mp_last_input_cmd = _DNet_CopyCmd(cmd)
   end if
