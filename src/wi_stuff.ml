@@ -646,12 +646,21 @@ end function
 * Purpose: Draws or renders output for the intermission subsystem.
 */
 function WI_drawPercent(x, y, p)
-  xx = x
-  if percent is not void then
-    _WI_SafeDrawPatch(xx, y, percent)
-    xx = xx - _WI_PatchW(percent)
+  n = _WI_ToInt(p, 0)
+  if n < 0 then n = -n end if
+  digits = 1
+  if n >= 100 then
+    digits = 3
+  else if n >= 10 then
+    digits = 2
   end if
-  return WI_drawNum(xx, y, p, 0)
+
+  // Keep numbers clear of the percent glyph: shift left by digit count (1/2/3).
+  WI_drawNumRight(x - digits, y, p, 0)
+  if percent is not void then
+    _WI_SafeDrawPatch(x, y, percent)
+  end if
+  return x
 end function
 
 /*
