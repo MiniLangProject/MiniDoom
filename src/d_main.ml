@@ -999,7 +999,6 @@ function D_Display()
 
   if typeof(I_UpdateNoBlit) == "function" then I_UpdateNoBlit() end if
   if typeof(M_Drawer) == "function" then M_Drawer() end if
-  _D_DrawMPDebugOverlay()
   mpAuthoritative = false
   if typeof(MP_PlatformIsHosting) == "function" and MP_PlatformIsHosting() then mpAuthoritative = true end if
   if typeof(MP_PlatformIsClientConnected) == "function" and MP_PlatformIsClientConnected() then mpAuthoritative = true end if
@@ -1075,7 +1074,6 @@ function D_Display()
 
     if typeof(I_UpdateNoBlit) == "function" then I_UpdateNoBlit() end if
     if typeof(M_Drawer) == "function" then M_Drawer() end if
-    _D_DrawMPDebugOverlay()
     if typeof(I_FinishUpdate) == "function" then
       if profiling then
         t0 = _D_TimeMs()

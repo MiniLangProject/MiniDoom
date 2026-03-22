@@ -2531,6 +2531,7 @@ end function
 * Purpose: Toggles slot active state and removes stale mobjs on deactivate.
 */
 function _DNet_MPSetPlayerSlotActive(slot, active)
+  global _dnet_mp_remote_cmds
   global _dnet_mp_remote_cmd_valid
   global _dnet_mp_remote_cmd_tic
   global _dnet_mp_remote_input_last_seq
@@ -2540,6 +2541,9 @@ function _DNet_MPSetPlayerSlotActive(slot, active)
     playeringame[slot] = active
   end if
   if not active then
+    if _DNet_IsSeq(_dnet_mp_remote_cmds) and slot < len(_dnet_mp_remote_cmds) then
+      _dnet_mp_remote_cmds[slot] = ticcmd_t(0, 0, 0, 0, 0, 0)
+    end if
     if _DNet_IsSeq(_dnet_mp_remote_cmd_valid) and slot < len(_dnet_mp_remote_cmd_valid) then
       _dnet_mp_remote_cmd_valid[slot] = false
     end if
@@ -2556,17 +2560,12 @@ function _DNet_MPSetPlayerSlotActive(slot, active)
       _DNet_MPClientResetPlayerMotionSlot(slot)
     end if
   end if
-  if (not active) and _DNet_IsSeq(players) and slot < len(players) and players[slot] is not void then
+  if (not active) and _DNet_IsSeq(players) and slot < len(players) then
     p = players[slot]
-    if typeof(p) != "struct" then
-      players[slot] = Player_MakeDefault()
-      return
-    end if
-    if p.mo is not void and typeof(P_RemoveMobj) == "function" then
+    if typeof(p) == "struct" and p.mo is not void and typeof(P_RemoveMobj) == "function" then
       P_RemoveMobj(p.mo)
-      p.mo = void
-      players[slot] = p
     end if
+    players[slot] = Player_MakeDefault()
   end if
 end function
 

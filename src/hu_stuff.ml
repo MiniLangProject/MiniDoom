@@ -46,6 +46,7 @@ const HU_INPUTTOGGLE = 116
 const HU_INPUTX = HU_MSGX
 
 const HU_TITLEX = 0
+const HU_CHATGAMEPREFIX = "MiniDoom: "
 
 chat_macros =[
 HUSTR_CHATMACRO0,
@@ -581,7 +582,7 @@ function HU_Ticker()
         rc = HUlib_keyInIText(w_inputbuffer[i], c)
         if rc and c == KEY_ENTER then
           if _HU_ToInt(w_inputbuffer[i].l.len, 0) > 0 and((chat_dest[i] == consoleplayer + 1) or(chat_dest[i] == HU_BROADCAST)) then
-            HUlib_addMessageToSText(w_message, _HU_PlayerName(i), _HU_ITextString(w_inputbuffer[i]))
+            HUlib_addMessageToSText(w_message, HU_CHATGAMEPREFIX + _HU_PlayerName(i), _HU_ITextString(w_inputbuffer[i]))
             message_nottobefuckedwith = true
             _HU_SetMessageOn(true)
             message_counter = HU_MSGTIMEOUT
