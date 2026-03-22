@@ -112,6 +112,76 @@ Example run:
 
 If no `-iwad` is provided, the engine uses its internal IWAD search order and loads the first matching file it finds.
 
+## Multiplayer Mode
+
+MiniDoom includes an in-game UDP multiplayer mode with host-authoritative simulation.
+
+### Current Capabilities
+
+- Up to 4 players total (slots 0..3).
+- Modes: `Coop` and `Deathmatch`.
+- Host-configurable map, skill, max players, frag limit, and time limit.
+- Player names (max 25 characters).
+- HUD join/leave/kill messages and chat relay.
+- Intermission/state synchronization between peers.
+
+### Start Multiplayer From the Main Menu
+
+1. Open `Multiplayer` from the main menu.
+2. Choose one of:
+   - `Host Game`
+   - `Join Game`
+   - `Player Name`
+
+### Host Game
+
+In `Host Game`, configure:
+
+- `Mode` (`COOP` / `DEATHMATCH`)
+- `Map`
+- `Skill`
+- `Max Players`
+- `Frag Limit` (`0` = unlimited)
+- `Time Limit` (`0` = unlimited)
+- `Port` (default: `2342`)
+
+Then select `Start Host`.
+
+### Join Game
+
+In `Join Game`, set:
+
+- `Host` (IP address or hostname)
+- `Port` (must match host)
+
+Then select `Join`.
+
+### WAD Compatibility Check
+
+On host and client startup for multiplayer, MiniDoom computes an IWAD fingerprint (`FNV-1a`).
+Join is rejected if fingerprints do not match.
+
+Practical recommendation: all players should use the same IWAD file/version.
+
+### Chat
+
+- Press `T` in-game to open chat input.
+- Send with `Enter`.
+- Messages are relayed host-authoritatively and shown as:
+  - `<PlayerName>: <message>`
+
+### Networking Model (High Level)
+
+- Transport: UDP.
+- Server-authoritative world state.
+- Clients send inputs; host simulates the world and sends snapshots/events.
+
+### Multiplayer Troubleshooting
+
+- `Host did not respond (timeout)`: verify host address/port and firewall/NAT rules.
+- `WAD fingerprint mismatch`: ensure all peers use the same IWAD.
+- `Server full`: lower active players or increase max players (up to 4).
+
 ## Notes vs Original DOOM
 
 - Core engine behavior targets original DOOM parity while using MiniLang runtime semantics.
