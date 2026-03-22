@@ -269,11 +269,18 @@ end function
 function _PI_PlayerIndex(player)
   if player is void then return -1 end if
   if typeof(players) != "array" then return -1 end if
+  if typeof(player.mo) == "struct" then
+    i = 0
+    while i < len(players)
+      pi = players[i]
+      if typeof(pi) == "struct" and typeof(pi.mo) == "struct" and pi.mo == player.mo then return i end if
+      i = i + 1
+    end while
+  end if
   i = 0
   while i < len(players)
     pi = players[i]
     if pi == player then return i end if
-    if pi is not void and player.mo is not void and pi.mo == player.mo then return i end if
     i = i + 1
   end while
   return -1
@@ -284,6 +291,16 @@ end function
 * Purpose: Resolves player slot by player struct first, then by owning mobj.
 */
 function _PI_PlayerIndexForThing(player, thing)
+  if thing is not void and typeof(players) == "array" then
+    i = 0
+    while i < len(players)
+      pi = players[i]
+      if typeof(pi) == "struct" and typeof(pi.mo) == "struct" and pi.mo == thing then
+        return i
+      end if
+      i = i + 1
+    end while
+  end if
   idx = _PI_PlayerIndex(player)
   if idx >= 0 then return idx end if
   if thing is void then return -1 end if
@@ -708,10 +725,11 @@ function P_TouchSpecialThing(special, toucher)
   P_RemoveMobj(special)
   player.bonuscount = player.bonuscount + BONUSADD
   _PI_CommitTouchedPlayer(toucher, player, pidx)
-  if pidx == consoleplayer and typeof(S_StartSound) == "function" then
-    S_StartSound(void, sound)
-  else if player == players[consoleplayer] and typeof(S_StartSound) == "function" then
-    S_StartSound(void, sound)
+  if typeof(S_StartSound) == "function" then
+    sndOrigin = void
+    if typeof(toucher) == "struct" then sndOrigin = toucher end if
+    if typeof(player) == "struct" and typeof(player.mo) == "struct" then sndOrigin = player.mo end if
+    S_StartSound(sndOrigin, sound)
   end if
 end function
 

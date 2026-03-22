@@ -30,6 +30,8 @@ import p_maputl
 import p_tick
 import r_state
 import info
+import s_sound
+import sounds
 import std.math
 
 const DOOMCOM_ID = 0x12345678
@@ -236,6 +238,7 @@ _dnet_mp_client_wistats_next_req_tic = 0
 _dnet_mp_client_wistats_req_count = 0
 _dnet_mp_client_wistats_error = ""
 _dnet_mp_client_cached_wistats = void
+_dnet_mp_client_local_pickups_armed = false
 _dnet_mp_dbg_snap_calls = 0
 _dnet_mp_dbg_snap_skip_not_host = 0
 _dnet_mp_dbg_snap_skip_not_level = 0
@@ -258,7 +261,7 @@ _dnet_mp_snap_cache_side_rows = []
 * Function: _DNet_DefaultCmds
 * Purpose: Implements the _DNet_DefaultCmds routine for the internal module support.
 */
-function _DNet_DefaultCmds()
+function inline _DNet_DefaultCmds()
   a = array(BACKUPTICS)
   i = 0
   while i < BACKUPTICS
@@ -637,6 +640,7 @@ function _DNet_MPResetRuntime()
   global _dnet_mp_client_wistats_req_count
   global _dnet_mp_client_wistats_error
   global _dnet_mp_client_cached_wistats
+  global _dnet_mp_client_local_pickups_armed
   global _dnet_mp_dbg_snap_calls
   global _dnet_mp_dbg_snap_skip_not_host
   global _dnet_mp_dbg_snap_skip_not_level
@@ -728,6 +732,7 @@ function _DNet_MPResetRuntime()
   _dnet_mp_client_wistats_req_count = 0
   _dnet_mp_client_wistats_error = ""
   _dnet_mp_client_cached_wistats = void
+  _dnet_mp_client_local_pickups_armed = false
   _dnet_mp_dbg_snap_calls = 0
   _dnet_mp_dbg_snap_skip_not_host = 0
   _dnet_mp_dbg_snap_skip_not_level = 0
@@ -2435,6 +2440,7 @@ end function
 function _DNet_MPHostCollectSectorChanges(maxCount, forceAll)
   global _dnet_mp_host_sector_cursor
   rows = []
+  rowCount = 0
   if maxCount <= 0 then return rows end if
   if typeof(sectors) != "array" then return rows end if
   _DNet_MPHostEnsureSectorCache()
@@ -2452,10 +2458,14 @@ function _DNet_MPHostCollectSectorChanges(maxCount, forceAll)
   if forceAll then scanLimit = n end if
   if scanLimit < maxCount then scanLimit = maxCount end if
   if scanLimit > n then scanLimit = n end if
+  rowsCap = maxCount
+  if rowsCap > scanLimit then rowsCap = scanLimit end if
+  if rowsCap < 0 then rowsCap = 0 end if
+  rows = array(rowsCap)
 
   scanned = 0
   i = cursor
-  while scanned < scanLimit and len(rows) < maxCount
+  while scanned < scanLimit and rowCount < maxCount
     sec = sectors[i]
     f = _DNet_ToInt(sec.floorheight, 0)
     c = _DNet_ToInt(sec.ceilingheight, 0)
@@ -2472,7 +2482,10 @@ function _DNet_MPHostCollectSectorChanges(maxCount, forceAll)
     end if
 
     if changed then
-      rows = rows + [[i, f, c, l, sp]]
+      if rowCount < len(rows) then
+        rows[rowCount] = [i, f, c, l, sp]
+        rowCount = rowCount + 1
+      end if
       _dnet_mp_host_last_sector_floor[i] = f
       _dnet_mp_host_last_sector_ceiling[i] = c
       _dnet_mp_host_last_sector_light[i] = l
@@ -2484,6 +2497,15 @@ function _DNet_MPHostCollectSectorChanges(maxCount, forceAll)
     scanned = scanned + 1
   end while
   _dnet_mp_host_sector_cursor = i
+  if rowCount < len(rows) then
+    trimmed = array(rowCount)
+    j = 0
+    while j < rowCount
+      trimmed[j] = rows[j]
+      j = j + 1
+    end while
+    rows = trimmed
+  end if
   return rows
 end function
 
@@ -2533,6 +2555,7 @@ end function
 function _DNet_MPHostCollectSideChanges(maxCount, forceAll)
   global _dnet_mp_host_side_cursor
   rows = []
+  rowCount = 0
   if maxCount <= 0 then return rows end if
   if typeof(sides) != "array" then return rows end if
   _DNet_MPHostEnsureSideCache()
@@ -2550,10 +2573,14 @@ function _DNet_MPHostCollectSideChanges(maxCount, forceAll)
   if forceAll then scanLimit = n end if
   if scanLimit < maxCount then scanLimit = maxCount end if
   if scanLimit > n then scanLimit = n end if
+  rowsCap = maxCount
+  if rowsCap > scanLimit then rowsCap = scanLimit end if
+  if rowsCap < 0 then rowsCap = 0 end if
+  rows = array(rowsCap)
 
   scanned = 0
   i = cursor
-  while scanned < scanLimit and len(rows) < maxCount
+  while scanned < scanLimit and rowCount < maxCount
     sd = sides[i]
     tt = _DNet_ToInt(sd.toptexture, 0)
     bt = _DNet_ToInt(sd.bottomtexture, 0)
@@ -2569,7 +2596,10 @@ function _DNet_MPHostCollectSideChanges(maxCount, forceAll)
     end if
 
     if changed then
-      rows = rows + [[i, tt, bt, mt]]
+      if rowCount < len(rows) then
+        rows[rowCount] = [i, tt, bt, mt]
+        rowCount = rowCount + 1
+      end if
       _dnet_mp_host_last_side_top[i] = tt
       _dnet_mp_host_last_side_bottom[i] = bt
       _dnet_mp_host_last_side_mid[i] = mt
@@ -2580,6 +2610,15 @@ function _DNet_MPHostCollectSideChanges(maxCount, forceAll)
     scanned = scanned + 1
   end while
   _dnet_mp_host_side_cursor = i
+  if rowCount < len(rows) then
+    trimmed = array(rowCount)
+    j = 0
+    while j < rowCount
+      trimmed[j] = rows[j]
+      j = j + 1
+    end while
+    rows = trimmed
+  end if
   return rows
 end function
 
@@ -4952,6 +4991,7 @@ function _DNet_MPClientApplySnapshot(payload)
   global _dnet_mp_client_actor_miss
   global _dnet_mp_client_actor_ids
   global _dnet_mp_client_actor_refs
+  global _dnet_mp_client_local_pickups_armed
   global gametic
   global leveltime
   global gamestate
@@ -5094,6 +5134,47 @@ function _DNet_MPClientApplySnapshot(payload)
       if ingame then
         p = _DNet_MPEnsurePlayerStruct(slot)
         if typeof(p) == "struct" then
+          localPickup = false
+          localWeaponPickup = false
+          if slot == consoleplayer and _dnet_mp_client_local_pickups_armed then
+            oldHealth = _DNet_ToInt(p.health, 0)
+            oldArmor = _DNet_ToInt(p.armorpoints, 0)
+            oldItem = _DNet_ToInt(p.itemcount, 0)
+            oldA0 = 0
+            oldA1 = 0
+            oldA2 = 0
+            oldA3 = 0
+            if _DNet_IsSeq(p.ammo) then
+              if len(p.ammo) > 0 then oldA0 = _DNet_ToInt(p.ammo[0], 0) end if
+              if len(p.ammo) > 1 then oldA1 = _DNet_ToInt(p.ammo[1], 0) end if
+              if len(p.ammo) > 2 then oldA2 = _DNet_ToInt(p.ammo[2], 0) end if
+              if len(p.ammo) > 3 then oldA3 = _DNet_ToInt(p.ammo[3], 0) end if
+            end if
+            if phealth > oldHealth or parmor > oldArmor or pitem > oldItem or a0 > oldA0 or a1 > oldA1 or a2 > oldA2 or a3 > oldA3 then
+              localPickup = true
+            end if
+            if _DNet_IsSeq(p.cards) then
+              ciOld = 0
+              while ciOld < NUMCARDS and ciOld < len(p.cards) and ciOld < 16
+                bit = 1 << ciOld
+                if (pcards & bit) != 0 and not p.cards[ciOld] then
+                  localPickup = true
+                end if
+                ciOld = ciOld + 1
+              end while
+            end if
+            if _DNet_IsSeq(p.weaponowned) then
+              wiOld = 0
+              while wiOld < NUMWEAPONS and wiOld < len(p.weaponowned) and wiOld < 16
+                bit = 1 << wiOld
+                if (pweapons & bit) != 0 and not p.weaponowned[wiOld] then
+                  localPickup = true
+                  localWeaponPickup = true
+                end if
+                wiOld = wiOld + 1
+              end while
+            end if
+          end if
           mo = p.mo
           playerSpawnedNow = false
           keepLocalPose = (slot == consoleplayer) and invalidPose and (typeof(mo) == "struct") and (mo.subsector is not void)
@@ -5251,6 +5332,17 @@ function _DNet_MPClientApplySnapshot(payload)
             p.playerstate = playerstate_t.PST_DEAD
           end if
           players[slot] = p
+          if slot == consoleplayer then
+            if not _dnet_mp_client_local_pickups_armed then
+              _dnet_mp_client_local_pickups_armed = true
+            else if localPickup and typeof(S_StartSound) == "function" then
+              if localWeaponPickup then
+                S_StartSound(void, sfxenum_t.sfx_wpnup)
+              else
+                S_StartSound(void, sfxenum_t.sfx_itemup)
+              end if
+            end if
+          end if
         end if
       end if
     end if
@@ -6278,7 +6370,7 @@ end function
 * Function: NetbufferSize
 * Purpose: Implements the NetbufferSize routine for the engine module behavior.
 */
-function NetbufferSize()
+function inline NetbufferSize()
   if netbuffer is void then return 0 end if
   n = _DNet_ToInt(netbuffer.numtics, 0)
   if n < 0 then n = 0 end if

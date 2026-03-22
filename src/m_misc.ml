@@ -575,7 +575,9 @@ function M_LoadDefaults()
   numdefaults = 19
 
   if typeof(defaultfile) == "string" and defaultfile != "" and fs.exists(defaultfile) and fs.isFile(defaultfile) then
-    rd = fs.readAllLines(defaultfile)
+    rdTry = try(fs.readAllLines(defaultfile))
+    rd = void
+    if typeof(rdTry) != "error" then rd = rdTry end if
     if typeof(rd) == "array" then
       i = 0
       while i < len(rd)
@@ -625,7 +627,10 @@ function M_SaveDefaults()
   t = t + "mp_map_name\t\t" + _M_QuoteText(MP_GetSelectedMap()) + "\n"
 
   if _M_ParentDirExists(defaultfile) then
-    fs.writeAllText(defaultfile, t)
+    wrTry = try(fs.writeAllText(defaultfile, t))
+    if typeof(wrTry) == "error" then
+      print "M_SaveDefaults: failed to write " + defaultfile
+    end if
   end if
 end function
 

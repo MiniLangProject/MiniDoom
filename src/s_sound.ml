@@ -434,12 +434,17 @@ end function
 
 /*
 * Function: _S_MPSendSoundEvent
-* Purpose: Broadcasts one positional/non-positional sound event from host to connected clients.
+* Purpose: Sends one positional/non-positional sound event from host (broadcast or target slot).
 */
-function _S_MPSendSoundEvent(origin_p, sid, volume)
+function _S_MPSendSoundEvent(origin_p, sid, volume, targetSlot)
   if not(typeof(MP_PlatformIsHosting) == "function" and MP_PlatformIsHosting()) then return end if
   if typeof(MP_PlatformNetSend) != "function" then return end if
   if typeof(MP_PlatformGetActiveSlots) != "function" then return end if
+  sawidl = _S_SfxId(sfxenum_t.sfx_sawidl)
+  if sid == sawidl then
+    // Chainsaw idle is a rapid local loop; relaying each tick creates noisy MP spam.
+    return
+  end if
 
   src = _S_PosRef(origin_p)
   flags = 0
@@ -453,6 +458,10 @@ function _S_MPSendSoundEvent(origin_p, sid, volume)
     sy = _S_ToInt(src.y, 0)
   end if
 
+  ts = _S_ToInt(targetSlot, -1)
+  // Do not broadcast non-positional local/player-only sounds (e.g. weapon idle).
+  if ts < 0 and flags == 0 then return end if
+
   payload = bytes(21, 0)
   payload[0] = _S_NETMSG_SOUND
   payload[1] = sid & 255
@@ -464,6 +473,11 @@ function _S_MPSendSoundEvent(origin_p, sid, volume)
   _S_WriteI32(payload, 13, sz)
   _S_WriteI32(payload, 17, sang)
 
+  if ts >= 0 and ts < MAXPLAYERS then
+    MP_PlatformNetSend(ts, payload)
+    return
+  end if
+
   active = MP_PlatformGetActiveSlots()
   if not _S_IsSeq(active) then return end if
   i = 0
@@ -474,6 +488,19 @@ function _S_MPSendSoundEvent(origin_p, sid, volume)
     end if
     i = i + 1
   end while
+end function
+
+/*
+* Function: S_MPSendPickupSoundToPlayer
+* Purpose: Sends one pickup sound to the owning player in host-authoritative multiplayer.
+*/
+function S_MPSendPickupSoundToPlayer(playerSlot, sound_id)
+  if not(typeof(MP_PlatformIsHosting) == "function" and MP_PlatformIsHosting()) then return end if
+  sid = _S_SfxId(sound_id)
+  if sid < 1 then return end if
+  ts = _S_ToInt(playerSlot, -1)
+  if ts < 0 or ts >= MAXPLAYERS then ts = -1 end if
+  _S_MPSendSoundEvent(void, sid, snd_SfxVolume, ts)
 end function
 
 /*
@@ -679,7 +706,7 @@ function S_StartSoundAtVolume(origin_p, sfx_id, volume)
   if sid < 1 then return end if
   if not _S_IsSeq(S_sfx) or sid >= len(S_sfx) then return end if
 
-  _S_MPSendSoundEvent(origin_p, sid, volume)
+  _S_MPSendSoundEvent(origin_p, sid, volume, -1)
 
   sfx = S_sfx[sid]
   if sfx is void then return end if

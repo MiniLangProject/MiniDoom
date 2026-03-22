@@ -57,6 +57,9 @@ const _MPPLAT_MAX_PLAYERS = 4
 const _MPPLAT_SO_RCVTIMEO = 0x1006
 const _MPPLAT_GAME_QUEUE_CHUNK = 256
 const _MPPLAT_GAME_QUEUE_MAX = 2048
+const _MPPLAT_PUMP_MAX_PACKETS = 192
+const _MPPLAT_PUMP_MIN_PACKETS = 48
+const _MPPLAT_PUMP_BUDGET_MS = 4
 const _MPPLAT_AF_INET = 2
 const _MPPLAT_SOCK_DGRAM = 2
 const _MPPLAT_IPPROTO_UDP = 17
@@ -168,18 +171,11 @@ end function
 
 /*
 * Function: _MPPlatform_ToBytesCopy
-* Purpose: Normalizes bytes/array payload values to an owned bytes buffer.
+* Purpose: Normalizes bytes/array payload values to bytes (fast-path avoids copy for bytes).
 */
-function _MPPlatform_ToBytesCopy(v)
+function inline _MPPlatform_ToBytesCopy(v)
   if typeof(v) == "bytes" then
-    n = len(v)
-    bufCopy = bytes(n, 0)
-    i = 0
-    while i < n
-      bufCopy[i] = v[i] & 255
-      i = i + 1
-    end while
-    return bufCopy
+    return v
   end if
   if typeof(v) == "array" or typeof(v) == "list" then
     n = len(v)
@@ -280,12 +276,23 @@ function _MPPlatform_QueueChatLine(line)
 
   // Compact occasionally to keep queue growth bounded.
   if _mp_chat_queue_head > 32 then
-    keep = []
+    keep = array(len(_mp_chat_queue))
+    keepCount = 0
     i = _mp_chat_queue_head
     while i < len(_mp_chat_queue)
-      keep = keep + [_mp_chat_queue[i]]
+      keep[keepCount] = _mp_chat_queue[i]
+      keepCount = keepCount + 1
       i = i + 1
     end while
+    if keepCount < len(keep) then
+      trimmed = array(keepCount)
+      i = 0
+      while i < keepCount
+        trimmed[i] = keep[i]
+        i = i + 1
+      end while
+      keep = trimmed
+    end if
     _mp_chat_queue = keep
     _mp_chat_queue_head = 0
   end if
@@ -811,7 +818,7 @@ end function
 * Function: _MPPlatform_FindHostPeerIndex
 * Purpose: Finds existing host peer entry by ip/port tuple.
 */
-function _MPPlatform_FindHostPeerIndex(ip, port)
+function inline _MPPlatform_FindHostPeerIndex(ip, port)
   if typeof(_mp_host_peers) != "array" then return -1 end if
   i = 0
   while i < len(_mp_host_peers)
@@ -828,7 +835,7 @@ end function
 * Function: _MPPlatform_IsPeerIdUsed
 * Purpose: Checks whether a host peer id is already occupied.
 */
-function _MPPlatform_IsPeerIdUsed(pid)
+function inline _MPPlatform_IsPeerIdUsed(pid)
   if pid == 1 then return true end if
   i = 0
   while i < len(_mp_host_peers)
@@ -843,7 +850,7 @@ end function
 * Function: _MPPlatform_IsSlotUsed
 * Purpose: Checks whether a host player slot index is already used by a peer.
 */
-function _MPPlatform_IsSlotUsed(slot)
+function inline _MPPlatform_IsSlotUsed(slot)
   if slot < 1 or slot >= _MPPLAT_MAX_PLAYERS then return true end if
   i = 0
   while i < len(_mp_host_peers)
@@ -858,7 +865,7 @@ end function
 * Function: _MPPlatform_AllocHostSlot
 * Purpose: Allocates a free player slot [1..MAXPLAYERS-1] for a joining client.
 */
-function _MPPlatform_AllocHostSlot()
+function inline _MPPlatform_AllocHostSlot()
   s = 1
   while s < _MPPLAT_MAX_PLAYERS
     if not _MPPlatform_IsSlotUsed(s) then return s end if
@@ -1220,11 +1227,13 @@ end function
 function _MPPlatform_RemoveHostPeerByIndex(idx, withMessage)
   global _mp_host_peers
   if idx < 0 or idx >= len(_mp_host_peers) then return false end if
-  keep = []
+  keep = array(len(_mp_host_peers))
+  keepCount = 0
   i = 0
   while i < len(_mp_host_peers)
     if i != idx then
-      keep = keep + [_mp_host_peers[i]]
+      keep[keepCount] = _mp_host_peers[i]
+      keepCount = keepCount + 1
     else if withMessage then
       p = _mp_host_peers[i]
       nm = "Player"
@@ -1233,6 +1242,15 @@ function _MPPlatform_RemoveHostPeerByIndex(idx, withMessage)
     end if
     i = i + 1
   end while
+  if keepCount < len(keep) then
+    trimmed = array(keepCount)
+    i = 0
+    while i < keepCount
+      trimmed[i] = keep[i]
+      i = i + 1
+    end while
+    keep = trimmed
+  end if
   _mp_host_peers = keep
   return true
 end function
@@ -1460,14 +1478,16 @@ end function
 function _MPPlatform_ExpireHostPeers()
   global _mp_host_peers
   nowMs = _MPPlatform_ToInt(time.ticks(), 0)
-  keep = []
+  keep = array(len(_mp_host_peers))
+  keepCount = 0
   i = 0
   while i < len(_mp_host_peers)
     p = _mp_host_peers[i]
     if typeof(p) == "struct" then
       age = nowMs - _MPPlatform_ToInt(p.lastSeenMs, nowMs)
       if age <= _MPPLAT_HOST_PEER_TIMEOUT_MS then
-        keep = keep + [p]
+        keep[keepCount] = p
+        keepCount = keepCount + 1
       else
         nm = p.name
         if typeof(nm) != "string" or nm == "" then nm = "Player" end if
@@ -1479,6 +1499,15 @@ function _MPPlatform_ExpireHostPeers()
     end if
     i = i + 1
   end while
+  if keepCount < len(keep) then
+    trimmed = array(keepCount)
+    i = 0
+    while i < keepCount
+      trimmed[i] = keep[i]
+      i = i + 1
+    end while
+    keep = trimmed
+  end if
   _mp_host_peers = keep
 end function
 
@@ -1495,8 +1524,16 @@ function MP_PlatformPump()
   if _mp_role == _MPPLAT_ROLE_NONE then return end if
   if typeof(_mp_sock) != "int" and typeof(_mp_sock) != "ptr" then return end if
 
+  startMs = _MPPlatform_ToInt(time.ticks(), 0)
+  maxLoops = _MPPLAT_PUMP_MAX_PACKETS
   loops = 0
-  while loops < 48
+  while loops < maxLoops
+    if loops >= _MPPLAT_PUMP_MIN_PACKETS then
+      elapsed = _MPPlatform_ToInt(time.ticks(), 0) - startMs
+      if elapsed >= _MPPLAT_PUMP_BUDGET_MS and _MPPlatform_QueueDepth() < (_MPPLAT_GAME_QUEUE_MAX >> 2) then
+        break
+      end if
+    end if
     pkt = net.udpRecvFrom(_mp_sock, _MPPLAT_RECV_MAX)
     if typeof(pkt) == "error" then
       if _MPPlatform_IsWouldBlockError(pkt) then
@@ -1632,6 +1669,7 @@ function MP_PlatformShutdown()
   global _mp_game_queue_tail
   global _mp_chat_queue
   global _mp_chat_queue_head
+  global _mp_game_queue_dropped
 
   if _mp_role == _MPPLAT_ROLE_CLIENT and (typeof(_mp_sock) == "int" or typeof(_mp_sock) == "ptr") and _mp_client_host != "" and _mp_client_port > 0 then
     _MPPlatform_SendFields(_mp_sock, _mp_client_host, _mp_client_port, [_MPPLAT_PROTO, _MPPLAT_LEAVE])

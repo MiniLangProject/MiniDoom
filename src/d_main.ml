@@ -648,7 +648,12 @@ function FindResponseFile()
         end if
 
         print "Found response file " + fn + "!"
-        filebytes = fs.readAllBytes(fn)
+        filebytesTry = try(fs.readAllBytes(fn))
+        if typeof(filebytesTry) == "error" then
+          I_Error("Couldn't read response file: " + fn)
+          return
+        end if
+        filebytes = filebytesTry
         if typeof(filebytes) != "bytes" then
           I_Error("Couldn't read response file: " + fn)
           return

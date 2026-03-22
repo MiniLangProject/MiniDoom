@@ -701,7 +701,10 @@ function M_ReadSaveStrings()
 
     data = void
     if fs.exists(name) and fs.isFile(name) then
-      data = fs.readAllBytes(name)
+      dataTry = try(fs.readAllBytes(name))
+      if typeof(dataTry) != "error" then
+        data = dataTry
+      end if
     end if
     if typeof(data) == "bytes" then
 
