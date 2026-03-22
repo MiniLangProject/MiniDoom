@@ -776,6 +776,8 @@ end function
 * Purpose: Draws or renders output for the status bar subsystem.
 */
 function ST_drawWidgets(refresh)
+  if not _ST_GetRef(st_statusbaron_ref, false) then return end if
+
   st_armson_ref[0] = _ST_GetRef(st_statusbaron_ref, false) and not deathmatch
   st_fragson_ref[0] = deathmatch and _ST_GetRef(st_statusbaron_ref, false)
 
@@ -1271,7 +1273,12 @@ function ST_Drawer(fullscreen, refresh)
   global st_firsttime
   if not st_started then return end if
 
-  st_statusbaron_ref[0] =(not fullscreen) or automapactive
+  nextStatusBarOn = (not fullscreen) or automapactive
+  prevStatusBarOn = _ST_GetRef(st_statusbaron_ref, false)
+  if prevStatusBarOn != nextStatusBarOn then
+    st_firsttime = true
+  end if
+  st_statusbaron_ref[0] = nextStatusBarOn
   st_firsttime = st_firsttime or refresh
 
   ST_doPaletteStuff()

@@ -906,9 +906,17 @@ function D_Display()
     D_DoAdvanceDemo()
   end if
 
+  levelRefresh = false
+  if typeof(setsizeneeded) != "void" and setsizeneeded and typeof(R_ExecuteSetViewSize) == "function" then
+    R_ExecuteSetViewSize()
+    if typeof(R_FillBackScreen) == "function" then R_FillBackScreen() end if
+    levelRefresh = true
+  end if
+
   wipe = false
   if gamestate != wipegamestate then
     wipe = true
+    levelRefresh = true
     if typeof(wipe_StartScreen) == "function" then
       wipe_StartScreen(0, 0, SCREENWIDTH, SCREENHEIGHT)
     end if
@@ -934,6 +942,12 @@ function D_Display()
       end if
     end if
 
+    if typeof(R_DrawViewBorder) == "function" and typeof(viewheight) == "int" and viewheight != SCREENHEIGHT then
+      if not automapactive then
+        R_DrawViewBorder()
+      end if
+    end if
+
     if typeof(ST_Drawer) == "function" then
       st_fullscreen = false
       if typeof(viewheight) == "int" then
@@ -941,10 +955,10 @@ function D_Display()
       end if
       if profiling then
         t0 = _D_TimeMs()
-        ST_Drawer(st_fullscreen, false)
+        ST_Drawer(st_fullscreen, levelRefresh)
         _D_ProfileAdd(1, _D_TimeMs() - t0)
       else
-        ST_Drawer(st_fullscreen, false)
+        ST_Drawer(st_fullscreen, levelRefresh)
       end if
     end if
     if typeof(HU_Drawer) == "function" then

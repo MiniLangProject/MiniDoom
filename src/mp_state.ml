@@ -361,7 +361,9 @@ function MP_UpdateIwadFingerprint()
     return true
   end if
 
-  raw = fs.readAllBytes(newPath)
+  rawTry = try(fs.readAllBytes(newPath))
+  if typeof(rawTry) == "error" then return false end if
+  raw = rawTry
   if typeof(raw) != "bytes" then return false end if
   mp_iwad_path = newPath
   mp_iwad_fnv1a_hex = MP_FNV1A_Hex(raw)

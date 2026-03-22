@@ -28,6 +28,9 @@ import i_system
 import mp_platform
 import std.math
 
+const _ISYS_MB_OK = 0x00000000
+const _ISYS_MB_ICONERROR = 0x00000010
+
 /*
 * Function: _IS_IDiv
 * Purpose: Implements the _IS_IDiv routine for the internal module support.
@@ -37,6 +40,59 @@ function inline _IS_IDiv(a, b)
   q = a / b
   if q >= 0 then return std.math.floor(q) end if
   return std.math.ceil(q)
+end function
+
+/*
+* Function: _I_ToLowerAscii
+* Purpose: Converts a string to lowercase ASCII for robust message classification.
+*/
+function inline _I_ToLowerAscii(s)
+  if typeof(s) != "string" then return "" end if
+  b = bytes(s)
+  i = 0
+  while i < len(b)
+    if b[i] >= 65 and b[i] <= 90 then b[i] = b[i] + 32 end if
+    i = i + 1
+  end while
+  return decode(b)
+end function
+
+/*
+* Function: _I_StrContains
+* Purpose: Checks whether one string contains another.
+*/
+function inline _I_StrContains(haystack, needle)
+  if typeof(haystack) != "string" or typeof(needle) != "string" then return false end if
+  hb = bytes(haystack)
+  nb = bytes(needle)
+  if len(nb) == 0 then return true end if
+  if len(nb) > len(hb) then return false end if
+
+  i = 0
+  while i <= len(hb) - len(nb)
+    ok = true
+    j = 0
+    while j < len(nb)
+      if hb[i + j] != nb[j] then
+        ok = false
+        break
+      end if
+      j = j + 1
+    end while
+    if ok then return true end if
+    i = i + 1
+  end while
+  return false
+end function
+
+/*
+* Function: _I_ShowFatalErrorBox
+* Purpose: Shows a fatal error message in a GUI dialog for windows-subsystem builds.
+*/
+function inline _I_ShowFatalErrorBox(text)
+  if typeof(text) != "string" or text == "" then return end if
+  if typeof(MessageBoxW) != "function" then return end if
+  _ = MessageBoxW(0, text, "MiniDoom - Fatal Error", _ISYS_MB_OK | _ISYS_MB_ICONERROR)
 end function
 
 /*
@@ -153,11 +209,24 @@ end function
 * Purpose: Implements the I_Error routine for the platform layer.
 */
 function I_Error(msg)
+  shown = ""
+  if typeof(msg) == "string" and msg != "" then
+    shown = msg
+  else
+    shown = "<non-string error>"
+  end if
 
   if typeof(msg) == "string" then
     print "Error: " + msg
   else
     print "Error: <non-string message, type=" + typeof(msg) + ">"
+  end if
+
+  low = _I_ToLowerAscii(shown)
+  if _I_StrContains(low, "w_initfiles: no files found") or _I_StrContains(low, "no files found") then
+    _I_ShowFatalErrorBox("No WAD file found." + "\n\n" + "Place Doom1.wad or Doom2.wad next to MiniDoom.exe" + "\n" + "or start with -iwad <path-to-wad>.")
+  else
+    _I_ShowFatalErrorBox(shown)
   end if
 
   if typeof(demorecording) != "void" and demorecording then

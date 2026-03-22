@@ -328,7 +328,12 @@ function W_AddFile(filename)
     reloadlump = numlumps
   end if
 
-  data = fs.readAllBytes(filename)
+  dataTry = try(fs.readAllBytes(filename))
+  if typeof(dataTry) == "error" then
+    print " couldn't open " + filename
+    return
+  end if
+  data = dataTry
   if typeof(data) != "bytes" then
     print " couldn't open " + filename
     return
@@ -521,7 +526,12 @@ function W_Reload()
     return
   end if
 
-  data = fs.readAllBytes(reloadname)
+  dataTry = try(fs.readAllBytes(reloadname))
+  if typeof(dataTry) == "error" then
+    I_Error("W_Reload: couldn't open " + reloadname)
+    return
+  end if
+  data = dataTry
   if typeof(data) != "bytes" then
     I_Error("W_Reload: couldn't open " + reloadname)
     return
