@@ -28,12 +28,15 @@ import dstrings
 import d_englsh
 import sounds
 import m_menu
+import mp_platform
 
 const HU_FONTSTART = 33
 const HU_FONTEND = 95
 const HU_FONTSIZE =(HU_FONTEND - HU_FONTSTART + 1)
 
 const HU_BROADCAST = 5
+const HU_MPMSG_CHAT = 7
+const HU_MPCHAT_MAXBYTES = 120
 
 const HU_MSGREFRESH = KEY_ENTER
 const HU_MSGX = 0
@@ -46,8 +49,6 @@ const HU_INPUTTOGGLE = 116
 const HU_INPUTX = HU_MSGX
 
 const HU_TITLEX = 0
-const HU_CHATGAMEPREFIX = "MiniDoom: "
-
 chat_macros =[
 HUSTR_CHATMACRO0,
 HUSTR_CHATMACRO1,
@@ -131,10 +132,7 @@ shiftdown = false
 altdown = false
 num_nobrainers = 0
 _hu_lastmessage = ""
-
-chat_queue = bytes(128, 0)
-chat_head = 0
-chat_tail = 0
+_hu_local_chat_dest = HU_BROADCAST
 
 /*
 * Function: _HU_ToInt
@@ -206,6 +204,27 @@ end function
 function _HU_ShowMessagesEnabled()
   if typeof(showMessages) == "int" then return showMessages != 0 end if
   return true
+end function
+
+/*
+* Function: _HU_MPUsePacketChat
+* Purpose: Returns true when chat should use dedicated multiplayer packets.
+*/
+function _HU_MPUsePacketChat()
+  return netgame
+end function
+
+/*
+* Function: _HU_MPSendChatMessage
+* Purpose: Sends one complete chat line to the host as one packet.
+*/
+function _HU_MPSendChatMessage(dest, msg)
+  if not _HU_MPUsePacketChat() then return false end if
+  if typeof(msg) != "string" then return false end if
+  m = str.trim(msg)
+  if m == "" then return false end if
+  if typeof(MP_PlatformSendChatMessage) != "function" then return false end if
+  return MP_PlatformSendChatMessage(m)
 end function
 
 /*
@@ -325,6 +344,35 @@ function _HU_CurrentPlayer()
 end function
 
 /*
+* Function: _HU_PopCurrentPlayerMessage
+* Purpose: Reads and clears current player HUD message from authoritative player state.
+*/
+function _HU_PopCurrentPlayerMessage()
+  global plr
+
+  cp = _HU_ToInt(consoleplayer, -1)
+  if typeof(players) == "array" and cp >= 0 and cp < len(players) and typeof(players[cp]) == "struct" then
+    p = players[cp]
+    plr = p
+    if p.message is not void then
+      msg = p.message
+      p.message = void
+      players[cp] = p
+      plr = p
+      return msg
+    end if
+  end if
+
+  if plr is not void and plr.message is not void then
+    msg = plr.message
+    plr.message = void
+    return msg
+  end if
+
+  return void
+end function
+
+/*
 * Function: _HU_MapTitle
 * Purpose: Implements the _HU_MapTitle routine for the internal module support.
 */
@@ -376,33 +424,6 @@ function _HU_EnsureInputBuffers()
     w_inputbuffer = w_inputbuffer +[ib]
     i = i + 1
   end while
-end function
-
-/*
-* Function: _HU_queuePush
-* Purpose: Implements the _HU_queuePush routine for the internal module support.
-*/
-function _HU_queuePush(c)
-  global chat_head
-  next =(chat_head + 1) &(len(chat_queue) - 1)
-  if next == chat_tail then
-    if plr is not void then plr.message = HUSTR_MSGU end if
-    return
-  end if
-  chat_queue[chat_head] = c & 255
-  chat_head = next
-end function
-
-/*
-* Function: _HU_queuePop
-* Purpose: Implements the _HU_queuePop routine for the internal module support.
-*/
-function _HU_queuePop()
-  global chat_tail
-  if chat_tail == chat_head then return 0 end if
-  c = chat_queue[chat_tail]
-  chat_tail =(chat_tail + 1) &(len(chat_queue) - 1)
-  return c
 end function
 
 /*
@@ -527,6 +548,40 @@ function HU_Erase()
 end function
 
 /*
+* Function: HU_NetAddMessage
+* Purpose: Pushes one network-originated chat/feed line directly into HUD message area.
+*/
+function HU_NetAddMessage(msg)
+  global message_counter
+  global message_nottobefuckedwith
+  global message_dontfuckwithme
+  global plr
+  if typeof(msg) != "string" or msg == "" then return end if
+
+  if headsupactive then
+    HUlib_addMessageToSText(w_message, 0, msg)
+    _HU_SetMessageOn(true)
+    message_counter = HU_MSGTIMEOUT
+    message_nottobefuckedwith = true
+    message_dontfuckwithme = false
+    return
+  end if
+
+  cp = _HU_ToInt(consoleplayer, -1)
+  if typeof(players) == "array" and cp >= 0 and cp < len(players) and typeof(players[cp]) == "struct" then
+    p = players[cp]
+    p.message = msg
+    players[cp] = p
+    plr = p
+    return
+  end if
+
+  if plr is not void then
+    plr.message = msg
+  end if
+end function
+
+/*
 * Function: HU_Ticker
 * Purpose: Advances per-tick logic for the HUD subsystem.
 */
@@ -545,10 +600,11 @@ function HU_Ticker()
     end if
   end if
 
-  if _HU_ShowMessagesEnabled() or message_dontfuckwithme then
-    if plr is not void and plr.message is not void and((not message_nottobefuckedwith) or message_dontfuckwithme) then
-      HUlib_addMessageToSText(w_message, 0, plr.message)
-      plr.message = void
+  allowMessage = (_HU_ShowMessagesEnabled() or message_dontfuckwithme) and((not message_nottobefuckedwith) or message_dontfuckwithme)
+  if allowMessage then
+    msg = _HU_PopCurrentPlayerMessage()
+    if msg is not void then
+      HUlib_addMessageToSText(w_message, 0, msg)
       _HU_SetMessageOn(true)
       message_counter = HU_MSGTIMEOUT
       message_nottobefuckedwith = message_dontfuckwithme
@@ -556,66 +612,16 @@ function HU_Ticker()
     end if
   end if
 
-  if netgame then
-    i = 0
-    while i < MAXPLAYERS
-      if i >= len(playeringame) or(not playeringame[i]) or i == consoleplayer or i >= len(players) or typeof(players[i]) != "struct" then
-        i = i + 1
-        continue
-      end if
-
-      if players[i].cmd is void then
-        i = i + 1
-        continue
-      end if
-
-      c = _HU_ToInt(players[i].cmd.chatchar, 0)
-      if c == 0 then
-        i = i + 1
-        continue
-      end if
-
-      if c <= HU_BROADCAST then
-        if i < len(chat_dest) then chat_dest[i] = c end if
-      else
-        if c >= 97 and c <= 122 then c = _HU_ShiftChar(c) end if
-        rc = HUlib_keyInIText(w_inputbuffer[i], c)
-        if rc and c == KEY_ENTER then
-          if _HU_ToInt(w_inputbuffer[i].l.len, 0) > 0 and((chat_dest[i] == consoleplayer + 1) or(chat_dest[i] == HU_BROADCAST)) then
-            HUlib_addMessageToSText(w_message, HU_CHATGAMEPREFIX + _HU_PlayerName(i), _HU_ITextString(w_inputbuffer[i]))
-            message_nottobefuckedwith = true
-            _HU_SetMessageOn(true)
-            message_counter = HU_MSGTIMEOUT
-            if gamemode == GameMode_t.commercial then
-              S_StartSound(0, sfxenum_t.sfx_radio)
-            else
-              S_StartSound(0, sfxenum_t.sfx_tink)
-            end if
-          end if
-          HUlib_resetIText(w_inputbuffer[i])
-        end if
-      end if
-
-      players[i].cmd.chatchar = 0
-      i = i + 1
+  if _HU_MPUsePacketChat() and typeof(MP_PlatformPollChatLine) == "function" then
+    loops = 0
+    while loops < 8
+      line = MP_PlatformPollChatLine()
+      if typeof(line) != "string" or line == "" then break end if
+      HU_NetAddMessage(line)
+      loops = loops + 1
     end while
   end if
-end function
 
-/*
-* Function: HU_queueChatChar
-* Purpose: Implements the HU_queueChatChar routine for the HUD subsystem.
-*/
-function HU_queueChatChar(c)
-  _HU_queuePush(c)
-end function
-
-/*
-* Function: HU_dequeueChatChar
-* Purpose: Implements the HU_dequeueChatChar routine for the HUD subsystem.
-*/
-function HU_dequeueChatChar()
-  return _HU_queuePop()
 end function
 
 /*
@@ -639,6 +645,7 @@ function HU_Responder(ev)
   global altdown
   global num_nobrainers
   global _hu_lastmessage
+  global _hu_local_chat_dest
 
   if ev is void then return false end if
 
@@ -662,7 +669,6 @@ function HU_Responder(ev)
   end while
 
   eatkey = false
-
   if not chat_on then
     if key == HU_MSGREFRESH then
       _HU_SetMessageOn(true)
@@ -672,7 +678,7 @@ function HU_Responder(ev)
       eatkey = true
       _HU_SetChatOn(true)
       HUlib_resetIText(w_chat)
-      HU_queueChatChar(HU_BROADCAST)
+      _hu_local_chat_dest = HU_BROADCAST
     else if netgame and numplayers > 2 then
       i = 0
       while i < MAXPLAYERS
@@ -681,7 +687,7 @@ function HU_Responder(ev)
             eatkey = true
             _HU_SetChatOn(true)
             HUlib_resetIText(w_chat)
-            HU_queueChatChar(i + 1)
+            _hu_local_chat_dest = i + 1
             break
           else if i == consoleplayer then
             num_nobrainers = num_nobrainers + 1
@@ -710,31 +716,22 @@ function HU_Responder(ev)
       if c < 0 or c > 9 then return false end if
       macromessage = chat_macros[c]
 
-      HU_queueChatChar(KEY_ENTER)
-      mb = bytes(macromessage)
-      i = 0
-      while i < len(mb)
-        HU_queueChatChar(mb[i])
-        i = i + 1
-      end while
-      HU_queueChatChar(KEY_ENTER)
+      _HU_MPSendChatMessage(_hu_local_chat_dest, macromessage)
 
       _HU_SetChatOn(false)
       _hu_lastmessage = macromessage
-      if plr is not void then plr.message = _hu_lastmessage end if
       eatkey = true
     else
       if language == Language_t.french then c = ForeignTranslation(c) end if
       if shiftdown or(c >= 97 and c <= 122) then c = _HU_ShiftChar(c) end if
 
       eatkey = HUlib_keyInIText(w_chat, c)
-      if eatkey then HU_queueChatChar(c) end if
 
       if c == KEY_ENTER then
         _HU_SetChatOn(false)
         if _HU_ToInt(w_chat.l.len, 0) > 0 then
           _hu_lastmessage = _HU_ITextString(w_chat)
-          if plr is not void then plr.message = _hu_lastmessage end if
+          _HU_MPSendChatMessage(_hu_local_chat_dest, _hu_lastmessage)
         end if
       else if c == KEY_ESCAPE then
         _HU_SetChatOn(false)

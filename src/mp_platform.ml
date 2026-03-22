@@ -38,6 +38,7 @@ const _MPPLAT_DEN = "DEN"
 const _MPPLAT_PING = "PING"
 const _MPPLAT_PONG = "PONG"
 const _MPPLAT_LEAVE = "LEAVE"
+const _MPPLAT_CHAT = "CHAT"
 const _MPPLAT_GAME_MAGIC0 = 77
 const _MPPLAT_GAME_MAGIC1 = 68
 const _MPPLAT_GAME_MAGIC2 = 71
@@ -119,6 +120,8 @@ _mp_game_queue_payloads = []
 _mp_game_queue_head = 0
 _mp_game_queue_tail = 0
 _mp_game_queue_dropped = 0
+_mp_chat_queue = []
+_mp_chat_queue_head = 0
 
 /*
 * Function: ioctlsocket
@@ -262,6 +265,93 @@ function _MPPlatform_PushConsoleMessage(msg)
   if typeof(p) != "struct" then return end if
   p.message = msg
   players[cp] = p
+end function
+
+/*
+* Function: _MPPlatform_QueueChatLine
+* Purpose: Appends one formatted chat line for local HUD consumption.
+*/
+function _MPPlatform_QueueChatLine(line)
+  global _mp_chat_queue
+  global _mp_chat_queue_head
+  if typeof(line) != "string" or line == "" then return end if
+  if typeof(_mp_chat_queue) != "array" then _mp_chat_queue = [] end if
+  if typeof(_mp_chat_queue_head) != "int" then _mp_chat_queue_head = 0 end if
+
+  // Compact occasionally to keep queue growth bounded.
+  if _mp_chat_queue_head > 32 then
+    keep = []
+    i = _mp_chat_queue_head
+    while i < len(_mp_chat_queue)
+      keep = keep + [_mp_chat_queue[i]]
+      i = i + 1
+    end while
+    _mp_chat_queue = keep
+    _mp_chat_queue_head = 0
+  end if
+
+  _mp_chat_queue = _mp_chat_queue + [line]
+end function
+
+/*
+* Function: MP_PlatformPollChatLine
+* Purpose: Pops one pending formatted chat line, or empty string when none.
+*/
+function MP_PlatformPollChatLine()
+  global _mp_chat_queue_head
+  if typeof(_mp_chat_queue) != "array" then return "" end if
+  if typeof(_mp_chat_queue_head) != "int" then _mp_chat_queue_head = 0 end if
+  if _mp_chat_queue_head < 0 then _mp_chat_queue_head = 0 end if
+  if _mp_chat_queue_head >= len(_mp_chat_queue) then return "" end if
+  line = _mp_chat_queue[_mp_chat_queue_head]
+  _mp_chat_queue_head = _mp_chat_queue_head + 1
+  if typeof(line) != "string" then return "" end if
+  return line
+end function
+
+/*
+* Function: _MPPlatform_HostBroadcastChat
+* Purpose: Broadcasts one authoritative chat line to every connected peer.
+*/
+function _MPPlatform_HostBroadcastChat(senderName, msg)
+  if _mp_role != _MPPLAT_ROLE_HOST then return end if
+  snd = _MPPlatform_SanitizeField(senderName)
+  txt = _MPPlatform_SanitizeField(msg)
+  if txt == "" then return end if
+  if snd == "" then snd = "Player" end if
+  i = 0
+  while i < len(_mp_host_peers)
+    p = _mp_host_peers[i]
+    if typeof(p) == "struct" then
+      _MPPlatform_SendFields(_mp_sock, p.ip, _MPPlatform_ToInt(p.port, 0), [_MPPLAT_PROTO, _MPPLAT_CHAT, snd, txt])
+    end if
+    i = i + 1
+  end while
+end function
+
+/*
+* Function: MP_PlatformSendChatMessage
+* Purpose: Sends one complete chat message to host (client role) or broadcasts (host role).
+*/
+function MP_PlatformSendChatMessage(msg)
+  txt = _MPPlatform_SanitizeField(msg)
+  if txt == "" then return false end if
+  if (typeof(_mp_sock) != "int" and typeof(_mp_sock) != "ptr") then return false end if
+
+  if _mp_role == _MPPLAT_ROLE_CLIENT then
+    sent = _MPPlatform_SendFields(_mp_sock, _mp_client_host, _mp_client_port, [_MPPLAT_PROTO, _MPPLAT_CHAT, txt])
+    return typeof(sent) != "error"
+  end if
+
+  if _mp_role == _MPPLAT_ROLE_HOST then
+    snd = MP_SanitizeName(MP_GetPlayerName())
+    if snd == "" then snd = "Host" end if
+    _MPPlatform_QueueChatLine(snd + ": " + txt)
+    _MPPlatform_HostBroadcastChat(snd, txt)
+    return true
+  end if
+
+  return false
 end function
 
 /*
@@ -1275,6 +1365,26 @@ function _MPPlatform_HostHandlePacket(payload, peerIp, peerPort)
   if mtype == _MPPLAT_LEAVE then
     idx = _MPPlatform_FindHostPeerIndex(peerIp, peerPort)
     if idx >= 0 then _MPPlatform_RemoveHostPeerByIndex(idx, true) end if
+    return
+  end if
+
+  if mtype == _MPPLAT_CHAT then
+    idx = _MPPlatform_FindHostPeerIndex(peerIp, peerPort)
+    if idx < 0 or idx >= len(_mp_host_peers) then return end if
+
+    p = _MPPlatform_EnsurePeerTelemetry(_mp_host_peers[idx])
+    p.lastSeenMs = _MPPlatform_ToInt(time.ticks(), 0)
+    _mp_host_peers[idx] = p
+
+    txt = ""
+    if len(parts) >= 3 then txt = _MPPlatform_SanitizeField(parts[2]) end if
+    if txt == "" then return end if
+
+    snd = "Player"
+    if typeof(p.name) == "string" and p.name != "" then snd = p.name end if
+    _MPPlatform_QueueChatLine(snd + ": " + txt)
+    _MPPlatform_HostBroadcastChat(snd, txt)
+    return
   end if
 end function
 
@@ -1325,6 +1435,21 @@ function _MPPlatform_ClientHandlePacket(payload, peerIp, peerPort)
     seq = 0
     if len(parts) >= 3 then seq = _MPPlatform_ToInt(parts[2], 0) end if
     _MPPlatform_SendFields(_mp_sock, _mp_client_host, _mp_client_port, [_MPPLAT_PROTO, _MPPLAT_PONG, seq])
+    return
+  end if
+
+  if mtype == _MPPLAT_CHAT then
+    snd = "Player"
+    txt = ""
+    if len(parts) >= 4 then
+      snd = _MPPlatform_SanitizeField(parts[2])
+      txt = _MPPlatform_SanitizeField(parts[3])
+    else if len(parts) >= 3 then
+      txt = _MPPlatform_SanitizeField(parts[2])
+    end if
+    if snd == "" then snd = "Player" end if
+    if txt != "" then _MPPlatform_QueueChatLine(snd + ": " + txt) end if
+    return
   end if
 end function
 
@@ -1505,6 +1630,8 @@ function MP_PlatformShutdown()
   global _mp_game_queue_payloads
   global _mp_game_queue_head
   global _mp_game_queue_tail
+  global _mp_chat_queue
+  global _mp_chat_queue_head
 
   if _mp_role == _MPPLAT_ROLE_CLIENT and (typeof(_mp_sock) == "int" or typeof(_mp_sock) == "ptr") and _mp_client_host != "" and _mp_client_port > 0 then
     _MPPlatform_SendFields(_mp_sock, _mp_client_host, _mp_client_port, [_MPPLAT_PROTO, _MPPLAT_LEAVE])
@@ -1537,6 +1664,8 @@ function MP_PlatformShutdown()
   _mp_game_queue_payloads = []
   _mp_game_queue_head = 0
   _mp_game_queue_tail = 0
+  _mp_chat_queue = []
+  _mp_chat_queue_head = 0
   _mp_game_queue_dropped = 0
 end function
 

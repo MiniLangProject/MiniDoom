@@ -129,7 +129,9 @@ const _DNET_MPMSG_PHASE = 3
 const _DNET_MPMSG_FEED = 4
 const _DNET_MPMSG_WISTATS = 5
 const _DNET_MPMSG_WISTATS_REQ = 6
+const _DNET_MPMSG_CHAT = 7
 const _DNET_MPMSG_SOUND = 201
+const _DNET_MP_CHAT_BROADCAST = 5
 const _DNET_MP_SNAPSHOT_INTERVAL = 1
 const _DNET_MP_FULL_SNAPSHOT_PERIOD = 35
 const _DNET_MP_INPUT_KEEPALIVE_TICS = 2
@@ -1460,6 +1462,54 @@ function _DNet_MPBuildFeedPacket(code, a, b)
 end function
 
 /*
+* Function: _DNet_MPNormalizeChatText
+* Purpose: Normalizes chat text to printable ASCII and trims packet size.
+*/
+function _DNet_MPNormalizeChatText(msg)
+  if typeof(msg) != "string" then return "" end if
+  src = bytes(msg)
+  if len(src) <= 0 then return "" end if
+
+  outb = bytes(len(src), 0)
+  n = 0
+  i = 0
+  while i < len(src)
+    c = src[i] & 255
+    if c >= 32 and c <= 126 then
+      if n < len(outb) then
+        outb[n] = c
+        n = n + 1
+      end if
+    end if
+    i = i + 1
+  end while
+  if n <= 0 then return "" end if
+  if n > 120 then n = 120 end if
+  return decode(slice(outb, 0, n))
+end function
+
+/*
+* Function: _DNet_MPBuildChatPacket
+* Purpose: Builds one authoritative multiplayer chat packet.
+*/
+function _DNet_MPBuildChatPacket(senderSlot, dest, msg)
+  txt = _DNet_MPNormalizeChatText(msg)
+  mb = bytes(txt)
+  n = len(mb)
+  payload = bytes(4 + n, 0)
+  payload[0] = _DNET_MPMSG_CHAT
+  payload[1] = _DNet_ToInt(senderSlot, 0) & 255
+  payload[2] = _DNet_ToInt(dest, _DNET_MP_CHAT_BROADCAST) & 255
+  payload[3] = n & 255
+  i = 0
+  while i < n
+    payload[4 + i] = mb[i]
+    i = i + 1
+  end while
+  return payload
+end function
+
+/*
 * Function: _DNet_MPHostBroadcastKillFeed
 * Purpose: Broadcasts one host-authoritative kill message to all connected clients.
 */
@@ -1508,6 +1558,57 @@ function _DNet_MPHostBroadcastTelefragFeed(killer, victim)
       MP_PlatformNetSend(s, payload)
     end if
     i = i + 1
+  end while
+end function
+
+/*
+* Function: _DNet_MPClientApplyChat
+* Purpose: Applies one authoritative multiplayer chat message on the local HUD.
+*/
+function _DNet_MPClientApplyChat(payload)
+  if typeof(payload) != "bytes" or len(payload) < 4 then return end if
+  if (payload[0] & 255) != _DNET_MPMSG_CHAT then return end if
+  sender = payload[1] & 255
+  n = payload[3] & 255
+  if n > len(payload) - 4 then n = len(payload) - 4 end if
+  if n <= 0 then return end if
+  txt = _DNet_MPNormalizeChatText(decode(slice(payload, 4, 4 + n)))
+  if txt == "" then return end if
+  msg = _DNet_MPPlayerName(sender) + ": " + txt
+  HU_NetAddMessage(msg)
+end function
+
+/*
+* Function: _DNet_MPHostHandleChatPacket
+* Purpose: Validates and relays one client chat packet as authoritative chat event.
+*/
+function _DNet_MPHostHandleChatPacket(node, payload)
+  if not _DNet_MPIsHost() then return end if
+  if typeof(payload) != "bytes" or len(payload) < 4 then return end if
+  if (payload[0] & 255) != _DNET_MPMSG_CHAT then return end if
+
+  sender = _DNet_ToInt(node, -1)
+  if sender < 0 or sender >= MAXPLAYERS then
+    sender = _DNet_ToInt(payload[1] & 255, -1)
+  end if
+  if sender < 0 or sender >= MAXPLAYERS then return end if
+
+  dest = payload[2] & 255
+  n = payload[3] & 255
+  if n > len(payload) - 4 then n = len(payload) - 4 end if
+  if n <= 0 then return end if
+  txt = _DNet_MPNormalizeChatText(decode(slice(payload, 4, 4 + n)))
+  if txt == "" then return end if
+
+  msg = _DNet_MPPlayerName(sender) + ": " + txt
+  HU_NetAddMessage(msg)
+
+  if typeof(MP_PlatformNetSend) != "function" then return end if
+  outp = _DNet_MPBuildChatPacket(sender, _DNET_MP_CHAT_BROADCAST, txt)
+  s = 0
+  while s < MAXPLAYERS
+    MP_PlatformNetSend(s, outp)
+    s = s + 1
   end while
 end function
 
@@ -5410,7 +5511,8 @@ function _DNet_MPDrainAuthoritativePackets()
     if _DNet_MPIsHost() then
       if kind == _DNET_MPMSG_INPUT then _DNet_MPHostHandleInputPacket(node, payload) end if
       if kind == _DNET_MPMSG_WISTATS_REQ then _DNet_MPHostHandleWIStatsRequest(node, payload) end if
-      if kind != _DNET_MPMSG_INPUT and kind != _DNET_MPMSG_WISTATS_REQ then
+      if kind == _DNET_MPMSG_CHAT then _DNet_MPHostHandleChatPacket(node, payload) end if
+      if kind != _DNET_MPMSG_INPUT and kind != _DNET_MPMSG_WISTATS_REQ and kind != _DNET_MPMSG_CHAT then
         _dnet_mp_dbg_unknown_payload_drop = _DNet_ToInt(_dnet_mp_dbg_unknown_payload_drop, 0) + 1
       end if
     else if _DNet_MPIsClient() then
@@ -5439,10 +5541,11 @@ function _DNet_MPDrainAuthoritativePackets()
       end if
       if kind == _DNET_MPMSG_PHASE then latestPhase = payload end if
       if kind == _DNET_MPMSG_FEED then _DNet_MPClientApplyFeed(payload) end if
+      if kind == _DNET_MPMSG_CHAT then _DNet_MPClientApplyChat(payload) end if
       if kind == _DNET_MPMSG_WISTATS then latestWIStats = payload end if
       if kind == _DNET_MPMSG_SOUND then
         if typeof(S_NetRecvPacket) == "function" then S_NetRecvPacket(payload) end if
-      else if kind != _DNET_MPMSG_SNAPSHOT and kind != _DNET_MPMSG_PHASE and kind != _DNET_MPMSG_FEED and kind != _DNET_MPMSG_WISTATS then
+      else if kind != _DNET_MPMSG_SNAPSHOT and kind != _DNET_MPMSG_PHASE and kind != _DNET_MPMSG_FEED and kind != _DNET_MPMSG_CHAT and kind != _DNET_MPMSG_WISTATS then
         _dnet_mp_dbg_unknown_payload_drop = _DNet_ToInt(_dnet_mp_dbg_unknown_payload_drop, 0) + 1
       end if
     end if

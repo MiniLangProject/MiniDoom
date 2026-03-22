@@ -40,6 +40,7 @@ import v_video
 import w_wad
 import p_local
 import s_sound
+import mp_platform
 import dstrings
 import sounds
 import r_data
@@ -1451,13 +1452,7 @@ function G_Responder(ev)
     cmd.sidemove = 0
     cmd.angleturn = 0
     cmd.consistancy = 0
-    if typeof(HU_dequeueChatChar) == "function" then
-      cc = HU_dequeueChatChar()
-      if typeof(cc) != "int" then cc = 0 end if
-      cmd.chatchar = cc
-    else
-      cmd.chatchar = 0
-    end if
+    cmd.chatchar = 0
     cmd.buttons = 0
 
     strafe = _G_KeyIsDown(key_strafe) or _G_ButtonIsDown(_G_mousebuttons, mousebstrafe) or _G_ButtonIsDown(_G_joybuttons, joybstrafe)
