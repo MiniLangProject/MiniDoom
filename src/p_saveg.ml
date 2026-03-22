@@ -41,7 +41,7 @@ save_p = 0
 * Function: _PSave_EnsureBuffer
 * Purpose: Implements the _PSave_EnsureBuffer routine for the internal module support.
 */
-function _PSave_EnsureBuffer(size)
+function inline _PSave_EnsureBuffer(size)
   global savebuffer
   global save_p
 
@@ -84,7 +84,7 @@ end function
 * Function: _PSV_WriteU8
 * Purpose: Implements the _PSV_WriteU8 routine for the internal module support.
 */
-function _PSV_WriteU8(v)
+function inline _PSV_WriteU8(v)
   global save_p
   _PSV_Ensure(1)
   savebuffer[save_p] = v & 255
@@ -95,7 +95,7 @@ end function
 * Function: _PSV_WriteBool
 * Purpose: Implements the _PSV_WriteBool routine for the internal module support.
 */
-function _PSV_WriteBool(v)
+function inline _PSV_WriteBool(v)
   if v then _PSV_WriteU8(1) else _PSV_WriteU8(0) end if
 end function
 
@@ -103,7 +103,7 @@ end function
 * Function: _PSV_WriteS32
 * Purpose: Implements the _PSV_WriteS32 routine for the internal module support.
 */
-function _PSV_WriteS32(v)
+function inline _PSV_WriteS32(v)
   _PSV_WriteU8(v & 255)
   _PSV_WriteU8((v >> 8) & 255)
   _PSV_WriteU8((v >> 16) & 255)
@@ -144,7 +144,7 @@ end function
 * Function: _PSV_ReadU8
 * Purpose: Implements the _PSV_ReadU8 routine for the internal module support.
 */
-function _PSV_ReadU8()
+function inline _PSV_ReadU8()
   global save_p
   if typeof(savebuffer) != "bytes" or save_p < 0 or save_p >= len(savebuffer) then
     save_p = save_p + 1
@@ -159,7 +159,7 @@ end function
 * Function: _PSV_ReadBool
 * Purpose: Implements the _PSV_ReadBool routine for the internal module support.
 */
-function _PSV_ReadBool()
+function inline _PSV_ReadBool()
   return _PSV_ReadU8() != 0
 end function
 
@@ -167,7 +167,7 @@ end function
 * Function: _PSV_ReadS32
 * Purpose: Implements the _PSV_ReadS32 routine for the internal module support.
 */
-function _PSV_ReadS32()
+function inline _PSV_ReadS32()
   b0 = _PSV_ReadU8()
   b1 = _PSV_ReadU8()
   b2 = _PSV_ReadU8()
@@ -228,7 +228,7 @@ end function
 * Function: _PSV_PlayerIndex
 * Purpose: Implements the _PSV_PlayerIndex routine for the internal module support.
 */
-function _PSV_PlayerIndex(p)
+function inline _PSV_PlayerIndex(p)
   if typeof(players) != "array" then return -1 end if
   return _PSV_ObjIndex(players, p)
 end function
@@ -237,7 +237,7 @@ end function
 * Function: _PSV_SectorIndex
 * Purpose: Implements the _PSV_SectorIndex routine for the internal module support.
 */
-function _PSV_SectorIndex(sec)
+function inline _PSV_SectorIndex(sec)
   if typeof(sectors) != "array" then return -1 end if
   return _PSV_ObjIndex(sectors, sec)
 end function
@@ -263,7 +263,7 @@ end function
 * Function: _PSV_StateFromIndex
 * Purpose: Implements the _PSV_StateFromIndex routine for the internal module support.
 */
-function _PSV_StateFromIndex(idx)
+function inline _PSV_StateFromIndex(idx)
   if typeof(idx) != "int" or idx < 0 then return void end if
   if typeof(states) == "array" and idx < len(states) then
     return states[idx]
@@ -275,7 +275,7 @@ end function
 * Function: _PSV_WriteMapthing
 * Purpose: Implements the _PSV_WriteMapthing routine for the internal module support.
 */
-function _PSV_WriteMapthing(mt)
+function inline _PSV_WriteMapthing(mt)
   if mt is void then
     _PSV_WriteS32(0); _PSV_WriteS32(0); _PSV_WriteS32(0); _PSV_WriteS32(0); _PSV_WriteS32(0)
     return
@@ -291,7 +291,7 @@ end function
 * Function: _PSV_ReadMapthing
 * Purpose: Implements the _PSV_ReadMapthing routine for the internal module support.
 */
-function _PSV_ReadMapthing()
+function inline _PSV_ReadMapthing()
   return mapthing_t(_PSV_ReadS32(), _PSV_ReadS32(), _PSV_ReadS32(), _PSV_ReadS32(), _PSV_ReadS32())
 end function
 
@@ -299,7 +299,7 @@ end function
 * Function: _PSV_WriteTiccmd
 * Purpose: Implements the _PSV_WriteTiccmd routine for the internal module support.
 */
-function _PSV_WriteTiccmd(cmd)
+function inline _PSV_WriteTiccmd(cmd)
   if cmd is void then
     _PSV_WriteS32(0); _PSV_WriteS32(0); _PSV_WriteS32(0); _PSV_WriteS32(0); _PSV_WriteS32(0); _PSV_WriteS32(0)
     return
@@ -316,7 +316,7 @@ end function
 * Function: _PSV_ReadTiccmd
 * Purpose: Implements the _PSV_ReadTiccmd routine for the internal module support.
 */
-function _PSV_ReadTiccmd()
+function inline _PSV_ReadTiccmd()
   return ticcmd_t(_PSV_ReadS32(), _PSV_ReadS32(), _PSV_ReadS32(), _PSV_ReadS32(), _PSV_ReadS32(), _PSV_ReadS32())
 end function
 
@@ -324,7 +324,7 @@ end function
 * Function: _PSV_WritePsprite
 * Purpose: Implements the _PSV_WritePsprite routine for the internal module support.
 */
-function _PSV_WritePsprite(psp)
+function inline _PSV_WritePsprite(psp)
   if psp is void then
     _PSV_WriteS32(-1); _PSV_WriteS32(0); _PSV_WriteS32(0); _PSV_WriteS32(0)
     return
@@ -339,7 +339,7 @@ end function
 * Function: _PSV_ReadPsprite
 * Purpose: Implements the _PSV_ReadPsprite routine for the internal module support.
 */
-function _PSV_ReadPsprite()
+function inline _PSV_ReadPsprite()
   stidx = _PSV_ReadS32()
   tics = _PSV_ReadS32()
   sx = _PSV_ReadS32()
@@ -1035,7 +1035,7 @@ end function
 * Function: _PSV_WriteCeiling
 * Purpose: Implements the _PSV_WriteCeiling routine for the internal module support.
 */
-function _PSV_WriteCeiling(c)
+function inline _PSV_WriteCeiling(c)
   _PSV_WriteS32(_PSV_SectorIndex(c.sector))
   _PSV_WriteS32(c.type)
   _PSV_WriteS32(c.bottomheight)
@@ -1051,7 +1051,7 @@ end function
 * Function: _PSV_WriteDoor
 * Purpose: Implements the _PSV_WriteDoor routine for the internal module support.
 */
-function _PSV_WriteDoor(d)
+function inline _PSV_WriteDoor(d)
   _PSV_WriteS32(_PSV_SectorIndex(d.sector))
   _PSV_WriteS32(d.type)
   _PSV_WriteS32(d.topheight)
@@ -1065,7 +1065,7 @@ end function
 * Function: _PSV_WriteFloor
 * Purpose: Implements the _PSV_WriteFloor routine for the internal module support.
 */
-function _PSV_WriteFloor(f)
+function inline _PSV_WriteFloor(f)
   _PSV_WriteS32(_PSV_SectorIndex(f.sector))
   _PSV_WriteS32(f.type)
   _PSV_WriteBool(f.crush)
@@ -1098,7 +1098,7 @@ end function
 * Function: _PSV_WriteFlash
 * Purpose: Implements the _PSV_WriteFlash routine for the internal module support.
 */
-function _PSV_WriteFlash(f)
+function inline _PSV_WriteFlash(f)
   _PSV_WriteS32(_PSV_SectorIndex(f.sector))
   _PSV_WriteS32(f.count)
   _PSV_WriteS32(f.maxlight)
@@ -1111,7 +1111,7 @@ end function
 * Function: _PSV_WriteStrobe
 * Purpose: Evaluates conditions and returns a decision for the internal module support.
 */
-function _PSV_WriteStrobe(s)
+function inline _PSV_WriteStrobe(s)
   _PSV_WriteS32(_PSV_SectorIndex(s.sector))
   _PSV_WriteS32(s.count)
   _PSV_WriteS32(s.minlight)
@@ -1124,7 +1124,7 @@ end function
 * Function: _PSV_WriteGlow
 * Purpose: Implements the _PSV_WriteGlow routine for the internal module support.
 */
-function _PSV_WriteGlow(g)
+function inline _PSV_WriteGlow(g)
   _PSV_WriteS32(_PSV_SectorIndex(g.sector))
   _PSV_WriteS32(g.minlight)
   _PSV_WriteS32(g.maxlight)
@@ -1192,7 +1192,7 @@ end function
 * Function: _PSV_ReadSectorRef
 * Purpose: Implements the _PSV_ReadSectorRef routine for the internal module support.
 */
-function _PSV_ReadSectorRef()
+function inline _PSV_ReadSectorRef()
   idx = _PSV_ReadS32()
   if typeof(sectors) != "array" then return void end if
   if idx < 0 or idx >= len(sectors) then return void end if
@@ -1203,7 +1203,7 @@ end function
 * Function: _PSV_ReadCeiling
 * Purpose: Implements the _PSV_ReadCeiling routine for the internal module support.
 */
-function _PSV_ReadCeiling()
+function inline _PSV_ReadCeiling()
   sec = _PSV_ReadSectorRef()
   c = ceiling_t(thinker_t(void, void, actionf_t(T_MoveCeiling, void, void), void),
   _PSV_ReadS32(), sec, _PSV_ReadS32(), _PSV_ReadS32(), _PSV_ReadS32(), _PSV_ReadBool(), _PSV_ReadS32(), _PSV_ReadS32(), _PSV_ReadS32())
@@ -1217,7 +1217,7 @@ end function
 * Function: _PSV_ReadDoor
 * Purpose: Implements the _PSV_ReadDoor routine for the internal module support.
 */
-function _PSV_ReadDoor()
+function inline _PSV_ReadDoor()
   sec = _PSV_ReadSectorRef()
   d = vldoor_t(thinker_t(void, void, actionf_t(T_VerticalDoor, void, void), void),
   _PSV_ReadS32(), sec, _PSV_ReadS32(), _PSV_ReadS32(), _PSV_ReadS32(), _PSV_ReadS32(), _PSV_ReadS32())
@@ -1230,7 +1230,7 @@ end function
 * Function: _PSV_ReadFloor
 * Purpose: Implements the _PSV_ReadFloor routine for the internal module support.
 */
-function _PSV_ReadFloor()
+function inline _PSV_ReadFloor()
   sec = _PSV_ReadSectorRef()
   f = floormove_t(thinker_t(void, void, actionf_t(T_MoveFloor, void, void), void),
   _PSV_ReadS32(), _PSV_ReadBool(), sec, _PSV_ReadS32(), _PSV_ReadS32(), _PSV_ReadS32(), _PSV_ReadS32(), _PSV_ReadS32())
@@ -1243,7 +1243,7 @@ end function
 * Function: _PSV_ReadPlat
 * Purpose: Implements the _PSV_ReadPlat routine for the internal module support.
 */
-function _PSV_ReadPlat()
+function inline _PSV_ReadPlat()
   sec = _PSV_ReadSectorRef()
   p = plat_t(thinker_t(void, void, actionf_t(T_PlatRaise, void, void), void),
   sec, _PSV_ReadS32(), _PSV_ReadS32(), _PSV_ReadS32(), _PSV_ReadS32(), _PSV_ReadS32(),
@@ -1258,7 +1258,7 @@ end function
 * Function: _PSV_ReadFlash
 * Purpose: Implements the _PSV_ReadFlash routine for the internal module support.
 */
-function _PSV_ReadFlash()
+function inline _PSV_ReadFlash()
   sec = _PSV_ReadSectorRef()
   f = lightflash_t(thinker_t(void, void, actionf_t(T_LightFlash, void, void), void),
   sec, _PSV_ReadS32(), _PSV_ReadS32(), _PSV_ReadS32(), _PSV_ReadS32(), _PSV_ReadS32())
@@ -1270,7 +1270,7 @@ end function
 * Function: _PSV_ReadStrobe
 * Purpose: Implements the _PSV_ReadStrobe routine for the internal module support.
 */
-function _PSV_ReadStrobe()
+function inline _PSV_ReadStrobe()
   sec = _PSV_ReadSectorRef()
   s = strobe_t(thinker_t(void, void, actionf_t(T_StrobeFlash, void, void), void),
   sec, _PSV_ReadS32(), _PSV_ReadS32(), _PSV_ReadS32(), _PSV_ReadS32(), _PSV_ReadS32())
@@ -1282,7 +1282,7 @@ end function
 * Function: _PSV_ReadGlow
 * Purpose: Implements the _PSV_ReadGlow routine for the internal module support.
 */
-function _PSV_ReadGlow()
+function inline _PSV_ReadGlow()
   sec = _PSV_ReadSectorRef()
   g = glow_t(thinker_t(void, void, actionf_t(T_Glow, void, void), void),
   sec, _PSV_ReadS32(), _PSV_ReadS32(), _PSV_ReadS32())

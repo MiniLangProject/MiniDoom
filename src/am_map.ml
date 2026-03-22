@@ -130,7 +130,7 @@ end struct
 * Function: _AM_MPoint
 * Purpose: Implements the _AM_MPoint routine for the internal module support.
 */
-function _AM_MPoint(x, y)
+function inline _AM_MPoint(x, y)
   return mpoint_t(x, y)
 end function
 
@@ -138,7 +138,7 @@ end function
 * Function: _AM_FPoint
 * Purpose: Implements the _AM_FPoint routine for the internal module support.
 */
-function _AM_FPoint(x, y)
+function inline _AM_FPoint(x, y)
   return fpoint_t(x, y)
 end function
 
@@ -146,7 +146,7 @@ end function
 * Function: _AM_MLine
 * Purpose: Implements the _AM_MLine routine for the internal module support.
 */
-function _AM_MLine(x1, y1, x2, y2)
+function inline _AM_MLine(x1, y1, x2, y2)
   return mline_t(_AM_MPoint(x1, y1), _AM_MPoint(x2, y2))
 end function
 
@@ -154,7 +154,7 @@ end function
 * Function: _AM_FLine
 * Purpose: Implements the _AM_FLine routine for the internal module support.
 */
-function _AM_FLine(x1, y1, x2, y2)
+function inline _AM_FLine(x1, y1, x2, y2)
   return fline_t(_AM_FPoint(x1, y1), _AM_FPoint(x2, y2))
 end function
 
@@ -162,7 +162,7 @@ end function
 * Function: _AM_Abs
 * Purpose: Implements the _AM_Abs routine for the internal module support.
 */
-function _AM_Abs(v)
+function inline _AM_Abs(v)
   if v < 0 then return - v end if
   return v
 end function
@@ -171,7 +171,7 @@ end function
 * Function: _AM_Clamp
 * Purpose: Implements the _AM_Clamp routine for the internal module support.
 */
-function _AM_Clamp(v, lo, hi)
+function inline _AM_Clamp(v, lo, hi)
   if v < lo then return lo end if
   if v > hi then return hi end if
   return v
@@ -181,7 +181,7 @@ end function
 * Function: _AM_Mod
 * Purpose: Implements the _AM_Mod routine for the internal module support.
 */
-function _AM_Mod(n, d)
+function inline _AM_Mod(n, d)
   if d == 0 then return 0 end if
   r = n % d
   if r < 0 then r = r + d end if
@@ -192,7 +192,7 @@ end function
 * Function: _AM_IDiv
 * Purpose: Implements the _AM_IDiv routine for the internal module support.
 */
-function _AM_IDiv(a, b)
+function inline _AM_IDiv(a, b)
   if typeof(a) != "int" or typeof(b) != "int" or b == 0 then return 0 end if
   q = a / b
   if q >= 0 then return std.math.floor(q) end if
@@ -203,7 +203,7 @@ end function
 * Function: _AM_ToLowerAscii
 * Purpose: Implements the _AM_ToLowerAscii routine for the internal module support.
 */
-function _AM_ToLowerAscii(c)
+function inline _AM_ToLowerAscii(c)
   if c >= 65 and c <= 90 then return c + 32 end if
   return c
 end function
@@ -212,7 +212,7 @@ end function
 * Function: _AM_CaseKey
 * Purpose: Implements the _AM_CaseKey routine for the internal module support.
 */
-function _AM_CaseKey(k)
+function inline _AM_CaseKey(k)
   if typeof(k) != "int" then return -1 end if
   return _AM_ToLowerAscii(k)
 end function
@@ -221,7 +221,7 @@ end function
 * Function: _AM_CacheOrVoid
 * Purpose: Retrieves and caches data for the internal module support.
 */
-function _AM_CacheOrVoid(name, tag)
+function inline _AM_CacheOrVoid(name, tag)
   if typeof(W_CheckNumForName) == "function" then
     ln = W_CheckNumForName(name)
     if ln < 0 then return void end if
@@ -234,7 +234,7 @@ end function
 * Function: _AM_FTOM
 * Purpose: Implements the _AM_FTOM routine for the internal module support.
 */
-function _AM_FTOM(x)
+function inline _AM_FTOM(x)
   return FixedMul(x << 16, scale_ftom)
 end function
 
@@ -242,7 +242,7 @@ end function
 * Function: _AM_MTOF
 * Purpose: Implements the _AM_MTOF routine for the internal module support.
 */
-function _AM_MTOF(x)
+function inline _AM_MTOF(x)
   return FixedMul(x, scale_mtof) >> 16
 end function
 
@@ -250,7 +250,7 @@ end function
 * Function: _AM_CXMTOF
 * Purpose: Implements the _AM_CXMTOF routine for the internal module support.
 */
-function _AM_CXMTOF(x)
+function inline _AM_CXMTOF(x)
   return f_x + _AM_MTOF(x - m_x)
 end function
 
@@ -258,7 +258,7 @@ end function
 * Function: _AM_CYMTOF
 * Purpose: Implements the _AM_CYMTOF routine for the internal module support.
 */
-function _AM_CYMTOF(y)
+function inline _AM_CYMTOF(y)
   return f_y +(f_h - _AM_MTOF(y - m_y))
 end function
 
@@ -720,7 +720,7 @@ end function
 * Function: _AM_PutPixel
 * Purpose: Implements the _AM_PutPixel routine for the internal module support.
 */
-function _AM_PutPixel(x, y, color)
+function inline _AM_PutPixel(x, y, color)
   if x < f_x or x >= f_x + f_w or y < f_y or y >= f_y + f_h then return end if
   if x < 0 or x >= SCREENWIDTH or y < 0 or y >= SCREENHEIGHT then return end if
   if typeof(screens) != "array" or FB < 0 or FB >= len(screens) then return end if

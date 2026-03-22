@@ -46,7 +46,7 @@ end function
 * Function: _CeilingMakeThinker
 * Purpose: Advances per-tick logic for the internal module support.
 */
-function _CeilingMakeThinker(fn)
+function inline _CeilingMakeThinker(fn)
   return thinker_t(void, void, actionf_t(fn, void, void), void)
 end function
 
@@ -54,7 +54,7 @@ end function
 * Function: _CeilingSetSlot
 * Purpose: Reads or updates state used by the internal module support.
 */
-function _CeilingSetSlot(idx, v)
+function inline _CeilingSetSlot(idx, v)
   global activeceilings
   if typeof(activeceilings) != "array" then return end if
   if idx < 0 or idx >= len(activeceilings) then return end if

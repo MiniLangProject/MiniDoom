@@ -387,7 +387,7 @@ end function
 * Function: _PS_IDiv
 * Purpose: Implements the _PS_IDiv routine for the internal module support.
 */
-function _PS_IDiv(a, b)
+function inline _PS_IDiv(a, b)
   if typeof(a) != "int" or typeof(b) != "int" or b == 0 then return 0 end if
   q = a / b
   if q >= 0 then return std.math.floor(q) end if
@@ -398,7 +398,7 @@ end function
 * Function: _PS_IsSeq
 * Purpose: Implements the _PS_IsSeq routine for the internal module support.
 */
-function _PS_IsSeq(v)
+function inline _PS_IsSeq(v)
   t = typeof(v)
   return t == "array" or t == "list"
 end function
@@ -407,7 +407,7 @@ end function
 * Function: _PS_IsProjectileType
 * Purpose: Implements the _PS_IsProjectileType routine for the internal module support.
 */
-function _PS_IsProjectileType(t)
+function inline _PS_IsProjectileType(t)
   return t == mobjtype_t.MT_ROCKET or t == mobjtype_t.MT_PLASMA or t == mobjtype_t.MT_BFG or
   t == mobjtype_t.MT_TROOPSHOT or t == mobjtype_t.MT_HEADSHOT or t == mobjtype_t.MT_BRUISERSHOT
 end function
@@ -1068,7 +1068,7 @@ end function
 * Function: _P_NumSectors
 * Purpose: Implements the _P_NumSectors routine for the internal module support.
 */
-function _P_NumSectors()
+function inline _P_NumSectors()
   if typeof(sectors) == "array" then return len(sectors) end if
   if typeof(sectors) == "list" then return len(sectors) end if
   if typeof(numsectors) == "int" then return numsectors end if
@@ -1079,7 +1079,7 @@ end function
 * Function: _P_NumLines
 * Purpose: Implements the _P_NumLines routine for the internal module support.
 */
-function _P_NumLines()
+function inline _P_NumLines()
   if typeof(lines) == "array" then return len(lines) end if
   if typeof(lines) == "list" then return len(lines) end if
   if typeof(numlines) == "int" then return numlines end if

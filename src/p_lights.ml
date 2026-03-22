@@ -26,7 +26,7 @@ import r_state
 * Function: _P_MakeThinker
 * Purpose: Advances per-tick logic for the internal module support.
 */
-function _P_MakeThinker(acp1)
+function inline _P_MakeThinker(acp1)
 
   return thinker_t(void, void, actionf_t(acp1, void, void), void)
 end function
@@ -35,7 +35,7 @@ end function
 * Function: _P_AddThinkerIfPossible
 * Purpose: Advances per-tick logic for the internal module support.
 */
-function _P_AddThinkerIfPossible(th)
+function inline _P_AddThinkerIfPossible(th)
   if typeof(P_AddThinker) == "function" then
     P_AddThinker(th)
   end if

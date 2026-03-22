@@ -29,7 +29,7 @@ const _IMAIN_MB_ICONERROR = 0x00000010
 * Function: _IMain_ShowFatalError
 * Purpose: Shows a fatal startup/runtime error in a GUI message box for windows-subsystem builds.
 */
-function _IMain_ShowFatalError(msg)
+function inline _IMain_ShowFatalError(msg)
   txt = msg
   if typeof(txt) != "string" or txt == "" then
     txt = "MiniDoom crashed with an unknown error."

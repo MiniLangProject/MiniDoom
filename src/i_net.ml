@@ -52,7 +52,7 @@ end function
 * Function: _INet_WriteI32LE
 * Purpose: Writes a signed 32-bit integer to a byte buffer.
 */
-function _INet_WriteI32LE(buf, off, v)
+function inline _INet_WriteI32LE(buf, off, v)
   x = _INet_ToInt(v, 0)
   if x < 0 then x = x + 4294967296 end if
   buf[off] = x & 255
@@ -65,7 +65,7 @@ end function
 * Function: _INet_ReadI32LE
 * Purpose: Reads a signed 32-bit integer from a byte buffer.
 */
-function _INet_ReadI32LE(buf, off)
+function inline _INet_ReadI32LE(buf, off)
   b0 = buf[off] & 255
   b1 = buf[off + 1] & 255
   b2 = buf[off + 2] & 255
@@ -227,7 +227,7 @@ end function
 * Function: _INet_RemoveSlotMobj
 * Purpose: Removes mobj for inactive player slots.
 */
-function _INet_RemoveSlotMobj(slot)
+function inline _INet_RemoveSlotMobj(slot)
   if slot < 0 or slot >= MAXPLAYERS then return end if
   if typeof(players) != "array" or slot >= len(players) then return end if
   p = players[slot]

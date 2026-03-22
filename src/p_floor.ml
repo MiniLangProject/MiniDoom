@@ -28,7 +28,7 @@ import sounds
 * Function: _FloorMakeThinker
 * Purpose: Advances per-tick logic for the internal module support.
 */
-function _FloorMakeThinker(fn)
+function inline _FloorMakeThinker(fn)
   return thinker_t(void, void, actionf_t(fn, void, void), void)
 end function
 
@@ -36,7 +36,7 @@ end function
 * Function: _FloorAddThinkerIfPossible
 * Purpose: Advances per-tick logic for the internal module support.
 */
-function _FloorAddThinkerIfPossible(th)
+function inline _FloorAddThinkerIfPossible(th)
   if typeof(P_AddThinker) == "function" then P_AddThinker(th) end if
 end function
 
@@ -44,7 +44,7 @@ end function
 * Function: _FloorStartSound
 * Purpose: Starts runtime behavior in the internal module support.
 */
-function _FloorStartSound(origin, snd)
+function inline _FloorStartSound(origin, snd)
   if typeof(S_StartSound) == "function" then
     S_StartSound(origin, snd)
   end if
@@ -54,7 +54,7 @@ end function
 * Function: _FloorSoundOrg
 * Purpose: Implements the _FloorSoundOrg routine for the internal module support.
 */
-function _FloorSoundOrg(sec)
+function inline _FloorSoundOrg(sec)
   if sec is void then return void end if
   return sec.soundorg
 end function
@@ -78,7 +78,7 @@ end function
 * Function: _FloorTextureHeight
 * Purpose: Implements the _FloorTextureHeight routine for the internal module support.
 */
-function _FloorTextureHeight(tex)
+function inline _FloorTextureHeight(tex)
   if typeof(textureheight) != "array" then return 0 end if
   if tex < 0 or tex >= len(textureheight) then return 0 end if
   return textureheight[tex]

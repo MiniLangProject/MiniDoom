@@ -72,7 +72,7 @@ _PE_brain_easy = 0
 * Function: _PE_Abs
 * Purpose: Implements the _PE_Abs routine for the internal module support.
 */
-function _PE_Abs(v)
+function inline _PE_Abs(v)
   if v < 0 then return - v end if
   return v
 end function
@@ -81,7 +81,7 @@ end function
 * Function: _PE_IDiv
 * Purpose: Implements the _PE_IDiv routine for the internal module support.
 */
-function _PE_IDiv(a, b)
+function inline _PE_IDiv(a, b)
   if typeof(a) != "int" or typeof(b) != "int" or b == 0 then return 0 end if
   q = a / b
   if q >= 0 then return std.math.floor(q) end if
@@ -92,7 +92,7 @@ end function
 * Function: _PE_StartSound
 * Purpose: Starts runtime behavior in the internal module support.
 */
-function _PE_StartSound(origin, sfx)
+function inline _PE_StartSound(origin, sfx)
   if typeof(S_StartSound) == "function" then
     S_StartSound(origin, sfx)
   end if
@@ -102,7 +102,7 @@ end function
 * Function: _PE_JunkLineWithTag
 * Purpose: Implements the _PE_JunkLineWithTag routine for the internal module support.
 */
-function _PE_JunkLineWithTag(tag)
+function inline _PE_JunkLineWithTag(tag)
   return line_t(void, void, 0, 0, 0, 0, tag,[0, -1],[0, 0, 0, 0], 0, void, void, 0, void)
 end function
 
@@ -110,7 +110,7 @@ end function
 * Function: _PE_ResolveThinkerMobj
 * Purpose: Advances per-tick logic for the internal module support.
 */
-function _PE_ResolveThinkerMobj(cur)
+function inline _PE_ResolveThinkerMobj(cur)
   if cur is void then return void end if
   if cur.func is void or cur.func.acp1 != P_MobjThinker then return void end if
   obj = cur

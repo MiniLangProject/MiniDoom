@@ -254,7 +254,7 @@ cheat_mypos = cheatseq_t(bytes([0xb2, 0x26, 0xb6, 0xba, 0x2a, 0xf6, 0xea, 0xff])
 * Function: _ST_Player
 * Purpose: Implements the _ST_Player routine for the internal module support.
 */
-function _ST_Player()
+function inline _ST_Player()
   if typeof(players) != "array" then return void end if
   if typeof(consoleplayer) != "int" then return void end if
   if consoleplayer < 0 or consoleplayer >= len(players) then return void end if
@@ -305,7 +305,7 @@ end function
 * Function: _ST_IDiv
 * Purpose: Implements the _ST_IDiv routine for the internal module support.
 */
-function _ST_IDiv(a, b)
+function inline _ST_IDiv(a, b)
   a = _ST_ToInt(a, 0)
   b = _ST_ToInt(b, 0)
   if b == 0 then return 0 end if
@@ -318,7 +318,7 @@ end function
 * Function: _ST_SetMessage
 * Purpose: Reads or updates state used by the internal module support.
 */
-function _ST_SetMessage(msg)
+function inline _ST_SetMessage(msg)
   if st_plyr is void then return end if
   st_plyr.message = msg
 end function
@@ -327,7 +327,7 @@ end function
 * Function: _ST_DigitFromParam
 * Purpose: Implements the _ST_DigitFromParam routine for the internal module support.
 */
-function _ST_DigitFromParam(param, idx)
+function inline _ST_DigitFromParam(param, idx)
   if typeof(param) != "string" then return -1 end if
   bb = bytes(param)
   i = _ST_ToInt(idx, -1)
@@ -341,7 +341,7 @@ end function
 * Function: _ST_CheatParam
 * Purpose: Implements the _ST_CheatParam routine for the internal module support.
 */
-function _ST_CheatParam(cheat)
+function inline _ST_CheatParam(cheat)
 
   tmp = bytes(8, 0)
   return cht_GetParam(cheat, tmp)
@@ -351,7 +351,7 @@ end function
 * Function: _ST_GetRef
 * Purpose: Reads or updates state used by the internal module support.
 */
-function _ST_GetRef(refv, fallback)
+function inline _ST_GetRef(refv, fallback)
   if typeof(refv) == "array" and len(refv) > 0 then
     return refv[0]
   end if
@@ -363,7 +363,7 @@ end function
 * Function: _ST_SetRef
 * Purpose: Reads or updates state used by the internal module support.
 */
-function _ST_SetRef(refv, v)
+function inline _ST_SetRef(refv, v)
   if typeof(refv) == "array" and len(refv) > 0 then
     refv[0] = v
   end if
@@ -373,7 +373,7 @@ end function
 * Function: _ST_LoadPatchMaybe
 * Purpose: Loads and prepares data required by the internal module support.
 */
-function _ST_LoadPatchMaybe(name)
+function inline _ST_LoadPatchMaybe(name)
   if typeof(W_CheckNumForName) != "function" then return void end if
   if W_CheckNumForName(name) == -1 then return void end if
   return W_CacheLumpName(name, PU_STATIC)
@@ -383,7 +383,7 @@ end function
 * Function: _ST_LoadPatchRequired
 * Purpose: Loads and prepares data required by the internal module support.
 */
-function _ST_LoadPatchRequired(name)
+function inline _ST_LoadPatchRequired(name)
   if typeof(W_CacheLumpName) != "function" then return void end if
   return W_CacheLumpName(name, PU_STATIC)
 end function
@@ -392,7 +392,7 @@ end function
 * Function: _ST_GetPower
 * Purpose: Reads or updates state used by the internal module support.
 */
-function _ST_GetPower(player, idx)
+function inline _ST_GetPower(player, idx)
   idx = _ST_ToInt(idx, -1)
   if idx < 0 then return 0 end if
   if player is void then return 0 end if
@@ -405,7 +405,7 @@ end function
 * Function: _ST_GetCard
 * Purpose: Reads or updates state used by the internal module support.
 */
-function _ST_GetCard(player, idx)
+function inline _ST_GetCard(player, idx)
   idx = _ST_ToInt(idx, -1)
   if player is void then return false end if
   if typeof(player.cards) != "array" then return false end if
@@ -417,7 +417,7 @@ end function
 * Function: _ST_GetWeaponOwned
 * Purpose: Reads or updates state used by the internal module support.
 */
-function _ST_GetWeaponOwned(player, idx)
+function inline _ST_GetWeaponOwned(player, idx)
   idx = _ST_ToInt(idx, -1)
   if player is void then return false end if
   if typeof(player.weaponowned) != "array" then return false end if
@@ -429,7 +429,7 @@ end function
 * Function: _ST_GetAmmo
 * Purpose: Reads or updates state used by the internal module support.
 */
-function _ST_GetAmmo(player, idx)
+function inline _ST_GetAmmo(player, idx)
   idx = _ST_ToInt(idx, -1)
   if player is void then return 0 end if
   if typeof(player.ammo) != "array" then return 0 end if
@@ -441,7 +441,7 @@ end function
 * Function: _ST_GetMaxAmmo
 * Purpose: Reads or updates state used by the internal module support.
 */
-function _ST_GetMaxAmmo(player, idx)
+function inline _ST_GetMaxAmmo(player, idx)
   idx = _ST_ToInt(idx, -1)
   if player is void then return 0 end if
   if typeof(player.maxammo) != "array" then return 0 end if
@@ -453,7 +453,7 @@ end function
 * Function: _ST_WeaponAmmoType
 * Purpose: Implements the _ST_WeaponAmmoType routine for the internal module support.
 */
-function _ST_WeaponAmmoType(weapon)
+function inline _ST_WeaponAmmoType(weapon)
   wi = _ST_EnumIndex(weapon, NUMWEAPONS)
   if wi < 0 then return am_noammo end if
   if typeof(weaponinfo) != "array" then return am_noammo end if

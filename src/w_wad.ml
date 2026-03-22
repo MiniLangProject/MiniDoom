@@ -115,7 +115,7 @@ end function
 * Function: strupr
 * Purpose: Implements the strupr routine for the engine module behavior.
 */
-function strupr(s)
+function inline strupr(s)
   return _W_ToUpperAscii(s)
 end function
 
@@ -123,7 +123,7 @@ end function
 * Function: filelength
 * Purpose: Implements the filelength routine for the engine module behavior.
 */
-function filelength(handle)
+function inline filelength(handle)
   if typeof(handle) != "int" then return 0 end if
   if handle < 0 or handle >= len(_W_files) then return 0 end if
   d = _W_files[handle].data

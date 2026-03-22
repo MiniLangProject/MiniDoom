@@ -57,7 +57,7 @@ end function
 * Function: _M_ToLowerAscii
 * Purpose: Implements the _M_ToLowerAscii routine for the internal module support.
 */
-function _M_ToLowerAscii(c)
+function inline _M_ToLowerAscii(c)
   if c >= 65 and c <= 90 then return c + 32 end if
   return c
 end function

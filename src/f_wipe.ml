@@ -36,7 +36,7 @@ wipe_seed = 1234567
 * Function: _wipeRand
 * Purpose: Implements the _wipeRand routine for the internal module support.
 */
-function _wipeRand()
+function inline _wipeRand()
   global wipe_seed
 
   wipe_seed =(wipe_seed * 1103515245 + 12345) & 0x7fffffff
@@ -47,7 +47,7 @@ end function
 * Function: _FW_ReadU16LE
 * Purpose: Implements the _FW_ReadU16LE routine for the internal module support.
 */
-function _FW_ReadU16LE(buf, wordIndex)
+function inline _FW_ReadU16LE(buf, wordIndex)
   bi = wordIndex * 2
   if typeof(buf) != "bytes" then return 0 end if
   if bi < 0 or(bi + 1) >= len(buf) then return 0 end if
@@ -58,7 +58,7 @@ end function
 * Function: _FW_WriteU16LE
 * Purpose: Implements the _FW_WriteU16LE routine for the internal module support.
 */
-function _FW_WriteU16LE(buf, wordIndex, v)
+function inline _FW_WriteU16LE(buf, wordIndex, v)
   bi = wordIndex * 2
   if typeof(buf) != "bytes" then return end if
   if bi < 0 or(bi + 1) >= len(buf) then return end if

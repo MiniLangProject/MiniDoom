@@ -91,7 +91,7 @@ switchlist_t("", "", 0)
 * Function: _PSW_IsSeq
 * Purpose: Implements the _PSW_IsSeq routine for the internal module support.
 */
-function _PSW_IsSeq(v)
+function inline _PSW_IsSeq(v)
   t = typeof(v)
   return t == "array" or t == "list"
 end function
@@ -116,7 +116,7 @@ end function
 * Function: _PSW_Side0
 * Purpose: Implements the _PSW_Side0 routine for the internal module support.
 */
-function _PSW_Side0(line)
+function inline _PSW_Side0(line)
   if line is void then return void end if
   if not _PSW_IsSeq(line.sidenum) or len(line.sidenum) <= 0 then return void end if
   sn = line.sidenum[0]
@@ -129,7 +129,7 @@ end function
 * Function: _PSW_StartSound
 * Purpose: Starts runtime behavior in the internal module support.
 */
-function _PSW_StartSound(origin, sound)
+function inline _PSW_StartSound(origin, sound)
   if origin is void then return end if
   if typeof(S_StartSound) == "function" then
     S_StartSound(origin, sound)
@@ -161,7 +161,7 @@ end function
 * Function: _PSW_DiagUseLog
 * Purpose: Implements the _PSW_DiagUseLog routine for the internal module support.
 */
-function _PSW_DiagUseLog(msg)
+function inline _PSW_DiagUseLog(msg)
   global _pswDiagUseCount
   if not _PSW_DiagUseEnabled() then return end if
   _pswDiagUseCount = _pswDiagUseCount + 1
@@ -214,7 +214,7 @@ end function
 * Function: _PSW_Idiv
 * Purpose: Implements the _PSW_Idiv routine for the internal module support.
 */
-function _PSW_Idiv(a, b)
+function inline _PSW_Idiv(a, b)
   if b == 0 then return 0 end if
   q = a / b
   if q >= 0 then return std.math.floor(q) end if

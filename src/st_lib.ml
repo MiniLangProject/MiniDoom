@@ -87,7 +87,7 @@ sttminus = void
 * Function: _STL_GetRefValue
 * Purpose: Reads or updates state used by the internal module support.
 */
-function _STL_GetRefValue(refv, fallback)
+function inline _STL_GetRefValue(refv, fallback)
   if typeof(refv) == "array" then
     if len(refv) > 0 then return refv[0] end if
     return fallback
@@ -100,7 +100,7 @@ end function
 * Function: _STL_SetRefValue
 * Purpose: Reads or updates state used by the internal module support.
 */
-function _STL_SetRefValue(refv, v)
+function inline _STL_SetRefValue(refv, v)
   if typeof(refv) == "array" and len(refv) > 0 then
     refv[0] = v
   end if
@@ -110,7 +110,7 @@ end function
 * Function: _STL_AsBool
 * Purpose: Implements the _STL_AsBool routine for the internal module support.
 */
-function _STL_AsBool(v)
+function inline _STL_AsBool(v)
   if typeof(v) == "bool" then return v end if
   if typeof(v) == "int" or typeof(v) == "float" then return v != 0 end if
   if typeof(v) == "string" then return len(v) > 0 end if
@@ -121,7 +121,7 @@ end function
 * Function: _STL_RefBool
 * Purpose: Implements the _STL_RefBool routine for the internal module support.
 */
-function _STL_RefBool(refv)
+function inline _STL_RefBool(refv)
   return _STL_AsBool(_STL_GetRefValue(refv, false))
 end function
 
@@ -148,7 +148,7 @@ end function
 * Function: _STL_IDiv
 * Purpose: Implements the _STL_IDiv routine for the internal module support.
 */
-function _STL_IDiv(a, b)
+function inline _STL_IDiv(a, b)
   a = _STL_ToInt(a, 0)
   b = _STL_ToInt(b, 0)
   if b == 0 then return 0 end if
@@ -161,7 +161,7 @@ end function
 * Function: _STL_RefInt
 * Purpose: Implements the _STL_RefInt routine for the internal module support.
 */
-function _STL_RefInt(refv, fallback)
+function inline _STL_RefInt(refv, fallback)
   v = _STL_GetRefValue(refv, fallback)
   return _STL_ToInt(v, fallback)
 end function
@@ -170,7 +170,7 @@ end function
 * Function: _STL_PatchWidth
 * Purpose: Implements the _STL_PatchWidth routine for the internal module support.
 */
-function _STL_PatchWidth(p)
+function inline _STL_PatchWidth(p)
   if typeof(p) != "bytes" then return 0 end if
   return RDefs_I16LE(p, 0)
 end function
@@ -179,7 +179,7 @@ end function
 * Function: _STL_PatchHeight
 * Purpose: Implements the _STL_PatchHeight routine for the internal module support.
 */
-function _STL_PatchHeight(p)
+function inline _STL_PatchHeight(p)
   if typeof(p) != "bytes" then return 0 end if
   return RDefs_I16LE(p, 2)
 end function
@@ -188,7 +188,7 @@ end function
 * Function: _STL_PatchLeft
 * Purpose: Implements the _STL_PatchLeft routine for the internal module support.
 */
-function _STL_PatchLeft(p)
+function inline _STL_PatchLeft(p)
   if typeof(p) != "bytes" then return 0 end if
   return RDefs_I16LE(p, 4)
 end function
@@ -197,7 +197,7 @@ end function
 * Function: _STL_PatchTop
 * Purpose: Implements the _STL_PatchTop routine for the internal module support.
 */
-function _STL_PatchTop(p)
+function inline _STL_PatchTop(p)
   if typeof(p) != "bytes" then return 0 end if
   return RDefs_I16LE(p, 6)
 end function
@@ -206,7 +206,7 @@ end function
 * Function: _STL_GetPatch
 * Purpose: Reads or updates state used by the internal module support.
 */
-function _STL_GetPatch(patches, idx)
+function inline _STL_GetPatch(patches, idx)
   tp = typeof(patches)
   if tp != "array" and tp != "list" then return void end if
   i = _STL_ToInt(idx, -2147483648)

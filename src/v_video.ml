@@ -128,7 +128,7 @@ usegamma = 0
 * Function: _u16le
 * Purpose: Implements the _u16le routine for the internal module support.
 */
-function _u16le(b, off)
+function inline _u16le(b, off)
   return b[off] +(b[off + 1] << 8)
 end function
 
@@ -136,7 +136,7 @@ end function
 * Function: _s16le
 * Purpose: Implements the _s16le routine for the internal module support.
 */
-function _s16le(b, off)
+function inline _s16le(b, off)
   v = _u16le(b, off)
   if v >= 32768 then v = v - 65536 end if
   return v
@@ -146,7 +146,7 @@ end function
 * Function: _u32le
 * Purpose: Implements the _u32le routine for the internal module support.
 */
-function _u32le(b, off)
+function inline _u32le(b, off)
   return b[off] +(b[off + 1] << 8) +(b[off + 2] << 16) +(b[off + 3] << 24)
 end function
 
@@ -154,7 +154,7 @@ end function
 * Function: _clampInt
 * Purpose: Implements the _clampInt routine for the internal module support.
 */
-function _clampInt(x, lo, hi)
+function inline _clampInt(x, lo, hi)
   if x < lo then return lo end if
   if x > hi then return hi end if
   return x

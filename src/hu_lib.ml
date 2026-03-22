@@ -76,7 +76,7 @@ end function
 * Function: _HUlib_toByte
 * Purpose: Implements the _HUlib_toByte routine for the internal module support.
 */
-function _HUlib_toByte(ch)
+function inline _HUlib_toByte(ch)
   if typeof(ch) == "int" then
     return ch & 255
   end if
@@ -91,7 +91,7 @@ end function
 * Function: _HUlib_refBool
 * Purpose: Implements the _HUlib_refBool routine for the internal module support.
 */
-function _HUlib_refBool(v)
+function inline _HUlib_refBool(v)
   if typeof(v) == "array" and len(v) > 0 then v = v[0] end if
   if typeof(v) == "bool" then return v end if
   if typeof(v) == "int" or typeof(v) == "float" then return v != 0 end if
@@ -102,7 +102,7 @@ end function
 * Function: _HUlib_patchWidth
 * Purpose: Implements the _HUlib_patchWidth routine for the internal module support.
 */
-function _HUlib_patchWidth(p)
+function inline _HUlib_patchWidth(p)
   if typeof(p) != "bytes" then return 0 end if
   return RDefs_I16LE(p, 0)
 end function
@@ -111,7 +111,7 @@ end function
 * Function: _HUlib_patchHeight
 * Purpose: Implements the _HUlib_patchHeight routine for the internal module support.
 */
-function _HUlib_patchHeight(p)
+function inline _HUlib_patchHeight(p)
   if typeof(p) != "bytes" then return 0 end if
   return RDefs_I16LE(p, 2)
 end function
@@ -120,7 +120,7 @@ end function
 * Function: _HUlib_patchAt
 * Purpose: Implements the _HUlib_patchAt routine for the internal module support.
 */
-function _HUlib_patchAt(font, idx)
+function inline _HUlib_patchAt(font, idx)
   if typeof(font) != "array" then return void end if
   if idx < 0 or idx >= len(font) then return void end if
   return font[idx]
@@ -130,7 +130,7 @@ end function
 * Function: _HUlib_upper
 * Purpose: Implements the _HUlib_upper routine for the internal module support.
 */
-function _HUlib_upper(c)
+function inline _HUlib_upper(c)
   if c >= 97 and c <= 122 then return c - 32 end if
   return c
 end function
@@ -139,7 +139,7 @@ end function
 * Function: _HUlib_needsVal
 * Purpose: Implements the _HUlib_needsVal routine for the internal module support.
 */
-function _HUlib_needsVal(v)
+function inline _HUlib_needsVal(v)
   if typeof(v) == "int" or typeof(v) == "float" then return v end if
   if typeof(v) == "bool" then
     if v then return 1 end if

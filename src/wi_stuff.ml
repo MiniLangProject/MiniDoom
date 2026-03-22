@@ -82,7 +82,7 @@ end struct
 * Function: _WI_Point
 * Purpose: Implements the _WI_Point routine for the internal module support.
 */
-function _WI_Point(x, y)
+function inline _WI_Point(x, y)
   return point_t(x, y)
 end function
 
@@ -90,7 +90,7 @@ end function
 * Function: _WI_AnimDefault
 * Purpose: Implements the _WI_AnimDefault routine for the internal module support.
 */
-function _WI_AnimDefault()
+function inline _WI_AnimDefault()
   return anim_t(animenum_t.ANIM_ALWAYS, _WI_IDiv(TICRATE, 3), 1, _WI_Point(0, 0), 0, 0,[void, void, void], 0, -1, 0, 0)
 end function
 
@@ -98,7 +98,7 @@ end function
 * Function: _WI_Abs
 * Purpose: Implements the _WI_Abs routine for the internal module support.
 */
-function _WI_Abs(v)
+function inline _WI_Abs(v)
   if v < 0 then return - v end if
   return v
 end function
@@ -126,7 +126,7 @@ end function
 * Function: _WI_IDiv
 * Purpose: Implements the _WI_IDiv routine for the internal module support.
 */
-function _WI_IDiv(a, b)
+function inline _WI_IDiv(a, b)
   ai = _WI_ToInt(a, 0)
   bi = _WI_ToInt(b, 0)
   if bi == 0 then return 0 end if
@@ -139,7 +139,7 @@ end function
 * Function: _WI_Clamp
 * Purpose: Implements the _WI_Clamp routine for the internal module support.
 */
-function _WI_Clamp(v, lo, hi)
+function inline _WI_Clamp(v, lo, hi)
   if v < lo then return lo end if
   if v > hi then return hi end if
   return v
@@ -149,7 +149,7 @@ end function
 * Function: _WI_PatchW
 * Purpose: Implements the _WI_PatchW routine for the internal module support.
 */
-function _WI_PatchW(p)
+function inline _WI_PatchW(p)
   if p is void then return 8 end if
   if typeof(Patch_Width) == "function" then return Patch_Width(p) end if
   return 8
@@ -159,7 +159,7 @@ end function
 * Function: _WI_PatchH
 * Purpose: Implements the _WI_PatchH routine for the internal module support.
 */
-function _WI_PatchH(p)
+function inline _WI_PatchH(p)
   if p is void then return 8 end if
   if typeof(Patch_Height) == "function" then return Patch_Height(p) end if
   return 8
@@ -169,7 +169,7 @@ end function
 * Function: _WI_SafeDrawPatch
 * Purpose: Draws or renders output for the internal module support.
 */
-function _WI_SafeDrawPatch(x, y, patch)
+function inline _WI_SafeDrawPatch(x, y, patch)
   if patch is void then return end if
   if typeof(V_DrawPatch) == "function" then
     V_DrawPatch(x, y, 0, patch)
@@ -180,7 +180,7 @@ end function
 * Function: _WI_SafeStartSound
 * Purpose: Starts runtime behavior in the internal module support.
 */
-function _WI_SafeStartSound(origin, sfx)
+function inline _WI_SafeStartSound(origin, sfx)
   if typeof(S_StartSound) == "function" then
     S_StartSound(origin, sfx)
   end if
@@ -190,7 +190,7 @@ end function
 * Function: _WI_CacheOrVoid
 * Purpose: Retrieves and caches data for the internal module support.
 */
-function _WI_CacheOrVoid(name, tag)
+function inline _WI_CacheOrVoid(name, tag)
   if typeof(W_CheckNumForName) == "function" then
     ln = W_CheckNumForName(name)
     if ln < 0 then return void end if
@@ -308,7 +308,7 @@ wi_wbstart = void
 * Function: _WI_GetPlr
 * Purpose: Reads or updates state used by the internal module support.
 */
-function _WI_GetPlr(index)
+function inline _WI_GetPlr(index)
   if typeof(plrs) != "array" then return void end if
   if index < 0 or index >= len(plrs) then return void end if
   return plrs[index]
@@ -318,7 +318,7 @@ end function
 * Function: _WI_PlayerIngame
 * Purpose: Returns whether a player slot is active for intermission tables.
 */
-function _WI_PlayerIngame(index)
+function inline _WI_PlayerIngame(index)
   if typeof(plrs) == "array" and index >= 0 and index < len(plrs) and typeof(plrs[index]) == "struct" then
     iv = plrs[index].inum
     if typeof(iv) == "bool" then return iv end if
@@ -334,7 +334,7 @@ end function
 * Function: _WI_GetPlrFrag
 * Purpose: Reads one frag-matrix entry from wb player stats safely.
 */
-function _WI_GetPlrFrag(playernum, target)
+function inline _WI_GetPlrFrag(playernum, target)
   p = _WI_GetPlr(playernum)
   if typeof(p) != "struct" or typeof(p.frags) != "array" then return 0 end if
   if target < 0 or target >= len(p.frags) then return 0 end if
@@ -402,7 +402,7 @@ end function
 * Function: _WI_TargetTime
 * Purpose: Reads or updates state used by the internal module support.
 */
-function _WI_TargetTime(index)
+function inline _WI_TargetTime(index)
   p = _WI_GetPlr(index)
   if p is not void and typeof(p.stime) == "int" then return _WI_IDiv(p.stime, TICRATE) end if
   if typeof(players) == "array" and index >= 0 and index < len(players) and typeof(players[index]) == "struct" then
@@ -415,7 +415,7 @@ end function
 * Function: _WI_TargetPar
 * Purpose: Reads or updates state used by the internal module support.
 */
-function _WI_TargetPar()
+function inline _WI_TargetPar()
   if wbs is not void and typeof(wbs.partime) == "int" then return _WI_IDiv(wbs.partime, TICRATE) end if
   return 0
 end function
@@ -669,7 +669,7 @@ end function
 * Function: _WI_Substr
 * Purpose: Returns at most n bytes from the beginning of s.
 */
-function _WI_Substr(s, n)
+function inline _WI_Substr(s, n)
   if typeof(s) != "string" then return "" end if
   if typeof(n) != "int" or n <= 0 then return "" end if
   b = bytes(s)
@@ -701,7 +701,7 @@ end function
 * Function: _WI_DrawRowName
 * Purpose: Draws one player name at netgame row start.
 */
-function _WI_DrawRowName(slot, x, y)
+function inline _WI_DrawRowName(slot, x, y)
   nm = _WI_PlayerRowName(slot)
   if nm == "" then return end if
   if typeof(M_DrawText) == "function" then

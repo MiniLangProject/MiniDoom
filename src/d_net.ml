@@ -413,7 +413,7 @@ end function
 * Function: _DNet_CopyCmd
 * Purpose: Implements the _DNet_CopyCmd routine for the internal module support.
 */
-function _DNet_CopyCmd(src)
+function inline _DNet_CopyCmd(src)
   if src is void then return ticcmd_t(0, 0, 0, 0, 0, 0) end if
   return ticcmd_t(
   _DNet_ToInt(src.forwardmove, 0),
@@ -807,7 +807,7 @@ end function
 * Function: _DNet_MPPlayerName
 * Purpose: Resolves a readable player name for HUD/event messages.
 */
-function _DNet_MPPlayerName(slot)
+function inline _DNet_MPPlayerName(slot)
   s = _DNet_ToInt(slot, 0)
   if s < 0 then s = 0 end if
   if s >= MAXPLAYERS then s = MAXPLAYERS - 1 end if
@@ -1234,7 +1234,7 @@ end function
 * Function: _DNet_MPHostSendWIStatsTo
 * Purpose: Sends a full intermission stats packet to one client slot.
 */
-function _DNet_MPHostSendWIStatsTo(slot)
+function inline _DNet_MPHostSendWIStatsTo(slot)
   if not _DNet_MPIsHost() then return false end if
   if typeof(MP_PlatformNetSend) != "function" then return false end if
   s = _DNet_ToInt(slot, -1)
@@ -1267,7 +1267,7 @@ end function
 * Function: _DNet_MPHostHandleWIStatsRequest
 * Purpose: Handles one client request for intermission stats retransmission.
 */
-function _DNet_MPHostHandleWIStatsRequest(node, payload)
+function inline _DNet_MPHostHandleWIStatsRequest(node, payload)
   if not _DNet_MPIsHost() then return end if
   slot = _DNet_ToInt(node, -1)
   if slot < 1 or slot >= MAXPLAYERS then
@@ -1283,7 +1283,7 @@ end function
 * Function: _DNet_MPSendWIStatsRequest
 * Purpose: Sends one client-side intermission stats request to the host.
 */
-function _DNet_MPSendWIStatsRequest()
+function inline _DNet_MPSendWIStatsRequest()
   if not _DNet_MPIsClient() then return false end if
   if typeof(MP_PlatformNetSend) != "function" then return false end if
   payload = bytes(6, 0)
@@ -1452,7 +1452,7 @@ end function
 * Function: _DNet_MPBuildFeedPacket
 * Purpose: Builds a small gameplay event packet (kill feed, etc.).
 */
-function _DNet_MPBuildFeedPacket(code, a, b)
+function inline _DNet_MPBuildFeedPacket(code, a, b)
   payload = bytes(4, 0)
   payload[0] = _DNET_MPMSG_FEED
   payload[1] = _DNet_ToInt(code, 0) & 255
@@ -1565,7 +1565,7 @@ end function
 * Function: _DNet_MPClientApplyChat
 * Purpose: Applies one authoritative multiplayer chat message on the local HUD.
 */
-function _DNet_MPClientApplyChat(payload)
+function inline _DNet_MPClientApplyChat(payload)
   if typeof(payload) != "bytes" or len(payload) < 4 then return end if
   if (payload[0] & 255) != _DNET_MPMSG_CHAT then return end if
   sender = payload[1] & 255
@@ -1687,7 +1687,7 @@ end function
 * Function: _DNet_MPPhaseCode
 * Purpose: Maps Doom gamestate to compact phase code used by phase sync packets.
 */
-function _DNet_MPPhaseCode()
+function inline _DNet_MPPhaseCode()
   if gamestate == gamestate_t.GS_LEVEL then return 0 end if
   if gamestate == gamestate_t.GS_INTERMISSION then return 1 end if
   if gamestate == gamestate_t.GS_FINALE then return 2 end if
@@ -1698,7 +1698,7 @@ end function
 * Function: _DNet_MPIntermissionNextMap
 * Purpose: Resolves the next map number while host is in intermission.
 */
-function _DNet_MPIntermissionNextMap()
+function inline _DNet_MPIntermissionNextMap()
   nextMap = _DNet_ToInt(gamemap, 1)
   if gamestate == gamestate_t.GS_INTERMISSION and typeof(wminfo) == "struct" and typeof(wminfo.next) == "int" then
     nextMap = _DNet_ToInt(wminfo.next, 0) + 1
@@ -2617,7 +2617,7 @@ end function
 * Function: _DNet_MPHostMarkSlotFullsync
 * Purpose: Schedules an immediate full-snapshot burst for a newly active remote slot.
 */
-function _DNet_MPHostMarkSlotFullsync(slot)
+function inline _DNet_MPHostMarkSlotFullsync(slot)
   global _dnet_mp_host_slot_fullsync_burst
   s = _DNet_ToInt(slot, -1)
   if s <= 0 or s >= MAXPLAYERS then return end if

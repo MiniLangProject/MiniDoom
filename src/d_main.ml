@@ -98,7 +98,7 @@ _d_prof_vid_ms = 0
 * Function: _D_TimeMs
 * Purpose: Implements the _D_TimeMs routine for the internal module support.
 */
-function _D_TimeMs()
+function inline _D_TimeMs()
   t = std.time.ticks()
   if typeof(t) != "int" then return 0 end if
   return t
@@ -158,7 +158,7 @@ end function
 * Function: _D_IDiv
 * Purpose: Implements the _D_IDiv routine for the internal module support.
 */
-function _D_IDiv(a, b)
+function inline _D_IDiv(a, b)
   if typeof(a) != "int" or typeof(b) != "int" or b == 0 then return 0 end if
   q = a / b
   if q >= 0 then return std.math.floor(q) end if
@@ -471,7 +471,7 @@ end function
 * Function: _D_AddDemoLmpFromArgs
 * Purpose: Implements the _D_AddDemoLmpFromArgs routine for the internal module support.
 */
-function _D_AddDemoLmpFromArgs(flag)
+function inline _D_AddDemoLmpFromArgs(flag)
   p = M_CheckParm(flag)
   if p == 0 or p >= myargc - 1 then return end if
   name = myargv[p + 1]
@@ -487,7 +487,7 @@ end function
 * Function: _D_FileReadable
 * Purpose: Implements the _D_FileReadable routine for the internal module support.
 */
-function _D_FileReadable(path)
+function inline _D_FileReadable(path)
   if typeof(path) != "string" or len(path) == 0 then return false end if
   if not fs.exists(path) then return false end if
   if not fs.isFile(path) then return false end if
@@ -542,7 +542,7 @@ end function
 * Function: _D_IsResponseTokenByte
 * Purpose: Reads or updates state used by the internal module support.
 */
-function _D_IsResponseTokenByte(c)
+function inline _D_IsResponseTokenByte(c)
   return c >= 33 and c <= 122
 end function
 

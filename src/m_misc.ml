@@ -37,7 +37,7 @@ import std.fs as fs
 * Function: _M_u16le
 * Purpose: Implements the _M_u16le routine for the internal module support.
 */
-function _M_u16le(b, off)
+function inline _M_u16le(b, off)
   return b[off] +(b[off + 1] << 8)
 end function
 
@@ -45,7 +45,7 @@ end function
 * Function: _M_patchWidth
 * Purpose: Implements the _M_patchWidth routine for the internal module support.
 */
-function _M_patchWidth(patch)
+function inline _M_patchWidth(patch)
   if typeof(patch) != "bytes" then return 0 end if
   return _M_u16le(patch, 0)
 end function
@@ -54,7 +54,7 @@ end function
 * Function: _M_UpperAscii
 * Purpose: Implements the _M_UpperAscii routine for the internal module support.
 */
-function _M_UpperAscii(c)
+function inline _M_UpperAscii(c)
   if c >= 97 and c <= 122 then return c - 32 end if
   return c
 end function
@@ -63,7 +63,7 @@ end function
 * Function: _MMISC_IDiv
 * Purpose: Implements the _MMISC_IDiv routine for the internal module support.
 */
-function _MMISC_IDiv(a, b)
+function inline _MMISC_IDiv(a, b)
   if typeof(a) != "int" or typeof(b) != "int" or b == 0 then return 0 end if
   q = a / b
   if q >= 0 then return std.math.floor(q) end if
@@ -74,7 +74,7 @@ end function
 * Function: _M_WriteU16LE
 * Purpose: Implements the _M_WriteU16LE routine for the internal module support.
 */
-function _M_WriteU16LE(buf, off, value)
+function inline _M_WriteU16LE(buf, off, value)
   if value < 0 then value = value + 65536 end if
   buf[off] = value & 255
   buf[off + 1] =(value >> 8) & 255
@@ -84,7 +84,7 @@ end function
 * Function: _M_MakeShotName
 * Purpose: Implements the _M_MakeShotName routine for the internal module support.
 */
-function _M_MakeShotName(i)
+function inline _M_MakeShotName(i)
   b = bytes("DOOM00.pcx")
   b[4] = 48 +(_MMISC_IDiv(i, 10) % 10)
   b[5] = 48 +(i % 10)
@@ -162,7 +162,7 @@ end function
 * Function: _M_IsSpaceByte
 * Purpose: Implements the _M_IsSpaceByte routine for the internal module support.
 */
-function _M_IsSpaceByte(c)
+function inline _M_IsSpaceByte(c)
   return c == 32 or c == 9
 end function
 
@@ -235,7 +235,7 @@ end function
 * Function: _M_ParseText
 * Purpose: Parses optional quoted text value from config lines.
 */
-function _M_ParseText(s0)
+function inline _M_ParseText(s0)
   if typeof(s0) != "string" then return "" end if
   s0 = _M_Trim(s0)
   if s0 == "" then return "" end if

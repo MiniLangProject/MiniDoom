@@ -21,7 +21,7 @@
 * Function: abs
 * Purpose: Implements the abs routine for the engine module behavior.
 */
-function abs(x)
+function inline abs(x)
   if x < 0 then return - x end if
   return x
 end function

@@ -49,7 +49,7 @@ bunny_laststage = -1
 * Function: _F_Substr
 * Purpose: Implements the _F_Substr routine for the internal module support.
 */
-function _F_Substr(s, n)
+function inline _F_Substr(s, n)
   if typeof(s) != "string" then return "" end if
   if n <= 0 then return "" end if
   b = bytes(s)
@@ -61,7 +61,7 @@ end function
 * Function: _F_IDiv
 * Purpose: Implements the _F_IDiv routine for the internal module support.
 */
-function _F_IDiv(a, b)
+function inline _F_IDiv(a, b)
   if typeof(a) != "int" or typeof(b) != "int" or b == 0 then return 0 end if
   q = a / b
   if q >= 0 then return std.math.floor(q) end if
@@ -72,7 +72,7 @@ end function
 * Function: _F_u16le
 * Purpose: Implements the _F_u16le routine for the internal module support.
 */
-function _F_u16le(b, off)
+function inline _F_u16le(b, off)
   return b[off] +(b[off + 1] << 8)
 end function
 
@@ -80,7 +80,7 @@ end function
 * Function: _F_u32le
 * Purpose: Implements the _F_u32le routine for the internal module support.
 */
-function _F_u32le(b, off)
+function inline _F_u32le(b, off)
   return b[off] +(b[off + 1] << 8) +(b[off + 2] << 16) +(b[off + 3] << 24)
 end function
 
@@ -88,7 +88,7 @@ end function
 * Function: _F_PatchWidth
 * Purpose: Implements the _F_PatchWidth routine for the internal module support.
 */
-function _F_PatchWidth(patch)
+function inline _F_PatchWidth(patch)
   if typeof(patch) != "bytes" or len(patch) < 8 then return 0 end if
   return _F_u16le(patch, 0)
 end function
@@ -97,7 +97,7 @@ end function
 * Function: _F_UpperAscii
 * Purpose: Implements the _F_UpperAscii routine for the internal module support.
 */
-function _F_UpperAscii(c)
+function inline _F_UpperAscii(c)
   if c >= 97 and c <= 122 then return c - 32 end if
   return c
 end function
@@ -166,7 +166,7 @@ end function
 * Function: _F_EndPatchName
 * Purpose: Implements the _F_EndPatchName routine for the internal module support.
 */
-function _F_EndPatchName(stage)
+function inline _F_EndPatchName(stage)
   if stage <= 0 then return "END0" end if
   if stage == 1 then return "END1" end if
   if stage == 2 then return "END2" end if

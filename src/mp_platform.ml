@@ -210,7 +210,7 @@ end function
 * Function: _MPPlatform_EnsurePeerTelemetry
 * Purpose: Ensures host peer struct has telemetry fields initialized.
 */
-function _MPPlatform_EnsurePeerTelemetry(p)
+function inline _MPPlatform_EnsurePeerTelemetry(p)
   if typeof(p) != "struct" then return p end if
   if typeof(p.pingSeq) != "int" then p.pingSeq = 0 end if
   if typeof(p.lastPingTxMs) != "int" then p.lastPingTxMs = 0 end if
@@ -242,7 +242,7 @@ end function
 * Function: _MPPlatform_SetStatus
 * Purpose: Stores latest status string for menu/UI display.
 */
-function _MPPlatform_SetStatus(msg)
+function inline _MPPlatform_SetStatus(msg)
   global _mp_platform_last_status
   if typeof(msg) != "string" then
     _mp_platform_last_status = ""
@@ -256,7 +256,7 @@ end function
 * Function: _MPPlatform_PushConsoleMessage
 * Purpose: Sends a short HUD message to the local console player when available.
 */
-function _MPPlatform_PushConsoleMessage(msg)
+function inline _MPPlatform_PushConsoleMessage(msg)
   if typeof(msg) != "string" or msg == "" then return end if
   if typeof(players) != "array" then return end if
   cp = _MPPlatform_ToInt(consoleplayer, -1)
@@ -697,7 +697,7 @@ end function
 * Function: _MPPlatform_SanitizeField
 * Purpose: Removes wire-delimiter/control bytes from textual packet fields.
 */
-function _MPPlatform_SanitizeField(s0)
+function inline _MPPlatform_SanitizeField(s0)
   if typeof(s0) != "string" then return "" end if
   s0 = str.replaceAll(s0, "|", "/")
   s0 = str.replaceAll(s0, "\r", " ")
@@ -709,7 +709,7 @@ end function
 * Function: _MPPlatform_CloseSocketOnly
 * Purpose: Closes active UDP socket if currently open.
 */
-function _MPPlatform_CloseSocketOnly()
+function inline _MPPlatform_CloseSocketOnly()
   global _mp_sock
   if typeof(_mp_sock) == "int" or typeof(_mp_sock) == "ptr" then
     net.close(_mp_sock)
@@ -721,7 +721,7 @@ end function
 * Function: _MPPlatform_SetNonBlocking
 * Purpose: Configures UDP socket to non-blocking mode.
 */
-function _MPPlatform_SetNonBlocking(sock, enabled)
+function inline _MPPlatform_SetNonBlocking(sock, enabled)
   arg = bytes(4, 0)
   if enabled then arg[0] = 1 end if
   rc = ioctlsocket(sock, _MPPLAT_FIONBIO, arg)
@@ -732,7 +732,7 @@ end function
 * Function: _MPPlatform_SockAddrAny
 * Purpose: Builds an IPv4 INADDR_ANY sockaddr_in buffer for local UDP bind checks.
 */
-function _MPPlatform_SockAddrAny(port)
+function inline _MPPlatform_SockAddrAny(port)
   p = _MPPlatform_ToInt(port, 0)
   if p < 0 then p = 0 end if
   if p > 65535 then p = 65535 end if
@@ -748,7 +748,7 @@ end function
 * Function: _MPPlatform_CanBindUdpPort
 * Purpose: Performs a non-throwing raw WinSock bind probe so host start can fail gracefully.
 */
-function _MPPlatform_CanBindUdpPort(port)
+function inline _MPPlatform_CanBindUdpPort(port)
   if typeof(net.init) == "function" then
     if not net.init() then return false end if
   end if
@@ -764,7 +764,7 @@ end function
 * Function: _MPPlatform_SetRecvTimeout
 * Purpose: Configures socket receive timeout in milliseconds.
 */
-function _MPPlatform_SetRecvTimeout(sock, timeoutMs)
+function inline _MPPlatform_SetRecvTimeout(sock, timeoutMs)
   t = _MPPlatform_ToInt(timeoutMs, 1)
   if t < 1 then t = 1 end if
   if t > 2000 then t = 2000 end if
@@ -781,7 +781,7 @@ end function
 * Function: _MPPlatform_PendingBytes
 * Purpose: Returns pending receive bytes count for the socket, or -1 on failure.
 */
-function _MPPlatform_PendingBytes(sock)
+function inline _MPPlatform_PendingBytes(sock)
   arg = bytes(4, 0)
   rc = ioctlsocket(sock, _MPPLAT_FIONREAD, arg)
   if rc != 0 then return -1 end if
@@ -792,7 +792,7 @@ end function
 * Function: _MPPlatform_IsWouldBlockError
 * Purpose: Checks whether a net error maps to WSAEWOULDBLOCK.
 */
-function _MPPlatform_IsWouldBlockError(v)
+function inline _MPPlatform_IsWouldBlockError(v)
   if typeof(v) != "error" then return false end if
   code = net.lastError()
   return code == _MPPLAT_WOULDBLOCK or code == _MPPLAT_TIMEDOUT
@@ -802,7 +802,7 @@ end function
 * Function: _MPPlatform_SendFields
 * Purpose: Encodes and sends a textual UDP packet with field separators.
 */
-function _MPPlatform_SendFields(sock, ip, port, fields)
+function inline _MPPlatform_SendFields(sock, ip, port, fields)
   msg = str.join(fields, "|")
   return net.udpSendTo(sock, ip, port, bytes(msg))
 end function
@@ -1241,7 +1241,7 @@ end function
 * Function: _MPPlatform_HostSendDeny
 * Purpose: Sends a host-side join denial packet with optional server hash context.
 */
-function _MPPlatform_HostSendDeny(ip, port, reasonCode, reasonText, includeHash)
+function inline _MPPlatform_HostSendDeny(ip, port, reasonCode, reasonText, includeHash)
   fields = [_MPPLAT_PROTO, _MPPLAT_DEN, reasonCode, _MPPlatform_SanitizeField(reasonText)]
   if includeHash then fields = fields + [mp_iwad_fnv1a_hex] end if
   _MPPlatform_SendFields(_mp_sock, ip, port, fields)
@@ -1741,7 +1741,7 @@ end function
 * Function: _MPPlatform_SetError
 * Purpose: Stores user-facing error text for multiplayer host/join operations.
 */
-function _MPPlatform_SetError(msg)
+function inline _MPPlatform_SetError(msg)
   global _mp_platform_last_error
   if typeof(msg) != "string" then
     _mp_platform_last_error = ""

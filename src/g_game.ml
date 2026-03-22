@@ -249,7 +249,7 @@ end function
 * Function: _G_SaveFileName
 * Purpose: Implements the _G_SaveFileName routine for the internal module support.
 */
-function _G_SaveFileName(slot)
+function inline _G_SaveFileName(slot)
   s = slot
   if typeof(s) != "int" then s = 0 end if
   if M_CheckParm("-cdrom") != 0 then
@@ -912,7 +912,7 @@ end function
 * Function: _G_DemoReadU8
 * Purpose: Implements the _G_DemoReadU8 routine for the internal module support.
 */
-function _G_DemoReadU8()
+function inline _G_DemoReadU8()
   if typeof(demobuffer) != "bytes" or _G_demo_p < 0 or _G_demo_p >= len(demobuffer) then
     global _G_demo_p
     _G_demo_p = _G_demo_p + 1
@@ -927,7 +927,7 @@ end function
 * Function: _G_DemoWriteU8
 * Purpose: Implements the _G_DemoWriteU8 routine for the internal module support.
 */
-function _G_DemoWriteU8(v)
+function inline _G_DemoWriteU8(v)
   if typeof(demobuffer) != "bytes" then return end if
   if _G_demo_p < 0 or _G_demo_p >= len(demobuffer) then return end if
   b = v
@@ -1259,7 +1259,7 @@ end function
 * Function: _G_IDiv
 * Purpose: Implements the _G_IDiv routine for the internal module support.
 */
-function _G_IDiv(a, b)
+function inline _G_IDiv(a, b)
   if typeof(a) != "int" or typeof(b) != "int" or b == 0 then return 0 end if
   q = a / b
   if q >= 0 then return std.math.floor(q) end if
@@ -1270,7 +1270,7 @@ end function
 * Function: _G_KeyIndex
 * Purpose: Implements the _G_KeyIndex routine for the internal module support.
 */
-function _G_KeyIndex(k)
+function inline _G_KeyIndex(k)
   if typeof(k) != "int" then return -1 end if
   if k < 0 or k >= 256 then return -1 end if
   return k
@@ -1280,7 +1280,7 @@ end function
 * Function: _G_KeyIsDown
 * Purpose: Implements the _G_KeyIsDown routine for the internal module support.
 */
-function _G_KeyIsDown(k)
+function inline _G_KeyIsDown(k)
   _G_EnsureInputState()
   idx = _G_KeyIndex(k)
   if idx < 0 then return false end if
@@ -1291,7 +1291,7 @@ end function
 * Function: _G_ButtonIsDown
 * Purpose: Implements the _G_ButtonIsDown routine for the internal module support.
 */
-function _G_ButtonIsDown(arr, idx)
+function inline _G_ButtonIsDown(arr, idx)
   if typeof(arr) != "array" then return false end if
   if typeof(idx) != "int" then return false end if
   if idx < 0 or idx >= len(arr) then return false end if

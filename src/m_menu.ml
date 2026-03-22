@@ -51,7 +51,7 @@ const CH_Y = 121
 * Function: _min
 * Purpose: Implements the _min routine for the internal module support.
 */
-function _min(a, b)
+function inline _min(a, b)
   if a < b then return a end if
   return b
 end function
@@ -60,7 +60,7 @@ end function
 * Function: _toupperByte
 * Purpose: Implements the _toupperByte routine for the internal module support.
 */
-function _toupperByte(c)
+function inline _toupperByte(c)
 
   if c >= 97 and c <= 122 then return c - 32 end if
   return c
@@ -70,7 +70,7 @@ end function
 * Function: _bytesOf
 * Purpose: Implements the _bytesOf routine for the internal module support.
 */
-function _bytesOf(x)
+function inline _bytesOf(x)
   if typeof(x) == "bytes" then return x end if
   if typeof(x) == "string" then return bytes(x) end if
 
@@ -81,7 +81,7 @@ end function
 * Function: _MMENU_IDiv
 * Purpose: Implements the _MMENU_IDiv routine for the internal module support.
 */
-function _MMENU_IDiv(a, b)
+function inline _MMENU_IDiv(a, b)
   if typeof(a) != "int" or typeof(b) != "int" or b == 0 then return 0 end if
   q = a / b
   if q >= 0 then return std.math.floor(q) end if
@@ -111,7 +111,7 @@ end function
 * Function: _MMENU_ItemCount
 * Purpose: Implements the _MMENU_ItemCount routine for the internal module support.
 */
-function _MMENU_ItemCount(menu)
+function inline _MMENU_ItemCount(menu)
   if menu is void or menu == 0 then return 0 end if
   n = 0
   if typeof(menu.numitems) == "int" then n = menu.numitems end if
@@ -150,7 +150,7 @@ end function
 * Function: _patchWidth
 * Purpose: Implements the _patchWidth routine for the internal module support.
 */
-function _patchWidth(patch)
+function inline _patchWidth(patch)
   if typeof(patch) != "bytes" then return 0 end if
   v = patch[0] +(patch[1] << 8)
   if v >= 32768 then v = v - 65536 end if
@@ -161,7 +161,7 @@ end function
 * Function: _patchHeight
 * Purpose: Implements the _patchHeight routine for the internal module support.
 */
-function _patchHeight(patch)
+function inline _patchHeight(patch)
   if typeof(patch) != "bytes" then return 0 end if
   v = patch[2] +(patch[3] << 8)
   if v >= 32768 then v = v - 65536 end if
@@ -225,7 +225,7 @@ end function
 * Function: _cstrEqString
 * Purpose: Implements the _cstrEqString routine for the internal module support.
 */
-function _cstrEqString(buf, s)
+function inline _cstrEqString(buf, s)
   if typeof(buf) != "bytes" then return false end if
   return decodeZ(buf) == s
 end function
@@ -306,7 +306,7 @@ end struct
 * Function: _MI
 * Purpose: Implements the _MI routine for the internal module support.
 */
-function _MI(status, name, routine, alphaKey)
+function inline _MI(status, name, routine, alphaKey)
   return menuitem_t(status, name, routine, alphaKey)
 end function
 
@@ -314,7 +314,7 @@ end function
 * Function: _Menu
 * Purpose: Implements the _Menu routine for the internal module support.
 */
-function _Menu(numitems, prevMenu, menuitems, routine, x, y, lastOn)
+function inline _Menu(numitems, prevMenu, menuitems, routine, x, y, lastOn)
   return menu_t(numitems, prevMenu, menuitems, routine, x, y, lastOn)
 end function
 
@@ -475,7 +475,7 @@ mpJoinHostOld = 0
 * Function: _MMENU_BuildMainMenu
 * Purpose: Creates the main menu item array including multiplayer entry.
 */
-function _MMENU_BuildMainMenu()
+function inline _MMENU_BuildMainMenu()
   return [
   _MI(1, "M_NGAME", M_NewGame, 110),
   _MI(1, "", M_Multiplayer, 109),
@@ -491,7 +491,7 @@ end function
 * Function: _MMENU_BuildMultiplayerMenu
 * Purpose: Creates the multiplayer root menu item array.
 */
-function _MMENU_BuildMultiplayerMenu()
+function inline _MMENU_BuildMultiplayerMenu()
   return [
   _MI(1, "", M_MPHostMenuOpen, 104),
   _MI(1, "", M_MPJoinMenuOpen, 106),
@@ -503,7 +503,7 @@ end function
 * Function: _MMENU_BuildMPHostMenu
 * Purpose: Creates host setup menu item array.
 */
-function _MMENU_BuildMPHostMenu()
+function inline _MMENU_BuildMPHostMenu()
   return [
   _MI(2, "", M_MPHostMode, 109),
   _MI(2, "", M_MPHostMap, 97),
@@ -520,7 +520,7 @@ end function
 * Function: _MMENU_BuildMPJoinMenu
 * Purpose: Creates join setup menu item array.
 */
-function _MMENU_BuildMPJoinMenu()
+function inline _MMENU_BuildMPJoinMenu()
   return [
   _MI(1, "", M_MPJoinEditHost, 104),
   _MI(2, "", M_MPJoinPort, 112),
@@ -532,7 +532,7 @@ end function
 * Function: _MMENU_BuildMPNameMenu
 * Purpose: Creates player-name editor menu item array.
 */
-function _MMENU_BuildMPNameMenu()
+function inline _MMENU_BuildMPNameMenu()
   return [
   _MI(1, "", M_MPNameEdit, 110),
   _MI(1, "", M_MPNameDone, 100)
@@ -1018,7 +1018,7 @@ end function
 * Function: _MMENU_MPModeName
 * Purpose: Returns localized text for multiplayer mode value.
 */
-function _MMENU_MPModeName(mode)
+function inline _MMENU_MPModeName(mode)
   if mode == MP_MODE_DEATHMATCH then return "DEATHMATCH" end if
   return "COOPERATIVE"
 end function
@@ -1027,7 +1027,7 @@ end function
 * Function: _MMENU_MPSkillName
 * Purpose: Returns UI text for host-selected skill level.
 */
-function _MMENU_MPSkillName(skill)
+function inline _MMENU_MPSkillName(skill)
   s = _MMENU_ToInt(skill, MP_SKILL_MEDIUM)
   if s <= MP_SKILL_BABY then return "I'M TOO YOUNG TO DIE" end if
   if s == MP_SKILL_EASY then return "HEY, NOT TOO ROUGH" end if
@@ -1041,7 +1041,7 @@ end function
 * Function: _MMENU_MPLimitText
 * Purpose: Formats deathmatch limits, including unlimited mode.
 */
-function _MMENU_MPLimitText(v)
+function inline _MMENU_MPLimitText(v)
   if typeof(v) != "int" then return "0" end if
   if v <= 0 then return "UNLIMITED" end if
   return v

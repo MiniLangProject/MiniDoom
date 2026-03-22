@@ -78,7 +78,7 @@ end function
 * Function: _TB_Trunc
 * Purpose: Implements the _TB_Trunc routine for the internal module support.
 */
-function _TB_Trunc(v)
+function inline _TB_Trunc(v)
   if v >= 0 then
     return std.math.floor(v)
   end if

@@ -32,7 +32,7 @@ const MAXDRAWSEGS = 256
 * Function: RDefs_U16LE
 * Purpose: Implements the RDefs_U16LE routine for the engine module behavior.
 */
-function RDefs_U16LE(b, off)
+function inline RDefs_U16LE(b, off)
   return b[off] +(b[off + 1] * 256)
 end function
 
@@ -40,7 +40,7 @@ end function
 * Function: RDefs_I16LE
 * Purpose: Implements the RDefs_I16LE routine for the engine module behavior.
 */
-function RDefs_I16LE(b, off)
+function inline RDefs_I16LE(b, off)
   x = RDefs_U16LE(b, off)
   if x >= 32768 then return x - 65536 end if
   return x
@@ -50,7 +50,7 @@ end function
 * Function: RDefs_U32LE
 * Purpose: Implements the RDefs_U32LE routine for the engine module behavior.
 */
-function RDefs_U32LE(b, off)
+function inline RDefs_U32LE(b, off)
   return b[off] +(b[off + 1] * 256) +(b[off + 2] * 65536) +(b[off + 3] * 16777216)
 end function
 
@@ -58,7 +58,7 @@ end function
 * Function: RDefs_I32LE
 * Purpose: Implements the RDefs_I32LE routine for the engine module behavior.
 */
-function RDefs_I32LE(b, off)
+function inline RDefs_I32LE(b, off)
   x = RDefs_U32LE(b, off)
   if x >= 2147483648 then return x - 4294967296 end if
   return x
@@ -84,7 +84,7 @@ end function
 * Function: Patch_LeftOffset
 * Purpose: Reads or updates state used by the engine module behavior.
 */
-function Patch_LeftOffset(patchBytes)
+function inline Patch_LeftOffset(patchBytes)
   return RDefs_I16LE(patchBytes, 4)
 end function
 
@@ -92,7 +92,7 @@ end function
 * Function: Patch_TopOffset
 * Purpose: Reads or updates state used by the engine module behavior.
 */
-function Patch_TopOffset(patchBytes)
+function inline Patch_TopOffset(patchBytes)
   return RDefs_I16LE(patchBytes, 6)
 end function
 
@@ -100,7 +100,7 @@ end function
 * Function: Patch_ColumnOffset
 * Purpose: Reads or updates state used by the engine module behavior.
 */
-function Patch_ColumnOffset(patchBytes, colIndex)
+function inline Patch_ColumnOffset(patchBytes, colIndex)
 
   return RDefs_I32LE(patchBytes, 8 + colIndex * 4)
 end function

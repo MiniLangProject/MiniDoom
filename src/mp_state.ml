@@ -133,7 +133,7 @@ end function
 * Function: _MP_IsAllowedNameByte
 * Purpose: Validates player-name ASCII bytes.
 */
-function _MP_IsAllowedNameByte(c)
+function inline _MP_IsAllowedNameByte(c)
   if c >= 48 and c <= 57 then return true end if
   if c >= 65 and c <= 90 then return true end if
   if c >= 97 and c <= 122 then return true end if
@@ -192,7 +192,7 @@ end function
 * Function: _MP_TwoDigits
 * Purpose: Formats a number as two ASCII digits.
 */
-function _MP_TwoDigits(v)
+function inline _MP_TwoDigits(v)
   if v < 0 then v = 0 end if
   if v > 99 then v = 99 end if
   d1 = std.math.floor(v / 10)

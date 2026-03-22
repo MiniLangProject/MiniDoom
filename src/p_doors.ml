@@ -29,7 +29,7 @@ import sounds
 * Function: _DoorsMakeThinker
 * Purpose: Advances per-tick logic for the internal module support.
 */
-function _DoorsMakeThinker(fn)
+function inline _DoorsMakeThinker(fn)
   return thinker_t(void, void, actionf_t(fn, void, void), void)
 end function
 
@@ -37,7 +37,7 @@ end function
 * Function: _DoorsAddThinkerIfPossible
 * Purpose: Advances per-tick logic for the internal module support.
 */
-function _DoorsAddThinkerIfPossible(th)
+function inline _DoorsAddThinkerIfPossible(th)
   if typeof(P_AddThinker) == "function" then P_AddThinker(th) end if
 end function
 
@@ -45,7 +45,7 @@ end function
 * Function: _DoorsStartSound
 * Purpose: Starts runtime behavior in the internal module support.
 */
-function _DoorsStartSound(origin, snd)
+function inline _DoorsStartSound(origin, snd)
   if typeof(S_StartSound) == "function" then
     S_StartSound(origin, snd)
   end if
@@ -55,7 +55,7 @@ end function
 * Function: _DoorsSoundOrg
 * Purpose: Implements the _DoorsSoundOrg routine for the internal module support.
 */
-function _DoorsSoundOrg(sec)
+function inline _DoorsSoundOrg(sec)
   if sec is void then return void end if
   return sec.soundorg
 end function
@@ -64,7 +64,7 @@ end function
 * Function: _DoorsIsSeq
 * Purpose: Implements the _DoorsIsSeq routine for the internal module support.
 */
-function _DoorsIsSeq(v)
+function inline _DoorsIsSeq(v)
   t = typeof(v)
   return t == "array" or t == "list"
 end function
@@ -110,7 +110,7 @@ end function
 * Function: _DoorsBackSector
 * Purpose: Implements the _DoorsBackSector routine for the internal module support.
 */
-function _DoorsBackSector(line)
+function inline _DoorsBackSector(line)
   if line is void then return void end if
   if line.backsector is not void then return line.backsector end if
   if not _DoorsIsSeq(line.sidenum) then return void end if

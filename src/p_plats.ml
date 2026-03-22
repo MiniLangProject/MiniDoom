@@ -48,7 +48,7 @@ end function
 * Function: _PlatMakeThinker
 * Purpose: Advances per-tick logic for the internal module support.
 */
-function _PlatMakeThinker(fn)
+function inline _PlatMakeThinker(fn)
   return thinker_t(void, void, actionf_t(fn, void, void), void)
 end function
 
@@ -56,7 +56,7 @@ end function
 * Function: _PlatStartSound
 * Purpose: Starts runtime behavior in the internal module support.
 */
-function _PlatStartSound(origin, snd)
+function inline _PlatStartSound(origin, snd)
   if typeof(S_StartSound) == "function" then
     S_StartSound(origin, snd)
   end if
@@ -66,7 +66,7 @@ end function
 * Function: _PlatSoundOrg
 * Purpose: Implements the _PlatSoundOrg routine for the internal module support.
 */
-function _PlatSoundOrg(sec)
+function inline _PlatSoundOrg(sec)
   if sec is void then return void end if
   return sec.soundorg
 end function
@@ -99,7 +99,7 @@ end function
 * Function: _PlatFrontSector
 * Purpose: Implements the _PlatFrontSector routine for the internal module support.
 */
-function _PlatFrontSector(line)
+function inline _PlatFrontSector(line)
   if line is void then return void end if
   if typeof(line.sidenum) != "array" or len(line.sidenum) == 0 then return void end if
   sn = line.sidenum[0]

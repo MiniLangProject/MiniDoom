@@ -38,7 +38,7 @@ onground = false
 * Function: _P_FineIndexFromAngle
 * Purpose: Implements the _P_FineIndexFromAngle routine for the internal module support.
 */
-function _P_FineIndexFromAngle(angle)
+function inline _P_FineIndexFromAngle(angle)
   if typeof(angle) != "int" then return 0 end if
   idx =(angle >> ANGLETOFINESHIFT) & FINEMASK
   if typeof(finecosine) == "array" and len(finecosine) > 0 and idx >= len(finecosine) then
@@ -134,7 +134,7 @@ end function
 * Function: _PU_HasWeapon
 * Purpose: Implements the _PU_HasWeapon routine for the internal module support.
 */
-function _PU_HasWeapon(player, w)
+function inline _PU_HasWeapon(player, w)
   if player is void then return false end if
   idx = _PU_WeaponIndex(w)
   if idx < 0 then return false end if

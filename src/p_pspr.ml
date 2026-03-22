@@ -109,7 +109,7 @@ end function
 * Function: _PS_DiagFireLog
 * Purpose: Implements the _PS_DiagFireLog routine for the internal module support.
 */
-function _PS_DiagFireLog(msg)
+function inline _PS_DiagFireLog(msg)
   global _psDiagFireCount
   if not _PS_DiagFireEnabled() then return end if
   if typeof(msg) != "string" then return end if
@@ -144,7 +144,7 @@ end function
 * Function: _PS_AmmoIndex
 * Purpose: Implements the _PS_AmmoIndex routine for the internal module support.
 */
-function _PS_AmmoIndex(a)
+function inline _PS_AmmoIndex(a)
   if typeof(a) == "int" then
     if a >= 0 and a < 4 then return a end if
     return -1
@@ -178,7 +178,7 @@ end function
 * Function: _PS_WeaponInfo
 * Purpose: Implements the _PS_WeaponInfo routine for the internal module support.
 */
-function _PS_WeaponInfo(w)
+function inline _PS_WeaponInfo(w)
   wi = _PS_WeaponIndex(w)
   if wi < 0 then return void end if
   if typeof(weaponinfo) != "array" then return void end if
@@ -190,7 +190,7 @@ end function
 * Function: _PS_GetAmmoCount
 * Purpose: Reads or updates state used by the internal module support.
 */
-function _PS_GetAmmoCount(player, ammoType)
+function inline _PS_GetAmmoCount(player, ammoType)
   if player is void then return 0 end if
   ai = _PS_AmmoIndex(ammoType)
   if ai < 0 then return 0 end if
@@ -206,7 +206,7 @@ end function
 * Function: _PS_SetAmmoCount
 * Purpose: Reads or updates state used by the internal module support.
 */
-function _PS_SetAmmoCount(player, ammoType, value)
+function inline _PS_SetAmmoCount(player, ammoType, value)
   if player is void then return end if
   ai = _PS_AmmoIndex(ammoType)
   if ai < 0 then return end if
@@ -221,7 +221,7 @@ end function
 * Function: _PS_HasWeapon
 * Purpose: Implements the _PS_HasWeapon routine for the internal module support.
 */
-function _PS_HasWeapon(player, weaponType)
+function inline _PS_HasWeapon(player, weaponType)
   if player is void then return false end if
   wi = _PS_WeaponIndex(weaponType)
   if wi < 0 then return false end if
@@ -250,7 +250,7 @@ end function
 * Function: _PS_PSpriteInState
 * Purpose: Implements the _PS_PSpriteInState routine for the internal module support.
 */
-function _PS_PSpriteInState(psp, stnum)
+function inline _PS_PSpriteInState(psp, stnum)
   if psp is void then return false end if
   if psp.state is void then return false end if
   s = Info_StateAt(stnum)
@@ -262,7 +262,7 @@ end function
 * Function: _PS_MobjInState
 * Purpose: Implements the _PS_MobjInState routine for the internal module support.
 */
-function _PS_MobjInState(mo, stnum)
+function inline _PS_MobjInState(mo, stnum)
   if mo is void then return false end if
   if mo.state is void then return false end if
   s = Info_StateAt(stnum)
@@ -274,7 +274,7 @@ end function
 * Function: _PS_PlaySound
 * Purpose: Implements the _PS_PlaySound routine for the internal module support.
 */
-function _PS_PlaySound(origin, sfx)
+function inline _PS_PlaySound(origin, sfx)
   if typeof(S_StartSound) == "function" then
     S_StartSound(origin, sfx)
   end if

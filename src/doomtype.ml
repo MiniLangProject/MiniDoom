@@ -34,7 +34,7 @@ const MINLONG = 0x80000000
 * Function: asByte
 * Purpose: Implements the asByte routine for the engine module behavior.
 */
-function asByte(x)
+function inline asByte(x)
   return x & BYTE_MASK
 end function
 

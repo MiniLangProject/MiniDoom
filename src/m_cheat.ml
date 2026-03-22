@@ -33,7 +33,7 @@ cheat_xlate_table =[]
 * Function: _cht_scramble
 * Purpose: Implements the _cht_scramble routine for the internal module support.
 */
-function _cht_scramble(a)
+function inline _cht_scramble(a)
   a = a & 255
   v =((a & 1) << 7) +((a & 2) << 5) +(a & 4) +((a & 8) << 1) +((a & 16) >> 1) +(a & 32) +((a & 64) >> 5) +((a & 128) >> 7)
   return v & 255
@@ -61,7 +61,7 @@ end function
 * Function: _cht_key_byte
 * Purpose: Implements the _cht_key_byte routine for the internal module support.
 */
-function _cht_key_byte(key)
+function inline _cht_key_byte(key)
   if typeof(key) == "int" then return key & 255 end if
   if typeof(key) == "string" then
     kb = bytes(key)
@@ -75,7 +75,7 @@ end function
 * Function: _cht_seq_len
 * Purpose: Implements the _cht_seq_len routine for the internal module support.
 */
-function _cht_seq_len(seq)
+function inline _cht_seq_len(seq)
   if typeof(seq) == "bytes" then return len(seq) end if
   if typeof(seq) == "array" then return len(seq) end if
   return 0
@@ -85,7 +85,7 @@ end function
 * Function: _cht_seq_get
 * Purpose: Reads or updates state used by the internal module support.
 */
-function _cht_seq_get(seq, idx)
+function inline _cht_seq_get(seq, idx)
   if idx < 0 then return 0 end if
   n = _cht_seq_len(seq)
   if idx >= n then return 0 end if
@@ -96,7 +96,7 @@ end function
 * Function: _cht_seq_set
 * Purpose: Reads or updates state used by the internal module support.
 */
-function _cht_seq_set(seq, idx, v)
+function inline _cht_seq_set(seq, idx, v)
   if idx < 0 then return end if
   n = _cht_seq_len(seq)
   if idx >= n then return end if

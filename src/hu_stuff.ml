@@ -138,7 +138,7 @@ _hu_local_chat_dest = HU_BROADCAST
 * Function: _HU_ToInt
 * Purpose: Implements the _HU_ToInt routine for the internal module support.
 */
-function _HU_ToInt(v, fallback)
+function inline _HU_ToInt(v, fallback)
   if typeof(v) == "int" then return v end if
   n = toNumber(v)
   if typeof(n) == "int" then return n end if
@@ -153,7 +153,7 @@ end function
 * Function: _HU_SetMessageOn
 * Purpose: Reads or updates state used by the internal module support.
 */
-function _HU_SetMessageOn(v)
+function inline _HU_SetMessageOn(v)
   global message_on
   global message_on_ref
   message_on = v
@@ -166,7 +166,7 @@ end function
 * Function: _HU_SetChatOn
 * Purpose: Reads or updates state used by the internal module support.
 */
-function _HU_SetChatOn(v)
+function inline _HU_SetChatOn(v)
   global chat_on
   global chat_on_ref
   chat_on = v
@@ -179,7 +179,7 @@ end function
 * Function: _HU_FontHeight
 * Purpose: Implements the _HU_FontHeight routine for the internal module support.
 */
-function _HU_FontHeight()
+function inline _HU_FontHeight()
   if typeof(hu_font) == "array" and len(hu_font) > 0 and hu_font[0] is not void then
     return RDefs_I16LE(hu_font[0], 2)
   end if
@@ -190,7 +190,7 @@ end function
 * Function: _HU_KeyCodeFromString
 * Purpose: Implements the _HU_KeyCodeFromString routine for the internal module support.
 */
-function _HU_KeyCodeFromString(s)
+function inline _HU_KeyCodeFromString(s)
   if typeof(s) != "string" or len(s) == 0 then return 0 end if
   b = bytes(s)
   if len(b) <= 0 then return 0 end if
@@ -201,7 +201,7 @@ end function
 * Function: _HU_ShowMessagesEnabled
 * Purpose: Implements the _HU_ShowMessagesEnabled routine for the internal module support.
 */
-function _HU_ShowMessagesEnabled()
+function inline _HU_ShowMessagesEnabled()
   if typeof(showMessages) == "int" then return showMessages != 0 end if
   return true
 end function
@@ -210,7 +210,7 @@ end function
 * Function: _HU_MPUsePacketChat
 * Purpose: Returns true when chat should use dedicated multiplayer packets.
 */
-function _HU_MPUsePacketChat()
+function inline _HU_MPUsePacketChat()
   return netgame
 end function
 
@@ -218,7 +218,7 @@ end function
 * Function: _HU_MPSendChatMessage
 * Purpose: Sends one complete chat line to the host as one packet.
 */
-function _HU_MPSendChatMessage(dest, msg)
+function inline _HU_MPSendChatMessage(dest, msg)
   if not _HU_MPUsePacketChat() then return false end if
   if typeof(msg) != "string" then return false end if
   m = str.trim(msg)
@@ -231,7 +231,7 @@ end function
 * Function: _HU_PlayerName
 * Purpose: Implements the _HU_PlayerName routine for the internal module support.
 */
-function _HU_PlayerName(idx)
+function inline _HU_PlayerName(idx)
   if idx >= 0 and idx < len(player_names) then return player_names[idx] end if
   return ""
 end function
@@ -240,7 +240,7 @@ end function
 * Function: _HU_ITextString
 * Purpose: Implements the _HU_ITextString routine for the internal module support.
 */
-function _HU_ITextString(it)
+function inline _HU_ITextString(it)
   if it is void or it.l is void then return "" end if
   if typeof(it.l.l) != "bytes" then return "" end if
   n = _HU_ToInt(it.l.len, 0)
@@ -324,7 +324,7 @@ end function
 * Function: _HU_ShiftChar
 * Purpose: Implements the _HU_ShiftChar routine for the internal module support.
 */
-function _HU_ShiftChar(c)
+function inline _HU_ShiftChar(c)
   if typeof(c) != "int" then return c end if
   if typeof(shiftxform) == "array" and c >= 0 and c < len(shiftxform) then
     return shiftxform[c]
@@ -336,7 +336,7 @@ end function
 * Function: _HU_CurrentPlayer
 * Purpose: Implements the _HU_CurrentPlayer routine for the internal module support.
 */
-function _HU_CurrentPlayer()
+function inline _HU_CurrentPlayer()
   if typeof(players) != "array" then return void end if
   if typeof(consoleplayer) != "int" then return void end if
   if consoleplayer < 0 or consoleplayer >= len(players) then return void end if
@@ -400,7 +400,7 @@ end function
 * Function: _HU_InitDestinationKeys
 * Purpose: Initializes state and dependencies for the internal module support.
 */
-function _HU_InitDestinationKeys()
+function inline _HU_InitDestinationKeys()
   destination_keys =[
   _HU_KeyCodeFromString(HUSTR_KEYGREEN),
   _HU_KeyCodeFromString(HUSTR_KEYINDIGO),

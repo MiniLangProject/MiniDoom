@@ -116,7 +116,7 @@ end function
 * Function: _PI_DiagHitLog
 * Purpose: Implements the _PI_DiagHitLog routine for the internal module support.
 */
-function _PI_DiagHitLog(msg)
+function inline _PI_DiagHitLog(msg)
   global _piDiagHitCount
   if not _PI_DiagHitEnabled() then return end if
   _piDiagHitCount = _piDiagHitCount + 1
@@ -129,7 +129,7 @@ end function
 * Function: _PI_AmmoIndex
 * Purpose: Implements the _PI_AmmoIndex routine for the internal module support.
 */
-function _PI_AmmoIndex(a)
+function inline _PI_AmmoIndex(a)
   if typeof(a) == "int" then
     if a >= 0 and a < 4 then return a end if
     return -1
@@ -218,7 +218,7 @@ end function
 * Function: _PI_HasCard
 * Purpose: Implements the _PI_HasCard routine for the internal module support.
 */
-function _PI_HasCard(player, card)
+function inline _PI_HasCard(player, card)
   if player is void then return false end if
   if typeof(player.cards) != "array" and typeof(player.cards) != "list" then return false end if
   ci = _PI_CardIndex(card)
@@ -230,7 +230,7 @@ end function
 * Function: _PI_IDiv
 * Purpose: Implements the _PI_IDiv routine for the internal module support.
 */
-function _PI_IDiv(a, b)
+function inline _PI_IDiv(a, b)
   if typeof(a) != "int" or typeof(b) != "int" or b == 0 then return 0 end if
   q = a / b
   if q >= 0 then return std.math.floor(q) end if
@@ -241,7 +241,7 @@ end function
 * Function: _PI_WeaponInfo
 * Purpose: Implements the _PI_WeaponInfo routine for the internal module support.
 */
-function _PI_WeaponInfo(weapon)
+function inline _PI_WeaponInfo(weapon)
   wi = _PI_WeaponIndex(weapon)
   if wi < 0 then return void end if
   if typeof(weaponinfo) != "array" then return void end if
@@ -253,7 +253,7 @@ end function
 * Function: _PI_HasWeapon
 * Purpose: Implements the _PI_HasWeapon routine for the internal module support.
 */
-function _PI_HasWeapon(player, weapon)
+function inline _PI_HasWeapon(player, weapon)
   if player is void then return false end if
   wi = _PI_WeaponIndex(weapon)
   if wi < 0 then return false end if
@@ -303,7 +303,7 @@ end function
 * Function: _PI_CommitTouchedPlayer
 * Purpose: Writes pickup-mutated player state back to global slot and touching mobj.
 */
-function _PI_CommitTouchedPlayer(toucher, player, pidx)
+function inline _PI_CommitTouchedPlayer(toucher, player, pidx)
   if typeof(player) != "struct" then return end if
   if typeof(players) == "array" and pidx >= 0 and pidx < len(players) then
     players[pidx] = player

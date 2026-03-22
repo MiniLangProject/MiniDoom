@@ -278,7 +278,7 @@ end function
 * Function: _I_IDiv
 * Purpose: Implements the _I_IDiv routine for the internal module support.
 */
-function _I_IDiv(a, b)
+function inline _I_IDiv(a, b)
   a = _I_ToIntOr(a, 0)
   b = _I_ToIntOr(b, 0)
   if b == 0 then return 0 end if
@@ -291,7 +291,7 @@ end function
 * Function: _I_SetWindowTitle
 * Purpose: Reads or updates state used by the internal module support.
 */
-function _I_SetWindowTitle(title)
+function inline _I_SetWindowTitle(title)
   global _i_titleLast
 
   if _i_hwnd is void then return end if
@@ -435,7 +435,7 @@ end function
 * Function: _I_AddKeyMap
 * Purpose: Implements the _I_AddKeyMap routine for the internal module support.
 */
-function _I_AddKeyMap(vk, doomKey)
+function inline _I_AddKeyMap(vk, doomKey)
   global _i_keyVk
   global _i_keyDoom
   global _i_keyPrev
@@ -532,7 +532,7 @@ end function
 * Function: _I_WriteU16
 * Purpose: Implements the _I_WriteU16 routine for the internal module support.
 */
-function _I_WriteU16(buf, off, value)
+function inline _I_WriteU16(buf, off, value)
   if value < 0 then value = value + 65536 end if
   buf[off] = value & 255
   buf[off + 1] =(value >> 8) & 255
@@ -542,7 +542,7 @@ end function
 * Function: _I_WriteU32
 * Purpose: Implements the _I_WriteU32 routine for the internal module support.
 */
-function _I_WriteU32(buf, off, value)
+function inline _I_WriteU32(buf, off, value)
   if value < 0 then value = value + 4294967296 end if
   buf[off] = value & 255
   buf[off + 1] =(value >> 8) & 255
@@ -554,7 +554,7 @@ end function
 * Function: _I_ReadU32
 * Purpose: Implements the _I_ReadU32 routine for the internal module support.
 */
-function _I_ReadU32(buf, off)
+function inline _I_ReadU32(buf, off)
   return buf[off] +(buf[off + 1] << 8) +(buf[off + 2] << 16) +(buf[off + 3] << 24)
 end function
 
@@ -562,7 +562,7 @@ end function
 * Function: _I_ReadS32
 * Purpose: Implements the _I_ReadS32 routine for the internal module support.
 */
-function _I_ReadS32(buf, off)
+function inline _I_ReadS32(buf, off)
   v = _I_ReadU32(buf, off)
   if v >= 2147483648 then v = v - 4294967296 end if
   return v
@@ -912,7 +912,7 @@ end function
 * Function: _I_MouseButtonsNow
 * Purpose: Implements the _I_MouseButtonsNow routine for the internal module support.
 */
-function _I_MouseButtonsNow()
+function inline _I_MouseButtonsNow()
   b = 0
   if (GetAsyncKeyState(_I_VK_LBUTTON) & 32768) != 0 then b = b | 1 end if
   if (GetAsyncKeyState(_I_VK_RBUTTON) & 32768) != 0 then b = b | 2 end if

@@ -32,7 +32,7 @@ import std.math
 * Function: _IS_IDiv
 * Purpose: Implements the _IS_IDiv routine for the internal module support.
 */
-function _IS_IDiv(a, b)
+function inline _IS_IDiv(a, b)
   if typeof(a) != "int" or typeof(b) != "int" or b == 0 then return 0 end if
   q = a / b
   if q >= 0 then return std.math.floor(q) end if
@@ -232,7 +232,7 @@ _I_emptycmd = void
 * Function: _I_GetTickCount
 * Purpose: Reads or updates state used by the internal module support.
 */
-function _I_GetTickCount()
+function inline _I_GetTickCount()
   return GetTickCount()
 end function
 
@@ -240,7 +240,7 @@ end function
 * Function: _I_Sleep
 * Purpose: Implements the _I_Sleep routine for the internal module support.
 */
-function _I_Sleep(ms)
+function inline _I_Sleep(ms)
   if typeof(ms) != "int" then return end if
   if ms < 0 then ms = 0 end if
   Sleep(ms)
@@ -250,7 +250,7 @@ end function
 * Function: _I_ExitProcess
 * Purpose: Implements the _I_ExitProcess routine for the internal module support.
 */
-function _I_ExitProcess(code)
+function inline _I_ExitProcess(code)
   if typeof(code) != "int" then code = 1 end if
   ExitProcess(code)
 end function

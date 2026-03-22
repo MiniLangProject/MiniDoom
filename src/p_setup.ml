@@ -43,7 +43,7 @@ import r_things
 * Function: _PS_U16LE
 * Purpose: Implements the _PS_U16LE routine for the internal module support.
 */
-function _PS_U16LE(b, off)
+function inline _PS_U16LE(b, off)
   return b[off] +(b[off + 1] << 8)
 end function
 
@@ -51,7 +51,7 @@ end function
 * Function: _PS_I16LE
 * Purpose: Implements the _PS_I16LE routine for the internal module support.
 */
-function _PS_I16LE(b, off)
+function inline _PS_I16LE(b, off)
   x = _PS_U16LE(b, off)
   if x >= 32768 then x = x - 65536 end if
   return x
@@ -61,7 +61,7 @@ end function
 * Function: _PS_ReadLumpBytes
 * Purpose: Implements the _PS_ReadLumpBytes routine for the internal module support.
 */
-function _PS_ReadLumpBytes(lump)
+function inline _PS_ReadLumpBytes(lump)
   n = W_LumpLength(lump)
   if n <= 0 then
     return bytes(0)
@@ -75,7 +75,7 @@ end function
 * Function: _PS_Name8
 * Purpose: Implements the _PS_Name8 routine for the internal module support.
 */
-function _PS_Name8(data, off)
+function inline _PS_Name8(data, off)
   return slice(data, off, 8)
 end function
 
@@ -83,7 +83,7 @@ end function
 * Function: _PSET_IDiv
 * Purpose: Reads or updates state used by the internal module support.
 */
-function _PSET_IDiv(a, b)
+function inline _PSET_IDiv(a, b)
   if typeof(a) != "int" or typeof(b) != "int" or b == 0 then return 0 end if
   q = a / b
   if q >= 0 then return std.math.floor(q) end if
@@ -94,7 +94,7 @@ end function
 * Function: _PSET_IsSeq
 * Purpose: Reads or updates state used by the internal module support.
 */
-function _PSET_IsSeq(v)
+function inline _PSET_IsSeq(v)
   t = typeof(v)
   return t == "array" or t == "list"
 end function
@@ -103,7 +103,7 @@ end function
 * Function: _PSET_LoadPulse
 * Purpose: Keeps the window responsive and updates loading UI during expensive level setup phases.
 */
-function _PSET_LoadPulse(text)
+function inline _PSET_LoadPulse(text)
   if typeof(text) == "string" and text != "" and typeof(I_SetLoadingStatus) == "function" then
     I_SetLoadingStatus(text)
   end if
@@ -119,7 +119,7 @@ end function
 * Function: _PS_VertexOrZero
 * Purpose: Implements the _PS_VertexOrZero routine for the internal module support.
 */
-function _PS_VertexOrZero(idx)
+function inline _PS_VertexOrZero(idx)
   if idx < 0 or not _PSET_IsSeq(vertexes) or idx >= len(vertexes) then
     return vertex_t(0, 0)
   end if
@@ -130,7 +130,7 @@ end function
 * Function: _PS_MapName
 * Purpose: Implements the _PS_MapName routine for the internal module support.
 */
-function _PS_MapName(episode, map)
+function inline _PS_MapName(episode, map)
   if gamemode == GameMode_t.commercial then
     if map < 10 then
       return "map0" + map
