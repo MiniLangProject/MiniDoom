@@ -205,14 +205,12 @@ end function
 function V_CopyRect(srcx, srcy, srcscrn, width, height, destx, desty, destscrn)
   src = screens[srcscrn]
   dest = screens[destscrn]
+  srcRow = srcy * SCREENWIDTH + srcx
+  destRow = desty * SCREENWIDTH + destx
   for row = 0 to height - 1
-    sy = srcy + row
-    dy = desty + row
-    for col = 0 to width - 1
-      sx = srcx + col
-      dx = destx + col
-      dest[dy * SCREENWIDTH + dx] = src[sy * SCREENWIDTH + sx]
-    end for
+    copyBytes(dest, destRow, src, srcRow, width)
+    srcRow = srcRow + SCREENWIDTH
+    destRow = destRow + SCREENWIDTH
   end for
 
   if destscrn == 0 then
@@ -292,13 +290,11 @@ function V_DrawBlock(x, y, scrn, width, height, src)
   if typeof(src) != "bytes" then return end if
   dest = screens[scrn]
   si = 0
+  di = y * SCREENWIDTH + x
   for row = 0 to height - 1
-    dy = y + row
-    for col = 0 to width - 1
-      dx = x + col
-      dest[dy * SCREENWIDTH + dx] = src[si]
-      si = si + 1
-    end for
+    copyBytes(dest, di, src, si, width)
+    si = si + width
+    di = di + SCREENWIDTH
   end for
 
   if scrn == 0 then
@@ -314,13 +310,11 @@ function V_GetBlock(x, y, scrn, width, height, destBuf)
   if typeof(destBuf) != "bytes" then return end if
   src = screens[scrn]
   di = 0
+  si = y * SCREENWIDTH + x
   for row = 0 to height - 1
-    sy = y + row
-    for col = 0 to width - 1
-      sx = x + col
-      destBuf[di] = src[sy * SCREENWIDTH + sx]
-      di = di + 1
-    end for
+    copyBytes(destBuf, di, src, si, width)
+    di = di + width
+    si = si + SCREENWIDTH
   end for
 end function
 

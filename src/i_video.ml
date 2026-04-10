@@ -363,11 +363,7 @@ function _I_DrawLoadingIndicator()
   y = 0
   while y < size
     base = (y0 + y) * SCREENWIDTH + x0
-    x = 0
-    while x < size
-      fb[base + x] = 0
-      x = x + 1
-    end while
+    fillBytes(fb, base, size, 0)
     y = y + 1
   end while
 
@@ -794,11 +790,7 @@ function _I_BuildBmpFromFrame()
 
   si = 0
   di = _I_BMP_HEADER_SIZE + palBytes
-  while si < pixelBytes
-    bmp[di] = src[si]
-    di = di + 1
-    si = si + 1
-  end while
+  copyBytes(bmp, di, src, si, pixelBytes)
 
   return bmp
 end function
@@ -1246,9 +1238,7 @@ end function
 function I_ReadScreen(scr)
   if typeof(scr) != "bytes" then return end if
   src = screens[0]
-  for i = 0 to(SCREENWIDTH * SCREENHEIGHT) - 1
-    scr[i] = src[i]
-  end for
+  copyBytes(scr, 0, src, 0, SCREENWIDTH * SCREENHEIGHT)
 end function
 
 /*
@@ -1288,11 +1278,7 @@ end function
 */
 function Expand4(src, dst, count)
   if typeof(src) != "bytes" or typeof(dst) != "bytes" then return end if
-  i = 0
-  while i < count and i < len(src) and i < len(dst)
-    dst[i] = src[i]
-    i = i + 1
-  end while
+  copyBytes(dst, 0, src, 0, count)
 end function
 
 /*

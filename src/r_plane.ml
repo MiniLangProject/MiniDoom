@@ -216,21 +216,13 @@ function _RP_ResetPlane(pl, height, picnum, lightlevel, minx, maxx)
   if typeof(pl.top) != "bytes" or len(pl.top) != SCREENWIDTH then
     pl.top = bytes(SCREENWIDTH, 255)
   else
-    x = 0
-    while x < SCREENWIDTH
-      pl.top[x] = 255
-      x = x + 1
-    end while
+    fillBytes(pl.top, 0, SCREENWIDTH, 255)
   end if
 
   if typeof(pl.bottom) != "bytes" or len(pl.bottom) != SCREENWIDTH then
     pl.bottom = bytes(SCREENWIDTH, 0)
   else
-    x = 0
-    while x < SCREENWIDTH
-      pl.bottom[x] = 0
-      x = x + 1
-    end while
+    fillBytes(pl.bottom, 0, SCREENWIDTH, 0)
   end if
 end function
 

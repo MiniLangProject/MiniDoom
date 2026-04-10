@@ -262,9 +262,7 @@ function R_VideoErase(ofs, count)
   if (len(dst) - ofs) < maxcount then maxcount = len(dst) - ofs end if
   if count > maxcount then count = maxcount end if
   if count <= 0 then return end if
-  for i = 0 to count - 1
-    dst[ofs + i] = src[ofs + i]
-  end for
+  copyBytes(dst, ofs, src, ofs, count)
 end function
 
 /*
@@ -695,19 +693,11 @@ function R_FillBackScreen()
       while x < SCREENWIDTH
         run = 64
         if x + run > SCREENWIDTH then run = SCREENWIDTH - x end if
-        i = 0
-        while i < run
-          dest[row + x + i] = src[soff + i]
-          i = i + 1
-        end while
+        copyBytes(dest, row + x, src, soff, run)
         x = x + run
       end while
     else
-      x = 0
-      while x < SCREENWIDTH
-        dest[row + x] = 0
-        x = x + 1
-      end while
+      fillBytes(dest, row, SCREENWIDTH, 0)
     end if
     y = y + 1
   end while

@@ -144,6 +144,7 @@ _I_sfxVolume = 127
 lengths =[]
 
 _I_stepTable =[]
+_I_mixScaleTable =[]
 _I_sfxRates =[]
 _I_sfxSamples =[]
 
@@ -428,6 +429,28 @@ function inline _IS_InitStepTable()
 end function
 
 /*
+* Function: _IS_InitMixScaleTable
+* Purpose: Precomputes exact 8-bit sample scaling so the mixer can avoid per-sample division.
+*/
+function inline _IS_InitMixScaleTable()
+  global _I_mixScaleTable
+
+  if _IS_IsSeq(_I_mixScaleTable) and len(_I_mixScaleTable) == 128 * 256 then return end if
+
+  _I_mixScaleTable = array(128 * 256, 0)
+  v = 0
+  while v < 128
+    base = v << 8
+    s = 0
+    while s < 256
+      _I_mixScaleTable[base + s] = _ISnd_IDiv(v * (s - 128) * 256, 127)
+      s = s + 1
+    end while
+    v = v + 1
+  end while
+end function
+
+/*
 * Function: _IS_ResetChannels
 * Purpose: Reads or updates state used by the internal module support.
 */
@@ -465,9 +488,14 @@ function inline _IS_SetChannelVolumes(slot, vol, sep)
   if slot < 0 or slot >= _IS_NUM_MIX_CHANNELS then return end if
 
   v = _IS_Clamp(vol, 0, 127)
-  lr = _IS_CalcStereoVolumes(v, sep)
-  _I_chLeftVol[slot] = _IS_ToInt(lr[0], 0)
-  _I_chRightVol[slot] = _IS_ToInt(lr[1], 0)
+  s = _IS_Clamp(sep, 0, 255) + 1
+
+  left = v -((v * s * s) >> 16)
+  s2 = s - 257
+  right = v -((v * s2 * s2) >> 16)
+
+  _I_chLeftVol[slot] = _IS_Clamp(left, 0, 127)
+  _I_chRightVol[slot] = _IS_Clamp(right, 0, 127)
 end function
 
 /*
@@ -502,11 +530,7 @@ function _IS_LoadSfxData(sid)
   sdata = slice(raw, 8, samples)
   if typeof(sdata) != "bytes" or len(sdata) != samples then
     sdata = bytes(samples, 128)
-    i = 0
-    while i < samples and(8 + i) < len(raw)
-      sdata[i] = raw[8 + i]
-      i = i + 1
-    end while
+    copyBytes(sdata, 0, raw, 8, samples)
   end if
 
   _I_sfxRates[id] = rate
@@ -798,6 +822,11 @@ end function
 function _IS_MixToBytes(outb)
   if typeof(outb) != "bytes" then return end if
   if len(outb) < _IS_MIX_BUF_BYTES then return end if
+  mixTab = _I_mixScaleTable
+  if not _IS_IsSeq(mixTab) or len(mixTab) != 128 * 256 then
+    _IS_InitMixScaleTable()
+    mixTab = _I_mixScaleTable
+  end if
 
   s = 0
   while s < _IS_MIX_SAMPLES
@@ -819,8 +848,8 @@ function _IS_MixToBytes(outb)
           lv = _IS_ToInt(_I_chLeftVol[ch], 0)
           rv = _IS_ToInt(_I_chRightVol[ch], 0)
 
-          dl = dl + _ISnd_IDiv(lv *(sample - 128) * 256, 127)
-          dr = dr + _ISnd_IDiv(rv *(sample - 128) * 256, 127)
+          dl = dl + mixTab[(lv << 8) + sample]
+          dr = dr + mixTab[(rv << 8) + sample]
 
           frac = _IS_ToInt(_I_chFrac[ch], 0) + _IS_ToInt(_I_chStep[ch], 65536)
           adv = frac >> 16
@@ -1431,6 +1460,7 @@ function I_InitSound()
 
   _IS_EnsureSfxCacheSize()
   _IS_InitStepTable()
+  _IS_InitMixScaleTable()
   _IS_ResetChannels()
   _IS_WaveInit()
 
