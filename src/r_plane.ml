@@ -25,6 +25,8 @@ import doomstat
 import r_local
 import r_sky
 import r_main
+import r_upscaled
+import r_hires
 import std.math
 
 lastopening = void
@@ -41,6 +43,7 @@ distscale =[]
 const MAXVISPLANES = 128
 const MAXOPENINGS = SCREENWIDTH * 64
 const RP_MAXVISPLANES_HARD = 4096
+const RP_SPAN_SENTINEL = 2147483647
 
 openings =[]
 visplanes =[]
@@ -68,7 +71,7 @@ _rp_prof_mapplane_calls = 0
 
 /*
 * Function: _RP_IDiv
-* Purpose: Implements the _RP_IDiv routine for the internal module support.
+* Purpose: Performs integer division with plane renderer rounding and guard rules.
 */
 function inline _RP_IDiv(a, b)
   if typeof(a) != "int" or typeof(b) != "int" or b == 0 then return 0 end if
@@ -79,7 +82,7 @@ end function
 
 /*
 * Function: _RP_I
-* Purpose: Implements the _RP_I routine for the internal module support.
+* Purpose: Provides i helper behavior for the renderer.
 */
 function inline _RP_I(v, fallback)
   if typeof(v) == "int" then return v end if
@@ -98,7 +101,7 @@ end function
 
 /*
 * Function: _RP_Abs
-* Purpose: Implements the _RP_Abs routine for the internal module support.
+* Purpose: Provides absolute-value helper behavior for the renderer.
 */
 function inline _RP_Abs(v)
   vi = _RP_I(v, 0)
@@ -108,7 +111,7 @@ end function
 
 /*
 * Function: _RP_IsSeq
-* Purpose: Implements the _RP_IsSeq routine for the internal module support.
+* Purpose: Provides is sequence helper behavior for the renderer.
 */
 function inline _RP_IsSeq(v)
   t = typeof(v)
@@ -117,7 +120,7 @@ end function
 
 /*
 * Function: _RP_AngNorm
-* Purpose: Implements the _RP_AngNorm routine for the internal module support.
+* Purpose: Provides ang norm helper behavior for the renderer.
 */
 function inline _RP_AngNorm(a)
   ai = _RP_I(a, 0)
@@ -126,7 +129,7 @@ end function
 
 /*
 * Function: _RP_FineAt
-* Purpose: Implements the _RP_FineAt routine for the internal module support.
+* Purpose: Provides fine at helper behavior for the renderer.
 */
 function inline _RP_FineAt(tab, idx)
   if not _RP_IsSeq(tab) or len(tab) == 0 then return 0 end if
@@ -141,7 +144,7 @@ end function
 
 /*
 * Function: _RP_DefaultColorMap
-* Purpose: Implements the _RP_DefaultColorMap routine for the internal module support.
+* Purpose: Provides default color map helper behavior for the renderer.
 */
 function inline _RP_DefaultColorMap()
   global _rp_default_colormap
@@ -160,16 +163,35 @@ function inline _RP_DefaultColorMap()
 end function
 
 /*
+* Function: _RP_TargetWidth
+* Purpose: Returns active world render width.
+*/
+function inline _RP_TargetWidth()
+  if typeof(RH_IsActive) == "function" and RH_IsActive() then return RH_Width() end if
+  return SCREENWIDTH
+end function
+
+/*
+* Function: _RP_TargetHeight
+* Purpose: Returns active world render height.
+*/
+function inline _RP_TargetHeight()
+  if typeof(RH_IsActive) == "function" and RH_IsActive() then return RH_Height() end if
+  return SCREENHEIGHT
+end function
+
+/*
 * Function: _RP_NewPlane
-* Purpose: Implements the _RP_NewPlane routine for the internal module support.
+* Purpose: Provides new plane helper behavior for the renderer.
 */
 function inline _RP_NewPlane(height, picnum, lightlevel)
-  return visplane_t(height, picnum, lightlevel, SCREENWIDTH, -1, bytes(SCREENWIDTH, 255), bytes(SCREENWIDTH, 0))
+  w = _RP_TargetWidth()
+  return visplane_t(height, picnum, lightlevel, w, -1, array(w, RP_SPAN_SENTINEL), array(w, 0))
 end function
 
 /*
 * Function: _RP_EnsurePlaneCapacity
-* Purpose: Implements the _RP_EnsurePlaneCapacity routine for the internal module support.
+* Purpose: Provides ensure plane capacity helper behavior for the renderer.
 */
 function _RP_EnsurePlaneCapacity(needIndex)
   global visplanes
@@ -202,7 +224,7 @@ end function
 
 /*
 * Function: _RP_ResetPlane
-* Purpose: Reads or updates state used by the internal module support.
+* Purpose: Clears reset Plane state before the next plane renderer update.
 */
 function _RP_ResetPlane(pl, height, picnum, lightlevel, minx, maxx)
   if pl is void then return end if
@@ -213,22 +235,31 @@ function _RP_ResetPlane(pl, height, picnum, lightlevel, minx, maxx)
   pl.minx = minx
   pl.maxx = maxx
 
-  if typeof(pl.top) != "bytes" or len(pl.top) != SCREENWIDTH then
-    pl.top = bytes(SCREENWIDTH, 255)
+  w = _RP_TargetWidth()
+  if not _RP_IsSeq(pl.top) or len(pl.top) != w then
+    pl.top = array(w, RP_SPAN_SENTINEL)
   else
-    fillBytes(pl.top, 0, SCREENWIDTH, 255)
+    i = 0
+    while i < w
+      pl.top[i] = RP_SPAN_SENTINEL
+      i = i + 1
+    end while
   end if
 
-  if typeof(pl.bottom) != "bytes" or len(pl.bottom) != SCREENWIDTH then
-    pl.bottom = bytes(SCREENWIDTH, 0)
+  if not _RP_IsSeq(pl.bottom) or len(pl.bottom) != w then
+    pl.bottom = array(w, 0)
   else
-    fillBytes(pl.bottom, 0, SCREENWIDTH, 0)
+    i = 0
+    while i < w
+      pl.bottom[i] = 0
+      i = i + 1
+    end while
   end if
 end function
 
 /*
 * Function: _RP_RecomputeSlopeTables
-* Purpose: Implements the _RP_RecomputeSlopeTables routine for the internal module support.
+* Purpose: Provides recompute slope tables helper behavior for the renderer.
 */
 function _RP_RecomputeSlopeTables()
   global viewheight
@@ -285,24 +316,27 @@ function R_InitPlanes()
   global visplanes_last
   global _rp_default_colormap
 
-  if len(floorclip) == 0 then
-    floorclip = array(SCREENWIDTH, 0)
-    ceilingclip = array(SCREENWIDTH, 0)
-    distscale = array(SCREENWIDTH, 0)
+  targetW = _RP_TargetWidth()
+  targetH = _RP_TargetHeight()
+
+  if len(floorclip) != targetW then
+    floorclip = array(targetW, 0)
+    ceilingclip = array(targetW, 0)
+    distscale = array(targetW, 0)
   end if
 
-  if len(yslope) == 0 then
-    yslope = array(SCREENHEIGHT, 0)
-    spanstart = array(SCREENHEIGHT, 0)
-    spanstop = array(SCREENHEIGHT, 0)
-    cachedheight = array(SCREENHEIGHT, 0)
-    cacheddistance = array(SCREENHEIGHT, 0)
-    cachedxstep = array(SCREENHEIGHT, 0)
-    cachedystep = array(SCREENHEIGHT, 0)
+  if len(yslope) != targetH then
+    yslope = array(targetH, 0)
+    spanstart = array(targetH, 0)
+    spanstop = array(targetH, 0)
+    cachedheight = array(targetH, 0)
+    cacheddistance = array(targetH, 0)
+    cachedxstep = array(targetH, 0)
+    cachedystep = array(targetH, 0)
   end if
 
-  if len(openings) == 0 then
-    openings = array(MAXOPENINGS, 0)
+  if len(openings) < targetW * 64 then
+    openings = array(targetW * 64, 0)
   end if
 
   if len(visplanes) == 0 then
@@ -321,7 +355,7 @@ end function
 
 /*
 * Function: R_ClearPlanes
-* Purpose: Implements the R_ClearPlanes routine for the renderer.
+* Purpose: Updates planes state for the renderer.
 */
 function R_ClearPlanes()
   global visplanes_last
@@ -336,8 +370,8 @@ function R_ClearPlanes()
   global finesine
 
   x = 0
-  limit = SCREENWIDTH
-  if typeof(viewwidth) == "int" and viewwidth > 0 and viewwidth < SCREENWIDTH then
+  limit = _RP_TargetWidth()
+  if typeof(viewwidth) == "int" and viewwidth > 0 and viewwidth < limit then
     limit = viewwidth
   end if
   while x < limit
@@ -369,7 +403,7 @@ end function
 
 /*
 * Function: R_MapPlane
-* Purpose: Implements the R_MapPlane routine for the renderer.
+* Purpose: Provides plane helper behavior for the renderer.
 */
 function R_MapPlane(y, x1, x2)
   global ds_xstep
@@ -452,7 +486,7 @@ end function
 
 /*
 * Function: R_MakeSpans
-* Purpose: Implements the R_MakeSpans routine for the renderer.
+* Purpose: Builds spans data for the renderer.
 */
 function R_MakeSpans(x, t1, b1, t2, b2)
   while t1 < t2 and t1 <= b1
@@ -482,7 +516,7 @@ end function
 
 /*
 * Function: _RP_DrawVisplanes
-* Purpose: Draws or renders output for the internal module support.
+* Purpose: Draws visplanes output for the plane renderer.
 */
 function _RP_DrawVisplanes()
   global dc_iscale
@@ -493,6 +527,8 @@ function _RP_DrawVisplanes()
   global dc_x
   global dc_source
   global ds_source
+  global ds_source_width
+  global ds_source_height
   global planeheight
   global planezlight
   global _rp_prof_visplanes_total
@@ -558,7 +594,20 @@ function _RP_DrawVisplanes()
     if _RP_IsSeq(flattranslation) and flatnum >= 0 and flatnum < len(flattranslation) then
       flatnum = flattranslation[flatnum]
     end if
-    ds_source = W_CacheLumpNum(firstflat + flatnum, PU_STATIC)
+    ds_source_width = 64
+    ds_source_height = 64
+    flatLump = firstflat + flatnum
+    flatEntry = void
+    if typeof(RU_GetFlat) == "function" and _RP_IsSeq(lumpinfo) and flatLump >= 0 and flatLump < len(lumpinfo) then
+      flatEntry = RU_GetFlat(lumpinfo[flatLump].name)
+    end if
+    if flatEntry is not void and typeof(flatEntry.data) == "bytes" then
+      ds_source = flatEntry.data
+      ds_source_width = flatEntry.width
+      ds_source_height = flatEntry.height
+    else
+      ds_source = W_CacheLumpNum(flatLump, PU_STATIC)
+    end if
     if typeof(ds_source) != "bytes" then continue end if
 
     planeheight = _RP_Abs(pl.height - viewz)
@@ -582,9 +631,9 @@ function _RP_DrawVisplanes()
     stop = right + 1
     x = left
     while x <= stop
-      t1 = 255
+      t1 = RP_SPAN_SENTINEL
       b1 = 0
-      t2 = 255
+      t2 = RP_SPAN_SENTINEL
       b2 = 0
 
       if x != left and(x - 1) >= 0 and(x - 1) < len(pl.top) then
@@ -605,7 +654,7 @@ end function
 
 /*
 * Function: R_DrawPlanes
-* Purpose: Draws or renders output for the renderer.
+* Purpose: Draws planes output for the renderer.
 */
 function R_DrawPlanes()
   _RP_DrawVisplanes()
@@ -613,7 +662,7 @@ end function
 
 /*
 * Function: R_FindPlane
-* Purpose: Implements the R_FindPlane routine for the renderer.
+* Purpose: Computes plane values for the renderer.
 */
 function R_FindPlane(height, picnum, lightlevel)
   global visplanes
@@ -639,14 +688,14 @@ function R_FindPlane(height, picnum, lightlevel)
   end if
 
   pl = visplanes[visplanes_last]
-  _RP_ResetPlane(pl, height, picnum, lightlevel, SCREENWIDTH, -1)
+  _RP_ResetPlane(pl, height, picnum, lightlevel, _RP_TargetWidth(), -1)
   visplanes_last = visplanes_last + 1
   return pl
 end function
 
 /*
 * Function: R_CheckPlane
-* Purpose: Evaluates conditions and returns a decision for the renderer.
+* Purpose: Finds check Plane information for plane renderer processing.
 */
 function R_CheckPlane(pl, start, stop)
   global visplanes
@@ -677,7 +726,7 @@ function R_CheckPlane(pl, start, stop)
 
   x = intrl
   while x <= intrh
-    if x >= 0 and x < len(pl.top) and pl.top[x] != 255 then break end if
+    if x >= 0 and x < len(pl.top) and pl.top[x] != RP_SPAN_SENTINEL then break end if
     x = x + 1
   end while
 

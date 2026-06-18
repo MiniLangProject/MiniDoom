@@ -19,7 +19,7 @@
 
 /*
 * Struct: cheatseq_t
-* Purpose: Stores runtime data for cheatseq type.
+* Purpose: Stores cheatseq data used by the utility system.
 */
 struct cheatseq_t
   sequence
@@ -31,7 +31,7 @@ cheat_xlate_table =[]
 
 /*
 * Function: _cht_scramble
-* Purpose: Implements the _cht_scramble routine for the internal module support.
+* Purpose: Provides scramble helper behavior for the utility.
 */
 function inline _cht_scramble(a)
   a = a & 255
@@ -41,7 +41,7 @@ end function
 
 /*
 * Function: _cht_ensure_table
-* Purpose: Implements the _cht_ensure_table routine for the internal module support.
+* Purpose: Provides ensure table helper behavior for the utility.
 */
 function _cht_ensure_table()
   global firsttime
@@ -59,7 +59,7 @@ end function
 
 /*
 * Function: _cht_key_byte
-* Purpose: Implements the _cht_key_byte routine for the internal module support.
+* Purpose: Provides key byte helper behavior for the utility.
 */
 function inline _cht_key_byte(key)
   if typeof(key) == "int" then return key & 255 end if
@@ -73,7 +73,7 @@ end function
 
 /*
 * Function: _cht_seq_len
-* Purpose: Implements the _cht_seq_len routine for the internal module support.
+* Purpose: Provides sequence len helper behavior for the utility.
 */
 function inline _cht_seq_len(seq)
   if typeof(seq) == "bytes" then return len(seq) end if
@@ -83,7 +83,7 @@ end function
 
 /*
 * Function: _cht_seq_get
-* Purpose: Reads or updates state used by the internal module support.
+* Purpose: Returns cht seq get information from utility state.
 */
 function inline _cht_seq_get(seq, idx)
   if idx < 0 then return 0 end if
@@ -94,7 +94,7 @@ end function
 
 /*
 * Function: _cht_seq_set
-* Purpose: Reads or updates state used by the internal module support.
+* Purpose: Provides sequence set helper behavior for the utility.
 */
 function inline _cht_seq_set(seq, idx, v)
   if idx < 0 then return end if
@@ -105,7 +105,7 @@ end function
 
 /*
 * Function: cht_CheckCheat
-* Purpose: Evaluates conditions and returns a decision for the engine module behavior.
+* Purpose: Finds cht Check Cheat information for utility processing.
 */
 function cht_CheckCheat(cht, key)
   _cht_ensure_table()
@@ -143,7 +143,7 @@ end function
 
 /*
 * Function: _cht_bytes_from_list
-* Purpose: Implements the _cht_bytes_from_list routine for the internal module support.
+* Purpose: Provides bytes from list helper behavior for the utility.
 */
 function _cht_bytes_from_list(lst)
   b = bytes(len(lst), 0)
@@ -157,7 +157,7 @@ end function
 
 /*
 * Function: _cht_write_buffer
-* Purpose: Implements the _cht_write_buffer routine for the internal module support.
+* Purpose: Writes cht write buffer data for the utility data stream.
 */
 function _cht_write_buffer(buffer, outList)
   if typeof(buffer) == "bytes" then
@@ -185,7 +185,7 @@ end function
 
 /*
 * Function: cht_GetParam
-* Purpose: Reads or updates state used by the engine module behavior.
+* Purpose: Returns cht Get Param information from utility state.
 */
 function cht_GetParam(cht, buffer)
   if cht is void then return "" end if

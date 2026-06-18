@@ -44,7 +44,7 @@ end function
 
 /*
 * Function: _CeilingMakeThinker
-* Purpose: Advances per-tick logic for the internal module support.
+* Purpose: Provides make thinker helper behavior for the play simulation.
 */
 function inline _CeilingMakeThinker(fn)
   return thinker_t(void, void, actionf_t(fn, void, void), void)
@@ -52,7 +52,7 @@ end function
 
 /*
 * Function: _CeilingSetSlot
-* Purpose: Reads or updates state used by the internal module support.
+* Purpose: Updates slot state for the ceiling thinker.
 */
 function inline _CeilingSetSlot(idx, v)
   global activeceilings
@@ -69,7 +69,7 @@ end function
 
 /*
 * Function: P_AddActiveCeiling
-* Purpose: Implements the P_AddActiveCeiling routine for the gameplay and world simulation.
+* Purpose: Adds active ceiling entries to the play simulation.
 */
 function P_AddActiveCeiling(c)
   _InitActiveCeilings()
@@ -101,7 +101,7 @@ end function
 
 /*
 * Function: P_ActivateInStasisCeiling
-* Purpose: Implements the P_ActivateInStasisCeiling routine for the gameplay and world simulation.
+* Purpose: Runs in stasis ceiling behavior for the play simulation.
 */
 function P_ActivateInStasisCeiling(line)
   if line is void then return end if
@@ -178,7 +178,7 @@ end function
 
 /*
 * Function: EV_DoCeiling
-* Purpose: Implements the EV_DoCeiling routine for the engine module behavior.
+* Purpose: Provides do ceiling helper behavior for the play simulation.
 */
 function EV_DoCeiling(line, type)
   if line is void then return 0 end if

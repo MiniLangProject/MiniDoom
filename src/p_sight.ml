@@ -36,7 +36,7 @@ sightcounts =[0, 0]
 
 /*
 * Function: _PSI_SectorIndex
-* Purpose: Implements the _PSI_SectorIndex routine for the internal module support.
+* Purpose: Provides sector index helper behavior for the play simulation.
 */
 function _PSI_SectorIndex(sec)
   if sec is void then return -1 end if
@@ -51,7 +51,7 @@ end function
 
 /*
 * Function: _PSI_GetRejectByte
-* Purpose: Reads or updates state used by the internal module support.
+* Purpose: Provides get reject byte helper behavior for the play simulation.
 */
 function _PSI_GetRejectByte(idx)
   if idx < 0 then return 0 end if
@@ -72,7 +72,7 @@ end function
 
 /*
 * Function: P_DivlineSide
-* Purpose: Implements the P_DivlineSide routine for the gameplay and world simulation.
+* Purpose: Performs integer division with play simulation rounding and guard rules.
 */
 function inline P_DivlineSide(x, y, node)
   if node is void then return 0 end if
@@ -108,7 +108,7 @@ end function
 
 /*
 * Function: P_InterceptVector2
-* Purpose: Implements the P_InterceptVector2 routine for the gameplay and world simulation.
+* Purpose: Provides vector2 helper behavior for the play simulation.
 */
 function inline P_InterceptVector2(v2, v1)
   den = FixedMul(v1.dy >> 8, v2.dx) - FixedMul(v1.dx >> 8, v2.dy)
@@ -121,7 +121,7 @@ end function
 
 /*
 * Function: P_CrossSubsector
-* Purpose: Implements the P_CrossSubsector routine for the gameplay and world simulation.
+* Purpose: Provides subsector helper behavior for the play simulation.
 */
 function P_CrossSubsector(num)
   if typeof(subsectors) != "array" or typeof(segs) != "array" then return false end if
@@ -199,7 +199,7 @@ end function
 
 /*
 * Function: P_CrossBSPNode
-* Purpose: Implements the P_CrossBSPNode routine for the gameplay and world simulation.
+* Purpose: Provides BSP node helper behavior for the play simulation.
 */
 function P_CrossBSPNode(bspnum)
   if (bspnum & NF_SUBSECTOR) != 0 then
@@ -234,7 +234,7 @@ end function
 
 /*
 * Function: P_CheckSight
-* Purpose: Evaluates conditions and returns a decision for the gameplay and world simulation.
+* Purpose: Finds check Sight information for play simulation processing.
 */
 function P_CheckSight(t1, t2)
   global sightzstart

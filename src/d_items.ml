@@ -21,7 +21,7 @@ import info
 
 /*
 * Struct: weaponinfo_t
-* Purpose: Stores runtime data for weaponinfo type.
+* Purpose: Stores weaponinfo data used by the Doom core system.
 */
 struct weaponinfo_t
   ammo

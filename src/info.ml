@@ -1144,7 +1144,7 @@ end enum
 
 /*
 * Struct: state_t
-* Purpose: Stores runtime data for state type.
+* Purpose: Stores state state for the game metadata system.
 */
 struct state_t
   sprite
@@ -2289,7 +2289,7 @@ end enum
 
 /*
 * Struct: mobjinfo_t
-* Purpose: Stores runtime data for mobjinfo type.
+* Purpose: Stores mobjinfo data used by the game metadata system.
 */
 struct mobjinfo_t
   doomednum
@@ -2459,7 +2459,7 @@ mobjinfo_t(81, statenum_t.S_BRAINSTEM, 1000, statenum_t.S_NULL, sfxenum_t.sfx_No
 
 /*
 * Function: Info_StateIndex
-* Purpose: Implements the Info_StateIndex routine for the engine module behavior.
+* Purpose: Provides state index helper behavior for the game metadata.
 */
 function Info_StateIndex(s)
   if typeof(s) == "int" then
@@ -5375,7 +5375,7 @@ end function
 
 /*
 * Function: Info_StateAt
-* Purpose: Implements the Info_StateAt routine for the engine module behavior.
+* Purpose: Provides state at helper behavior for the game metadata.
 */
 function Info_StateAt(s)
   idx = Info_StateIndex(s)

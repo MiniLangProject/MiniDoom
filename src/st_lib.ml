@@ -31,7 +31,7 @@ const STlib_FG = 0
 
 /*
 * Struct: st_number_t
-* Purpose: Stores runtime data for st number type.
+* Purpose: Stores number data used by the status bar system.
 */
 struct st_number_t
   x
@@ -46,7 +46,7 @@ end struct
 
 /*
 * Struct: st_percent_t
-* Purpose: Stores runtime data for st percent type.
+* Purpose: Stores percent data used by the status bar system.
 */
 struct st_percent_t
   n
@@ -55,7 +55,7 @@ end struct
 
 /*
 * Struct: st_multicon_t
-* Purpose: Stores runtime data for st multicon type.
+* Purpose: Stores multicon data used by the status bar system.
 */
 struct st_multicon_t
   x
@@ -69,7 +69,7 @@ end struct
 
 /*
 * Struct: st_binicon_t
-* Purpose: Stores runtime data for st binicon type.
+* Purpose: Stores binicon data used by the status bar system.
 */
 struct st_binicon_t
   x
@@ -82,10 +82,58 @@ struct st_binicon_t
 end struct
 
 sttminus = void
+stlib_patch_name_data =[]
+stlib_patch_name_names =[]
+
+/*
+* Function: STlib_RegisterPatchName
+* Purpose: Provides register patch name helper behavior for the status bar.
+*/
+function STlib_RegisterPatchName(patch, name)
+  global stlib_patch_name_data
+  global stlib_patch_name_names
+  if typeof(patch) != "bytes" or typeof(name) != "string" or name == "" then return end if
+  i = 0
+  while i < len(stlib_patch_name_data) and i < len(stlib_patch_name_names)
+    if stlib_patch_name_data[i] == patch then
+      stlib_patch_name_names[i] = name
+      return
+    end if
+    i = i + 1
+  end while
+  stlib_patch_name_data = stlib_patch_name_data +[patch]
+  stlib_patch_name_names = stlib_patch_name_names +[name]
+end function
+
+/*
+* Function: _STL_NameForPatch
+* Purpose: Provides name for patch helper behavior for the status bar.
+*/
+function _STL_NameForPatch(patch)
+  if typeof(patch) != "bytes" then return "" end if
+  i = 0
+  while i < len(stlib_patch_name_data) and i < len(stlib_patch_name_names)
+    if stlib_patch_name_data[i] == patch then return stlib_patch_name_names[i] end if
+    i = i + 1
+  end while
+  return ""
+end function
+
+/*
+* Function: _STL_DrawPatchHD
+* Purpose: Draws patch HD output for the status bar widget library.
+*/
+function _STL_DrawPatchHD(x, y, scrn, patch)
+  V_DrawPatch(x, y, scrn, patch)
+  if scrn != STlib_FG or typeof(V_DrawNamedUpscaledPatchOverlay) != "function" then return end if
+  name = _STL_NameForPatch(patch)
+  if name == "" then return end if
+  V_DrawNamedUpscaledPatchOverlay(x - _STL_PatchLeft(patch), y - _STL_PatchTop(patch), name, false)
+end function
 
 /*
 * Function: _STL_GetRefValue
-* Purpose: Reads or updates state used by the internal module support.
+* Purpose: Provides get ref value helper behavior for the status bar.
 */
 function inline _STL_GetRefValue(refv, fallback)
   if typeof(refv) == "array" then
@@ -98,7 +146,7 @@ end function
 
 /*
 * Function: _STL_SetRefValue
-* Purpose: Reads or updates state used by the internal module support.
+* Purpose: Updates ref value state for the status bar widget library.
 */
 function inline _STL_SetRefValue(refv, v)
   if typeof(refv) == "array" and len(refv) > 0 then
@@ -108,7 +156,7 @@ end function
 
 /*
 * Function: _STL_AsBool
-* Purpose: Implements the _STL_AsBool routine for the internal module support.
+* Purpose: Provides as boolean helper behavior for the status bar.
 */
 function inline _STL_AsBool(v)
   if typeof(v) == "bool" then return v end if
@@ -119,7 +167,7 @@ end function
 
 /*
 * Function: _STL_RefBool
-* Purpose: Implements the _STL_RefBool routine for the internal module support.
+* Purpose: Provides ref boolean helper behavior for the status bar.
 */
 function inline _STL_RefBool(refv)
   return _STL_AsBool(_STL_GetRefValue(refv, false))
@@ -127,7 +175,7 @@ end function
 
 /*
 * Function: _STL_ToInt
-* Purpose: Implements the _STL_ToInt routine for the internal module support.
+* Purpose: Converts int values for the status bar widget library.
 */
 function _STL_ToInt(v, fallback)
   if typeof(v) == "int" then return v end if
@@ -146,7 +194,7 @@ end function
 
 /*
 * Function: _STL_IDiv
-* Purpose: Implements the _STL_IDiv routine for the internal module support.
+* Purpose: Performs integer division with status bar rounding and guard rules.
 */
 function inline _STL_IDiv(a, b)
   a = _STL_ToInt(a, 0)
@@ -159,7 +207,7 @@ end function
 
 /*
 * Function: _STL_RefInt
-* Purpose: Implements the _STL_RefInt routine for the internal module support.
+* Purpose: Provides ref int helper behavior for the status bar.
 */
 function inline _STL_RefInt(refv, fallback)
   v = _STL_GetRefValue(refv, fallback)
@@ -168,7 +216,7 @@ end function
 
 /*
 * Function: _STL_PatchWidth
-* Purpose: Implements the _STL_PatchWidth routine for the internal module support.
+* Purpose: Provides patch width helper behavior for the status bar.
 */
 function inline _STL_PatchWidth(p)
   if typeof(p) != "bytes" then return 0 end if
@@ -177,7 +225,7 @@ end function
 
 /*
 * Function: _STL_PatchHeight
-* Purpose: Implements the _STL_PatchHeight routine for the internal module support.
+* Purpose: Provides patch height helper behavior for the status bar.
 */
 function inline _STL_PatchHeight(p)
   if typeof(p) != "bytes" then return 0 end if
@@ -186,7 +234,7 @@ end function
 
 /*
 * Function: _STL_PatchLeft
-* Purpose: Implements the _STL_PatchLeft routine for the internal module support.
+* Purpose: Provides patch left helper behavior for the status bar.
 */
 function inline _STL_PatchLeft(p)
   if typeof(p) != "bytes" then return 0 end if
@@ -195,7 +243,7 @@ end function
 
 /*
 * Function: _STL_PatchTop
-* Purpose: Implements the _STL_PatchTop routine for the internal module support.
+* Purpose: Provides patch top helper behavior for the status bar.
 */
 function inline _STL_PatchTop(p)
   if typeof(p) != "bytes" then return 0 end if
@@ -204,7 +252,7 @@ end function
 
 /*
 * Function: _STL_GetPatch
-* Purpose: Reads or updates state used by the internal module support.
+* Purpose: Provides get patch helper behavior for the status bar.
 */
 function inline _STL_GetPatch(patches, idx)
   tp = typeof(patches)
@@ -224,6 +272,7 @@ function STlib_init()
   sttminus = void
   if typeof(W_CheckNumForName) == "function" and W_CheckNumForName("STTMINUS") != -1 then
     sttminus = W_CacheLumpName("STTMINUS", PU_STATIC)
+    STlib_RegisterPatchName(sttminus, "STTMINUS")
   end if
 end function
 
@@ -243,7 +292,7 @@ end function
 
 /*
 * Function: STlib_drawNum
-* Purpose: Draws or renders output for the engine module behavior.
+* Purpose: Draws sTlib draw Num output for the status bar renderer.
 */
 function STlib_drawNum(n, refresh)
   refresh = refresh
@@ -284,7 +333,7 @@ function STlib_drawNum(n, refresh)
   x = n.x
 
   if num == 0 then
-    V_DrawPatch(x - w, n.y, STlib_FG, p0)
+    _STL_DrawPatchHD(x - w, n.y, STlib_FG, p0)
   end if
 
   while num != 0 and numdigits > 0
@@ -292,14 +341,14 @@ function STlib_drawNum(n, refresh)
     d = num % 10
     pd = _STL_GetPatch(n.p, d)
     if pd is not void then
-      V_DrawPatch(x, n.y, STlib_FG, pd)
+      _STL_DrawPatchHD(x, n.y, STlib_FG, pd)
     end if
     num = _STL_IDiv(num - d, 10)
     numdigits = numdigits - 1
   end while
 
   if neg and sttminus is not void then
-    V_DrawPatch(x - 8, n.y, STlib_FG, sttminus)
+    _STL_DrawPatchHD(x - 8, n.y, STlib_FG, sttminus)
   end if
 end function
 
@@ -315,12 +364,12 @@ end function
 
 /*
 * Function: STlib_drawPercent
-* Purpose: Draws or renders output for the engine module behavior.
+* Purpose: Draws sTlib draw Percent output for the status bar renderer.
 */
 function STlib_drawPercent(p, refresh)
   if p == 0 then return end if
   if refresh and _STL_RefBool(p.n.on) and p.p is not void then
-    V_DrawPatch(p.n.x, p.n.y, STlib_FG, p.p)
+    _STL_DrawPatchHD(p.n.x, p.n.y, STlib_FG, p.p)
   end if
   STlib_drawNum(p.n, refresh)
 end function
@@ -340,7 +389,7 @@ end function
 
 /*
 * Function: STlib_drawMultIcon
-* Purpose: Draws or renders output for the engine module behavior.
+* Purpose: Draws sTlib draw Mult Icon output for the status bar renderer.
 */
 function STlib_drawMultIcon(i, refresh)
   if i == 0 then return end if
@@ -365,7 +414,7 @@ function STlib_drawMultIcon(i, refresh)
 
       p = _STL_GetPatch(i.p, cur)
       if p is not void then
-        V_DrawPatch(i.x, i.y, STlib_FG, p)
+        _STL_DrawPatchHD(i.x, i.y, STlib_FG, p)
       end if
       i.oldinum = cur
     end if
@@ -387,7 +436,7 @@ end function
 
 /*
 * Function: STlib_drawBinIcon
-* Purpose: Draws or renders output for the engine module behavior.
+* Purpose: Draws sTlib draw Bin Icon output for the status bar renderer.
 */
 function STlib_drawBinIcon(b, refresh)
   if b == 0 then return end if
@@ -406,7 +455,7 @@ function STlib_drawBinIcon(b, refresh)
       end if
 
       if v then
-        V_DrawPatch(b.x, b.y, STlib_FG, b.p)
+        _STL_DrawPatchHD(b.x, b.y, STlib_FG, b.p)
       else
         V_CopyRect(x, y - ST_Y, STlib_BG, w, h, x, y, STlib_FG)
       end if
@@ -417,7 +466,7 @@ end function
 
 /*
 * Function: STlib_updateNum
-* Purpose: Advances per-tick logic for the engine module behavior.
+* Purpose: Advances sTlib update Num logic during the status bar tick.
 */
 function STlib_updateNum(n, refresh)
   if _STL_RefBool(n.on) then STlib_drawNum(n, refresh) end if
@@ -425,7 +474,7 @@ end function
 
 /*
 * Function: STlib_updatePercent
-* Purpose: Advances per-tick logic for the engine module behavior.
+* Purpose: Advances sTlib update Percent logic during the status bar tick.
 */
 function STlib_updatePercent(p, refresh)
   STlib_drawPercent(p, refresh)
@@ -433,7 +482,7 @@ end function
 
 /*
 * Function: STlib_updateMultIcon
-* Purpose: Advances per-tick logic for the engine module behavior.
+* Purpose: Advances sTlib update Mult Icon logic during the status bar tick.
 */
 function STlib_updateMultIcon(i, refresh)
   STlib_drawMultIcon(i, refresh)
@@ -441,7 +490,7 @@ end function
 
 /*
 * Function: STlib_updateBinIcon
-* Purpose: Advances per-tick logic for the engine module behavior.
+* Purpose: Advances sTlib update Bin Icon logic during the status bar tick.
 */
 function STlib_updateBinIcon(b, refresh)
   STlib_drawBinIcon(b, refresh)

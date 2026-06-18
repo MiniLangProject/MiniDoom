@@ -27,9 +27,12 @@ import m_argv
 import std.fs as fs
 import std.math
 
+const W_HDWAD_MIN_VERSION = 1
+const W_HDWAD_MAX_VERSION = 6
+
 /*
 * Struct: wadinfo_t
-* Purpose: Stores runtime data for wadinfo type.
+* Purpose: Stores wadinfo data used by the WAD resource system.
 */
 struct wadinfo_t
   identification
@@ -39,7 +42,7 @@ end struct
 
 /*
 * Struct: filelump_t
-* Purpose: Stores runtime data for filelump type.
+* Purpose: Stores filelump data used by the WAD resource system.
 */
 struct filelump_t
   filepos
@@ -49,7 +52,7 @@ end struct
 
 /*
 * Struct: lumpinfo_t
-* Purpose: Stores runtime data for lumpinfo type.
+* Purpose: Stores lumpinfo data used by the WAD resource system.
 */
 struct lumpinfo_t
   name
@@ -61,11 +64,15 @@ end struct
 lumpcache = void
 lumpinfo = void
 numlumps = 0
+wad_cached_patch_bytes =[]
+wad_cached_patch_names =[]
+wad_cached_patch_last_data = void
+wad_cached_patch_last_name = ""
 const _W_CACHE_NULL_PTR = -1
 
 /*
 * Struct: wadfile_t
-* Purpose: Stores runtime data for wadfile type.
+* Purpose: Stores wadfile data used by the WAD resource system.
 */
 struct wadfile_t
   path
@@ -79,7 +86,7 @@ reloadfile = -1
 
 /*
 * Function: _W_ReadI32LE
-* Purpose: Implements the _W_ReadI32LE routine for the internal module support.
+* Purpose: Reads i32 little-endian data for the WAD resource.
 */
 function inline _W_ReadI32LE(b, off)
 
@@ -88,7 +95,7 @@ end function
 
 /*
 * Function: _W_CopyBytes
-* Purpose: Implements the _W_CopyBytes routine for the internal module support.
+* Purpose: Updates bytes state for the WAD resource.
 */
 function inline _W_CopyBytes(b, off, n)
 
@@ -97,7 +104,7 @@ end function
 
 /*
 * Function: _W_ToUpperAscii
-* Purpose: Implements the _W_ToUpperAscii routine for the internal module support.
+* Purpose: Converts upper ASCII values for the WAD resource.
 */
 function inline _W_ToUpperAscii(s)
 
@@ -113,7 +120,7 @@ end function
 
 /*
 * Function: strupr
-* Purpose: Implements the strupr routine for the engine module behavior.
+* Purpose: Provides strupr helper behavior for the WAD resource.
 */
 function inline strupr(s)
   return _W_ToUpperAscii(s)
@@ -121,7 +128,7 @@ end function
 
 /*
 * Function: filelength
-* Purpose: Implements the filelength routine for the engine module behavior.
+* Purpose: Provides filelength helper behavior for the WAD resource.
 */
 function inline filelength(handle)
   if typeof(handle) != "int" then return 0 end if
@@ -133,7 +140,7 @@ end function
 
 /*
 * Function: _W_Name8FromString
-* Purpose: Implements the _W_Name8FromString routine for the internal module support.
+* Purpose: Provides from string helper behavior for the WAD resource.
 */
 function inline _W_Name8FromString(name)
 
@@ -150,7 +157,7 @@ end function
 
 /*
 * Function: _W_Name8Equals
-* Purpose: Implements the _W_Name8Equals routine for the internal module support.
+* Purpose: Provides equals helper behavior for the WAD resource.
 */
 function inline _W_Name8Equals(a, b)
 
@@ -162,25 +169,36 @@ end function
 
 /*
 * Function: _W_IsWadFilename
-* Purpose: Implements the _W_IsWadFilename routine for the internal module support.
+* Purpose: Checks WAD filename conditions for the WAD resource.
 */
 function inline _W_IsWadFilename(path)
   pb = bytes(path)
-  if len(pb) < 3 then return false end if
+  if len(pb) < 4 then return false end if
 
+  dot = pb[len(pb) -4]
   a = pb[len(pb) -3]
   b = pb[len(pb) -2]
   c = pb[len(pb) -1]
 
+  if dot >= 97 and dot <= 122 then dot = dot - 32 end if
   if a >= 97 and a <= 122 then a = a - 32 end if
   if b >= 97 and b <= 122 then b = b - 32 end if
   if c >= 97 and c <= 122 then c = c - 32 end if
-  return (a == 87 and b == 65 and c == 68)
+  return (dot == 46 and a == 87 and b == 65 and c == 68)
+end function
+
+/*
+* Function: _W_IsHDWADData
+* Purpose: Checks HDWAD data conditions for the WAD resource.
+*/
+function inline _W_IsHDWADData(data)
+  if typeof(data) != "bytes" or len(data) < 28 then return false end if
+  return data[0] == 77 and data[1] == 68 and data[2] == 72 and data[3] == 68
 end function
 
 /*
 * Function: _W_ExtractFileBase
-* Purpose: Implements the _W_ExtractFileBase routine for the internal module support.
+* Purpose: Provides file base helper behavior for the WAD resource.
 */
 function _W_ExtractFileBase(path)
 
@@ -211,7 +229,7 @@ end function
 
 /*
 * Function: ExtractFileBase
-* Purpose: Implements the ExtractFileBase routine for the engine module behavior.
+* Purpose: Provides file base helper behavior for the WAD resource.
 */
 function ExtractFileBase(path, dest)
   name8 = _W_ExtractFileBase(path)
@@ -236,7 +254,7 @@ end function
 
 /*
 * Function: _W_ToPathString
-* Purpose: Implements the _W_ToPathString routine for the internal module support.
+* Purpose: Converts path string values for the WAD resource.
 */
 function inline _W_ToPathString(v)
   if typeof(v) == "string" then
@@ -249,8 +267,41 @@ function inline _W_ToPathString(v)
 end function
 
 /*
+* Function: _W_IntToString
+* Purpose: Formats integer values for WAD diagnostics without implicit stringification.
+*/
+function _W_IntToString(v)
+  n = _W_ToIntOr(v, 0)
+  if n == 0 then return "0" end if
+  neg = false
+  if n < 0 then
+    neg = true
+    n = -n
+  end if
+  txt = ""
+  while n > 0
+    d = n % 10
+    ch = "0"
+    if d == 1 then ch = "1"
+    else if d == 2 then ch = "2"
+    else if d == 3 then ch = "3"
+    else if d == 4 then ch = "4"
+    else if d == 5 then ch = "5"
+    else if d == 6 then ch = "6"
+    else if d == 7 then ch = "7"
+    else if d == 8 then ch = "8"
+    else if d == 9 then ch = "9"
+    end if
+    txt = ch + txt
+    n = std.math.floor(n / 10)
+  end while
+  if neg then txt = "-" + txt end if
+  return txt
+end function
+
+/*
 * Function: _W_ToIntOr
-* Purpose: Implements the _W_ToIntOr routine for the internal module support.
+* Purpose: Converts int or values for the WAD resource.
 */
 function _W_ToIntOr(v, fallback)
   if typeof(v) == "int" then
@@ -277,7 +328,7 @@ end function
 
 /*
 * Function: _W_SlotEmpty
-* Purpose: Implements the _W_SlotEmpty routine for the internal module support.
+* Purpose: Provides empty helper behavior for the WAD resource.
 */
 function inline _W_SlotEmpty(slot)
   if typeof(slot) != "array" or len(slot) == 0 then
@@ -291,7 +342,7 @@ end function
 
 /*
 * Function: _W_AddLoadedFile
-* Purpose: Loads and prepares data required by the internal module support.
+* Purpose: Loads add Loaded File resources used by the WAD resource system.
 */
 function inline _W_AddLoadedFile(path, data)
   global _W_files
@@ -302,7 +353,7 @@ end function
 
 /*
 * Function: W_AddFile
-* Purpose: Implements the W_AddFile routine for the WAD resource system.
+* Purpose: Adds file entries to the WAD resource.
 */
 function W_AddFile(filename)
   global reloadname
@@ -314,6 +365,17 @@ function W_AddFile(filename)
   filename = _W_ToPathString(filename)
   if len(filename) == 0 then
     return
+  end if
+
+  wantsGL = false
+  if M_CheckParm("-opengl") != 0 or M_CheckParm("--opengl") != 0 or M_CheckParm("-gl") != 0 or M_CheckParm("--gl") != 0 then wantsGL = true end if
+  rebuildHD = M_CheckParm("-rebuildhdwad") != 0 or M_CheckParm("--rebuildhdwad") != 0
+  if _W_IsWadFilename(filename) and wantsGL and not rebuildHD then
+    hd = filename + ".hdwad"
+    if fs.exists(hd) and fs.isFile(hd) then
+      print " using HDWAD cache " + hd
+      filename = hd
+    end if
   end if
 
   fb = bytes(filename)
@@ -349,6 +411,36 @@ function W_AddFile(filename)
   startlump = numlumps
 
   if typeof(lumpinfo) != "array" then lumpinfo =[] end if
+
+  if _W_IsHDWADData(data) then
+    version = _W_ReadI32LE(data, 4)
+    if version < W_HDWAD_MIN_VERSION or version > W_HDWAD_MAX_VERSION then
+      I_Error("HDWAD file " + filename + " has unsupported version")
+      return
+    end if
+    lumpcount = _W_ReadI32LE(data, 12)
+    lumpDirOfs = _W_ReadI32LE(data, 20)
+    if lumpcount < 0 or lumpDirOfs < 28 or lumpDirOfs + lumpcount * 16 > len(data) then
+      I_Error("W_AddFile: invalid HDWAD directory for " + filename)
+      return
+    end if
+
+    i = 0
+    while i < lumpcount
+      off = lumpDirOfs + i * 16
+      filepos = _W_ReadI32LE(data, off + 0)
+      size = _W_ReadI32LE(data, off + 4)
+      name8 = _W_CopyBytes(data, off + 8, 8)
+      if size < 0 or filepos < 0 or filepos + size > len(data) then
+        I_Error("W_AddFile: invalid HDWAD lump in " + filename)
+        return
+      end if
+      lumpinfo = lumpinfo +[lumpinfo_t(name8, fileIdx, filepos, size)]
+      numlumps = numlumps + 1
+      i = i + 1
+    end while
+    return
+  end if
 
   if not _W_IsWadFilename(filename) then
 
@@ -390,7 +482,7 @@ end function
 
 /*
 * Function: _W_AddFilesFromArgv
-* Purpose: Implements the _W_AddFilesFromArgv routine for the internal module support.
+* Purpose: Adds files from argument entries to the WAD resource.
 */
 function _W_AddFilesFromArgv()
   if typeof(myargv) != "array" or typeof(myargc) != "int" then
@@ -405,7 +497,7 @@ function _W_AddFilesFromArgv()
       continue
     end if
 
-    if a == "-iwad" and i < myargc - 1 then
+    if (a == "-iwad" or a == "-hdwad" or a == "--hdwad") and i < myargc - 1 then
       f = _W_ToPathString(myargv[i + 1])
       if len(f) > 0 then
         W_AddFile(f)
@@ -448,6 +540,8 @@ function W_InitMultipleFiles(filenames)
   global reloadname
   global reloadlump
   global reloadfile
+  global wad_cached_patch_bytes
+  global wad_cached_patch_names
 
   numlumps = 0
   lumpinfo =[]
@@ -456,6 +550,8 @@ function W_InitMultipleFiles(filenames)
   reloadname = void
   reloadlump = 0
   reloadfile = -1
+  wad_cached_patch_bytes =[]
+  wad_cached_patch_names =[]
 
   if typeof(filenames) != "array" then
     if typeof(filenames) == "string" and len(filenames) > 0 then
@@ -509,7 +605,7 @@ end function
 
 /*
 * Function: W_NumLumps
-* Purpose: Implements the W_NumLumps routine for the WAD resource system.
+* Purpose: Provides lumps helper behavior for the WAD resource.
 */
 function W_NumLumps()
   return numlumps
@@ -517,7 +613,7 @@ end function
 
 /*
 * Function: W_Reload
-* Purpose: Loads and prepares data required by the WAD resource system.
+* Purpose: Loads reload resources used by the WAD resource system.
 */
 function W_Reload()
   global _W_files
@@ -577,7 +673,7 @@ end function
 
 /*
 * Function: W_CheckNumForName
-* Purpose: Evaluates conditions and returns a decision for the WAD resource system.
+* Purpose: Finds check Num For Name information for WAD resource processing.
 */
 function W_CheckNumForName(name)
   name8 = _W_Name8FromString(name)
@@ -595,7 +691,7 @@ end function
 
 /*
 * Function: W_GetNumForName
-* Purpose: Reads or updates state used by the WAD resource system.
+* Purpose: Reads number for name data for the WAD resource.
 */
 function W_GetNumForName(name)
   i = W_CheckNumForName(name)
@@ -607,12 +703,12 @@ end function
 
 /*
 * Function: W_LumpLength
-* Purpose: Implements the W_LumpLength routine for the WAD resource system.
+* Purpose: Provides length helper behavior for the WAD resource.
 */
 function W_LumpLength(lump)
   lump = _W_ToIntOr(lump, -1)
   if lump < 0 or lump >= numlumps then
-    I_Error("W_LumpLength: " + lump + " >= numlumps")
+    I_Error("W_LumpLength: " + _W_IntToString(lump) + " >= numlumps")
     return 0
   end if
   return lumpinfo[lump].size
@@ -620,12 +716,12 @@ end function
 
 /*
 * Function: W_ReadLump
-* Purpose: Implements the W_ReadLump routine for the WAD resource system.
+* Purpose: Reads lump data for the WAD resource.
 */
 function W_ReadLump(lump, dest)
   lump = _W_ToIntOr(lump, -1)
   if lump < 0 or lump >= numlumps then
-    I_Error("W_ReadLump: " + lump + " >= numlumps")
+    I_Error("W_ReadLump: " + _W_IntToString(lump) + " >= numlumps")
     return
   end if
 
@@ -666,7 +762,7 @@ function W_CacheLumpNum(lump, tag)
   tag = _W_ToIntOr(tag, 0)
 
   if lump < 0 or lump >= numlumps then
-    I_Error("W_CacheLumpNum: " + lump + " >= numlumps")
+    I_Error("W_CacheLumpNum: " + _W_IntToString(lump) + " >= numlumps")
     return void
   end if
 
@@ -684,7 +780,69 @@ function W_CacheLumpNum(lump, tag)
     Z_ChangeTag(slot[0], tag)
   end if
 
-  return Z_BytesAt(slot[0], W_LumpLength(lump))
+  data = Z_BytesAt(slot[0], W_LumpLength(lump))
+  if typeof(data) == "bytes" and typeof(lumpinfo) == "array" and lump >= 0 and lump < len(lumpinfo) then
+    found = false
+    i = 0
+    while i < len(wad_cached_patch_bytes)
+      if wad_cached_patch_bytes[i] == data then
+        found = true
+        break
+      end if
+      i = i + 1
+    end while
+    if not found then
+      wad_cached_patch_bytes = wad_cached_patch_bytes +[data]
+      wad_cached_patch_names = wad_cached_patch_names +[decodeZ(lumpinfo[lump].name)]
+    end if
+  end if
+  return data
+end function
+
+/*
+* Function: W_NameForCachedData
+* Purpose: Returns the WAD lump name for a cached byte view, when known.
+*/
+function W_NameForCachedData(data)
+  global wad_cached_patch_last_data
+  global wad_cached_patch_last_name
+
+  if typeof(data) != "bytes" then return "" end if
+  if wad_cached_patch_last_data == data then return wad_cached_patch_last_name end if
+
+  i = 0
+  while i < len(wad_cached_patch_bytes) and i < len(wad_cached_patch_names)
+    if wad_cached_patch_bytes[i] == data then
+      wad_cached_patch_last_data = data
+      wad_cached_patch_last_name = wad_cached_patch_names[i]
+      return wad_cached_patch_last_name
+    end if
+    i = i + 1
+  end while
+
+  if len(data) > 32768 then return "" end if
+  i = 0
+  while i < len(wad_cached_patch_bytes) and i < len(wad_cached_patch_names)
+    cached = wad_cached_patch_bytes[i]
+    if typeof(cached) == "bytes" and len(cached) == len(data) then
+      same = true
+      j = 0
+      while j < len(data)
+        if cached[j] != data[j] then
+          same = false
+          break
+        end if
+        j = j + 1
+      end while
+      if same then
+        wad_cached_patch_last_data = data
+        wad_cached_patch_last_name = wad_cached_patch_names[i]
+        return wad_cached_patch_last_name
+      end if
+    end if
+    i = i + 1
+  end while
+  return ""
 end function
 
 /*
@@ -723,7 +881,7 @@ _W_profile_count = 0
 
 /*
 * Function: W_Profile
-* Purpose: Implements the W_Profile routine for the WAD resource system.
+* Purpose: Provides profile helper behavior for the WAD resource.
 */
 function W_Profile()
   global _W_profile_info

@@ -52,7 +52,7 @@ numspechit = 0
 
 /*
 * Function: _MapAbs
-* Purpose: Implements the _MapAbs routine for the internal module support.
+* Purpose: Provides absolute-value helper behavior for the map collision.
 */
 function inline _MapAbs(x)
   if x < 0 then return - x end if
@@ -61,7 +61,7 @@ end function
 
 /*
 * Function: _PMAP_IDiv
-* Purpose: Implements the _PMAP_IDiv routine for the internal module support.
+* Purpose: Performs integer division with map collision rounding and guard rules.
 */
 function inline _PMAP_IDiv(a, b)
   if typeof(a) != "int" or typeof(b) != "int" or b == 0 then return 0 end if
@@ -72,7 +72,7 @@ end function
 
 /*
 * Function: _PMAP_S32
-* Purpose: Implements the _PMAP_S32 routine for the internal module support.
+* Purpose: Provides s32 helper behavior for the map collision.
 */
 function inline _PMAP_S32(v)
   if typeof(v) != "int" then return 0 end if
@@ -83,7 +83,7 @@ end function
 
 /*
 * Function: _SetTMBox
-* Purpose: Reads or updates state used by the internal module support.
+* Purpose: Updates tm box state for the map collision.
 */
 function inline _SetTMBox(x, y, radius)
   tmbbox[BOXTOP] = y + radius
@@ -94,7 +94,7 @@ end function
 
 /*
 * Function: _LineIndex
-* Purpose: Implements the _LineIndex routine for the internal module support.
+* Purpose: Provides index helper behavior for the map collision.
 */
 function _LineIndex(ld)
   if ld is void then return -1 end if
@@ -167,7 +167,7 @@ end function
 
 /*
 * Function: _PM_UseDiagEnabled
-* Purpose: Implements the _PM_UseDiagEnabled routine for the internal module support.
+* Purpose: Provides use diag enabled helper behavior for the map collision.
 */
 function inline _PM_UseDiagEnabled()
   global _pmDiagUseInit
@@ -188,7 +188,7 @@ end function
 
 /*
 * Function: _PM_UseDiagLog
-* Purpose: Implements the _PM_UseDiagLog routine for the internal module support.
+* Purpose: Provides use diag log helper behavior for the map collision.
 */
 function inline _PM_UseDiagLog(msg)
   global _pmDiagUseCount
@@ -202,7 +202,7 @@ end function
 
 /*
 * Function: PIT_StompThing
-* Purpose: Implements the PIT_StompThing routine for the engine module behavior.
+* Purpose: Provides stomp thing helper behavior for the map collision.
 */
 function PIT_StompThing(thing)
   if thing is void then return true end if
@@ -225,7 +225,7 @@ end function
 
 /*
 * Function: PIT_CheckLine
-* Purpose: Evaluates conditions and returns a decision for the engine module behavior.
+* Purpose: Finds check Line information for map collision processing.
 */
 function PIT_CheckLine(ld)
   global tmfloorz
@@ -288,7 +288,7 @@ end function
 
 /*
 * Function: PIT_CheckThing
-* Purpose: Evaluates conditions and returns a decision for the engine module behavior.
+* Purpose: Finds check Thing information for map collision processing.
 */
 function PIT_CheckThing(thing)
   if thing is void then return true end if
@@ -360,7 +360,7 @@ end function
 
 /*
 * Function: P_CheckPosition
-* Purpose: Evaluates conditions and returns a decision for the gameplay and world simulation.
+* Purpose: Finds check Position information for map collision processing.
 */
 function P_CheckPosition(thing, x, y)
   global tmthing
@@ -609,7 +609,7 @@ end function
 
 /*
 * Function: P_ThingHeightClip
-* Purpose: Implements the P_ThingHeightClip routine for the gameplay and world simulation.
+* Purpose: Provides height clip helper behavior for the map collision.
 */
 function P_ThingHeightClip(thing)
   if thing is void then return false end if
@@ -733,7 +733,7 @@ end function
 
 /*
 * Function: PTR_UseTraverse
-* Purpose: Reads or updates state used by the engine module behavior.
+* Purpose: Provides use traverse helper behavior for the map collision.
 */
 function PTR_UseTraverse(inter)
   global usething
@@ -867,8 +867,8 @@ function P_SlideMove(mo)
   end function
 
   /*
-  * Function: P_UseLines
-  * Purpose: Implements the P_UseLines routine for the gameplay and world simulation.
+* Function: P_UseLines
+* Purpose: Runs lines behavior for the map collision.
   */
   function P_UseLines(player)
     global usething
@@ -887,8 +887,8 @@ function P_SlideMove(mo)
   end function
 
   /*
-  * Function: PIT_ChangeSector
-  * Purpose: Implements the PIT_ChangeSector routine for the engine module behavior.
+* Function: PIT_ChangeSector
+* Purpose: Provides change sector helper behavior for the map collision.
   */
   function PIT_ChangeSector(thing)
     global nofit
@@ -935,8 +935,8 @@ function P_SlideMove(mo)
   end function
 
   /*
-  * Function: P_ChangeSector
-  * Purpose: Implements the P_ChangeSector routine for the gameplay and world simulation.
+* Function: P_ChangeSector
+* Purpose: Runs sector behavior for the map collision.
   */
   function P_ChangeSector(sector, crunch)
     global nofit
@@ -962,8 +962,8 @@ function P_SlideMove(mo)
   bombdamage = 0
 
   /*
-  * Function: PIT_RadiusAttack
-  * Purpose: Implements the PIT_RadiusAttack routine for the engine module behavior.
+* Function: PIT_RadiusAttack
+* Purpose: Provides radius attack helper behavior for the map collision.
   */
   function PIT_RadiusAttack(thing)
     if thing is void then return true end if
@@ -989,8 +989,8 @@ function P_SlideMove(mo)
   end function
 
   /*
-  * Function: P_RadiusAttack
-  * Purpose: Implements the P_RadiusAttack routine for the gameplay and world simulation.
+* Function: P_RadiusAttack
+* Purpose: Provides attack helper behavior for the map collision.
   */
   function P_RadiusAttack(spot, source, damage)
     if spot is void then return end if
@@ -1024,8 +1024,8 @@ function P_SlideMove(mo)
   bottomslope = 0
 
   /*
-  * Function: PTR_AimTraverse
-  * Purpose: Implements the PTR_AimTraverse routine for the engine module behavior.
+* Function: PTR_AimTraverse
+* Purpose: Provides aim traverse helper behavior for the map collision.
   */
   function PTR_AimTraverse(inter)
     global linetarget
@@ -1095,8 +1095,8 @@ function P_SlideMove(mo)
   end function
 
   /*
-  * Function: PTR_ShootTraverse
-  * Purpose: Implements the PTR_ShootTraverse routine for the engine module behavior.
+* Function: PTR_ShootTraverse
+* Purpose: Provides shoot traverse helper behavior for the map collision.
   */
   function PTR_ShootTraverse(inter)
     global linetarget
@@ -1198,8 +1198,8 @@ function P_SlideMove(mo)
   end function
 
   /*
-  * Function: P_AimLineAttack
-  * Purpose: Implements the P_AimLineAttack routine for the gameplay and world simulation.
+* Function: P_AimLineAttack
+* Purpose: Computes line attack values for the map collision.
   */
   function P_AimLineAttack(t1, angle, distance)
     global shootthing
@@ -1234,8 +1234,8 @@ function P_SlideMove(mo)
   end function
 
   /*
-  * Function: P_LineAttack
-  * Purpose: Implements the P_LineAttack routine for the gameplay and world simulation.
+* Function: P_LineAttack
+* Purpose: Provides attack helper behavior for the map collision.
   */
   function P_LineAttack(t1, angle, distance, slope, damage)
     global shootthing

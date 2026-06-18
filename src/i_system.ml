@@ -33,7 +33,7 @@ const _ISYS_MB_ICONERROR = 0x00000010
 
 /*
 * Function: _IS_IDiv
-* Purpose: Implements the _IS_IDiv routine for the internal module support.
+* Purpose: Performs integer division with platform rounding and guard rules.
 */
 function inline _IS_IDiv(a, b)
   if typeof(a) != "int" or typeof(b) != "int" or b == 0 then return 0 end if
@@ -107,7 +107,7 @@ end function
 
 /*
 * Function: I_ZoneBase
-* Purpose: Implements the I_ZoneBase routine for the platform layer.
+* Purpose: Provides base helper behavior for the platform backend.
 */
 function I_ZoneBase(sizeOut)
   size = I_GetHeapSize()
@@ -120,7 +120,7 @@ end function
 
 /*
 * Function: I_GetTime
-* Purpose: Reads or updates state used by the platform layer.
+* Purpose: Reads time data for the platform backend.
 */
 function I_GetTime()
   global _I_basetime
@@ -135,7 +135,7 @@ end function
 
 /*
 * Function: I_GetTimeFrac
-* Purpose: Reads or updates state used by the platform layer.
+* Purpose: Reads time frac data for the platform backend.
 */
 function I_GetTimeFrac()
   global _I_basetime
@@ -157,7 +157,7 @@ end function
 
 /*
 * Function: I_BaseTiccmd
-* Purpose: Reads or updates state used by the platform layer.
+* Purpose: Provides tic command helper behavior for the platform backend.
 */
 function I_BaseTiccmd()
   global _I_emptycmd
@@ -170,7 +170,7 @@ end function
 
 /*
 * Function: I_Quit
-* Purpose: Implements the I_Quit routine for the platform layer.
+* Purpose: Runs quit lifecycle logic for the platform backend.
 */
 function I_Quit()
 
@@ -186,7 +186,7 @@ end function
 
 /*
 * Function: I_AllocLow
-* Purpose: Implements the I_AllocLow routine for the platform layer.
+* Purpose: Builds low data for the platform backend.
 */
 function I_AllocLow(length)
 
@@ -195,7 +195,7 @@ end function
 
 /*
 * Function: I_Tactile
-* Purpose: Implements the I_Tactile routine for the platform layer.
+* Purpose: Provides tactile helper behavior for the platform backend.
 */
 function I_Tactile(on, off, total)
 
@@ -206,7 +206,7 @@ end function
 
 /*
 * Function: I_Error
-* Purpose: Implements the I_Error routine for the platform layer.
+* Purpose: Provides error helper behavior for the platform backend.
 */
 function I_Error(msg)
   shown = ""
@@ -246,7 +246,7 @@ mb_used = 6
 
 /*
 * Function: I_GetHeapSize
-* Purpose: Reads or updates state used by the platform layer.
+* Purpose: Reads heap size data for the platform backend.
 */
 function I_GetHeapSize()
   return mb_used * 1024 * 1024
@@ -254,7 +254,7 @@ end function
 
 /*
 * Function: I_WaitVBL
-* Purpose: Implements the I_WaitVBL routine for the platform layer.
+* Purpose: Provides vbl helper behavior for the platform backend.
 */
 function I_WaitVBL(count)
 
@@ -264,34 +264,40 @@ end function
 
 /*
 * Function: I_BeginRead
-* Purpose: Implements the I_BeginRead routine for the platform layer.
+* Purpose: Reads begin Read data from the platform data stream.
 */
 function I_BeginRead()
 end function
 
 /*
 * Function: I_EndRead
-* Purpose: Implements the I_EndRead routine for the platform layer.
+* Purpose: Reads end Read data from the platform data stream.
 */
 function I_EndRead()
 end function
 
 /*
-* Function: GetTickCount
-* Purpose: Reads or updates state used by the engine module behavior.
-*/
+ * Function: GetTickCount
+ *
+ * Purpose: Maps the external GetTickCount binding used for platform integration.
+ */
+
 extern function GetTickCount() from "kernel32.dll" returns u32
 
 /*
-* Function: Sleep
-* Purpose: Implements the Sleep routine for the engine module behavior.
-*/
+ * Function: Sleep
+ *
+ * Purpose: Maps the external Sleep binding used for platform integration.
+ */
+
 extern function Sleep(ms as int) from "kernel32.dll" returns int
 
 /*
-* Function: ExitProcess
-* Purpose: Implements the ExitProcess routine for the engine module behavior.
-*/
+ * Function: ExitProcess
+ *
+ * Purpose: Maps the external ExitProcess binding used for platform integration.
+ */
+
 extern function ExitProcess(code as int) from "kernel32.dll" returns int
 
 _I_basetime = 0
@@ -299,7 +305,7 @@ _I_emptycmd = void
 
 /*
 * Function: _I_GetTickCount
-* Purpose: Reads or updates state used by the internal module support.
+* Purpose: Reads tick count data for the platform backend.
 */
 function inline _I_GetTickCount()
   return GetTickCount()
@@ -307,7 +313,7 @@ end function
 
 /*
 * Function: _I_Sleep
-* Purpose: Implements the _I_Sleep routine for the internal module support.
+* Purpose: Provides sleep helper behavior for the platform backend.
 */
 function inline _I_Sleep(ms)
   if typeof(ms) != "int" then return end if
@@ -317,7 +323,7 @@ end function
 
 /*
 * Function: _I_ExitProcess
-* Purpose: Implements the _I_ExitProcess routine for the internal module support.
+* Purpose: Runs process lifecycle logic for the platform backend.
 */
 function inline _I_ExitProcess(code)
   if typeof(code) != "int" then code = 1 end if

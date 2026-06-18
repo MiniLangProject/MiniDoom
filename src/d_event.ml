@@ -31,7 +31,7 @@ end enum
 
 /*
 * Struct: event_t
-* Purpose: Stores runtime data for event type.
+* Purpose: Stores event fields used by the Doom core.
 */
 struct event_t
   type

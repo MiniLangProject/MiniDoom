@@ -47,7 +47,7 @@ bunny_laststage = -1
 
 /*
 * Function: _F_Substr
-* Purpose: Implements the _F_Substr routine for the internal module support.
+* Purpose: Provides substr helper behavior for the finale and screen-wipe.
 */
 function inline _F_Substr(s, n)
   if typeof(s) != "string" then return "" end if
@@ -59,7 +59,7 @@ end function
 
 /*
 * Function: _F_IDiv
-* Purpose: Implements the _F_IDiv routine for the internal module support.
+* Purpose: Performs integer division with finale and wipe rounding and guard rules.
 */
 function inline _F_IDiv(a, b)
   if typeof(a) != "int" or typeof(b) != "int" or b == 0 then return 0 end if
@@ -70,7 +70,7 @@ end function
 
 /*
 * Function: _F_u16le
-* Purpose: Implements the _F_u16le routine for the internal module support.
+* Purpose: Provides u16le helper behavior for the finale and screen-wipe.
 */
 function inline _F_u16le(b, off)
   return b[off] +(b[off + 1] << 8)
@@ -78,7 +78,7 @@ end function
 
 /*
 * Function: _F_u32le
-* Purpose: Implements the _F_u32le routine for the internal module support.
+* Purpose: Provides u32le helper behavior for the finale and screen-wipe.
 */
 function inline _F_u32le(b, off)
   return b[off] +(b[off + 1] << 8) +(b[off + 2] << 16) +(b[off + 3] << 24)
@@ -86,7 +86,7 @@ end function
 
 /*
 * Function: _F_PatchWidth
-* Purpose: Implements the _F_PatchWidth routine for the internal module support.
+* Purpose: Provides width helper behavior for the finale and screen-wipe.
 */
 function inline _F_PatchWidth(patch)
   if typeof(patch) != "bytes" or len(patch) < 8 then return 0 end if
@@ -95,7 +95,7 @@ end function
 
 /*
 * Function: _F_UpperAscii
-* Purpose: Implements the _F_UpperAscii routine for the internal module support.
+* Purpose: Converts ascii values for the finale and screen-wipe.
 */
 function inline _F_UpperAscii(c)
   if c >= 97 and c <= 122 then return c - 32 end if
@@ -104,7 +104,7 @@ end function
 
 /*
 * Function: _F_AnyPlayerButtons
-* Purpose: Implements the _F_AnyPlayerButtons routine for the internal module support.
+* Purpose: Provides player buttons helper behavior for the finale and screen-wipe.
 */
 function _F_AnyPlayerButtons()
   i = 0
@@ -121,7 +121,7 @@ end function
 
 /*
 * Function: _F_DrawTiledFlat
-* Purpose: Draws or renders output for the internal module support.
+* Purpose: Draws tiled flat output for the finale and screen-wipe.
 */
 function _F_DrawTiledFlat(name)
   if typeof(screens) != "array" or len(screens) == 0 then return end if
@@ -164,7 +164,7 @@ end function
 
 /*
 * Function: _F_EndPatchName
-* Purpose: Implements the _F_EndPatchName routine for the internal module support.
+* Purpose: Controls end Patch Name transitions in the finale and wipe system.
 */
 function inline _F_EndPatchName(stage)
   if stage <= 0 then return "END0" end if
@@ -260,7 +260,7 @@ end function
 
 /*
 * Function: F_Responder
-* Purpose: Implements the F_Responder routine for the finale subsystem.
+* Purpose: Handles responder events for the finale and wipe system.
 */
 function F_Responder(ev)
   if ev == 0 then return false end if
@@ -272,7 +272,7 @@ end function
 
 /*
 * Function: F_TextWrite
-* Purpose: Implements the F_TextWrite routine for the finale subsystem.
+* Purpose: Writes text Write data for the finale and wipe data stream.
 */
 function F_TextWrite()
   if not finale_started then return end if
@@ -335,7 +335,7 @@ end function
 
 /*
 * Function: F_CastTicker
-* Purpose: Advances per-tick logic for the finale subsystem.
+* Purpose: Advances cast Ticker logic during the finale and wipe tick.
 */
 function F_CastTicker()
   global cast_tics
@@ -345,7 +345,7 @@ end function
 
 /*
 * Function: F_CastResponder
-* Purpose: Implements the F_CastResponder routine for the finale subsystem.
+* Purpose: Handles cast Responder events for the finale and wipe system.
 */
 function F_CastResponder(ev)
   if ev == 0 then return false end if
@@ -359,7 +359,7 @@ end function
 
 /*
 * Function: F_CastPrint
-* Purpose: Implements the F_CastPrint routine for the finale subsystem.
+* Purpose: Provides print helper behavior for the finale and screen-wipe.
 */
 function F_CastPrint(text)
   if typeof(hu_font) != "array" then
@@ -406,7 +406,7 @@ end function
 
 /*
 * Function: F_DrawPatchCol
-* Purpose: Draws or renders output for the finale subsystem.
+* Purpose: Draws patch column output for the finale and screen-wipe.
 */
 function F_DrawPatchCol(x, patch, col)
   if typeof(screens) != "array" or len(screens) == 0 then return end if
@@ -441,7 +441,7 @@ end function
 
 /*
 * Function: F_BunnyScroll
-* Purpose: Implements the F_BunnyScroll routine for the finale subsystem.
+* Purpose: Provides scroll helper behavior for the finale and screen-wipe.
 */
 function F_BunnyScroll()
   if W_CheckNumForName("PFUB1") < 0 or W_CheckNumForName("PFUB2") < 0 then
@@ -493,7 +493,7 @@ end function
 
 /*
 * Function: F_CastDrawer
-* Purpose: Draws or renders output for the finale subsystem.
+* Purpose: Draws cast Drawer output for the finale and wipe renderer.
 */
 function F_CastDrawer()
   if not cast_active then return end if
@@ -505,7 +505,7 @@ end function
 
 /*
 * Function: F_Ticker
-* Purpose: Advances per-tick logic for the finale subsystem.
+* Purpose: Advances ticker logic during the finale and wipe tick.
 */
 function F_Ticker()
   global finale_count
@@ -544,7 +544,7 @@ end function
 
 /*
 * Function: F_Drawer
-* Purpose: Draws or renders output for the finale subsystem.
+* Purpose: Provides drawer helper behavior for the finale and screen-wipe.
 */
 function F_Drawer()
   if not finale_started then return end if

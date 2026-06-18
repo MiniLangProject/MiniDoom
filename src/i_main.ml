@@ -19,11 +19,53 @@
 import doomdef
 import m_argv
 import d_main
+import std.fs as fs
+import std.math
+
+/*
+ * Function: MessageBoxW
+ *
+ * Purpose: Maps the external MessageBoxW binding used for platform integration.
+ */
 
 extern function MessageBoxW(hwnd as ptr, text as wstr, caption as wstr, flags as u32) from "user32.dll" symbol "MessageBoxW" returns int
 
 const _IMAIN_MB_OK = 0x00000000
 const _IMAIN_MB_ICONERROR = 0x00000010
+
+/*
+* Function: _IMain_IntToString
+* Purpose: Runs the main platform entry point.
+*/
+function _IMain_IntToString(v)
+  n = 0
+  if typeof(v) == "int" then n = v end if
+  if n == 0 then return "0" end if
+  neg = false
+  if n < 0 then
+    neg = true
+    n = -n
+  end if
+  txt = ""
+  while n > 0
+    d = n % 10
+    ch = "0"
+    if d == 1 then ch = "1"
+    else if d == 2 then ch = "2"
+    else if d == 3 then ch = "3"
+    else if d == 4 then ch = "4"
+    else if d == 5 then ch = "5"
+    else if d == 6 then ch = "6"
+    else if d == 7 then ch = "7"
+    else if d == 8 then ch = "8"
+    else if d == 9 then ch = "9"
+    end if
+    txt = ch + txt
+    n = std.math.floor(n / 10)
+  end while
+  if neg then txt = "-" + txt end if
+  return txt
+end function
 
 /*
 * Function: _IMain_ShowFatalError
@@ -44,7 +86,7 @@ end function
 
 /*
 * Function: main
-* Purpose: Implements the main routine for the engine module behavior.
+* Purpose: Runs the main platform entry point.
 */
 function main(args)
 
@@ -64,8 +106,18 @@ function main(args)
         errMsg = errMsg + "\n\n" + runResult.message
       end if
       if typeof(runResult.code) == "int" then
-        errMsg = errMsg + "\n\nError code: " + runResult.code
+        errMsg = errMsg + "\n\nError code: " + _IMain_IntToString(runResult.code)
       end if
+      if typeof(runResult.script) == "string" and runResult.script != "" then
+        errMsg = errMsg + "\n\nScript: " + runResult.script
+      end if
+      if typeof(runResult.func) == "string" and runResult.func != "" then
+        errMsg = errMsg + "\nFunction: " + runResult.func
+      end if
+      if typeof(runResult.line) == "int" and runResult.line > 0 then
+        errMsg = errMsg + "\nLine: " + _IMain_IntToString(runResult.line)
+      end if
+      _ = fs.writeAllText("last_crash.txt", errMsg)
       _IMain_ShowFatalError(errMsg)
       return 1
     end if

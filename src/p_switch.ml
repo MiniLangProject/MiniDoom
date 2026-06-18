@@ -89,7 +89,7 @@ switchlist_t("", "", 0)
 
 /*
 * Function: _PSW_IsSeq
-* Purpose: Implements the _PSW_IsSeq routine for the internal module support.
+* Purpose: Provides is sequence helper behavior for the play simulation.
 */
 function inline _PSW_IsSeq(v)
   t = typeof(v)
@@ -114,7 +114,7 @@ end function
 
 /*
 * Function: _PSW_Side0
-* Purpose: Implements the _PSW_Side0 routine for the internal module support.
+* Purpose: Provides side0 helper behavior for the play simulation.
 */
 function inline _PSW_Side0(line)
   if line is void then return void end if
@@ -138,7 +138,7 @@ end function
 
 /*
 * Function: _PSW_DiagUseEnabled
-* Purpose: Implements the _PSW_DiagUseEnabled routine for the internal module support.
+* Purpose: Provides diag use enabled helper behavior for the play simulation.
 */
 function _PSW_DiagUseEnabled()
   global _pswDiagUseInit
@@ -159,7 +159,7 @@ end function
 
 /*
 * Function: _PSW_DiagUseLog
-* Purpose: Implements the _PSW_DiagUseLog routine for the internal module support.
+* Purpose: Provides diag use log helper behavior for the play simulation.
 */
 function inline _PSW_DiagUseLog(msg)
   global _pswDiagUseCount
@@ -212,7 +212,7 @@ end function
 
 /*
 * Function: _PSW_Idiv
-* Purpose: Implements the _PSW_Idiv routine for the internal module support.
+* Purpose: Performs integer division with play simulation rounding and guard rules.
 */
 function inline _PSW_Idiv(a, b)
   if b == 0 then return 0 end if
@@ -258,7 +258,7 @@ end function
 
 /*
 * Function: P_ChangeSwitchTexture
-* Purpose: Implements the P_ChangeSwitchTexture routine for the gameplay and world simulation.
+* Purpose: Runs switch texture behavior for the play simulation.
 */
 function P_ChangeSwitchTexture(line, useAgain)
   if line is void then return end if
@@ -320,7 +320,7 @@ end function
 
 /*
 * Function: P_UpdateButtons
-* Purpose: Advances per-tick logic for the gameplay and world simulation.
+* Purpose: Updates buttons state for the play simulation.
 */
 function P_UpdateButtons()
   _InitButtonList()
@@ -356,7 +356,7 @@ end function
 
 /*
 * Function: P_UseSpecialLine
-* Purpose: Implements the P_UseSpecialLine routine for the gameplay and world simulation.
+* Purpose: Runs special line behavior for the play simulation.
 */
 function P_UseSpecialLine(thing, line, side)
   if line is void then return false end if

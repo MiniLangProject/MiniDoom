@@ -42,7 +42,7 @@ const MO_TELEPORTMAN = 14
 
 /*
 * Struct: fireflicker_t
-* Purpose: Stores runtime data for fireflicker type.
+* Purpose: Stores fireflicker data used by the special effects system.
 */
 struct fireflicker_t
   thinker
@@ -54,7 +54,7 @@ end struct
 
 /*
 * Struct: lightflash_t
-* Purpose: Stores runtime data for lightflash type.
+* Purpose: Stores lightflash data used by the special effects system.
 */
 struct lightflash_t
   thinker
@@ -68,7 +68,7 @@ end struct
 
 /*
 * Struct: strobe_t
-* Purpose: Stores runtime data for strobe type.
+* Purpose: Stores strobe data used by the special effects system.
 */
 struct strobe_t
   thinker
@@ -82,7 +82,7 @@ end struct
 
 /*
 * Struct: glow_t
-* Purpose: Stores runtime data for glow type.
+* Purpose: Stores glow data used by the special effects system.
 */
 struct glow_t
   thinker
@@ -99,7 +99,7 @@ const SLOWDARK = 35
 
 /*
 * Struct: switchlist_t
-* Purpose: Stores runtime data for switchlist type.
+* Purpose: Stores switchlist data used by the special effects system.
 */
 struct switchlist_t
   name1
@@ -119,7 +119,7 @@ end enum
 
 /*
 * Struct: button_t
-* Purpose: Stores runtime data for button type.
+* Purpose: Stores button data used by the special effects system.
 */
 struct button_t
   line
@@ -158,7 +158,7 @@ end enum
 
 /*
 * Struct: plat_t
-* Purpose: Stores runtime data for plat type.
+* Purpose: Stores plat data used by the special effects system.
 */
 struct plat_t
   thinker
@@ -196,7 +196,7 @@ end enum
 
 /*
 * Struct: vldoor_t
-* Purpose: Stores runtime data for vldoor type.
+* Purpose: Stores vldoor data used by the special effects system.
 */
 struct vldoor_t
   thinker
@@ -227,7 +227,7 @@ end enum
 
 /*
 * Struct: ceiling_t
-* Purpose: Stores runtime data for ceiling type.
+* Purpose: Stores ceiling data used by the special effects system.
 */
 struct ceiling_t
   thinker
@@ -277,7 +277,7 @@ end enum
 
 /*
 * Struct: floormove_t
-* Purpose: Stores runtime data for floormove type.
+* Purpose: Stores floormove data used by the special effects system.
 */
 struct floormove_t
   thinker
@@ -305,7 +305,7 @@ end enum
 
 /*
 * Struct: ps_anim_t
-* Purpose: Stores runtime data for ps anim type.
+* Purpose: Stores ps anim data used by the special effects system.
 */
 struct ps_anim_t
   istexture
@@ -317,7 +317,7 @@ end struct
 
 /*
 * Struct: ps_animdef_t
-* Purpose: Stores runtime data for ps animdef type.
+* Purpose: Stores ps animdef data used by the special effects system.
 */
 struct ps_animdef_t
   istexture
@@ -362,7 +362,7 @@ ps_animdef_t(-1, "", "", 0)
 
 /*
 * Function: _PS_ParseInt
-* Purpose: Implements the _PS_ParseInt routine for the internal module support.
+* Purpose: Parses parse Int input into special effects runtime data.
 */
 function _PS_ParseInt(v)
   if typeof(v) == "int" then return v end if
@@ -385,7 +385,7 @@ end function
 
 /*
 * Function: _PS_IDiv
-* Purpose: Implements the _PS_IDiv routine for the internal module support.
+* Purpose: Performs integer division with special effects rounding and guard rules.
 */
 function inline _PS_IDiv(a, b)
   if typeof(a) != "int" or typeof(b) != "int" or b == 0 then return 0 end if
@@ -396,7 +396,7 @@ end function
 
 /*
 * Function: _PS_IsSeq
-* Purpose: Implements the _PS_IsSeq routine for the internal module support.
+* Purpose: Provides is sequence helper behavior for the play simulation.
 */
 function inline _PS_IsSeq(v)
   t = typeof(v)
@@ -405,7 +405,7 @@ end function
 
 /*
 * Function: _PS_IsProjectileType
-* Purpose: Implements the _PS_IsProjectileType routine for the internal module support.
+* Purpose: Provides is projectile type helper behavior for the play simulation.
 */
 function inline _PS_IsProjectileType(t)
   return t == mobjtype_t.MT_ROCKET or t == mobjtype_t.MT_PLASMA or t == mobjtype_t.MT_BFG or
@@ -414,7 +414,7 @@ end function
 
 /*
 * Function: _PS_ResetButtons
-* Purpose: Reads or updates state used by the internal module support.
+* Purpose: Clears reset Buttons state before the next special effects update.
 */
 function _PS_ResetButtons()
   if typeof(_InitButtonList) == "function" then
@@ -594,7 +594,7 @@ end function
 
 /*
 * Function: P_UpdateSpecials
-* Purpose: Advances per-tick logic for the gameplay and world simulation.
+* Purpose: Updates specials state for the play simulation.
 */
 function P_UpdateSpecials()
   global levelTimer
@@ -657,7 +657,7 @@ end function
 
 /*
 * Function: P_ShootSpecialLine
-* Purpose: Implements the P_ShootSpecialLine routine for the gameplay and world simulation.
+* Purpose: Runs special line behavior for the play simulation.
 */
 function P_ShootSpecialLine(thing, line)
   if thing is void or line is void then return end if
@@ -686,7 +686,7 @@ end function
 
 /*
 * Function: P_CrossSpecialLine
-* Purpose: Implements the P_CrossSpecialLine routine for the gameplay and world simulation.
+* Purpose: Provides special line helper behavior for the play simulation.
 */
 function P_CrossSpecialLine(linenum, side, thing)
   if thing is void then return end if
@@ -972,7 +972,7 @@ end function
 
 /*
 * Function: _PSpec_PowerIndex
-* Purpose: Implements the _PSpec_PowerIndex routine for the internal module support.
+* Purpose: Provides power index helper behavior for the play simulation.
 */
 function _PSpec_PowerIndex(pw)
   if typeof(pw) == "int" then
@@ -995,7 +995,7 @@ end function
 
 /*
 * Function: _PSpec_GetPower
-* Purpose: Reads or updates state used by the internal module support.
+* Purpose: Returns pSpec Get Power information from special effects state.
 */
 function _PSpec_GetPower(player, pw)
   if player is void then return 0 end if
@@ -1015,7 +1015,7 @@ end function
 
 /*
 * Function: P_PlayerInSpecialSector
-* Purpose: Implements the P_PlayerInSpecialSector routine for the gameplay and world simulation.
+* Purpose: Provides in special sector helper behavior for the play simulation.
 */
 function P_PlayerInSpecialSector(player)
   if player is void or player.mo is void then return end if
@@ -1066,7 +1066,7 @@ end function
 
 /*
 * Function: _P_NumSectors
-* Purpose: Implements the _P_NumSectors routine for the internal module support.
+* Purpose: Provides sectors helper behavior for the play simulation.
 */
 function inline _P_NumSectors()
   if typeof(sectors) == "array" then return len(sectors) end if
@@ -1077,7 +1077,7 @@ end function
 
 /*
 * Function: _P_NumLines
-* Purpose: Implements the _P_NumLines routine for the internal module support.
+* Purpose: Provides lines helper behavior for the play simulation.
 */
 function inline _P_NumLines()
   if typeof(lines) == "array" then return len(lines) end if
@@ -1088,7 +1088,7 @@ end function
 
 /*
 * Function: _PS_SectorIndex
-* Purpose: Implements the _PS_SectorIndex routine for the internal module support.
+* Purpose: Provides sector index helper behavior for the play simulation.
 */
 function _PS_SectorIndex(sec)
   if sec is void then return -1 end if
@@ -1103,7 +1103,7 @@ end function
 
 /*
 * Function: _PS_LineSideSector
-* Purpose: Implements the _PS_LineSideSector routine for the internal module support.
+* Purpose: Provides line side sector helper behavior for the play simulation.
 */
 function _PS_LineSideSector(line, side)
   if line is void then return void end if
@@ -1124,7 +1124,7 @@ end function
 
 /*
 * Function: twoSided
-* Purpose: Implements the twoSided routine for the engine module behavior.
+* Purpose: Provides sided helper behavior for the play simulation.
 */
 function twoSided(sectorIndex, lineIndex)
   if not _PS_IsSeq(sectors) then return 0 end if
@@ -1140,7 +1140,7 @@ end function
 
 /*
 * Function: getSide
-* Purpose: Reads or updates state used by the engine module behavior.
+* Purpose: Reads side data for the play simulation.
 */
 function getSide(currentSector, lineIndex, side)
   if not _PS_IsSeq(sectors) then return void end if
@@ -1164,7 +1164,7 @@ end function
 
 /*
 * Function: getSector
-* Purpose: Reads or updates state used by the engine module behavior.
+* Purpose: Reads sector data for the play simulation.
 */
 function getSector(currentSector, lineIndex, side)
   sd = getSide(currentSector, lineIndex, side)
@@ -1174,7 +1174,7 @@ end function
 
 /*
 * Function: getNextSector
-* Purpose: Reads or updates state used by the engine module behavior.
+* Purpose: Reads next sector data for the play simulation.
 */
 function getNextSector(line, sec)
   if line is void or sec is void then return void end if
@@ -1206,7 +1206,7 @@ end function
 
 /*
 * Function: P_FindLowestFloorSurrounding
-* Purpose: Implements the P_FindLowestFloorSurrounding routine for the gameplay and world simulation.
+* Purpose: Computes lowest floor surrounding values for the play simulation.
 */
 function P_FindLowestFloorSurrounding(sec)
   if sec is void then return 0 end if
@@ -1231,7 +1231,7 @@ end function
 
 /*
 * Function: P_FindHighestFloorSurrounding
-* Purpose: Implements the P_FindHighestFloorSurrounding routine for the gameplay and world simulation.
+* Purpose: Computes highest floor surrounding values for the play simulation.
 */
 function P_FindHighestFloorSurrounding(sec)
   if sec is void then return 0 end if
@@ -1256,7 +1256,7 @@ end function
 
 /*
 * Function: P_FindNextHighestFloor
-* Purpose: Implements the P_FindNextHighestFloor routine for the gameplay and world simulation.
+* Purpose: Computes next highest floor values for the play simulation.
 */
 function P_FindNextHighestFloor(sec, currentheight)
   if sec is void then return currentheight end if
@@ -1285,7 +1285,7 @@ end function
 
 /*
 * Function: P_FindLowestCeilingSurrounding
-* Purpose: Implements the P_FindLowestCeilingSurrounding routine for the gameplay and world simulation.
+* Purpose: Computes lowest ceiling surrounding values for the play simulation.
 */
 function P_FindLowestCeilingSurrounding(sec)
   if sec is void then return 0 end if
@@ -1310,7 +1310,7 @@ end function
 
 /*
 * Function: P_FindHighestCeilingSurrounding
-* Purpose: Implements the P_FindHighestCeilingSurrounding routine for the gameplay and world simulation.
+* Purpose: Computes highest ceiling surrounding values for the play simulation.
 */
 function P_FindHighestCeilingSurrounding(sec)
   if sec is void then return 0 end if
@@ -1335,7 +1335,7 @@ end function
 
 /*
 * Function: P_FindSectorFromLineTag
-* Purpose: Implements the P_FindSectorFromLineTag routine for the gameplay and world simulation.
+* Purpose: Computes sector from line tag values for the play simulation.
 */
 function P_FindSectorFromLineTag(line, start)
   if line is void then return -1 end if
@@ -1353,7 +1353,7 @@ end function
 
 /*
 * Function: P_FindMinSurroundingLight
-* Purpose: Implements the P_FindMinSurroundingLight routine for the gameplay and world simulation.
+* Purpose: Computes minimum surrounding light values for the play simulation.
 */
 function P_FindMinSurroundingLight(sector, max)
   if sector is void then return 0 end if
@@ -1378,7 +1378,7 @@ end function
 
 /*
 * Function: EV_DoDonut
-* Purpose: Implements the EV_DoDonut routine for the engine module behavior.
+* Purpose: Provides do donut helper behavior for the play simulation.
 */
 function EV_DoDonut(line)
   if line is void then return 0 end if

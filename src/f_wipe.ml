@@ -34,7 +34,7 @@ wipe_seed = 1234567
 
 /*
 * Function: _wipeRand
-* Purpose: Implements the _wipeRand routine for the internal module support.
+* Purpose: Provides rand helper behavior for the finale and screen-wipe.
 */
 function inline _wipeRand()
   global wipe_seed
@@ -45,7 +45,7 @@ end function
 
 /*
 * Function: _FW_ReadU16LE
-* Purpose: Implements the _FW_ReadU16LE routine for the internal module support.
+* Purpose: Reads U16 little-endian data for the finale and screen-wipe.
 */
 function inline _FW_ReadU16LE(buf, wordIndex)
   bi = wordIndex * 2
@@ -56,7 +56,7 @@ end function
 
 /*
 * Function: _FW_WriteU16LE
-* Purpose: Implements the _FW_WriteU16LE routine for the internal module support.
+* Purpose: Writes U16 little-endian data for the finale and screen-wipe.
 */
 function inline _FW_WriteU16LE(buf, wordIndex, v)
   bi = wordIndex * 2
@@ -69,7 +69,7 @@ end function
 
 /*
 * Function: _FW_ByteCopy
-* Purpose: Implements the _FW_ByteCopy routine for the internal module support.
+* Purpose: Provides byte copy helper behavior for the finale and screen-wipe.
 */
 function _FW_ByteCopy(dst, src, count)
   if typeof(dst) != "bytes" or typeof(src) != "bytes" then return end if
@@ -85,7 +85,7 @@ end function
 
 /*
 * Function: wipe_shittyColMajorXform
-* Purpose: Implements the wipe_shittyColMajorXform routine for the engine module behavior.
+* Purpose: Provides shitty col major xform helper behavior for the finale and screen-wipe.
 */
 function wipe_shittyColMajorXform(array16, width, height)
 
@@ -130,7 +130,7 @@ end function
 
 /*
 * Function: wipe_doColorXForm
-* Purpose: Implements the wipe_doColorXForm routine for the engine module behavior.
+* Purpose: Provides do color x form helper behavior for the finale and screen-wipe.
 */
 function wipe_doColorXForm(width, height, ticks)
   if typeof(wipe_scr) != "bytes" or typeof(wipe_scr_end) != "bytes" then return 1 end if
@@ -171,7 +171,7 @@ end function
 
 /*
 * Function: wipe_exitColorXForm
-* Purpose: Implements the wipe_exitColorXForm routine for the engine module behavior.
+* Purpose: Provides exit color x form helper behavior for the finale and screen-wipe.
 */
 function wipe_exitColorXForm(width, height, ticks)
   width = width
@@ -219,7 +219,7 @@ end function
 
 /*
 * Function: wipe_doMelt
-* Purpose: Implements the wipe_doMelt routine for the engine module behavior.
+* Purpose: Provides do melt helper behavior for the finale and screen-wipe.
 */
 function wipe_doMelt(width, height, ticks)
   if typeof(wipe_scr) != "bytes" or typeof(wipe_scr_start) != "bytes" or typeof(wipe_scr_end) != "bytes" then
@@ -283,7 +283,7 @@ end function
 
 /*
 * Function: wipe_exitMelt
-* Purpose: Implements the wipe_exitMelt routine for the engine module behavior.
+* Purpose: Provides exit melt helper behavior for the finale and screen-wipe.
 */
 function wipe_exitMelt(width, height, ticks)
   global wipe_y
@@ -318,7 +318,7 @@ end function
 
 /*
 * Function: wipe_EndScreen
-* Purpose: Implements the wipe_EndScreen routine for the engine module behavior.
+* Purpose: Controls wipe End Screen transitions in the finale and wipe system.
 */
 function wipe_EndScreen(x, y, width, height)
   global wipe_scr_end
@@ -334,8 +334,25 @@ function wipe_EndScreen(x, y, width, height)
 end function
 
 /*
+* Function: wipe_EndScreenFromBuffer
+* Purpose: Controls wipe End Screen From Buffer transitions in the finale and wipe system.
+*/
+function wipe_EndScreenFromBuffer(x, y, width, height, buf)
+  global wipe_scr_end
+
+  wipe_scr_end = screens[3]
+  if typeof(wipe_scr_end) == "bytes" and typeof(buf) == "bytes" then
+    _FW_ByteCopy(wipe_scr_end, buf, width * height)
+  end if
+  if typeof(V_DrawBlock) == "function" and typeof(wipe_scr_start) == "bytes" then
+    V_DrawBlock(x, y, 0, width, height, wipe_scr_start)
+  end if
+  return 0
+end function
+
+/*
 * Function: wipe_ScreenWipe
-* Purpose: Implements the wipe_ScreenWipe routine for the engine module behavior.
+* Purpose: Provides screen wipe helper behavior for the finale and screen-wipe.
 */
 function wipe_ScreenWipe(wipeno, x, y, width, height, ticks)
   global wipe_go

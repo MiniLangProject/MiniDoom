@@ -35,7 +35,7 @@ import s_sound
 
 /*
 * Function: P_GivePower
-* Purpose: Implements the P_GivePower routine for the gameplay and world simulation.
+* Purpose: Provides power helper behavior for the play simulation.
 */
 function P_GivePower(player, power)
   if player is void then return false end if
@@ -93,7 +93,7 @@ _piDiagHitCount = 0
 
 /*
 * Function: _PI_DiagHitEnabled
-* Purpose: Implements the _PI_DiagHitEnabled routine for the internal module support.
+* Purpose: Provides diag hit enabled helper behavior for the play simulation.
 */
 function _PI_DiagHitEnabled()
   global _piDiagHitInit
@@ -114,7 +114,7 @@ end function
 
 /*
 * Function: _PI_DiagHitLog
-* Purpose: Implements the _PI_DiagHitLog routine for the internal module support.
+* Purpose: Provides diag hit log helper behavior for the play simulation.
 */
 function inline _PI_DiagHitLog(msg)
   global _piDiagHitCount
@@ -127,7 +127,7 @@ end function
 
 /*
 * Function: _PI_AmmoIndex
-* Purpose: Implements the _PI_AmmoIndex routine for the internal module support.
+* Purpose: Provides ammo index helper behavior for the play simulation.
 */
 function inline _PI_AmmoIndex(a)
   if typeof(a) == "int" then
@@ -143,7 +143,7 @@ end function
 
 /*
 * Function: _PI_WeaponIndex
-* Purpose: Implements the _PI_WeaponIndex routine for the internal module support.
+* Purpose: Provides weapon index helper behavior for the play simulation.
 */
 function _PI_WeaponIndex(w)
   if typeof(w) == "int" then
@@ -164,7 +164,7 @@ end function
 
 /*
 * Function: _PI_PowerIndex
-* Purpose: Implements the _PI_PowerIndex routine for the internal module support.
+* Purpose: Provides power index helper behavior for the play simulation.
 */
 function _PI_PowerIndex(pw)
   if typeof(pw) == "int" then
@@ -187,7 +187,7 @@ end function
 
 /*
 * Function: _PI_CardIndex
-* Purpose: Implements the _PI_CardIndex routine for the internal module support.
+* Purpose: Provides card index helper behavior for the play simulation.
 */
 function _PI_CardIndex(card)
   if typeof(card) == "int" then
@@ -216,7 +216,7 @@ end function
 
 /*
 * Function: _PI_HasCard
-* Purpose: Implements the _PI_HasCard routine for the internal module support.
+* Purpose: Provides has card helper behavior for the play simulation.
 */
 function inline _PI_HasCard(player, card)
   if player is void then return false end if
@@ -228,7 +228,7 @@ end function
 
 /*
 * Function: _PI_IDiv
-* Purpose: Implements the _PI_IDiv routine for the internal module support.
+* Purpose: Performs integer division with play simulation rounding and guard rules.
 */
 function inline _PI_IDiv(a, b)
   if typeof(a) != "int" or typeof(b) != "int" or b == 0 then return 0 end if
@@ -239,7 +239,7 @@ end function
 
 /*
 * Function: _PI_WeaponInfo
-* Purpose: Implements the _PI_WeaponInfo routine for the internal module support.
+* Purpose: Provides weapon info helper behavior for the play simulation.
 */
 function inline _PI_WeaponInfo(weapon)
   wi = _PI_WeaponIndex(weapon)
@@ -251,7 +251,7 @@ end function
 
 /*
 * Function: _PI_HasWeapon
-* Purpose: Implements the _PI_HasWeapon routine for the internal module support.
+* Purpose: Provides has weapon helper behavior for the play simulation.
 */
 function inline _PI_HasWeapon(player, weapon)
   if player is void then return false end if
@@ -264,7 +264,7 @@ end function
 
 /*
 * Function: _PI_PlayerIndex
-* Purpose: Implements the _PI_PlayerIndex routine for the internal module support.
+* Purpose: Provides player index helper behavior for the play simulation.
 */
 function _PI_PlayerIndex(player)
   if player is void then return -1 end if
@@ -332,7 +332,7 @@ end function
 
 /*
 * Function: P_GiveAmmo
-* Purpose: Implements the P_GiveAmmo routine for the gameplay and world simulation.
+* Purpose: Provides ammo helper behavior for the play simulation.
 */
 function P_GiveAmmo(player, ammo, num)
   if player is void then return false end if
@@ -398,7 +398,7 @@ end function
 
 /*
 * Function: P_GiveWeapon
-* Purpose: Implements the P_GiveWeapon routine for the gameplay and world simulation.
+* Purpose: Provides weapon helper behavior for the play simulation.
 */
 function P_GiveWeapon(player, weapon, dropped)
   if player is void then return false end if
@@ -451,7 +451,7 @@ end function
 
 /*
 * Function: P_GiveBody
-* Purpose: Implements the P_GiveBody routine for the gameplay and world simulation.
+* Purpose: Provides body helper behavior for the play simulation.
 */
 function P_GiveBody(player, num)
   if player is void then return false end if
@@ -464,7 +464,7 @@ end function
 
 /*
 * Function: P_GiveArmor
-* Purpose: Implements the P_GiveArmor routine for the gameplay and world simulation.
+* Purpose: Provides armor helper behavior for the play simulation.
 */
 function P_GiveArmor(player, armortype)
   if player is void then return false end if
@@ -477,7 +477,7 @@ end function
 
 /*
 * Function: P_GiveCard
-* Purpose: Implements the P_GiveCard routine for the gameplay and world simulation.
+* Purpose: Provides card helper behavior for the play simulation.
 */
 function P_GiveCard(player, card)
   if player is void then return false end if
@@ -492,7 +492,7 @@ end function
 
 /*
 * Function: P_TouchSpecialThing
-* Purpose: Implements the P_TouchSpecialThing routine for the gameplay and world simulation.
+* Purpose: Provides special thing helper behavior for the play simulation.
 */
 function P_TouchSpecialThing(special, toucher)
   if special is void or toucher is void then return end if
@@ -735,7 +735,7 @@ end function
 
 /*
 * Function: P_KillMobj
-* Purpose: Implements the P_KillMobj routine for the gameplay and world simulation.
+* Purpose: Provides mobile-object helper behavior for the play simulation.
 */
 function P_KillMobj(source, target)
   if target is void then return end if
@@ -822,7 +822,7 @@ end function
 
 /*
 * Function: P_DamageMobj
-* Purpose: Implements the P_DamageMobj routine for the gameplay and world simulation.
+* Purpose: Provides mobile-object helper behavior for the play simulation.
 */
 function P_DamageMobj(target, inflictor, source, damage)
   if target is void then return end if

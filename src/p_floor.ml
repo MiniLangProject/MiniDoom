@@ -26,7 +26,7 @@ import sounds
 
 /*
 * Function: _FloorMakeThinker
-* Purpose: Advances per-tick logic for the internal module support.
+* Purpose: Provides make thinker helper behavior for the play simulation.
 */
 function inline _FloorMakeThinker(fn)
   return thinker_t(void, void, actionf_t(fn, void, void), void)
@@ -34,7 +34,7 @@ end function
 
 /*
 * Function: _FloorAddThinkerIfPossible
-* Purpose: Advances per-tick logic for the internal module support.
+* Purpose: Provides add thinker if possible helper behavior for the play simulation.
 */
 function inline _FloorAddThinkerIfPossible(th)
   if typeof(P_AddThinker) == "function" then P_AddThinker(th) end if
@@ -52,7 +52,7 @@ end function
 
 /*
 * Function: _FloorSoundOrg
-* Purpose: Implements the _FloorSoundOrg routine for the internal module support.
+* Purpose: Provides sound origin helper behavior for the play simulation.
 */
 function inline _FloorSoundOrg(sec)
   if sec is void then return void end if
@@ -61,7 +61,7 @@ end function
 
 /*
 * Function: _FloorSectorIndex
-* Purpose: Implements the _FloorSectorIndex routine for the internal module support.
+* Purpose: Provides sector index helper behavior for the play simulation.
 */
 function _FloorSectorIndex(sec)
   if sec is void then return -1 end if
@@ -76,7 +76,7 @@ end function
 
 /*
 * Function: _FloorTextureHeight
-* Purpose: Implements the _FloorTextureHeight routine for the internal module support.
+* Purpose: Provides texture height helper behavior for the play simulation.
 */
 function inline _FloorTextureHeight(tex)
   if typeof(textureheight) != "array" then return 0 end if
@@ -241,7 +241,7 @@ end function
 
 /*
 * Function: EV_DoFloor
-* Purpose: Implements the EV_DoFloor routine for the engine module behavior.
+* Purpose: Provides do floor helper behavior for the play simulation.
 */
 function EV_DoFloor(line, floortype)
   if line is void then return 0 end if
@@ -413,8 +413,8 @@ function EV_DoFloor(line, floortype)
   end function
 
   /*
-  * Function: EV_BuildStairs
-  * Purpose: Implements the EV_BuildStairs routine for the engine module behavior.
+* Function: EV_BuildStairs
+* Purpose: Provides build stairs helper behavior for the play simulation.
   */
   function EV_BuildStairs(line, type)
     if line is void then return 0 end if

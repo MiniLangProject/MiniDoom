@@ -53,7 +53,7 @@ end enum
 
 /*
 * Struct: point_t
-* Purpose: Stores runtime data for point type.
+* Purpose: Describes point geometry or asset data used by the intermission system.
 */
 struct point_t
   x
@@ -62,7 +62,7 @@ end struct
 
 /*
 * Struct: anim_t
-* Purpose: Stores runtime data for anim type.
+* Purpose: Stores anim data used by the intermission system.
 */
 struct anim_t
   type
@@ -80,7 +80,7 @@ end struct
 
 /*
 * Function: _WI_Point
-* Purpose: Implements the _WI_Point routine for the internal module support.
+* Purpose: Provides point helper behavior for the intermission.
 */
 function inline _WI_Point(x, y)
   return point_t(x, y)
@@ -88,7 +88,7 @@ end function
 
 /*
 * Function: _WI_AnimDefault
-* Purpose: Implements the _WI_AnimDefault routine for the internal module support.
+* Purpose: Provides default helper behavior for the intermission.
 */
 function inline _WI_AnimDefault()
   return anim_t(animenum_t.ANIM_ALWAYS, _WI_IDiv(TICRATE, 3), 1, _WI_Point(0, 0), 0, 0,[void, void, void], 0, -1, 0, 0)
@@ -96,7 +96,7 @@ end function
 
 /*
 * Function: _WI_Abs
-* Purpose: Implements the _WI_Abs routine for the internal module support.
+* Purpose: Provides absolute-value helper behavior for the intermission.
 */
 function inline _WI_Abs(v)
   if v < 0 then return - v end if
@@ -124,7 +124,7 @@ end function
 
 /*
 * Function: _WI_IDiv
-* Purpose: Implements the _WI_IDiv routine for the internal module support.
+* Purpose: Performs integer division with intermission rounding and guard rules.
 */
 function inline _WI_IDiv(a, b)
   ai = _WI_ToInt(a, 0)
@@ -137,7 +137,7 @@ end function
 
 /*
 * Function: _WI_Clamp
-* Purpose: Implements the _WI_Clamp routine for the internal module support.
+* Purpose: Clamps clamp values to the supported intermission range.
 */
 function inline _WI_Clamp(v, lo, hi)
   if v < lo then return lo end if
@@ -147,7 +147,7 @@ end function
 
 /*
 * Function: _WI_PatchW
-* Purpose: Implements the _WI_PatchW routine for the internal module support.
+* Purpose: Provides w helper behavior for the intermission.
 */
 function inline _WI_PatchW(p)
   if p is void then return 8 end if
@@ -157,7 +157,7 @@ end function
 
 /*
 * Function: _WI_PatchH
-* Purpose: Implements the _WI_PatchH routine for the internal module support.
+* Purpose: Provides h helper behavior for the intermission.
 */
 function inline _WI_PatchH(p)
   if p is void then return 8 end if
@@ -167,7 +167,7 @@ end function
 
 /*
 * Function: _WI_SafeDrawPatch
-* Purpose: Draws or renders output for the internal module support.
+* Purpose: Draws safe Draw Patch output for the intermission renderer.
 */
 function inline _WI_SafeDrawPatch(x, y, patch)
   if patch is void then return end if
@@ -306,7 +306,7 @@ wi_wbstart = void
 
 /*
 * Function: _WI_GetPlr
-* Purpose: Reads or updates state used by the internal module support.
+* Purpose: Reads plr data for the intermission.
 */
 function inline _WI_GetPlr(index)
   if typeof(plrs) != "array" then return void end if
@@ -343,7 +343,7 @@ end function
 
 /*
 * Function: _WI_TargetKills
-* Purpose: Reads or updates state used by the internal module support.
+* Purpose: Provides kills helper behavior for the intermission.
 */
 function _WI_TargetKills(index)
   p = _WI_GetPlr(index)
@@ -362,7 +362,7 @@ end function
 
 /*
 * Function: _WI_TargetItems
-* Purpose: Reads or updates state used by the internal module support.
+* Purpose: Provides items helper behavior for the intermission.
 */
 function _WI_TargetItems(index)
   p = _WI_GetPlr(index)
@@ -381,7 +381,7 @@ end function
 
 /*
 * Function: _WI_TargetSecrets
-* Purpose: Reads or updates state used by the internal module support.
+* Purpose: Provides secrets helper behavior for the intermission.
 */
 function _WI_TargetSecrets(index)
   p = _WI_GetPlr(index)
@@ -400,7 +400,7 @@ end function
 
 /*
 * Function: _WI_TargetTime
-* Purpose: Reads or updates state used by the internal module support.
+* Purpose: Provides time helper behavior for the intermission.
 */
 function inline _WI_TargetTime(index)
   p = _WI_GetPlr(index)
@@ -413,7 +413,7 @@ end function
 
 /*
 * Function: _WI_TargetPar
-* Purpose: Reads or updates state used by the internal module support.
+* Purpose: Provides par helper behavior for the intermission.
 */
 function inline _WI_TargetPar()
   if wbs is not void and typeof(wbs.partime) == "int" then return _WI_IDiv(wbs.partime, TICRATE) end if
@@ -422,7 +422,7 @@ end function
 
 /*
 * Function: WI_slamBackground
-* Purpose: Implements the WI_slamBackground routine for the intermission subsystem.
+* Purpose: Provides background helper behavior for the intermission.
 */
 function WI_slamBackground()
   if bg is not void then
@@ -444,7 +444,7 @@ end function
 
 /*
 * Function: WI_Responder
-* Purpose: Implements the WI_Responder routine for the intermission subsystem.
+* Purpose: Handles responder events for the intermission system.
 */
 function WI_Responder(ev)
   if ev is void then return false end if
@@ -458,7 +458,7 @@ end function
 
 /*
 * Function: WI_drawLF
-* Purpose: Draws or renders output for the intermission subsystem.
+* Purpose: Draws lf output for the intermission.
 */
 function WI_drawLF()
   if finished is not void then
@@ -468,7 +468,7 @@ end function
 
 /*
 * Function: WI_drawEL
-* Purpose: Draws or renders output for the intermission subsystem.
+* Purpose: Draws el output for the intermission.
 */
 function WI_drawEL()
   if entering is not void then
@@ -478,7 +478,7 @@ end function
 
 /*
 * Function: WI_drawOnLnode
-* Purpose: Draws or renders output for the intermission subsystem.
+* Purpose: Draws on lnode output for the intermission.
 */
 function WI_drawOnLnode(n, c)
   c = c
@@ -518,7 +518,7 @@ end function
 
 /*
 * Function: WI_updateAnimatedBack
-* Purpose: Advances per-tick logic for the intermission subsystem.
+* Purpose: Updates animated back state for the intermission.
 */
 function WI_updateAnimatedBack()
   if wbs is void then return end if
@@ -538,7 +538,7 @@ end function
 
 /*
 * Function: WI_drawAnimatedBack
-* Purpose: Draws or renders output for the intermission subsystem.
+* Purpose: Draws animated back output for the intermission.
 */
 function WI_drawAnimatedBack()
   if wbs is void then return end if
@@ -556,7 +556,7 @@ end function
 
 /*
 * Function: WI_drawNum
-* Purpose: Draws or renders output for the intermission subsystem.
+* Purpose: Draws number output for the intermission.
 */
 function WI_drawNum(x, y, n, digits)
   if digits < 0 then digits = 0 end if
@@ -643,7 +643,7 @@ end function
 
 /*
 * Function: WI_drawPercent
-* Purpose: Draws or renders output for the intermission subsystem.
+* Purpose: Draws percent output for the intermission.
 */
 function WI_drawPercent(x, y, p)
   n = _WI_ToInt(p, 0)
@@ -721,7 +721,7 @@ end function
 
 /*
 * Function: WI_drawTime
-* Purpose: Draws or renders output for the intermission subsystem.
+* Purpose: Draws time output for the intermission.
 */
 function WI_drawTime(x, y, t)
   if t < 0 then
@@ -755,7 +755,7 @@ end function
 
 /*
 * Function: WI_End
-* Purpose: Implements the WI_End routine for the intermission subsystem.
+* Purpose: Controls end transitions in the intermission system.
 */
 function WI_End()
   WI_unloadData()
@@ -776,7 +776,7 @@ end function
 
 /*
 * Function: WI_updateNoState
-* Purpose: Advances per-tick logic for the intermission subsystem.
+* Purpose: Updates no state state for the intermission.
 */
 function WI_updateNoState()
   if cnt > 0 then
@@ -806,7 +806,7 @@ end function
 
 /*
 * Function: WI_updateShowNextLoc
-* Purpose: Advances per-tick logic for the intermission subsystem.
+* Purpose: Updates show next location state for the intermission.
 */
 function WI_updateShowNextLoc()
   if cnt > 0 then
@@ -820,7 +820,7 @@ end function
 
 /*
 * Function: WI_drawShowNextLoc
-* Purpose: Draws or renders output for the intermission subsystem.
+* Purpose: Draws show next location output for the intermission.
 */
 function WI_drawShowNextLoc()
   WI_slamBackground()
@@ -838,7 +838,7 @@ end function
 
 /*
 * Function: WI_drawNoState
-* Purpose: Draws or renders output for the intermission subsystem.
+* Purpose: Draws no state output for the intermission.
 */
 function WI_drawNoState()
   WI_drawShowNextLoc()
@@ -846,7 +846,7 @@ end function
 
 /*
 * Function: WI_fragSum
-* Purpose: Implements the WI_fragSum routine for the intermission subsystem.
+* Purpose: Provides sum helper behavior for the intermission.
 */
 function WI_fragSum(playernum)
   sum = 0
@@ -893,7 +893,7 @@ end function
 
 /*
 * Function: WI_updateDeathmatchStats
-* Purpose: Advances per-tick logic for the intermission subsystem.
+* Purpose: Updates deathmatch stats state for the intermission.
 */
 function WI_updateDeathmatchStats()
   global acceleratestage
@@ -970,7 +970,7 @@ end function
 
 /*
 * Function: WI_drawDeathmatchStats
-* Purpose: Draws or renders output for the intermission subsystem.
+* Purpose: Draws deathmatch stats output for the intermission.
 */
 function WI_drawDeathmatchStats()
   WI_slamBackground()
@@ -1045,7 +1045,7 @@ end function
 
 /*
 * Function: WI_updateNetgameStats
-* Purpose: Advances per-tick logic for the intermission subsystem.
+* Purpose: Updates netgame stats state for the intermission.
 */
 function WI_updateNetgameStats()
   global acceleratestage
@@ -1173,7 +1173,7 @@ end function
 
 /*
 * Function: WI_drawNetgameStats
-* Purpose: Draws or renders output for the intermission subsystem.
+* Purpose: Draws netgame stats output for the intermission.
 */
 function WI_drawNetgameStats()
   WI_slamBackground()
@@ -1240,7 +1240,7 @@ end function
 
 /*
 * Function: WI_updateStats
-* Purpose: Advances per-tick logic for the intermission subsystem.
+* Purpose: Updates stats state for the intermission.
 */
 function WI_updateStats()
   global acceleratestage
@@ -1326,7 +1326,7 @@ end function
 
 /*
 * Function: WI_drawStats
-* Purpose: Draws or renders output for the intermission subsystem.
+* Purpose: Draws stats output for the intermission.
 */
 function WI_drawStats()
   WI_slamBackground()
@@ -1360,7 +1360,7 @@ end function
 
 /*
 * Function: WI_checkForAccelerate
-* Purpose: Evaluates conditions and returns a decision for the intermission subsystem.
+* Purpose: Finds check For Accelerate information for intermission processing.
 */
 function WI_checkForAccelerate()
   global acceleratestage
@@ -1405,7 +1405,7 @@ end function
 
 /*
 * Function: WI_loadData
-* Purpose: Loads and prepares data required by the intermission subsystem.
+* Purpose: Reads data data for the intermission.
 */
 function WI_loadData()
   global bg
@@ -1509,7 +1509,7 @@ end function
 
 /*
 * Function: WI_unloadData
-* Purpose: Loads and prepares data required by the intermission subsystem.
+* Purpose: Loads unload Data resources used by the intermission system.
 */
 function WI_unloadData()
   global bg
@@ -1636,7 +1636,7 @@ end function
 
 /*
 * Function: WI_Ticker
-* Purpose: Advances per-tick logic for the intermission subsystem.
+* Purpose: Advances ticker logic during the intermission tick.
 */
 function WI_Ticker()
   if not wi_started then return end if
@@ -1670,7 +1670,7 @@ end function
 
 /*
 * Function: WI_Drawer
-* Purpose: Draws or renders output for the intermission subsystem.
+* Purpose: Provides drawer helper behavior for the intermission.
 */
 function WI_Drawer()
   if not wi_started then return end if

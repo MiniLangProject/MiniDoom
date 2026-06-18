@@ -29,81 +29,107 @@ import doomdef
 import std.math
 
 /*
-* Function: waveOutOpen
-* Purpose: Implements the waveOutOpen routine for the engine module behavior.
-*/
+ * Function: waveOutOpen
+ *
+ * Purpose: Maps the external waveOutOpen binding used for audio output.
+ */
+
 extern function waveOutOpen(phwo as bytes, dev as u32, pwfx as bytes, cb as ptr, inst as ptr, flags as u32) from "winmm.dll" symbol "waveOutOpen" returns u32
 
 /*
-* Function: waveOutPrepareHeader
-* Purpose: Implements the waveOutPrepareHeader routine for the engine module behavior.
-*/
+ * Function: waveOutPrepareHeader
+ *
+ * Purpose: Maps the external waveOutPrepareHeader binding used for audio output.
+ */
+
 extern function waveOutPrepareHeader(hwo as ptr, pwh as ptr, cbwh as u32) from "winmm.dll" symbol "waveOutPrepareHeader" returns u32
 
 /*
-* Function: waveOutWrite
-* Purpose: Implements the waveOutWrite routine for the engine module behavior.
-*/
+ * Function: waveOutWrite
+ *
+ * Purpose: Maps the external waveOutWrite binding used for audio output.
+ */
+
 extern function waveOutWrite(hwo as ptr, pwh as ptr, cbwh as u32) from "winmm.dll" symbol "waveOutWrite" returns u32
 
 /*
-* Function: waveOutUnprepareHeader
-* Purpose: Implements the waveOutUnprepareHeader routine for the engine module behavior.
-*/
+ * Function: waveOutUnprepareHeader
+ *
+ * Purpose: Maps the external waveOutUnprepareHeader binding used for audio output.
+ */
+
 extern function waveOutUnprepareHeader(hwo as ptr, pwh as ptr, cbwh as u32) from "winmm.dll" symbol "waveOutUnprepareHeader" returns u32
 
 /*
-* Function: waveOutReset
-* Purpose: Reads or updates state used by the engine module behavior.
-*/
+ * Function: waveOutReset
+ *
+ * Purpose: Maps the external waveOutReset binding used for audio output.
+ */
+
 extern function waveOutReset(hwo as ptr) from "winmm.dll" symbol "waveOutReset" returns u32
 
 /*
-* Function: waveOutClose
-* Purpose: Implements the waveOutClose routine for the engine module behavior.
-*/
+ * Function: waveOutClose
+ *
+ * Purpose: Maps the external waveOutClose binding used for audio output.
+ */
+
 extern function waveOutClose(hwo as ptr) from "winmm.dll" symbol "waveOutClose" returns u32
 
 /*
-* Function: midiOutOpen
-* Purpose: Implements the midiOutOpen routine for the engine module behavior.
-*/
+ * Function: midiOutOpen
+ *
+ * Purpose: Maps the external midiOutOpen binding used for audio output.
+ */
+
 extern function midiOutOpen(phmo as bytes, dev as u32, cb as ptr, inst as ptr, flags as u32) from "winmm.dll" symbol "midiOutOpen" returns u32
 
 /*
-* Function: midiOutShortMsg
-* Purpose: Implements the midiOutShortMsg routine for the engine module behavior.
-*/
+ * Function: midiOutShortMsg
+ *
+ * Purpose: Maps the external midiOutShortMsg binding used for audio output.
+ */
+
 extern function midiOutShortMsg(hmo as ptr, msg as u32) from "winmm.dll" symbol "midiOutShortMsg" returns u32
 
 /*
-* Function: midiOutReset
-* Purpose: Reads or updates state used by the engine module behavior.
-*/
+ * Function: midiOutReset
+ *
+ * Purpose: Maps the external midiOutReset binding used for audio output.
+ */
+
 extern function midiOutReset(hmo as ptr) from "winmm.dll" symbol "midiOutReset" returns u32
 
 /*
-* Function: midiOutClose
-* Purpose: Implements the midiOutClose routine for the engine module behavior.
-*/
+ * Function: midiOutClose
+ *
+ * Purpose: Maps the external midiOutClose binding used for audio output.
+ */
+
 extern function midiOutClose(hmo as ptr) from "winmm.dll" symbol "midiOutClose" returns u32
 
 /*
-* Function: midiOutSetVolume
-* Purpose: Reads or updates state used by the engine module behavior.
-*/
+ * Function: midiOutSetVolume
+ *
+ * Purpose: Maps the external midiOutSetVolume binding used for audio output.
+ */
+
 extern function midiOutSetVolume(hmo as ptr, vol as u32) from "winmm.dll" symbol "midiOutSetVolume" returns u32
 
 /*
-* Function: GlobalAlloc
-* Purpose: Implements the GlobalAlloc routine for the engine module behavior.
-*/
+ * Function: GlobalAlloc
+ *
+ * Purpose: Maps the external GlobalAlloc binding used for audio output.
+ */
+
 extern function GlobalAlloc(flags as u32, size as u32) from "kernel32.dll" symbol "GlobalAlloc" returns ptr
 
 /*
-* Function: GlobalFree
-* Purpose: Implements the GlobalFree routine for the engine module behavior.
-*/
+ * Function: GlobalFree
+ *
+ * Purpose: Maps the external GlobalFree binding used for audio output.
+ */
+
 extern function GlobalFree(mem as ptr) from "kernel32.dll" symbol "GlobalFree" returns ptr
 
 /*
@@ -131,7 +157,7 @@ const _IS_GMEM_FIXED = 0x0000
 
 /*
 * Struct: _I_wavebuf_t
-* Purpose: Stores runtime data for I wavebuf type.
+* Purpose: Stores wavebuf data used by the sound backend system.
 */
 struct _I_wavebuf_t
   dataPtr
@@ -192,7 +218,7 @@ _I_soundTimerEnabled = false
 
 /*
 * Function: _IS_IsSeq
-* Purpose: Implements the _IS_IsSeq routine for the internal module support.
+* Purpose: Checks is sequence conditions for the sound backend.
 */
 function inline _IS_IsSeq(v)
   t = typeof(v)
@@ -201,7 +227,7 @@ end function
 
 /*
 * Function: _IS_ToInt
-* Purpose: Implements the _IS_ToInt routine for the internal module support.
+* Purpose: Checks to int conditions for the sound backend.
 */
 function inline _IS_ToInt(v, fallback)
   if typeof(v) == "int" then return v end if
@@ -222,7 +248,7 @@ end function
 
 /*
 * Function: _ISnd_IDiv
-* Purpose: Implements the _ISnd_IDiv routine for the internal module support.
+* Purpose: Performs integer division with sound backend rounding and guard rules.
 */
 function inline _ISnd_IDiv(a, b)
   ai = _IS_ToInt(a, 0)
@@ -235,7 +261,7 @@ end function
 
 /*
 * Function: _IS_Clamp
-* Purpose: Implements the _IS_Clamp routine for the internal module support.
+* Purpose: Clamps clamp values to the supported sound backend range.
 */
 function inline _IS_Clamp(v, lo, hi)
   n = _IS_ToInt(v, lo)
@@ -246,7 +272,7 @@ end function
 
 /*
 * Function: _IS_NormalizeVolume127
-* Purpose: Implements the _IS_NormalizeVolume127 routine for the internal module support.
+* Purpose: Checks normalize volume127 conditions for the sound backend.
 */
 function inline _IS_NormalizeVolume127(v)
   n = _IS_Clamp(v, 0, 127)
@@ -258,7 +284,7 @@ end function
 
 /*
 * Function: _IS_CalcStereoVolumes
-* Purpose: Implements the _IS_CalcStereoVolumes routine for the internal module support.
+* Purpose: Checks calc stereo volumes conditions for the sound backend.
 */
 function inline _IS_CalcStereoVolumes(vol127, sep)
   v = _IS_Clamp(vol127, 0, 127)
@@ -275,7 +301,7 @@ end function
 
 /*
 * Function: _IS_WriteU16
-* Purpose: Implements the _IS_WriteU16 routine for the internal module support.
+* Purpose: Checks write U16 conditions for the engine.
 */
 function inline _IS_WriteU16(buf, off, value)
   if typeof(buf) != "bytes" then return end if
@@ -287,7 +313,7 @@ end function
 
 /*
 * Function: _IS_WriteU32
-* Purpose: Implements the _IS_WriteU32 routine for the internal module support.
+* Purpose: Checks write U32 conditions for the engine.
 */
 function inline _IS_WriteU32(buf, off, value)
   if typeof(buf) != "bytes" then return end if
@@ -301,7 +327,7 @@ end function
 
 /*
 * Function: _IS_WriteU64
-* Purpose: Implements the _IS_WriteU64 routine for the internal module support.
+* Purpose: Checks write U64 conditions for the sound backend.
 */
 function inline _IS_WriteU64(buf, off, value)
   if typeof(buf) != "bytes" then return end if
@@ -314,7 +340,7 @@ end function
 
 /*
 * Function: _IS_ReadU16
-* Purpose: Implements the _IS_ReadU16 routine for the internal module support.
+* Purpose: Checks read U16 conditions for the engine.
 */
 function inline _IS_ReadU16(buf, off)
   if typeof(buf) != "bytes" then return 0 end if
@@ -325,7 +351,7 @@ end function
 
 /*
 * Function: _IS_ReadU32
-* Purpose: Implements the _IS_ReadU32 routine for the internal module support.
+* Purpose: Checks read U32 conditions for the engine.
 */
 function inline _IS_ReadU32(buf, off)
   if typeof(buf) != "bytes" then return 0 end if
@@ -336,7 +362,7 @@ end function
 
 /*
 * Function: _IS_ReadU64
-* Purpose: Implements the _IS_ReadU64 routine for the internal module support.
+* Purpose: Checks read U64 conditions for the sound backend.
 */
 function inline _IS_ReadU64(buf, off)
   lo = _IS_ReadU32(buf, off)
@@ -346,7 +372,7 @@ end function
 
 /*
 * Function: _IS_EnumIndex
-* Purpose: Implements the _IS_EnumIndex routine for the internal module support.
+* Purpose: Checks enum index conditions for the sound backend.
 */
 function inline _IS_EnumIndex(v, fallback)
   if typeof(v) == "int" then return v end if
@@ -357,7 +383,7 @@ end function
 
 /*
 * Function: _IS_TickMs
-* Purpose: Implements the _IS_TickMs routine for the internal module support.
+* Purpose: Advances tick Ms logic during the sound backend tick.
 */
 function inline _IS_TickMs()
   if typeof(_I_GetTickCount) == "function" then
@@ -452,7 +478,7 @@ end function
 
 /*
 * Function: _IS_ResetChannels
-* Purpose: Reads or updates state used by the internal module support.
+* Purpose: Clears reset Channels state before the next sound backend update.
 */
 function _IS_ResetChannels()
   global _I_chActive
@@ -482,7 +508,7 @@ end function
 
 /*
 * Function: _IS_SetChannelVolumes
-* Purpose: Reads or updates state used by the internal module support.
+* Purpose: Checks set channel volumes conditions for the sound backend.
 */
 function inline _IS_SetChannelVolumes(slot, vol, sep)
   if slot < 0 or slot >= _IS_NUM_MIX_CHANNELS then return end if
@@ -500,7 +526,7 @@ end function
 
 /*
 * Function: _IS_LoadSfxData
-* Purpose: Loads and prepares data required by the internal module support.
+* Purpose: Checks load SFX data conditions for the sound backend.
 */
 function _IS_LoadSfxData(sid)
   _IS_EnsureSfxCacheSize()
@@ -541,7 +567,7 @@ end function
 
 /*
 * Function: _IS_ShouldSingleInstance
-* Purpose: Implements the _IS_ShouldSingleInstance routine for the internal module support.
+* Purpose: Checks should single instance conditions for the sound backend.
 */
 function inline _IS_ShouldSingleInstance(sid)
   sawup = _IS_EnumIndex(sfxenum_t.sfx_sawup, -1000)
@@ -556,7 +582,7 @@ end function
 
 /*
 * Function: _IS_FindChannelForNewSound
-* Purpose: Implements the _IS_FindChannelForNewSound routine for the internal module support.
+* Purpose: Checks find channel for new sound conditions for the sound backend.
 */
 function _IS_FindChannelForNewSound(sid)
 
@@ -593,7 +619,7 @@ end function
 
 /*
 * Function: _IS_PitchToStep
-* Purpose: Implements the _IS_PitchToStep routine for the internal module support.
+* Purpose: Checks pitch to step conditions for the sound backend.
 */
 function inline _IS_PitchToStep(pitch, rate)
   _IS_InitStepTable()
@@ -611,7 +637,7 @@ end function
 
 /*
 * Function: _IS_FindChannelByHandle
-* Purpose: Implements the _IS_FindChannelByHandle routine for the internal module support.
+* Purpose: Checks find channel by handle conditions for the sound backend.
 */
 function inline _IS_FindChannelByHandle(handle)
   h = _IS_ToInt(handle, -1)
@@ -642,7 +668,7 @@ end function
 
 /*
 * Function: _IS_WaveFormat
-* Purpose: Implements the _IS_WaveFormat routine for the internal module support.
+* Purpose: Checks wave format conditions for the sound backend.
 */
 function inline _IS_WaveFormat()
   wfx = bytes(18, 0)
@@ -715,7 +741,7 @@ end function
 
 /*
 * Function: _IS_WaveShutdown
-* Purpose: Implements the _IS_WaveShutdown routine for the internal module support.
+* Purpose: Shuts down wave Shutdown resources owned by the sound backend system.
 */
 function _IS_WaveShutdown()
   global _I_waveBuffers
@@ -753,7 +779,7 @@ end function
 
 /*
 * Function: _IS_WaveIsDone
-* Purpose: Implements the _IS_WaveIsDone routine for the internal module support.
+* Purpose: Checks wave is done conditions for the sound backend.
 */
 function inline _IS_WaveIsDone(wb)
   if wb is void then return false end if
@@ -769,7 +795,7 @@ end function
 
 /*
 * Function: _IS_WaveRefresh
-* Purpose: Implements the _IS_WaveRefresh routine for the internal module support.
+* Purpose: Checks wave refresh conditions for the sound backend.
 */
 function inline _IS_WaveRefresh()
   if not _IS_IsSeq(_I_waveBuffers) then return end if
@@ -787,7 +813,7 @@ end function
 
 /*
 * Function: _IS_WaveFindFreeBuffer
-* Purpose: Implements the _IS_WaveFindFreeBuffer routine for the internal module support.
+* Purpose: Finds wave Find Free Buffer information for sound backend processing.
 */
 function inline _IS_WaveFindFreeBuffer()
   if not _IS_IsSeq(_I_waveBuffers) then return -1 end if
@@ -806,7 +832,7 @@ end function
 
 /*
 * Function: _IS_ClampS16
-* Purpose: Implements the _IS_ClampS16 routine for the internal module support.
+* Purpose: Clamps clamp S16 values to the supported sound backend range.
 */
 function inline _IS_ClampS16(v)
   n = _IS_ToInt(v, 0)
@@ -817,7 +843,7 @@ end function
 
 /*
 * Function: _IS_MixToBytes
-* Purpose: Implements the _IS_MixToBytes routine for the internal module support.
+* Purpose: Checks mix to bytes conditions for the sound backend.
 */
 function _IS_MixToBytes(outb)
   if typeof(outb) != "bytes" then return end if
@@ -882,7 +908,7 @@ end function
 
 /*
 * Function: _IS_WaveSubmitMixedBuffer
-* Purpose: Implements the _IS_WaveSubmitMixedBuffer routine for the internal module support.
+* Purpose: Checks wave submit mixed buffer conditions for the sound backend.
 */
 function _IS_WaveSubmitMixedBuffer()
   if not _I_waveReady then return end if
@@ -930,7 +956,7 @@ end function
 
 /*
 * Function: _IS_MidiShutdown
-* Purpose: Implements the _IS_MidiShutdown routine for the internal module support.
+* Purpose: Shuts down midi Shutdown resources owned by the sound backend system.
 */
 function inline _IS_MidiShutdown()
   global _I_midiHandle
@@ -944,7 +970,7 @@ end function
 
 /*
 * Function: _IS_MidiMsg2
-* Purpose: Implements the _IS_MidiMsg2 routine for the internal module support.
+* Purpose: Checks MIDI msg2 conditions for the sound backend.
 */
 function inline _IS_MidiMsg2(status, data1)
   global _I_midiDbgPrinted
@@ -963,7 +989,7 @@ end function
 
 /*
 * Function: _IS_MidiMsg3
-* Purpose: Implements the _IS_MidiMsg3 routine for the internal module support.
+* Purpose: Checks MIDI msg3 conditions for the sound backend.
 */
 function inline _IS_MidiMsg3(status, data1, data2)
   global _I_midiDbgPrinted
@@ -983,7 +1009,7 @@ end function
 
 /*
 * Function: _IS_MidiAllNotesOff
-* Purpose: Implements the _IS_MidiAllNotesOff routine for the internal module support.
+* Purpose: Checks MIDI all notes off conditions for the sound backend.
 */
 function inline _IS_MidiAllNotesOff()
   if _I_midiHandle == 0 then return end if
@@ -998,7 +1024,7 @@ end function
 
 /*
 * Function: _IS_MusicResetRuntime
-* Purpose: Reads or updates state used by the internal module support.
+* Purpose: Clears music Reset Runtime state before the next sound backend update.
 */
 function _IS_MusicResetRuntime()
   global _I_musicChanVel
@@ -1018,7 +1044,7 @@ end function
 
 /*
 * Function: _IS_MusCtrlToMidi
-* Purpose: Implements the _IS_MusCtrlToMidi routine for the internal module support.
+* Purpose: Checks MUS ctrl to MIDI conditions for the sound backend.
 */
 function inline _IS_MusCtrlToMidi(ctrl)
   c = _IS_ToInt(ctrl, -1)
@@ -1042,7 +1068,7 @@ end function
 
 /*
 * Function: _IS_MapMusChannel
-* Purpose: Implements the _IS_MapMusChannel routine for the internal module support.
+* Purpose: Checks map MUS channel conditions for the sound backend.
 */
 function _IS_MapMusChannel(mchan)
   mc = _IS_Clamp(mchan, 0, 15)
@@ -1070,7 +1096,7 @@ end function
 
 /*
 * Function: _IS_MusicScale7
-* Purpose: Implements the _IS_MusicScale7 routine for the internal module support.
+* Purpose: Checks music scale7 conditions for the sound backend.
 */
 function inline _IS_MusicScale7(v)
   x = _IS_Clamp(v, 0, 127)
@@ -1079,7 +1105,7 @@ end function
 
 /*
 * Function: _IS_ReadMusVarLen
-* Purpose: Implements the _IS_ReadMusVarLen routine for the internal module support.
+* Purpose: Checks read MUS var len conditions for the sound backend.
 */
 function inline _IS_ReadMusVarLen(data, posref)
   if typeof(data) != "bytes" then return 0 end if
@@ -1100,7 +1126,7 @@ end function
 
 /*
 * Function: _IS_MusicFindSlotIndex
-* Purpose: Implements the _IS_MusicFindSlotIndex routine for the internal module support.
+* Purpose: Finds music Find Slot Index information for sound backend processing.
 */
 function inline _IS_MusicFindSlotIndex(handle)
   if not _IS_IsSeq(_I_songData) then return -1 end if
@@ -1120,7 +1146,7 @@ end function
 
 /*
 * Function: _IS_MusicSetSlotPlaying
-* Purpose: Reads or updates state used by the internal module support.
+* Purpose: Checks music set slot playing conditions for the sound backend.
 */
 function inline _IS_MusicSetSlotPlaying(handle, playing, looping)
   idx = _IS_MusicFindSlotIndex(handle)
@@ -1224,7 +1250,7 @@ end function
 
 /*
 * Function: _IS_MusicProcessSlice
-* Purpose: Implements the _IS_MusicProcessSlice routine for the internal module support.
+* Purpose: Checks music process slice conditions for the sound backend.
 */
 function _IS_MusicProcessSlice()
   global _I_musicPos
@@ -1367,7 +1393,7 @@ end function
 
 /*
 * Function: _IS_MusicRunTicks
-* Purpose: Implements the _IS_MusicRunTicks routine for the internal module support.
+* Purpose: Advances music Run Ticks logic during the sound backend tick.
 */
 function _IS_MusicRunTicks(ticks)
   global _I_musicDelay
@@ -1423,7 +1449,7 @@ end function
 
 /*
 * Function: _IS_MusicTicker
-* Purpose: Advances per-tick logic for the internal module support.
+* Purpose: Advances music Ticker logic during the sound backend tick.
 */
 function _IS_MusicTicker()
   global _I_musicLastMs
@@ -1470,7 +1496,7 @@ end function
 
 /*
 * Function: I_UpdateSound
-* Purpose: Advances per-tick logic for the platform layer.
+* Purpose: Updates sound state for the sound backend.
 */
 function I_UpdateSound()
   _IS_MusicTicker()
@@ -1478,7 +1504,7 @@ end function
 
 /*
 * Function: I_SubmitSound
-* Purpose: Implements the I_SubmitSound routine for the platform layer.
+* Purpose: Provides sound helper behavior for the sound backend.
 */
 function I_SubmitSound()
 
@@ -1491,7 +1517,7 @@ end function
 
 /*
 * Function: I_ShutdownSound
-* Purpose: Implements the I_ShutdownSound routine for the platform layer.
+* Purpose: Shuts down shutdown Sound resources owned by the sound backend system.
 */
 function I_ShutdownSound()
   _IS_StopAllSfx()
@@ -1501,7 +1527,7 @@ end function
 
 /*
 * Function: I_SetChannels
-* Purpose: Reads or updates state used by the platform layer.
+* Purpose: Updates channels state for the sound backend.
 */
 function I_SetChannels()
   _IS_InitStepTable()
@@ -1510,7 +1536,7 @@ end function
 
 /*
 * Function: I_GetSfxLumpNum
-* Purpose: Reads or updates state used by the platform layer.
+* Purpose: Reads SFX lump number data for the sound backend.
 */
 function I_GetSfxLumpNum(sfxinfo)
   if sfxinfo is void or sfxinfo.name is void then
@@ -1565,7 +1591,7 @@ end function
 
 /*
 * Function: I_SoundIsPlaying
-* Purpose: Implements the I_SoundIsPlaying routine for the platform layer.
+* Purpose: Provides is playing helper behavior for the sound backend.
 */
 function I_SoundIsPlaying(handle)
   slot = _IS_FindChannelByHandle(handle)
@@ -1583,7 +1609,7 @@ end function
 
 /*
 * Function: I_UpdateSoundParams
-* Purpose: Advances per-tick logic for the platform layer.
+* Purpose: Updates sound params state for the sound backend.
 */
 function I_UpdateSoundParams(handle, vol, sep, pitch)
   slot = _IS_FindChannelByHandle(handle)
@@ -1617,7 +1643,7 @@ end function
 
 /*
 * Function: I_ShutdownMusic
-* Purpose: Implements the I_ShutdownMusic routine for the platform layer.
+* Purpose: Shuts down shutdown Music resources owned by the sound backend system.
 */
 function I_ShutdownMusic()
   _IS_MusicStopInternal(false)
@@ -1626,7 +1652,7 @@ end function
 
 /*
 * Function: I_SetMusicVolume
-* Purpose: Reads or updates state used by the platform layer.
+* Purpose: Updates music volume state for the sound backend.
 */
 function I_SetMusicVolume(volume)
   global _I_musicVolume
@@ -1642,7 +1668,7 @@ end function
 
 /*
 * Function: I_SetSfxVolume
-* Purpose: Reads or updates state used by the platform layer.
+* Purpose: Updates SFX volume state for the sound backend.
 */
 function I_SetSfxVolume(volume)
   global _I_sfxVolume
@@ -1651,7 +1677,7 @@ end function
 
 /*
 * Function: I_PauseSong
-* Purpose: Implements the I_PauseSong routine for the platform layer.
+* Purpose: Runs song lifecycle logic for the sound backend.
 */
 function I_PauseSong(handle)
   global _I_musicPaused
@@ -1666,7 +1692,7 @@ end function
 
 /*
 * Function: I_ResumeSong
-* Purpose: Implements the I_ResumeSong routine for the platform layer.
+* Purpose: Runs song lifecycle logic for the sound backend.
 */
 function I_ResumeSong(handle)
   global _I_musicPaused
@@ -1682,7 +1708,7 @@ end function
 
 /*
 * Function: I_RegisterSong
-* Purpose: Implements the I_RegisterSong routine for the platform layer.
+* Purpose: Adds song entries to the sound backend.
 */
 function I_RegisterSong(data)
   global _I_nextSongHandle
@@ -1697,7 +1723,7 @@ end function
 
 /*
 * Function: I_PlaySong
-* Purpose: Implements the I_PlaySong routine for the platform layer.
+* Purpose: Runs song lifecycle logic for the sound backend.
 */
 function I_PlaySong(handle, looping)
   h = _IS_ToInt(handle, -1)
@@ -1731,7 +1757,7 @@ end function
 
 /*
 * Function: I_UnRegisterSong
-* Purpose: Implements the I_UnRegisterSong routine for the platform layer.
+* Purpose: Provides register song helper behavior for the sound backend.
 */
 function I_UnRegisterSong(handle)
   global _I_songData
@@ -1758,7 +1784,7 @@ end function
 
 /*
 * Function: I_QrySongPlaying
-* Purpose: Implements the I_QrySongPlaying routine for the platform layer.
+* Purpose: Provides song playing helper behavior for the sound backend.
 */
 function I_QrySongPlaying(handle)
   h = _IS_ToInt(handle, -1)
@@ -1768,7 +1794,7 @@ end function
 
 /*
 * Function: myioctl
-* Purpose: Implements the myioctl routine for the engine module behavior.
+* Purpose: Provides myioctl helper behavior for the sound backend.
 */
 function myioctl(fd, req, arg)
   fd = fd
@@ -1779,7 +1805,7 @@ end function
 
 /*
 * Function: getsfx
-* Purpose: Reads or updates state used by the engine module behavior.
+* Purpose: Provides getsfx helper behavior for the sound backend.
 */
 function getsfx(name, lenOut)
   if typeof(name) != "string" then
@@ -1800,7 +1826,7 @@ end function
 
 /*
 * Function: addsfx
-* Purpose: Implements the addsfx routine for the engine module behavior.
+* Purpose: Provides addsfx helper behavior for the sound backend.
 */
 function addsfx(sfxid, volume, step, seperation)
   global _I_nextHandle
@@ -1836,7 +1862,7 @@ end function
 
 /*
 * Function: I_HandleSoundTimer
-* Purpose: Implements the I_HandleSoundTimer routine for the platform layer.
+* Purpose: Processes sound timer events for the sound backend.
 */
 function I_HandleSoundTimer()
 
@@ -1844,7 +1870,7 @@ end function
 
 /*
 * Function: I_SoundSetTimer
-* Purpose: Reads or updates state used by the platform layer.
+* Purpose: Updates timer state for the sound backend.
 */
 function I_SoundSetTimer(ticks)
   ticks = ticks
@@ -1854,7 +1880,7 @@ end function
 
 /*
 * Function: I_SoundDelTimer
-* Purpose: Implements the I_SoundDelTimer routine for the platform layer.
+* Purpose: Provides del timer helper behavior for the sound backend.
 */
 function I_SoundDelTimer()
   global _I_soundTimerEnabled

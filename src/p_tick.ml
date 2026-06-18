@@ -43,7 +43,7 @@ end function
 
 /*
 * Function: P_RegisterThinkerOwner
-* Purpose: Advances per-tick logic for the gameplay and world simulation.
+* Purpose: Advances register Thinker Owner logic during the play simulation tick.
 */
 function P_RegisterThinkerOwner(node, owner)
   global _PTK_owner_nodes
@@ -56,7 +56,7 @@ end function
 
 /*
 * Function: P_ResolveThinkerOwner
-* Purpose: Advances per-tick logic for the gameplay and world simulation.
+* Purpose: Advances resolve Thinker Owner logic during the play simulation tick.
 */
 function P_ResolveThinkerOwner(node)
   if node is void then return void end if
@@ -73,7 +73,7 @@ end function
 
 /*
 * Function: P_UnregisterThinkerOwner
-* Purpose: Advances per-tick logic for the gameplay and world simulation.
+* Purpose: Advances unregister Thinker Owner logic during the play simulation tick.
 */
 function P_UnregisterThinkerOwner(node)
   global _PTK_owner_nodes
@@ -93,7 +93,7 @@ end function
 
 /*
 * Function: P_AddThinker
-* Purpose: Advances per-tick logic for the gameplay and world simulation.
+* Purpose: Adds thinker entries to the play simulation.
 */
 function P_AddThinker(thinker)
 
@@ -108,7 +108,7 @@ end function
 
 /*
 * Function: P_RemoveThinker
-* Purpose: Advances per-tick logic for the gameplay and world simulation.
+* Purpose: Removes remove Thinker data from the play simulation system.
 */
 function P_RemoveThinker(thinker)
 
@@ -123,7 +123,7 @@ end function
 
 /*
 * Function: P_AllocateThinker
-* Purpose: Advances per-tick logic for the gameplay and world simulation.
+* Purpose: Advances allocate Thinker logic during the play simulation tick.
 */
 function P_AllocateThinker(thinker)
 
@@ -132,7 +132,7 @@ end function
 
 /*
 * Function: P_RunThinkers
-* Purpose: Advances per-tick logic for the gameplay and world simulation.
+* Purpose: Advances run Thinkers logic during the play simulation tick.
 */
 function P_RunThinkers()
   cur = thinkercap.next
@@ -158,6 +158,9 @@ function P_RunThinkers()
           o = P_ResolveThinkerOwner(cur)
           if o is not void then owner = o end if
         end if
+        isMobj = false
+        if typeof(P_MobjThinker) == "function" and cur.func.acp1 == P_MobjThinker then isMobj = true end if
+        if typeof(_D_ProfileThinker) == "function" then _D_ProfileThinker(isMobj) end if
         cur.func.acp1(owner)
       end if
     end if
@@ -168,7 +171,7 @@ end function
 
 /*
 * Function: P_Ticker
-* Purpose: Advances per-tick logic for the gameplay and world simulation.
+* Purpose: Advances ticker logic during the play simulation tick.
 */
 function P_Ticker()
   global leveltime
@@ -182,6 +185,9 @@ function P_Ticker()
   end if
 
   i = 0
+  if typeof(_D_ProfileGameTick) == "function" then _D_ProfileGameTick() end if
+  t0 = 0
+  if typeof(_D_TimeMs) == "function" then t0 = _D_TimeMs() end if
   while i < MAXPLAYERS
     if i < len(playeringame) and playeringame[i] then
       if typeof(P_PlayerThink) == "function" and i < len(players) and typeof(players[i]) == "struct" then
@@ -190,11 +196,16 @@ function P_Ticker()
     end if
     i = i + 1
   end while
+  if typeof(_D_ProfileAdd) == "function" and typeof(_D_TimeMs) == "function" then _D_ProfileAdd(7, _D_TimeMs() - t0) end if
 
+  if typeof(_D_TimeMs) == "function" then t0 = _D_TimeMs() end if
   P_RunThinkers()
+  if typeof(_D_ProfileAdd) == "function" and typeof(_D_TimeMs) == "function" then _D_ProfileAdd(8, _D_TimeMs() - t0) end if
 
+  if typeof(_D_TimeMs) == "function" then t0 = _D_TimeMs() end if
   if typeof(P_UpdateSpecials) == "function" then P_UpdateSpecials() end if
   if typeof(P_RespawnSpecials) == "function" then P_RespawnSpecials() end if
+  if typeof(_D_ProfileAdd) == "function" and typeof(_D_TimeMs) == "function" then _D_ProfileAdd(9, _D_TimeMs() - t0) end if
 
   leveltime = leveltime + 1
 end function

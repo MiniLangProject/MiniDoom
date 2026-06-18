@@ -23,6 +23,9 @@ import v_video
 import m_argv
 import d_main
 import doomdef
+import r_upscaled
+import r_hires
+import i_gl
 
 import std.time
 import std.fs as fs
@@ -40,9 +43,12 @@ const _I_WM_QUIT = 0x0012
 const _I_WM_CLOSE = 0x0010
 const _I_WM_DESTROY = 0x0002
 const _I_WM_NCDESTROY = 0x0082
+const _I_WM_PAINT = 0x000F
+const _I_WM_ERASEBKGND = 0x0014
 const _I_WS_OVERLAPPEDWINDOW = 0x00CF0000
 const _I_WS_POPUP = -2147483648
 const _I_WS_VISIBLE = 0x10000000
+const _I_SS_OWNERDRAW = 0x0000000D
 const _I_SW_SHOW = 5
 const _I_SW_MAXIMIZE = 3
 const _I_WINDOW_SCALE = 2
@@ -61,87 +67,121 @@ const _I_GWL_STYLE = -16
 extern function CreateWindowExW(exStyle as u32, className as wstr, windowName as wstr, style as u32, x as int, y as int, width as int, height as int, parent as ptr, menu as ptr, instance as ptr, param as ptr) from "user32.dll" symbol "CreateWindowExW" returns ptr
 
 /*
-* Function: AdjustWindowRect
-* Purpose: Implements the AdjustWindowRect routine for the engine module behavior.
-*/
+ * Function: AdjustWindowRect
+ *
+ * Purpose: Maps the external AdjustWindowRect binding used for windowing and video output.
+ */
+
 extern function AdjustWindowRect(rect as bytes, style as u32, hasMenu as bool) from "user32.dll" symbol "AdjustWindowRect" returns bool
 
 /*
-* Function: ShowWindow
-* Purpose: Implements the ShowWindow routine for the engine module behavior.
-*/
+ * Function: ShowWindow
+ *
+ * Purpose: Maps the external ShowWindow binding used for windowing and video output.
+ */
+
 extern function ShowWindow(hwnd as ptr, cmdShow as int) from "user32.dll" symbol "ShowWindow" returns bool
 
 /*
-* Function: UpdateWindow
-* Purpose: Advances per-tick logic for the engine module behavior.
-*/
+ * Function: UpdateWindow
+ *
+ * Purpose: Maps the external UpdateWindow binding used for windowing and video output.
+ */
+
 extern function UpdateWindow(hwnd as ptr) from "user32.dll" symbol "UpdateWindow" returns bool
 
 /*
-* Function: DestroyWindow
-* Purpose: Implements the DestroyWindow routine for the engine module behavior.
+* Function: ValidateRect
+* Purpose: Clears pending client repaint requests after title updates on the built-in STATIC window class.
 */
+extern function ValidateRect(hwnd as ptr, rect as ptr) from "user32.dll" symbol "ValidateRect" returns bool
+
+/*
+ * Function: DestroyWindow
+ *
+ * Purpose: Maps the external DestroyWindow binding used for windowing and video output.
+ */
+
 extern function DestroyWindow(hwnd as ptr) from "user32.dll" symbol "DestroyWindow" returns bool
 
 /*
-* Function: GetDC
-* Purpose: Reads or updates state used by the engine module behavior.
-*/
+ * Function: GetDC
+ *
+ * Purpose: Maps the external GetDC binding used for windowing and video output.
+ */
+
 extern function GetDC(hwnd as ptr) from "user32.dll" symbol "GetDC" returns ptr
 
 /*
-* Function: ReleaseDC
-* Purpose: Implements the ReleaseDC routine for the engine module behavior.
-*/
+ * Function: ReleaseDC
+ *
+ * Purpose: Maps the external ReleaseDC binding used for windowing and video output.
+ */
+
 extern function ReleaseDC(hwnd as ptr, hdc as ptr) from "user32.dll" symbol "ReleaseDC" returns int
 
 /*
-* Function: GetClientRect
-* Purpose: Reads or updates state used by the engine module behavior.
-*/
+ * Function: GetClientRect
+ *
+ * Purpose: Maps the external GetClientRect binding used for windowing and video output.
+ */
+
 extern function GetClientRect(hwnd as ptr, rect as bytes) from "user32.dll" symbol "GetClientRect" returns bool
 
 /*
-* Function: PeekMessageW
-* Purpose: Implements the PeekMessageW routine for the engine module behavior.
-*/
+ * Function: PeekMessageW
+ *
+ * Purpose: Maps the external PeekMessageW binding used for windowing and video output.
+ */
+
 extern function PeekMessageW(msg as bytes, hwnd as ptr, minMsg as u32, maxMsg as u32, removeMsg as u32) from "user32.dll" symbol "PeekMessageW" returns bool
 
 /*
-* Function: TranslateMessage
-* Purpose: Implements the TranslateMessage routine for the engine module behavior.
-*/
+ * Function: TranslateMessage
+ *
+ * Purpose: Maps the external TranslateMessage binding used for windowing and video output.
+ */
+
 extern function TranslateMessage(msg as bytes) from "user32.dll" symbol "TranslateMessage" returns bool
 
 /*
-* Function: DispatchMessageW
-* Purpose: Implements the DispatchMessageW routine for the engine module behavior.
-*/
+ * Function: DispatchMessageW
+ *
+ * Purpose: Maps the external DispatchMessageW binding used for windowing and video output.
+ */
+
 extern function DispatchMessageW(msg as bytes) from "user32.dll" symbol "DispatchMessageW" returns ptr
 
 /*
-* Function: GetAsyncKeyState
-* Purpose: Reads or updates state used by the engine module behavior.
-*/
+ * Function: GetAsyncKeyState
+ *
+ * Purpose: Maps the external GetAsyncKeyState binding used for windowing and video output.
+ */
+
 extern function GetAsyncKeyState(vkey as int) from "user32.dll" symbol "GetAsyncKeyState" returns int
 
 /*
-* Function: SetWindowTextW
-* Purpose: Reads or updates state used by the engine module behavior.
-*/
+ * Function: SetWindowTextW
+ *
+ * Purpose: Maps the external SetWindowTextW binding used for windowing and video output.
+ */
+
 extern function SetWindowTextW(hwnd as ptr, text as wstr) from "user32.dll" symbol "SetWindowTextW" returns bool
 
 /*
-* Function: GetCursorPos
-* Purpose: Reads or updates state used by the engine module behavior.
-*/
+ * Function: GetCursorPos
+ *
+ * Purpose: Maps the external GetCursorPos binding used for windowing and video output.
+ */
+
 extern function GetCursorPos(point as bytes) from "user32.dll" symbol "GetCursorPos" returns bool
 
 /*
-* Function: GetForegroundWindow
-* Purpose: Reads or updates state used by the engine module behavior.
-*/
+ * Function: GetForegroundWindow
+ *
+ * Purpose: Maps the external GetForegroundWindow binding used for windowing and video output.
+ */
+
 extern function GetForegroundWindow() from "user32.dll" symbol "GetForegroundWindow" returns ptr
 
 /*
@@ -151,63 +191,83 @@ extern function GetForegroundWindow() from "user32.dll" symbol "GetForegroundWin
 extern function ShowCursor(show as bool) from "user32.dll" symbol "ShowCursor" returns int
 
 /*
-* Function: GetSystemMetrics
-* Purpose: Reads or updates state used by the engine module behavior.
-*/
+ * Function: GetSystemMetrics
+ *
+ * Purpose: Maps the external GetSystemMetrics binding used for windowing and video output.
+ */
+
 extern function GetSystemMetrics(index as int) from "user32.dll" symbol "GetSystemMetrics" returns int
 
 /*
-* Function: SetWindowPos
-* Purpose: Reads or updates state used by the engine module behavior.
-*/
+ * Function: SetWindowPos
+ *
+ * Purpose: Maps the external SetWindowPos binding used for windowing and video output.
+ */
+
 extern function SetWindowPos(hwnd as ptr, insertAfter as ptr, x as int, y as int, width as int, height as int, flags as u32) from "user32.dll" symbol "SetWindowPos" returns bool
 
 /*
-* Function: GetWindowLongPtrW
-* Purpose: Reads or updates state used by the engine module behavior.
-*/
+ * Function: GetWindowLongPtrW
+ *
+ * Purpose: Maps the external GetWindowLongPtrW binding used for windowing and video output.
+ */
+
 extern function GetWindowLongPtrW(hwnd as ptr, index as int) from "user32.dll" symbol "GetWindowLongPtrW" returns ptr
 
 /*
-* Function: SetWindowLongPtrW
-* Purpose: Reads or updates state used by the engine module behavior.
-*/
+ * Function: SetWindowLongPtrW
+ *
+ * Purpose: Maps the external SetWindowLongPtrW binding used for windowing and video output.
+ */
+
 extern function SetWindowLongPtrW(hwnd as ptr, index as int, newLong as ptr) from "user32.dll" symbol "SetWindowLongPtrW" returns ptr
 
 /*
-* Function: SetForegroundWindow
-* Purpose: Reads or updates state used by the engine module behavior.
-*/
+ * Function: SetForegroundWindow
+ *
+ * Purpose: Maps the external SetForegroundWindow binding used for windowing and video output.
+ */
+
 extern function SetForegroundWindow(hwnd as ptr) from "user32.dll" symbol "SetForegroundWindow" returns bool
 
 /*
-* Function: BringWindowToTop
-* Purpose: Implements the BringWindowToTop routine for the engine module behavior.
-*/
+ * Function: BringWindowToTop
+ *
+ * Purpose: Maps the external BringWindowToTop binding used for windowing and video output.
+ */
+
 extern function BringWindowToTop(hwnd as ptr) from "user32.dll" symbol "BringWindowToTop" returns bool
 
 /*
-* Function: SetActiveWindow
-* Purpose: Reads or updates state used by the engine module behavior.
-*/
+ * Function: SetActiveWindow
+ *
+ * Purpose: Maps the external SetActiveWindow binding used for windowing and video output.
+ */
+
 extern function SetActiveWindow(hwnd as ptr) from "user32.dll" symbol "SetActiveWindow" returns ptr
 
 /*
-* Function: IsWindow
-* Purpose: Reads or updates state used by the engine module behavior.
-*/
+ * Function: IsWindow
+ *
+ * Purpose: Maps the external IsWindow binding used for windowing and video output.
+ */
+
 extern function IsWindow(hwnd as ptr) from "user32.dll" symbol "IsWindow" returns bool
 
 /*
-* Function: StretchDIBits
-* Purpose: Implements the StretchDIBits routine for the engine module behavior.
-*/
+ * Function: StretchDIBits
+ *
+ * Purpose: Maps the external StretchDIBits binding used for windowing and video output.
+ */
+
 extern function StretchDIBits(hdc as ptr, xDest as int, yDest as int, destWidth as int, destHeight as int, xSrc as int, ySrc as int, srcWidth as int, srcHeight as int, bits as bytes, bmi as bytes, usage as u32, rop as u32) from "gdi32.dll" symbol "StretchDIBits" returns int
 
 /*
-* Function: SetStretchBltMode
-* Purpose: Reads or updates state used by the engine module behavior.
-*/
+ * Function: SetStretchBltMode
+ *
+ * Purpose: Maps the external SetStretchBltMode binding used for windowing and video output.
+ */
+
 extern function SetStretchBltMode(hdc as ptr, mode as int) from "gdi32.dll" symbol "SetStretchBltMode" returns int
 
 /*
@@ -217,9 +277,11 @@ extern function SetStretchBltMode(hdc as ptr, mode as int) from "gdi32.dll" symb
 extern function CreateDirectoryW(path as wstr, security as ptr) from "kernel32.dll" symbol "CreateDirectoryW" returns bool
 
 /*
-* Function: GetConsoleWindow
-* Purpose: Reads or updates state used by the engine module behavior.
-*/
+ * Function: GetConsoleWindow
+ *
+ * Purpose: Maps the external GetConsoleWindow binding used for windowing and video output.
+ */
+
 extern function GetConsoleWindow() from "kernel32.dll" symbol "GetConsoleWindow" returns ptr
 
 _i_inited = false
@@ -254,10 +316,33 @@ _i_fullscreen = false
 _i_cursorHidden = false
 _i_loadingStatusText = ""
 _i_loadingAnimPhase = 0
+_i_presentScale = 1
+_i_presentWidth = SCREENWIDTH
+_i_presentHeight = SCREENHEIGHT
+_i_presentBuffer = void
+_i_scaledLogicalBuffer = void
+_i_presentBlendCache = void
+_i_presentXbrz = true
+_i_overlayBase = void
+_i_overlayRowBuffer = void
+_i_xbrzTarget = void
+_i_glOverlayBuffer = void
+_i_glOverlayMask = void
+_i_lastPresentFrame = void
+_i_lastPresentRGBA = void
+_i_hdWipeStart = void
+_i_hdWipeEnd = void
+_i_hdWipeFrame = void
+_i_hdWipeY =[]
+_i_hdWipeActive = false
+_i_hdWipeSeed = 1234567
+_i_forceSoftwarePresent = false
+const _I_XBRZ_DIST_LIMIT = 4200
+const _I_STATUSBAR_HEIGHT = 32
 
 /*
 * Function: _I_ToIntOr
-* Purpose: Implements the _I_ToIntOr routine for the internal module support.
+* Purpose: Converts int or values for the windowing and video backend.
 */
 function _I_ToIntOr(v, fallback)
   if typeof(v) == "int" then return v end if
@@ -276,7 +361,7 @@ end function
 
 /*
 * Function: _I_IDiv
-* Purpose: Implements the _I_IDiv routine for the internal module support.
+* Purpose: Performs integer division with video backend rounding and guard rules.
 */
 function inline _I_IDiv(a, b)
   a = _I_ToIntOr(a, 0)
@@ -289,7 +374,7 @@ end function
 
 /*
 * Function: _I_SetWindowTitle
-* Purpose: Reads or updates state used by the internal module support.
+* Purpose: Updates window title state for the windowing and video backend.
 */
 function inline _I_SetWindowTitle(title)
   global _i_titleLast
@@ -298,12 +383,314 @@ function inline _I_SetWindowTitle(title)
   if typeof(title) != "string" then return end if
   if title == _i_titleLast then return end if
   SetWindowTextW(_i_hwnd, title)
+  ValidateRect(_i_hwnd, void)
   _i_titleLast = title
 end function
 
 /*
+* Function: I_SetForceSoftwarePresent
+* Purpose: Draws set Force Software Present output for the video backend renderer.
+*/
+function I_SetForceSoftwarePresent(v)
+  global _i_forceSoftwarePresent
+
+  _i_forceSoftwarePresent = false
+  if typeof(v) == "bool" and v then _i_forceSoftwarePresent = true end if
+end function
+
+/*
+* Function: _I_SaveLastPresentFrame
+* Purpose: Writes last present frame data for the windowing and video backend.
+*/
+function _I_SaveLastPresentFrame(src)
+  global _i_lastPresentFrame
+  global _i_lastPresentRGBA
+
+  expected = _i_presentWidth * _i_presentHeight
+  if typeof(src) != "bytes" or expected <= 0 or len(src) < expected then return end if
+  if typeof(_i_lastPresentFrame) != "bytes" or len(_i_lastPresentFrame) < expected then
+    _i_lastPresentFrame = bytes(expected, 0)
+  end if
+  copyBytes(_i_lastPresentFrame, 0, src, 0, expected)
+  if typeof(_i_lastPresentRGBA) != "bytes" or len(_i_lastPresentRGBA) < expected * 4 then
+    _i_lastPresentRGBA = bytes(expected * 4, 0)
+  end if
+  _I_IndexedToRGBA(src, _i_lastPresentRGBA, _i_presentWidth, _i_presentHeight)
+end function
+
+/*
+* Function: _I_IndexedToRGBA
+* Purpose: Converts source to RGBA values for the windowing and video backend.
+*/
+function _I_IndexedToRGBA(src, dst, width, height)
+  if typeof(src) != "bytes" or typeof(dst) != "bytes" then return false end if
+  if typeof(width) != "int" or typeof(height) != "int" then return false end if
+  pixels = width * height
+  if pixels <= 0 or len(src) < pixels or len(dst) < pixels * 4 then return false end if
+  pal = _i_paletteRgb
+  if typeof(pal) != "bytes" or len(pal) < 768 then return false end if
+  i = 0
+  while i < pixels
+    c = src[i]
+    po = c * 3
+    ro = i * 4
+    dst[ro] = pal[po]
+    dst[ro + 1] = pal[po + 1]
+    dst[ro + 2] = pal[po + 2]
+    dst[ro + 3] = 255
+    i = i + 1
+  end while
+  return true
+end function
+
+/*
+* Function: _I_HDWIPE_Rand
+* Purpose: Provides rand helper behavior for the windowing and video backend.
+*/
+function inline _I_HDWIPE_Rand()
+  global _i_hdWipeSeed
+
+  _i_hdWipeSeed =(_i_hdWipeSeed * 1103515245 + 12345) & 0x7fffffff
+  return (_i_hdWipeSeed >> 16) & 32767
+end function
+
+/*
+* Function: I_BeginHDWipe
+* Purpose: Provides hd wipe helper behavior for the windowing and video backend.
+*/
+function I_BeginHDWipe()
+  global _i_hdWipeStart
+  global _i_hdWipeActive
+
+  _i_hdWipeActive = false
+  if _i_presentScale <= 1 then return false end if
+  if typeof(IGL_IsActive) != "function" or not IGL_IsActive() then return false end if
+
+  expected = _i_presentWidth * _i_presentHeight
+  if expected <= 0 then return false end if
+  if typeof(_i_hdWipeStart) != "bytes" or len(_i_hdWipeStart) < expected * 4 then
+    _i_hdWipeStart = bytes(expected * 4, 0)
+  end if
+
+  if typeof(IGL_CaptureRGBA) == "function" and IGL_CaptureRGBA(_i_hdWipeStart, _i_presentWidth, _i_presentHeight, true) then
+    return true
+  end if
+
+  if typeof(_i_lastPresentRGBA) == "bytes" and len(_i_lastPresentRGBA) >= expected * 4 then
+    copyBytes(_i_hdWipeStart, 0, _i_lastPresentRGBA, 0, expected * 4)
+    return true
+  end if
+
+  if typeof(screens) != "array" or len(screens) == 0 or typeof(screens[0]) != "bytes" then return false end if
+  src = _I_BuildUpscaledLogicalFrame(screens[0])
+  if typeof(src) != "bytes" or len(src) < expected then return false end if
+  return _I_IndexedToRGBA(src, _i_hdWipeStart, _i_presentWidth, _i_presentHeight)
+end function
+
+/*
+* Function: I_PrepareHDWipeEnd
+* Purpose: Controls prepare HDWipe End transitions in the video backend system.
+*/
+function I_PrepareHDWipeEnd()
+  global _i_hdWipeEnd
+  global _i_hdWipeFrame
+  global _i_hdWipeY
+  global _i_hdWipeActive
+
+  if _i_presentScale <= 1 then return false end if
+  if typeof(IGL_IsActive) != "function" or not IGL_IsActive() then return false end if
+  expected = _i_presentWidth * _i_presentHeight
+  if expected <= 0 then return false end if
+  if typeof(_i_hdWipeStart) != "bytes" or len(_i_hdWipeStart) < expected * 4 then return false end if
+  if typeof(_i_hdWipeEnd) != "bytes" or len(_i_hdWipeEnd) < expected * 4 then _i_hdWipeEnd = bytes(expected * 4, 0) end if
+  if typeof(_i_hdWipeFrame) != "bytes" or len(_i_hdWipeFrame) < expected * 4 then _i_hdWipeFrame = bytes(expected * 4, 0) end if
+
+  captured = false
+  if typeof(IGL_HasFrameReady) == "function" and IGL_HasFrameReady() and typeof(IGL_CaptureRGBA) == "function" then
+    destW = _i_presentWidth
+    destH = _i_presentHeight
+    if _i_hwnd is not void and GetClientRect(_i_hwnd, _i_rect) then
+      cw = _I_ReadS32(_i_rect, 8) - _I_ReadS32(_i_rect, 0)
+      ch = _I_ReadS32(_i_rect, 12) - _I_ReadS32(_i_rect, 4)
+      if cw > 0 then destW = cw end if
+      if ch > 0 then destH = ch end if
+    end if
+    if typeof(IGL_Resize) == "function" then IGL_Resize(destW, destH) end if
+    _I_DrawGLOverlayFrame()
+    if typeof(IGL_DrawPaletteFlash) == "function" then IGL_DrawPaletteFlash() end if
+    captured = IGL_CaptureRGBA(_i_hdWipeEnd, _i_presentWidth, _i_presentHeight, false)
+  end if
+  if not captured then
+    if typeof(screens) != "array" or len(screens) == 0 or typeof(screens[0]) != "bytes" then return false end if
+    src = _I_BuildPresentFrame()
+    if typeof(src) != "bytes" or len(src) < expected then return false end if
+    if not _I_IndexedToRGBA(src, _i_hdWipeEnd, _i_presentWidth, _i_presentHeight) then return false end if
+  end if
+
+  colwBase = _i_presentScale * 2
+  if colwBase < 2 then colwBase = 2 end if
+  groups = _I_IDiv(_i_presentWidth + colwBase - 1, colwBase)
+  _i_hdWipeY =[]
+  if groups <= 0 then return false end if
+  first = -((_I_HDWIPE_Rand() % 16) + 1) * _i_presentScale
+  _i_hdWipeY = _i_hdWipeY +[first]
+  i = 1
+  while i < groups
+    r =(_I_HDWIPE_Rand() % 3) - 1
+    yy = _i_hdWipeY[i - 1] + r * _i_presentScale
+    if yy > 0 then yy = 0 end if
+    if yy == -(16 * _i_presentScale) then yy = -(15 * _i_presentScale) end if
+    _i_hdWipeY = _i_hdWipeY +[yy]
+    i = i + 1
+  end while
+  _i_hdWipeActive = true
+  return true
+end function
+
+/*
+* Function: _I_ComposeHDWipeFrame
+* Purpose: Provides hd wipe frame helper behavior for the windowing and video backend.
+*/
+function _I_ComposeHDWipeFrame()
+  if typeof(_i_hdWipeStart) != "bytes" or typeof(_i_hdWipeEnd) != "bytes" or typeof(_i_hdWipeFrame) != "bytes" then return false end if
+  w = _i_presentWidth
+  h = _i_presentHeight
+  expected = w * h
+  if len(_i_hdWipeStart) < expected * 4 or len(_i_hdWipeEnd) < expected * 4 or len(_i_hdWipeFrame) < expected * 4 then return false end if
+  colwBase = _i_presentScale * 2
+  if colwBase < 2 then colwBase = 2 end if
+  groups = _I_IDiv(w + colwBase - 1, colwBase)
+  if groups <= 0 then return false end if
+
+  gx = 0
+  while gx < groups
+    offset = _i_hdWipeY[gx]
+    x = gx * colwBase
+    colw = colwBase
+    if x + colw > w then colw = w - x end if
+    y = 0
+    while y < h
+      di = (y * w + x) * 4
+      bytesToCopy = colw * 4
+      if offset < 0 then
+        si = di
+        copyBytes(_i_hdWipeFrame, di, _i_hdWipeStart, si, bytesToCopy)
+      else if y < offset or offset >= h then
+        si = di
+        copyBytes(_i_hdWipeFrame, di, _i_hdWipeEnd, si, bytesToCopy)
+      else
+        sy = y - offset
+        if sy >= 0 and sy < h then
+          si = (sy * w + x) * 4
+          copyBytes(_i_hdWipeFrame, di, _i_hdWipeStart, si, bytesToCopy)
+        else
+          si = di
+          copyBytes(_i_hdWipeFrame, di, _i_hdWipeEnd, si, bytesToCopy)
+        end if
+      end if
+      y = y + 1
+    end while
+    gx = gx + 1
+  end while
+  return true
+end function
+
+/*
+* Function: I_HDScreenWipe
+* Purpose: Provides screen wipe helper behavior for the windowing and video backend.
+*/
+function I_HDScreenWipe(tics)
+  if not _i_hdWipeActive then return true end if
+  if typeof(IGL_IsActive) != "function" or not IGL_IsActive() then return true end if
+  if typeof(IGL_DrawRGBAFrame) != "function" or typeof(IGL_MarkFrameReady) != "function" or typeof(IGL_Swap) != "function" then return true end if
+  if typeof(tics) != "int" or tics <= 0 then tics = 1 end if
+
+  s = _i_presentScale
+  if s < 1 then s = 1 end if
+  h = _i_presentHeight
+  colwBase = s * 2
+  if colwBase < 2 then colwBase = 2 end if
+  groups = _I_IDiv(_i_presentWidth + colwBase - 1, colwBase)
+  done = true
+  while tics > 0
+    tics = tics - 1
+    done = true
+    gx = 0
+    while gx < groups
+      yy = _i_hdWipeY[gx]
+      if yy < 0 then
+        yy = yy + s
+        _i_hdWipeY[gx] = yy
+        done = false
+      else if yy < h then
+        dy = 6 * s
+        if yy < 16 * s then dy = yy + s end if
+        if yy + dy > h then dy = h - yy end if
+        yy = yy + dy
+        _i_hdWipeY[gx] = yy
+        done = false
+      end if
+      gx = gx + 1
+    end while
+  end while
+
+  if not _I_ComposeHDWipeFrame() then return true end if
+  if not IGL_DrawRGBAFrame(_i_hdWipeFrame, _i_presentWidth, _i_presentHeight) then return true end if
+  IGL_MarkFrameReady()
+  IGL_Swap()
+  if done then
+    global _i_hdWipeActive
+    _i_hdWipeActive = false
+  end if
+  return done
+end function
+
+/*
+* Function: _I_IntToString
+* Purpose: Converts source to string values for the windowing and video backend.
+*/
+function _I_IntToString(v)
+  n = _I_ToIntOr(v, 0)
+  if n == 0 then return "0" end if
+  neg = false
+  if n < 0 then
+    neg = true
+    n = -n
+  end if
+  txt = ""
+  while n > 0
+    d = n % 10
+    ch = "0"
+    if d == 1 then ch = "1"
+    else if d == 2 then ch = "2"
+    else if d == 3 then ch = "3"
+    else if d == 4 then ch = "4"
+    else if d == 5 then ch = "5"
+    else if d == 6 then ch = "6"
+    else if d == 7 then ch = "7"
+    else if d == 8 then ch = "8"
+    else if d == 9 then ch = "9"
+    end if
+    txt = ch + txt
+    n = _I_IDiv(n, 10)
+  end while
+  if neg then txt = "-" + txt end if
+  return txt
+end function
+
+/*
+* Function: _I_FpsTitle
+* Purpose: Provides title helper behavior for the windowing and video backend.
+*/
+function inline _I_FpsTitle()
+  v = _I_ToIntOr(_i_fpsValue, 0)
+  if v < 0 then v = 0 end if
+  return _i_titleBase + " | FPS: " + _I_IntToString(v)
+end function
+
+/*
 * Function: _I_UpdateWindowTitle
-* Purpose: Advances per-tick logic for the internal module support.
+* Purpose: Updates window title state for the windowing and video backend.
 */
 function _I_UpdateWindowTitle()
   global _i_fpsWindowStart
@@ -323,7 +710,7 @@ function _I_UpdateWindowTitle()
   if _i_fpsWindowStart == 0 then
     _i_fpsWindowStart = now
     _i_fpsFrameCount = 0
-    _I_SetWindowTitle(_i_titleBase + " | FPS: " + _i_fpsValue)
+    _I_SetWindowTitle(_I_FpsTitle())
     return
   end if
 
@@ -337,7 +724,7 @@ function _I_UpdateWindowTitle()
   end if
   if fps < 0 then fps = 0 end if
   _i_fpsValue = fps
-  _I_SetWindowTitle(_i_titleBase + " | FPS: " + _i_fpsValue)
+  _I_SetWindowTitle(_I_FpsTitle())
 
   _i_fpsWindowStart = now
   _i_fpsFrameCount = 0
@@ -429,7 +816,7 @@ end function
 
 /*
 * Function: _I_AddKeyMap
-* Purpose: Implements the _I_AddKeyMap routine for the internal module support.
+* Purpose: Adds key map entries to the windowing and video backend.
 */
 function inline _I_AddKeyMap(vk, doomKey)
   global _i_keyVk
@@ -542,7 +929,7 @@ end function
 
 /*
 * Function: _I_WriteU16
-* Purpose: Implements the _I_WriteU16 routine for the internal module support.
+* Purpose: Writes U16 data for the windowing and video backend.
 */
 function inline _I_WriteU16(buf, off, value)
   if value < 0 then value = value + 65536 end if
@@ -552,7 +939,7 @@ end function
 
 /*
 * Function: _I_WriteU32
-* Purpose: Implements the _I_WriteU32 routine for the internal module support.
+* Purpose: Writes U32 data for the windowing and video backend.
 */
 function inline _I_WriteU32(buf, off, value)
   if value < 0 then value = value + 4294967296 end if
@@ -564,7 +951,7 @@ end function
 
 /*
 * Function: _I_ReadU32
-* Purpose: Implements the _I_ReadU32 routine for the internal module support.
+* Purpose: Reads U32 data for the windowing and video backend.
 */
 function inline _I_ReadU32(buf, off)
   return buf[off] +(buf[off + 1] << 8) +(buf[off + 2] << 16) +(buf[off + 3] << 24)
@@ -572,7 +959,7 @@ end function
 
 /*
 * Function: _I_ReadS32
-* Purpose: Implements the _I_ReadS32 routine for the internal module support.
+* Purpose: Reads s32 data for the windowing and video backend.
 */
 function inline _I_ReadS32(buf, off)
   v = _I_ReadU32(buf, off)
@@ -596,7 +983,7 @@ end function
 
 /*
 * Function: _I_UpdateBitmapColorTable
-* Purpose: Advances per-tick logic for the internal module support.
+* Purpose: Updates bitmap color table state for the windowing and video backend.
 */
 function _I_UpdateBitmapColorTable()
   if typeof(_i_paletteRgb) != "bytes" then return end if
@@ -619,18 +1006,19 @@ function _I_InitBitmapInfo()
   if typeof(_i_bmi) != "bytes" then return end if
 
   _I_WriteU32(_i_bmi, 0, 40)
-  _I_WriteU32(_i_bmi, 4, SCREENWIDTH)
-  _I_WriteU32(_i_bmi, 8, - SCREENHEIGHT)
+  _I_WriteU32(_i_bmi, 4, _i_presentWidth)
+  _I_WriteU32(_i_bmi, 8, - _i_presentHeight)
   _I_WriteU16(_i_bmi, 12, 1)
   _I_WriteU16(_i_bmi, 14, 8)
   _I_WriteU32(_i_bmi, 16, _I_BI_RGB)
-  _I_WriteU32(_i_bmi, 20, SCREENWIDTH * SCREENHEIGHT)
+  _I_WriteU32(_i_bmi, 20, _i_presentWidth * _i_presentHeight)
   _I_WriteU32(_i_bmi, 24, 0)
   _I_WriteU32(_i_bmi, 28, 0)
   _I_WriteU32(_i_bmi, 32, 256)
   _I_WriteU32(_i_bmi, 36, 0)
 
   _I_UpdateBitmapColorTable()
+  if typeof(IGL_SetPalette) == "function" then IGL_SetPalette(_i_paletteRgb) end if
 end function
 
 /*
@@ -646,14 +1034,16 @@ function _I_CreateWindow()
   if not(_i_hwnd is void) then return true end if
   if _i_windowFailed then return false end if
 
-  clientW = SCREENWIDTH * _I_WINDOW_SCALE
-  clientH = SCREENHEIGHT * _I_WINDOW_SCALE
+  windowScale = _I_WINDOW_SCALE
+  if _i_presentScale > 1 then windowScale = 1 end if
+  clientW = _i_presentWidth * windowScale
+  clientH = _i_presentHeight * windowScale
   sw = GetSystemMetrics(_I_SM_CXSCREEN)
   sh = GetSystemMetrics(_I_SM_CYSCREEN)
   if sw <= 0 then sw = clientW end if
   if sh <= 0 then sh = clientH end if
 
-  style = _I_WS_OVERLAPPEDWINDOW | _I_WS_VISIBLE
+  style = _I_WS_OVERLAPPEDWINDOW | _I_WS_VISIBLE | _I_SS_OWNERDRAW
   winX = 100
   winY = 100
   winW = clientW
@@ -685,6 +1075,9 @@ function _I_CreateWindow()
   _i_ownsWindow = true
   _i_hdc = GetDC(_i_hwnd)
   if not(_i_hdc is void) then SetStretchBltMode(_i_hdc, _I_COLORONCOLOR) end if
+  if not(_i_hdc is void) and typeof(IGL_Init) == "function" then
+    IGL_Init(_i_hwnd, _i_hdc, _i_presentWidth, _i_presentHeight)
+  end if
   if _i_fullscreen then
     _ = SetWindowLongPtrW(_i_hwnd, _I_GWL_STYLE, _I_WS_POPUP | _I_WS_VISIBLE)
     SetWindowPos(_i_hwnd, void, 0, 0, sw, sh, _I_SWP_FRAMECHANGED | _I_SWP_SHOWWINDOW)
@@ -703,7 +1096,7 @@ end function
 
 /*
 * Function: _I_PumpMessages
-* Purpose: Implements the _I_PumpMessages routine for the internal module support.
+* Purpose: Provides messages helper behavior for the windowing and video backend.
 */
 function _I_PumpMessages()
   if _i_hwnd is not void and not IsWindow(_i_hwnd) then
@@ -717,14 +1110,21 @@ function _I_PumpMessages()
       if typeof(I_Quit) == "function" then I_Quit() end if
       return
     end if
-    TranslateMessage(_i_msg)
-    DispatchMessageW(_i_msg)
+    if msg == _I_WM_PAINT or msg == _I_WM_ERASEBKGND then
+      // The built-in STATIC class can repaint its text into the client area.
+      // MiniDoom owns presentation, so swallowing this avoids a white frame
+      // with the FPS title drawn over the game view.
+      if _i_hwnd is not void then ValidateRect(_i_hwnd, void) end if
+    else
+      TranslateMessage(_i_msg)
+      DispatchMessageW(_i_msg)
+    end if
   end while
 end function
 
 /*
 * Function: _I_EnsureScreenshotDir
-* Purpose: Implements the _I_EnsureScreenshotDir routine for the internal module support.
+* Purpose: Builds screenshot directory data for the windowing and video backend.
 */
 function _I_EnsureScreenshotDir()
   global _i_screenshotDirReady
@@ -746,17 +1146,879 @@ function _I_EnsureScreenshotDir()
 end function
 
 /*
-* Function: _I_BuildBmpFromFrame
-* Purpose: Implements the _I_BuildBmpFromFrame routine for the internal module support.
+* Function: _I_FramePixelAt
+* Purpose: Reads a clamped logical framebuffer pixel.
 */
-function _I_BuildBmpFromFrame()
-  src = screens[0]
+function inline _I_FramePixelAt(src, x, y)
+  if x < 0 then x = 0 end if
+  if y < 0 then y = 0 end if
+  if x >= SCREENWIDTH then x = SCREENWIDTH - 1 end if
+  if y >= SCREENHEIGHT then y = SCREENHEIGHT - 1 end if
+  return src[y * SCREENWIDTH + x]
+end function
+
+/*
+* Function: _I_ColorDistance
+* Purpose: Computes weighted RGB distance between two palette indices.
+*/
+function inline _I_ColorDistance(a, b)
+  if a == b then return 0 end if
+  if typeof(_i_paletteRgb) != "bytes" or len(_i_paletteRgb) < 768 then
+    d = a - b
+    if d < 0 then d = -d end if
+    return d * d * 9
+  end if
+  ao = a * 3
+  bo = b * 3
+  dr = _i_paletteRgb[ao] - _i_paletteRgb[bo]
+  dg = _i_paletteRgb[ao + 1] - _i_paletteRgb[bo + 1]
+  db = _i_paletteRgb[ao + 2] - _i_paletteRgb[bo + 2]
+  return dr * dr * 3 + dg * dg * 4 + db * db * 2
+end function
+
+/*
+* Function: _I_SimilarColor
+* Purpose: Evaluates palette-aware color similarity for xBRZ edge decisions.
+*/
+function inline _I_SimilarColor(a, b)
+  return _I_ColorDistance(a, b) <= _I_XBRZ_DIST_LIMIT
+end function
+
+/*
+* Function: _I_NearestPaletteIndex
+* Purpose: Quantizes RGB back into the current Doom palette.
+*/
+function _I_NearestPaletteIndex(r, g, b)
+  if typeof(_i_paletteRgb) != "bytes" or len(_i_paletteRgb) < 768 then
+    v = _I_IDiv(r + g + b, 3)
+    if v < 0 then v = 0 end if
+    if v > 255 then v = 255 end if
+    return v
+  end if
+
+  best = 0
+  bestDist = 2147483647
+  i = 0
+  while i < 256
+    o = i * 3
+    dr = r - _i_paletteRgb[o]
+    dg = g - _i_paletteRgb[o + 1]
+    db = b - _i_paletteRgb[o + 2]
+    dist = dr * dr * 3 + dg * dg * 4 + db * db * 2
+    if dist < bestDist then
+      bestDist = dist
+      best = i
+      if dist == 0 then return best end if
+    end if
+    i = i + 1
+  end while
+  return best
+end function
+
+/*
+* Function: _I_BlendIndex
+* Purpose: Blends two palette indices and caches the quantized result.
+*/
+function _I_BlendIndex(base, edge, edgeWeight)
+  global _i_presentBlendCache
+
+  if edgeWeight <= 0 or base == edge then return base end if
+  if edgeWeight > 3 then edgeWeight = 3 end if
+  key =((base * 256) + edge) * 4 + edgeWeight
+  if typeof(_i_presentBlendCache) == "array" and key >= 0 and key < len(_i_presentBlendCache) and _i_presentBlendCache[key] >= 0 then
+    return _i_presentBlendCache[key]
+  end if
+
+  if typeof(_i_paletteRgb) != "bytes" or len(_i_paletteRgb) < 768 then return edge end if
+  inv = 4 - edgeWeight
+  bo = base * 3
+  eo = edge * 3
+  r = _I_IDiv(_i_paletteRgb[bo] * inv + _i_paletteRgb[eo] * edgeWeight + 2, 4)
+  g = _I_IDiv(_i_paletteRgb[bo + 1] * inv + _i_paletteRgb[eo + 1] * edgeWeight + 2, 4)
+  b = _I_IDiv(_i_paletteRgb[bo + 2] * inv + _i_paletteRgb[eo + 2] * edgeWeight + 2, 4)
+  idx = _I_NearestPaletteIndex(r, g, b)
+
+  if typeof(_i_presentBlendCache) == "array" and key >= 0 and key < len(_i_presentBlendCache) then
+    _i_presentBlendCache[key] = idx
+  end if
+  return idx
+end function
+
+/*
+* Function: _I_BestEdgeColor
+* Purpose: Chooses the closer edge color for a corner blend.
+*/
+function inline _I_BestEdgeColor(center, a, b)
+  da = _I_ColorDistance(center, a)
+  db = _I_ColorDistance(center, b)
+  if da <= db then return a end if
+  return b
+end function
+
+/*
+* Function: _I_CornerWeight
+* Purpose: Returns xBRZ corner blend weight for a scaled block coordinate.
+*/
+function inline _I_CornerWeight(dist, scale)
+  if dist >= scale then return 0 end if
+  w = 3 - _I_IDiv(dist * 3, scale)
+  if w < 1 then w = 1 end if
+  if w > 3 then w = 3 end if
+  return w
+end function
+
+/*
+* Function: _I_BlendPresentCorner
+* Purpose: Applies one xBRZ triangular corner blend inside a scaled output block.
+*/
+function _I_BlendPresentCorner(blockX, blockY, scale, corner, base, edge)
+  target = _i_xbrzTarget
+  if typeof(target) != "bytes" then target = _i_presentBuffer end if
+  if typeof(target) != "bytes" then return end if
+
+  yy = 0
+  while yy < scale
+    xx = 0
+    while xx < scale
+      dist = 0
+      if corner == 0 then
+        dist = xx + yy
+      else if corner == 1 then
+        dist =(scale - 1 - xx) + yy
+      else if corner == 2 then
+        dist = xx +(scale - 1 - yy)
+      else
+        dist =(scale - 1 - xx) +(scale - 1 - yy)
+      end if
+
+      weight = _I_CornerWeight(dist, scale)
+      if weight > 0 then
+        di =(blockY + yy) * _i_presentWidth + blockX + xx
+        target[di] = _I_BlendIndex(target[di], edge, weight)
+      end if
+      xx = xx + 1
+    end while
+    yy = yy + 1
+  end while
+end function
+
+/*
+* Function: _I_OverlayScaledRect
+* Purpose: Copies a scaled logical-screen rectangle into the high-resolution frame.
+*/
+function _I_OverlayScaledRect(scaled, x, y, w, h)
+  if typeof(scaled) != "bytes" or len(scaled) < _i_presentWidth * _i_presentHeight then return end if
+  if typeof(_i_presentBuffer) != "bytes" then return end if
+  s = _i_presentScale
+  if s <= 1 then return end if
+
+  if x < 0 then
+    w = w + x
+    x = 0
+  end if
+  if y < 0 then
+    h = h + y
+    y = 0
+  end if
+  if x + w > SCREENWIDTH then w = SCREENWIDTH - x end if
+  if y + h > SCREENHEIGHT then h = SCREENHEIGHT - y end if
+  if w <= 0 or h <= 0 then return end if
+
+  srcX = x * s
+  srcY = y * s
+  copyW = w * s
+  copyH = h * s
+  row = 0
+  while row < copyH
+    si = (srcY + row) * _i_presentWidth + srcX
+    di = si
+    copyBytes(_i_presentBuffer, di, scaled, si, copyW)
+    row = row + 1
+  end while
+end function
+
+/*
+* Function: _I_OverlayLogicalRectNearest
+* Purpose: Copies a logical-screen rectangle into the high-resolution frame with cheap nearest scaling.
+*/
+function _I_OverlayLogicalRectNearest(src, x, y, w, h)
+  global _i_overlayRowBuffer
+
+  if typeof(src) != "bytes" or len(src) < SCREENWIDTH * SCREENHEIGHT then return end if
+  if typeof(_i_presentBuffer) != "bytes" then return end if
+  s = _i_presentScale
+  if s <= 1 then return end if
+
+  if x < 0 then
+    w = w + x
+    x = 0
+  end if
+  if y < 0 then
+    h = h + y
+    y = 0
+  end if
+  if x + w > SCREENWIDTH then w = SCREENWIDTH - x end if
+  if y + h > SCREENHEIGHT then h = SCREENHEIGHT - y end if
+  if w <= 0 or h <= 0 then return end if
+
+  if s == 3 and x == 0 and w == SCREENWIDTH then
+    if typeof(_i_overlayRowBuffer) != "bytes" or len(_i_overlayRowBuffer) < _i_presentWidth then
+      _i_overlayRowBuffer = bytes(_i_presentWidth, 0)
+    end if
+    sy = y
+    while sy < y + h
+      si = sy * SCREENWIDTH
+      sx = 0
+      while sx < SCREENWIDTH
+        c = src[si + sx]
+        di = sx * 3
+        _i_overlayRowBuffer[di] = c
+        _i_overlayRowBuffer[di + 1] = c
+        _i_overlayRowBuffer[di + 2] = c
+        sx = sx + 1
+      end while
+      blockY = sy * 3
+      row = blockY * _i_presentWidth
+      copyBytes(_i_presentBuffer, row, _i_overlayRowBuffer, 0, _i_presentWidth)
+      copyBytes(_i_presentBuffer, row + _i_presentWidth, _i_overlayRowBuffer, 0, _i_presentWidth)
+      copyBytes(_i_presentBuffer, row + _i_presentWidth * 2, _i_overlayRowBuffer, 0, _i_presentWidth)
+      sy = sy + 1
+    end while
+    return
+  end if
+
+  sy = y
+  while sy < y + h
+    sx = x
+    while sx < x + w
+      c = src[sy * SCREENWIDTH + sx]
+      blockX = sx * s
+      blockY = sy * s
+      yy = 0
+      while yy < s
+        di = (blockY + yy) * _i_presentWidth + blockX
+        xx = 0
+        while xx < s
+          _i_presentBuffer[di + xx] = c
+          xx = xx + 1
+        end while
+        yy = yy + 1
+      end while
+      sx = sx + 1
+    end while
+    sy = sy + 1
+  end while
+end function
+
+/*
+* Function: _I_OverlayChangedLogicalPixels
+* Purpose: Copies only logical pixels changed after the world pass, preserving high-res world rendering.
+*/
+function _I_OverlayChangedLogicalPixels(scaled, cur, base)
+  if typeof(scaled) != "bytes" or len(scaled) < _i_presentWidth * _i_presentHeight then return end if
+  if typeof(cur) != "bytes" or len(cur) < SCREENWIDTH * SCREENHEIGHT then return end if
+  if typeof(base) != "bytes" or len(base) < SCREENWIDTH * SCREENHEIGHT then return end if
+  if typeof(_i_presentBuffer) != "bytes" then return end if
+  s = _i_presentScale
+  if s <= 1 then return end if
+
+  sy = 0
+  while sy < SCREENHEIGHT
+    sx = 0
+    while sx < SCREENWIDTH
+      idx = sy * SCREENWIDTH + sx
+      if cur[idx] != base[idx] then
+        blockX = sx * s
+        blockY = sy * s
+        yy = 0
+        while yy < s
+          si = (blockY + yy) * _i_presentWidth + blockX
+          copyBytes(_i_presentBuffer, si, scaled, si, s)
+          yy = yy + 1
+        end while
+      end if
+      sx = sx + 1
+    end while
+    sy = sy + 1
+  end while
+end function
+
+/*
+* Function: _I_OverlayChangedLogicalPixelsNearest
+* Purpose: Copies changed logical pixels directly into the high-resolution frame.
+*/
+function _I_OverlayChangedLogicalPixelsNearest(cur, base)
+  if typeof(cur) != "bytes" or len(cur) < SCREENWIDTH * SCREENHEIGHT then return end if
+  if typeof(base) != "bytes" or len(base) < SCREENWIDTH * SCREENHEIGHT then return end if
+  if typeof(_i_presentBuffer) != "bytes" then return end if
+  s = _i_presentScale
+  if s <= 1 then return end if
+
+  sy = 0
+  while sy < SCREENHEIGHT
+    sx = 0
+    while sx < SCREENWIDTH
+      idx = sy * SCREENWIDTH + sx
+      if cur[idx] != base[idx] then
+        c = cur[idx]
+        blockX = sx * s
+        blockY = sy * s
+        yy = 0
+        while yy < s
+          di = (blockY + yy) * _i_presentWidth + blockX
+          xx = 0
+          while xx < s
+            _i_presentBuffer[di + xx] = c
+            xx = xx + 1
+          end while
+          yy = yy + 1
+        end while
+      end if
+      sx = sx + 1
+    end while
+    sy = sy + 1
+  end while
+end function
+
+/*
+* Function: _I_OverlayMarkedLogicalPixels
+* Purpose: Copies logical pixels marked by V_DrawPatch/V_DrawBlock into the high-resolution frame.
+*/
+function _I_OverlayMarkedLogicalPixels(scaled, mask)
+  if typeof(scaled) != "bytes" or len(scaled) < _i_presentWidth * _i_presentHeight then return false end if
+  if typeof(mask) != "bytes" or len(mask) < SCREENWIDTH * SCREENHEIGHT then return false end if
+  if typeof(_i_presentBuffer) != "bytes" then return false end if
+  s = _i_presentScale
+  if s <= 1 then return false end if
+
+  any = false
+  sy = 0
+  while sy < SCREENHEIGHT
+    sx = 0
+    while sx < SCREENWIDTH
+      idx = sy * SCREENWIDTH + sx
+      if mask[idx] != 0 then
+        any = true
+        blockX = sx * s
+        blockY = sy * s
+        yy = 0
+        while yy < s
+          si = (blockY + yy) * _i_presentWidth + blockX
+          copyBytes(_i_presentBuffer, si, scaled, si, s)
+          yy = yy + 1
+        end while
+      end if
+      sx = sx + 1
+    end while
+    sy = sy + 1
+  end while
+  return any
+end function
+
+/*
+* Function: _I_OverlayMarkedLogicalPixelsNearest
+* Purpose: Copies UI-marked logical pixels directly into the high-resolution frame.
+*/
+function _I_OverlayMarkedLogicalPixelsNearest(src, mask)
+  if typeof(src) != "bytes" or len(src) < SCREENWIDTH * SCREENHEIGHT then return false end if
+  if typeof(mask) != "bytes" or len(mask) < SCREENWIDTH * SCREENHEIGHT then return false end if
+  if typeof(_i_presentBuffer) != "bytes" then return false end if
+  s = _i_presentScale
+  if s <= 1 then return false end if
+
+  any = false
+  minx = 0
+  miny = 0
+  maxx = SCREENWIDTH - 1
+  maxy = SCREENHEIGHT - 1
+  if typeof(v_overlay_minx) == "int" and typeof(v_overlay_maxx) == "int" and v_overlay_maxx >= v_overlay_minx then
+    minx = v_overlay_minx
+    maxx = v_overlay_maxx
+  end if
+  if typeof(v_overlay_miny) == "int" and typeof(v_overlay_maxy) == "int" and v_overlay_maxy >= v_overlay_miny then
+    miny = v_overlay_miny
+    maxy = v_overlay_maxy
+  end if
+  if minx < 0 then minx = 0 end if
+  if miny < 0 then miny = 0 end if
+  if maxx >= SCREENWIDTH then maxx = SCREENWIDTH - 1 end if
+  if maxy >= SCREENHEIGHT then maxy = SCREENHEIGHT - 1 end if
+  if maxx < minx or maxy < miny then return false end if
+
+  sy = miny
+  while sy <= maxy
+    sx = minx
+    while sx <= maxx
+      idx = sy * SCREENWIDTH + sx
+      if mask[idx] != 0 then
+        any = true
+        c = src[idx]
+        blockX = sx * s
+        blockY = sy * s
+        yy = 0
+        while yy < s
+          di = (blockY + yy) * _i_presentWidth + blockX
+          xx = 0
+          while xx < s
+            _i_presentBuffer[di + xx] = c
+            xx = xx + 1
+          end while
+          yy = yy + 1
+        end while
+      end if
+      sx = sx + 1
+    end while
+    sy = sy + 1
+  end while
+  return any
+end function
+
+/*
+* Function: _I_OverlayPreparedHighresPatches
+* Purpose: Copies pre-upscaled patch pixels prepared by V_DrawPatch into the presentation frame.
+*/
+function _I_OverlayPreparedHighresPatches()
+  if typeof(v_hioverlay) != "bytes" or typeof(v_hioverlaymask) != "bytes" then return false end if
+  if typeof(_i_presentBuffer) != "bytes" then return false end if
+  if len(v_hioverlay) < _i_presentWidth * _i_presentHeight then return false end if
+  if len(v_hioverlaymask) < _i_presentWidth * _i_presentHeight then return false end if
+  if typeof(v_hioverlay_maxx) != "int" or v_hioverlay_maxx < v_hioverlay_minx then return false end if
+
+  minx = v_hioverlay_minx
+  miny = v_hioverlay_miny
+  maxx = v_hioverlay_maxx
+  maxy = v_hioverlay_maxy
+  if minx < 0 then minx = 0 end if
+  if miny < 0 then miny = 0 end if
+  if maxx >= _i_presentWidth then maxx = _i_presentWidth - 1 end if
+  if maxy >= _i_presentHeight then maxy = _i_presentHeight - 1 end if
+  if maxx < minx or maxy < miny then return false end if
+
+  any = false
+  y = miny
+  while y <= maxy
+    x = minx
+    row = y * _i_presentWidth
+    while x <= maxx
+      idx = row + x
+      if v_hioverlaymask[idx] != 0 then
+        any = true
+        _i_presentBuffer[idx] = v_hioverlay[idx]
+      end if
+      x = x + 1
+    end while
+    y = y + 1
+  end while
+  return any
+end function
+
+/*
+* Function: _I_EnsureGLOOverlay
+* Purpose: Builds glo overlay data for the windowing and video backend.
+*/
+function _I_EnsureGLOOverlay()
+  global _i_glOverlayBuffer
+  global _i_glOverlayMask
+
+  expected = _i_presentWidth * _i_presentHeight
+  if expected <= 0 then return false end if
+  if typeof(_i_glOverlayBuffer) != "bytes" or len(_i_glOverlayBuffer) < expected then
+    _i_glOverlayBuffer = bytes(expected, 0)
+  end if
+  if typeof(_i_glOverlayMask) != "bytes" or len(_i_glOverlayMask) < expected then
+    _i_glOverlayMask = bytes(expected, 0)
+  end if
+  fillBytes(_i_glOverlayBuffer, 0, expected, 0)
+  fillBytes(_i_glOverlayMask, 0, expected, 0)
+  return true
+end function
+
+/*
+* Function: _I_GLOverlayLogicalPixel
+* Purpose: Provides overlay logical pixel helper behavior for the windowing and video backend.
+*/
+function _I_GLOverlayLogicalPixel(src, sx, sy)
+  s = _i_presentScale
+  if s <= 0 then return end if
+  c = src[sy * SCREENWIDTH + sx]
+  blockX = sx * s
+  blockY = sy * s
+  yy = 0
+  while yy < s
+    di = (blockY + yy) * _i_presentWidth + blockX
+    xx = 0
+    while xx < s
+      _i_glOverlayBuffer[di + xx] = c
+      _i_glOverlayMask[di + xx] = 1
+      xx = xx + 1
+    end while
+    yy = yy + 1
+  end while
+end function
+
+/*
+* Function: _I_GLOverlayLogicalRect
+* Purpose: Provides overlay logical rect helper behavior for the windowing and video backend.
+*/
+function _I_GLOverlayLogicalRect(src, x, y, w, h)
+  if typeof(src) != "bytes" or len(src) < SCREENWIDTH * SCREENHEIGHT then return false end if
+  if x < 0 then
+    w = w + x
+    x = 0
+  end if
+  if y < 0 then
+    h = h + y
+    y = 0
+  end if
+  if x + w > SCREENWIDTH then w = SCREENWIDTH - x end if
+  if y + h > SCREENHEIGHT then h = SCREENHEIGHT - y end if
+  if w <= 0 or h <= 0 then return false end if
+
+  sy = y
+  while sy < y + h
+    sx = x
+    while sx < x + w
+      _I_GLOverlayLogicalPixel(src, sx, sy)
+      sx = sx + 1
+    end while
+    sy = sy + 1
+  end while
+  return true
+end function
+
+/*
+* Function: _I_GLOverlayLogicalMask
+* Purpose: Provides overlay logical mask helper behavior for the windowing and video backend.
+*/
+function _I_GLOverlayLogicalMask(src, mask)
+  if typeof(src) != "bytes" or len(src) < SCREENWIDTH * SCREENHEIGHT then return false end if
+  if typeof(mask) != "bytes" or len(mask) < SCREENWIDTH * SCREENHEIGHT then return false end if
+  if typeof(v_overlay_maxx) != "int" or v_overlay_maxx < v_overlay_minx then return false end if
+
+  minx = v_overlay_minx
+  miny = v_overlay_miny
+  maxx = v_overlay_maxx
+  maxy = v_overlay_maxy
+  if minx < 0 then minx = 0 end if
+  if miny < 0 then miny = 0 end if
+  if maxx >= SCREENWIDTH then maxx = SCREENWIDTH - 1 end if
+  if maxy >= SCREENHEIGHT then maxy = SCREENHEIGHT - 1 end if
+  if maxx < minx or maxy < miny then return false end if
+
+  any = false
+  sy = miny
+  while sy <= maxy
+    sx = minx
+    while sx <= maxx
+      idx = sy * SCREENWIDTH + sx
+      if mask[idx] != 0 then
+        any = true
+        _I_GLOverlayLogicalPixel(src, sx, sy)
+      end if
+      sx = sx + 1
+    end while
+    sy = sy + 1
+  end while
+  return any
+end function
+
+/*
+* Function: _I_GLOverlayScaledLogicalMask
+* Purpose: Copies marked logical UI pixels from the xBRZ-scaled frame into the OpenGL overlay.
+*/
+function _I_GLOverlayScaledLogicalMask(scaled, mask)
+  if typeof(scaled) != "bytes" or len(scaled) < _i_presentWidth * _i_presentHeight then return false end if
+  if typeof(mask) != "bytes" or len(mask) < SCREENWIDTH * SCREENHEIGHT then return false end if
+  if typeof(v_overlay_maxx) != "int" or v_overlay_maxx < v_overlay_minx then return false end if
+
+  s = _i_presentScale
+  if s <= 1 then return false end if
+
+  minx = v_overlay_minx
+  miny = v_overlay_miny
+  maxx = v_overlay_maxx
+  maxy = v_overlay_maxy
+  if minx < 0 then minx = 0 end if
+  if miny < 0 then miny = 0 end if
+  if maxx >= SCREENWIDTH then maxx = SCREENWIDTH - 1 end if
+  if maxy >= SCREENHEIGHT then maxy = SCREENHEIGHT - 1 end if
+  if maxx < minx or maxy < miny then return false end if
+
+  any = false
+  sy = miny
+  while sy <= maxy
+    sx = minx
+    while sx <= maxx
+      idx = sy * SCREENWIDTH + sx
+      if mask[idx] != 0 then
+        any = true
+        blockX = sx * s
+        blockY = sy * s
+        yy = 0
+        while yy < s
+          si = (blockY + yy) * _i_presentWidth + blockX
+          di = si
+          xx = 0
+          while xx < s
+            _i_glOverlayBuffer[di + xx] = scaled[si + xx]
+            _i_glOverlayMask[di + xx] = 1
+            xx = xx + 1
+          end while
+          yy = yy + 1
+        end while
+      end if
+      sx = sx + 1
+    end while
+    sy = sy + 1
+  end while
+  return any
+end function
+
+/*
+* Function: _I_GLOverlayHighresPatches
+* Purpose: Provides overlay highres patches helper behavior for the windowing and video backend.
+*/
+function _I_GLOverlayHighresPatches()
+  if typeof(v_hioverlay) != "bytes" or typeof(v_hioverlaymask) != "bytes" then return false end if
+  expected = _i_presentWidth * _i_presentHeight
+  if len(v_hioverlay) < expected or len(v_hioverlaymask) < expected then return false end if
+  if typeof(v_hioverlay_maxx) != "int" or v_hioverlay_maxx < v_hioverlay_minx then return false end if
+
+  minx = v_hioverlay_minx
+  miny = v_hioverlay_miny
+  maxx = v_hioverlay_maxx
+  maxy = v_hioverlay_maxy
+  if minx < 0 then minx = 0 end if
+  if miny < 0 then miny = 0 end if
+  if maxx >= _i_presentWidth then maxx = _i_presentWidth - 1 end if
+  if maxy >= _i_presentHeight then maxy = _i_presentHeight - 1 end if
+  if maxx < minx or maxy < miny then return false end if
+
+  any = false
+  y = miny
+  while y <= maxy
+    x = minx
+    row = y * _i_presentWidth
+    while x <= maxx
+      idx = row + x
+      if v_hioverlaymask[idx] != 0 then
+        any = true
+        _i_glOverlayBuffer[idx] = v_hioverlay[idx]
+        _i_glOverlayMask[idx] = 1
+      end if
+      x = x + 1
+    end while
+    y = y + 1
+  end while
+  return any
+end function
+
+/*
+* Function: _I_DrawGLOverlayFrame
+* Purpose: Draws OpenGL overlay frame output for the windowing and video backend.
+*/
+function _I_DrawGLOverlayFrame()
+  if not _I_EnsureGLOOverlay() then return false end if
+  if typeof(screens) != "array" or len(screens) == 0 or typeof(screens[0]) != "bytes" then return false end if
+
+  any = false
+  logical = screens[0]
+  statusY = SCREENHEIGHT - _I_STATUSBAR_HEIGHT
+  if statusY < 0 then statusY = 0 end if
+  hiCoversStatus = false
+  if typeof(v_hioverlay_maxx) == "int" and typeof(v_hioverlay_minx) == "int" and typeof(v_hioverlay_maxy) == "int" then
+    statusHiY = statusY * _i_presentScale
+    hiCoversStatus = v_hioverlay_minx <= 0 and v_hioverlay_maxx >= _i_presentWidth - 1 and v_hioverlay_maxy >= statusHiY
+  end if
+  if not hiCoversStatus then
+    if _I_GLOverlayLogicalRect(logical, 0, statusY, SCREENWIDTH, SCREENHEIGHT - statusY) then any = true end if
+  end if
+  if typeof(v_overlaymask) == "bytes" then
+    scaledOverlay = void
+    if _i_presentScale > 1 and typeof(v_overlay_miny) == "int" and v_overlay_miny < statusY then
+      scaledOverlay = _I_BuildScaledLogicalFrame(logical)
+    end if
+    if typeof(scaledOverlay) == "bytes" then
+      if _I_GLOverlayScaledLogicalMask(scaledOverlay, v_overlaymask) then any = true end if
+    else if _I_GLOverlayLogicalMask(logical, v_overlaymask) then
+      any = true
+    end if
+  end if
+  if _I_GLOverlayHighresPatches() then any = true end if
+  if not any then return false end if
+  return IGL_DrawIndexedOverlay(_i_glOverlayBuffer, _i_glOverlayMask, _i_presentWidth, _i_presentHeight)
+end function
+
+/*
+* Function: _I_BuildScaledLogicalFrame
+* Purpose: Expands the logical Doom framebuffer into an xBRZ-scaled presentation framebuffer.
+*/
+function _I_BuildScaledLogicalFrame(src)
+  global _i_scaledLogicalBuffer
+  global _i_xbrzTarget
+
+  if typeof(src) != "bytes" then return src end if
+  if _i_presentScale <= 1 then return src end if
+  if typeof(_i_scaledLogicalBuffer) != "bytes" or len(_i_scaledLogicalBuffer) < _i_presentWidth * _i_presentHeight then
+    _i_scaledLogicalBuffer = bytes(_i_presentWidth * _i_presentHeight, 0)
+  end if
+
+  _i_xbrzTarget = _i_scaledLogicalBuffer
+  s = _i_presentScale
+  sy = 0
+  while sy < SCREENHEIGHT
+    sx = 0
+    while sx < SCREENWIDTH
+      a = _I_FramePixelAt(src, sx - 1, sy - 1)
+      b = _I_FramePixelAt(src, sx, sy - 1)
+      c = _I_FramePixelAt(src, sx + 1, sy - 1)
+      d = _I_FramePixelAt(src, sx - 1, sy)
+      e = _I_FramePixelAt(src, sx, sy)
+      f = _I_FramePixelAt(src, sx + 1, sy)
+      g = _I_FramePixelAt(src, sx - 1, sy + 1)
+      h = _I_FramePixelAt(src, sx, sy + 1)
+      ii = _I_FramePixelAt(src, sx + 1, sy + 1)
+
+      blockX = sx * s
+      blockY = sy * s
+      yy = 0
+      while yy < s
+        row = (blockY + yy) * _i_presentWidth + blockX
+        xx = 0
+        while xx < s
+          _i_scaledLogicalBuffer[row + xx] = e
+          xx = xx + 1
+        end while
+        yy = yy + 1
+      end while
+
+      if _i_presentXbrz and(not _I_SimilarColor(b, h)) and(not _I_SimilarColor(d, f)) then
+        if _I_SimilarColor(d, b) and(not _I_SimilarColor(e, a)) then
+          edge = _I_BestEdgeColor(e, d, b)
+          _I_BlendPresentCorner(blockX, blockY, s, 0, e, edge)
+        end if
+        if _I_SimilarColor(b, f) and(not _I_SimilarColor(e, c)) then
+          edge = _I_BestEdgeColor(e, b, f)
+          _I_BlendPresentCorner(blockX, blockY, s, 1, e, edge)
+        end if
+        if _I_SimilarColor(d, h) and(not _I_SimilarColor(e, g)) then
+          edge = _I_BestEdgeColor(e, d, h)
+          _I_BlendPresentCorner(blockX, blockY, s, 2, e, edge)
+        end if
+        if _I_SimilarColor(h, f) and(not _I_SimilarColor(e, ii)) then
+          edge = _I_BestEdgeColor(e, h, f)
+          _I_BlendPresentCorner(blockX, blockY, s, 3, e, edge)
+        end if
+      end if
+
+      sx = sx + 1
+    end while
+    sy = sy + 1
+  end while
+
+  _i_xbrzTarget = void
+  return _i_scaledLogicalBuffer
+end function
+
+/*
+* Function: _I_BuildNearestLogicalFrame
+* Purpose: Builds a cheap nearest-scaled logical frame used as fallback behind prepared assets.
+*/
+function _I_BuildNearestLogicalFrame(src)
+  global _i_presentBuffer
+
+  if typeof(src) != "bytes" then return src end if
+  if _i_presentScale <= 1 then return src end if
+  if typeof(_i_presentBuffer) != "bytes" or len(_i_presentBuffer) < _i_presentWidth * _i_presentHeight then
+    _i_presentBuffer = bytes(_i_presentWidth * _i_presentHeight, 0)
+  end if
+  _I_OverlayLogicalRectNearest(src, 0, 0, SCREENWIDTH, SCREENHEIGHT)
+  _I_OverlayPreparedHighresPatches()
+  return _i_presentBuffer
+end function
+
+/*
+* Function: _I_BuildUpscaledLogicalFrame
+* Purpose: Builds upscaled logical frame data for the windowing and video backend.
+*/
+function _I_BuildUpscaledLogicalFrame(src)
+  global _i_presentBuffer
+
+  scaled = _I_BuildScaledLogicalFrame(src)
+  if _i_presentScale <= 1 then return scaled end if
+  if typeof(scaled) != "bytes" then return scaled end if
+  if typeof(_i_presentBuffer) != "bytes" or len(_i_presentBuffer) < _i_presentWidth * _i_presentHeight then
+    _i_presentBuffer = bytes(_i_presentWidth * _i_presentHeight, 0)
+  end if
+  copyBytes(_i_presentBuffer, 0, scaled, 0, _i_presentWidth * _i_presentHeight)
+  _I_OverlayPreparedHighresPatches()
+  return _i_presentBuffer
+end function
+
+/*
+* Function: _I_BuildHighresGameFrame
+* Purpose: Presents the native high-resolution world buffer plus scaled logical UI/overlay areas.
+*/
+function _I_BuildHighresGameFrame()
+  global _i_presentBuffer
+
+  if typeof(screens) != "array" or len(screens) == 0 or typeof(screens[0]) != "bytes" then
+    return RH_Buffer()
+  end if
+  logical = screens[0]
+
+  if gamestate != gamestate_t.GS_LEVEL or automapactive then
+    return _I_BuildUpscaledLogicalFrame(logical)
+  end if
+
+  hi = RH_Buffer()
+  if typeof(hi) != "bytes" then return hi end if
+  expected = _i_presentWidth * _i_presentHeight
+  if len(hi) < expected then return hi end if
+  if typeof(_i_presentBuffer) != "bytes" or len(_i_presentBuffer) < expected then
+    _i_presentBuffer = bytes(expected, 0)
+  end if
+
+  copyBytes(_i_presentBuffer, 0, hi, 0, expected)
+  statusY = SCREENHEIGHT - _I_STATUSBAR_HEIGHT
+  if statusY < 0 then statusY = 0 end if
+  _I_OverlayLogicalRectNearest(logical, 0, statusY, SCREENWIDTH, SCREENHEIGHT - statusY)
+  usedMask = false
+  if typeof(v_overlaymask) == "bytes" then
+    usedMask = _I_OverlayMarkedLogicalPixelsNearest(logical, v_overlaymask)
+  else
+    _I_OverlayChangedLogicalPixelsNearest(logical, _i_overlayBase)
+  end if
+  _I_OverlayPreparedHighresPatches()
+  return _i_presentBuffer
+end function
+
+/*
+* Function: _I_BuildPresentFrame
+* Purpose: Returns the framebuffer that should be presented to the window.
+*/
+function _I_BuildPresentFrame()
+  if typeof(RH_IsActive) == "function" and RH_IsActive() then
+    return _I_BuildHighresGameFrame()
+  end if
+
+  if typeof(screens) != "array" or len(screens) == 0 then return void end if
+  return _I_BuildNearestLogicalFrame(screens[0])
+end function
+
+/*
+* Function: _I_BuildBmpFromIndexedFrame
+* Purpose: Builds an 8-bit BMP from a prepared indexed frame.
+*/
+function _I_BuildBmpFromIndexedFrame(src, width, height)
   if typeof(src) != "bytes" then return end if
-  if len(src) <(SCREENWIDTH * SCREENHEIGHT) then return end if
+  if typeof(width) != "int" or typeof(height) != "int" then return end if
+  if width <= 0 or height <= 0 then return end if
+  if len(src) <(width * height) then return end if
   if typeof(_i_paletteRgb) != "bytes" or len(_i_paletteRgb) < 768 then return end if
 
   palBytes = 256 * 4
-  pixelBytes = SCREENWIDTH * SCREENHEIGHT
+  pixelBytes = width * height
   fileSize = _I_BMP_HEADER_SIZE + palBytes + pixelBytes
   bmp = bytes(fileSize, 0)
 
@@ -766,8 +2028,8 @@ function _I_BuildBmpFromFrame()
   _I_WriteU32(bmp, 10, _I_BMP_HEADER_SIZE + palBytes)
 
   _I_WriteU32(bmp, 14, 40)
-  _I_WriteU32(bmp, 18, SCREENWIDTH)
-  _I_WriteU32(bmp, 22, - SCREENHEIGHT)
+  _I_WriteU32(bmp, 18, width)
+  _I_WriteU32(bmp, 22, - height)
   _I_WriteU16(bmp, 26, 1)
   _I_WriteU16(bmp, 28, 8)
   _I_WriteU32(bmp, 30, _I_BI_RGB)
@@ -796,16 +2058,85 @@ function _I_BuildBmpFromFrame()
 end function
 
 /*
+* Function: _I_BuildBmpFromFrame
+* Purpose: Builds bmp from frame data for the windowing and video backend.
+*/
+function _I_BuildBmpFromFrame()
+  src = _I_BuildPresentFrame()
+  return _I_BuildBmpFromIndexedFrame(src, _i_presentWidth, _i_presentHeight)
+end function
+
+/*
+* Function: _I_ClampPresentScale
+* Purpose: Keeps the physical presentation scale inside the supported range.
+*/
+function inline _I_ClampPresentScale(scale)
+  s = _I_ToIntOr(scale, 1)
+  if s < 1 then s = 1 end if
+  if s > 4 then s = 4 end if
+  return s
+end function
+
+/*
+* Function: _I_InitPresentMetrics
+* Purpose: Initializes physical framebuffer dimensions used by GDI presentation.
+*/
+function _I_InitPresentMetrics()
+  global _i_presentScale
+  global _i_presentWidth
+  global _i_presentHeight
+  global _i_presentBuffer
+  global _i_scaledLogicalBuffer
+  global _i_overlayRowBuffer
+  global _i_presentBlendCache
+  global _i_presentXbrz
+  global _i_overlayBase
+  global _i_glOverlayBuffer
+  global _i_glOverlayMask
+
+  s = 1
+  if typeof(RU_RenderScale) == "function" then
+    s = RU_RenderScale()
+  end if
+  s = _I_ClampPresentScale(s)
+
+  _i_presentScale = s
+  _i_presentWidth = SCREENWIDTH * s
+  _i_presentHeight = SCREENHEIGHT * s
+  _i_presentBuffer = bytes(_i_presentWidth * _i_presentHeight, 0)
+  _i_scaledLogicalBuffer = bytes(_i_presentWidth * _i_presentHeight, 0)
+  _i_overlayRowBuffer = bytes(_i_presentWidth, 0)
+  _i_overlayBase = bytes(SCREENWIDTH * SCREENHEIGHT, 0)
+  _i_glOverlayBuffer = bytes(_i_presentWidth * _i_presentHeight, 0)
+  _i_glOverlayMask = bytes(_i_presentWidth * _i_presentHeight, 0)
+  _i_presentBlendCache = array(256 * 256 * 4, -1)
+  _i_presentXbrz = true
+  if typeof(M_CheckParm) == "function" then
+    if M_CheckParm("-nearestpresent") != 0 or M_CheckParm("--nearestpresent") != 0 then
+      _i_presentXbrz = false
+    end if
+  end if
+end function
+
+/*
 * Function: _I_WriteAutoScreenshot
-* Purpose: Implements the _I_WriteAutoScreenshot routine for the internal module support.
+* Purpose: Writes auto screenshot data for the windowing and video backend.
 */
 function _I_WriteAutoScreenshot()
+  _I_WriteAutoScreenshotFromFrame(_I_BuildPresentFrame(), _i_presentWidth, _i_presentHeight)
+end function
+
+/*
+* Function: _I_WriteAutoScreenshotFromFrame
+* Purpose: Writes an auto screenshot from a prepared indexed frame.
+*/
+function _I_WriteAutoScreenshotFromFrame(src, width, height)
   global _i_screenshotIndex
   global _i_screenshotWriteError
 
   if not _I_EnsureScreenshotDir() then return end if
 
-  bmp = _I_BuildBmpFromFrame()
+  bmp = _I_BuildBmpFromIndexedFrame(src, width, height)
   if typeof(bmp) != "bytes" then return end if
 
   name = "frame_" + _i_screenshotIndex + ".bmp"
@@ -819,34 +2150,49 @@ function _I_WriteAutoScreenshot()
 end function
 
 /*
-* Function: _I_MaybeAutoScreenshot
-* Purpose: Implements the _I_MaybeAutoScreenshot routine for the internal module support.
+* Function: _I_ShouldAutoScreenshot
+* Purpose: Returns true when the next auto screenshot interval has elapsed.
 */
-function _I_MaybeAutoScreenshot()
+function _I_ShouldAutoScreenshot()
   global _i_screenshotNextTick
 
-  if not _i_screenshotEnabled then return end if
+  if not _i_screenshotEnabled then return false end if
 
   now = std.time.ticks()
-  if typeof(now) != "int" then return end if
+  if typeof(now) != "int" then return false end if
 
   if _i_screenshotNextTick == 0 then
     _i_screenshotNextTick = now + _I_SCREENSHOT_INTERVAL_MS
-    return
+    return false
   end if
 
-  if now < _i_screenshotNextTick then return end if
-
-  _I_WriteAutoScreenshot()
+  if now < _i_screenshotNextTick then return false end if
 
   while _i_screenshotNextTick <= now
     _i_screenshotNextTick = _i_screenshotNextTick + _I_SCREENSHOT_INTERVAL_MS
   end while
+  return true
+end function
+
+/*
+* Function: _I_MaybeAutoScreenshot
+* Purpose: Provides auto screenshot helper behavior for the windowing and video backend.
+*/
+function _I_MaybeAutoScreenshot()
+  if _I_ShouldAutoScreenshot() then _I_WriteAutoScreenshot() end if
+end function
+
+/*
+* Function: _I_MaybeAutoScreenshotFromFrame
+* Purpose: Writes a prepared frame when the auto screenshot interval has elapsed.
+*/
+function _I_MaybeAutoScreenshotFromFrame(src, width, height)
+  if _I_ShouldAutoScreenshot() then _I_WriteAutoScreenshotFromFrame(src, width, height) end if
 end function
 
 /*
 * Function: _I_ReleaseKeyboard
-* Purpose: Implements the _I_ReleaseKeyboard routine for the internal module support.
+* Purpose: Provides keyboard helper behavior for the windowing and video backend.
 */
 function _I_ReleaseKeyboard(postEvents)
   _I_InitKeyMap()
@@ -869,7 +2215,7 @@ end function
 
 /*
 * Function: _I_PollKeyboard
-* Purpose: Implements the _I_PollKeyboard routine for the internal module support.
+* Purpose: Provides keyboard helper behavior for the windowing and video backend.
 */
 function _I_PollKeyboard()
   _I_InitKeyMap()
@@ -918,7 +2264,7 @@ end function
 
 /*
 * Function: _I_MouseButtonsNow
-* Purpose: Implements the _I_MouseButtonsNow routine for the internal module support.
+* Purpose: Provides buttons now helper behavior for the windowing and video backend.
 */
 function inline _I_MouseButtonsNow()
   b = 0
@@ -930,7 +2276,7 @@ end function
 
 /*
 * Function: _I_PollMouse
-* Purpose: Implements the _I_PollMouse routine for the internal module support.
+* Purpose: Provides mouse helper behavior for the windowing and video backend.
 */
 function _I_PollMouse()
   global _i_mouseInited
@@ -1004,12 +2350,18 @@ function I_InitGraphics()
   global _i_mousePrevY
   global _i_mousePrevButtons
   global _i_fullscreen
+  global _i_presentScale
+  global _i_presentWidth
+  global _i_presentHeight
+  global _i_presentBuffer
 
   if _i_inited then return end if
 
   if screens[0] == 0 then
     V_Init()
   end if
+
+  _I_InitPresentMetrics()
 
   _i_paletteRgb = bytes(768, 0)
   _i_bmi = bytes(40 + 256 * 4, 0)
@@ -1064,6 +2416,9 @@ function I_InitGraphics()
   else
     print "I_InitGraphics: windowed mode enabled"
   end if
+  if _i_presentScale > 1 then
+    print "I_InitGraphics: present scale " + _i_presentScale + "x (" + _i_presentWidth + "x" + _i_presentHeight + ")"
+  end if
   if _i_screenshotEnabled then
     print "I_InitGraphics: auto screenshots every 1s -> " + _i_screenshotDir
   else
@@ -1075,7 +2430,7 @@ end function
 
 /*
 * Function: I_ShutdownGraphics
-* Purpose: Implements the I_ShutdownGraphics routine for the platform layer.
+* Purpose: Shuts down shutdown Graphics resources owned by the video backend system.
 */
 function I_ShutdownGraphics()
   global _i_inited
@@ -1084,6 +2439,8 @@ function I_ShutdownGraphics()
   global _i_ownsWindow
 
   _I_SetCursorVisible(true)
+
+  if typeof(IGL_Shutdown) == "function" then IGL_Shutdown() end if
 
   if not(_i_hwnd is void) then
     if not(_i_hdc is void) then
@@ -1102,7 +2459,7 @@ end function
 
 /*
 * Function: I_SetPalette
-* Purpose: Reads or updates state used by the platform layer.
+* Purpose: Updates palette state for the windowing and video backend.
 */
 function I_SetPalette(palette)
   if typeof(_i_paletteRgb) != "bytes" then return end if
@@ -1130,19 +2487,84 @@ function I_SetPalette(palette)
   end for
 
   _I_UpdateBitmapColorTable()
+  if typeof(IGL_SetPalette) == "function" then IGL_SetPalette(_i_paletteRgb) end if
 end function
 
 /*
 * Function: I_UpdateNoBlit
-* Purpose: Advances per-tick logic for the platform layer.
+* Purpose: Draws update No Blit output for the video backend renderer.
 */
 function I_UpdateNoBlit()
   _I_PumpMessages()
 end function
 
 /*
+* Function: I_CaptureGLFrameToScreen
+* Purpose: Reads OpenGL frame to screen data for the windowing and video backend.
+*/
+function I_CaptureGLFrameToScreen()
+  if not _i_inited then return false end if
+  if typeof(IGL_IsActive) != "function" or not IGL_IsActive() then return false end if
+  if typeof(IGL_HasFrameReady) == "function" and not IGL_HasFrameReady() then return false end if
+  if typeof(screens) != "array" or len(screens) == 0 or typeof(screens[0]) != "bytes" then return false end if
+  if _i_hwnd is void then return false end if
+
+  destW = _i_presentWidth
+  destH = _i_presentHeight
+  if GetClientRect(_i_hwnd, _i_rect) then
+    cw = _I_ReadS32(_i_rect, 8) - _I_ReadS32(_i_rect, 0)
+    ch = _I_ReadS32(_i_rect, 12) - _I_ReadS32(_i_rect, 4)
+    if cw > 0 then destW = cw end if
+    if ch > 0 then destH = ch end if
+  end if
+  if typeof(IGL_Resize) == "function" then IGL_Resize(destW, destH) end if
+  _I_DrawGLOverlayFrame()
+  if typeof(IGL_DrawPaletteFlash) == "function" then IGL_DrawPaletteFlash() end if
+  if typeof(IGL_CaptureLogicalIndexed) != "function" then return false end if
+  return IGL_CaptureLogicalIndexed(screens[0], SCREENWIDTH, SCREENHEIGHT)
+end function
+
+/*
+* Function: _I_PresentIndexedFrameGL
+* Purpose: Draws present Indexed Frame GL output for the video backend renderer.
+*/
+function _I_PresentIndexedFrameGL(src)
+  if typeof(src) != "bytes" then return false end if
+  if typeof(IGL_DrawIndexedFrame) != "function" then return false end if
+  _I_SaveLastPresentFrame(src)
+
+  destW = _i_presentWidth
+  destH = _i_presentHeight
+  if GetClientRect(_i_hwnd, _i_rect) then
+    cw = _I_ReadS32(_i_rect, 8) - _I_ReadS32(_i_rect, 0)
+    ch = _I_ReadS32(_i_rect, 12) - _I_ReadS32(_i_rect, 4)
+    if cw > 0 then destW = cw end if
+    if ch > 0 then destH = ch end if
+  end if
+  if typeof(IGL_Resize) == "function" then IGL_Resize(destW, destH) end if
+  if not IGL_DrawIndexedFrame(src, _i_presentWidth, _i_presentHeight) then return false end if
+  if typeof(IGL_MarkFrameReady) == "function" then IGL_MarkFrameReady() end if
+  return IGL_Swap()
+end function
+
+/*
+* Function: I_CaptureLogicalOverlayBase
+* Purpose: Captures the logical framebuffer before late menu/message drawing.
+*/
+function I_CaptureLogicalOverlayBase()
+  global _i_overlayBase
+
+  if _i_presentScale <= 1 then return end if
+  if typeof(screens) != "array" or len(screens) == 0 or typeof(screens[0]) != "bytes" then return end if
+  if typeof(_i_overlayBase) != "bytes" or len(_i_overlayBase) < SCREENWIDTH * SCREENHEIGHT then
+    _i_overlayBase = bytes(SCREENWIDTH * SCREENHEIGHT, 0)
+  end if
+  copyBytes(_i_overlayBase, 0, screens[0], 0, SCREENWIDTH * SCREENHEIGHT)
+end function
+
+/*
 * Function: I_SetLoadingStatus
-* Purpose: Loads and prepares data required by the platform layer.
+* Purpose: Loads set Loading Status resources used by the video backend system.
 */
 function I_SetLoadingStatus(text)
   global _i_loadingStatusText
@@ -1153,7 +2575,7 @@ function I_SetLoadingStatus(text)
   _i_loadingStatusText = text
   if len(text) == 0 then
     _i_loadingAnimPhase = 0
-    _I_SetWindowTitle(_i_titleBase + " | FPS: " + _i_fpsValue)
+    _I_SetWindowTitle(_I_FpsTitle())
   else
     _I_SetWindowTitle(_i_titleBase + " | " + text)
   end if
@@ -1167,6 +2589,11 @@ end function
 function I_LoadingPulse()
   if not _i_inited then return end if
   _I_PumpMessages()
+  if _i_presentScale > 1 then
+    if typeof(I_UpdateSound) == "function" then I_UpdateSound() end if
+    if typeof(I_SubmitSound) == "function" then I_SubmitSound() end if
+    return
+  end if
   _I_DrawLoadingIndicator()
   if typeof(I_FinishUpdate) == "function" then I_FinishUpdate() end if
   if typeof(I_UpdateSound) == "function" then I_UpdateSound() end if
@@ -1175,7 +2602,7 @@ end function
 
 /*
 * Function: I_PollInput
-* Purpose: Implements the I_PollInput routine for the platform layer.
+* Purpose: Provides input helper behavior for the windowing and video backend.
 */
 function I_PollInput()
   _I_PumpMessages()
@@ -1185,7 +2612,7 @@ end function
 
 /*
 * Function: I_FinishUpdate
-* Purpose: Advances per-tick logic for the platform layer.
+* Purpose: Advances finish Update logic during the video backend tick.
 */
 function I_FinishUpdate()
   if not _i_inited then return end if
@@ -1196,11 +2623,49 @@ function I_FinishUpdate()
     if not _I_CreateWindow() then return end if
   end if
 
-  src = screens[0]
+  if (not _i_forceSoftwarePresent) and typeof(IGL_IsActive) == "function" and IGL_IsActive() and gamestate == gamestate_t.GS_LEVEL and not automapactive then
+    _I_UpdateWindowTitle()
+    if typeof(IGL_HasFrameReady) == "function" and not IGL_HasFrameReady() then return end if
+    destW = _i_presentWidth
+    destH = _i_presentHeight
+    if GetClientRect(_i_hwnd, _i_rect) then
+      cw = _I_ReadS32(_i_rect, 8) - _I_ReadS32(_i_rect, 0)
+      ch = _I_ReadS32(_i_rect, 12) - _I_ReadS32(_i_rect, 4)
+      if cw > 0 then destW = cw end if
+      if ch > 0 then destH = ch end if
+    end if
+    if typeof(IGL_Resize) == "function" then IGL_Resize(destW, destH) end if
+    _I_DrawGLOverlayFrame()
+    if typeof(IGL_DrawPaletteFlash) == "function" then IGL_DrawPaletteFlash() end if
+    if _i_screenshotEnabled and typeof(IGL_CaptureLogicalIndexed) == "function" then
+      if typeof(_i_presentBuffer) != "bytes" or len(_i_presentBuffer) < _i_presentWidth * _i_presentHeight then
+        _i_presentBuffer = bytes(_i_presentWidth * _i_presentHeight, 0)
+      end if
+      if IGL_CaptureLogicalIndexed(_i_presentBuffer, _i_presentWidth, _i_presentHeight) then
+        _I_MaybeAutoScreenshotFromFrame(_i_presentBuffer, _i_presentWidth, _i_presentHeight)
+      else
+        _I_MaybeAutoScreenshot()
+      end if
+    end if
+    IGL_Swap()
+    return
+  end if
+
+  src = void
+  if _i_forceSoftwarePresent then
+    if typeof(screens) != "array" or len(screens) == 0 then return end if
+    src = _I_BuildUpscaledLogicalFrame(screens[0])
+  else
+    src = _I_BuildPresentFrame()
+  end if
   if typeof(src) != "bytes" then return end if
 
   _I_MaybeAutoScreenshot()
   _I_UpdateWindowTitle()
+
+  if typeof(IGL_IsActive) == "function" and IGL_IsActive() then
+    if _I_PresentIndexedFrameGL(src) then return end if
+  end if
 
   hdc = _i_hdc
   if hdc is void then
@@ -1211,8 +2676,8 @@ function I_FinishUpdate()
     SetStretchBltMode(hdc, _I_COLORONCOLOR)
   end if
 
-  destW = SCREENWIDTH
-  destH = SCREENHEIGHT
+  destW = _i_presentWidth
+  destH = _i_presentHeight
   if GetClientRect(_i_hwnd, _i_rect) then
     cw = _I_ReadS32(_i_rect, 8) - _I_ReadS32(_i_rect, 0)
     ch = _I_ReadS32(_i_rect, 12) - _I_ReadS32(_i_rect, 4)
@@ -1223,17 +2688,18 @@ function I_FinishUpdate()
   StretchDIBits(
   hdc,
   0, 0, destW, destH,
-  0, 0, SCREENWIDTH, SCREENHEIGHT,
+  0, 0, _i_presentWidth, _i_presentHeight,
   src,
   _i_bmi,
   _I_DIB_RGB_COLORS,
   _I_SRCCOPY
 )
+  _I_SaveLastPresentFrame(src)
 end function
 
 /*
 * Function: I_ReadScreen
-* Purpose: Implements the I_ReadScreen routine for the platform layer.
+* Purpose: Reads screen data for the windowing and video backend.
 */
 function I_ReadScreen(scr)
   if typeof(scr) != "bytes" then return end if
@@ -1251,7 +2717,7 @@ end function
 
 /*
 * Function: grabsharedmemory
-* Purpose: Implements the grabsharedmemory routine for the engine module behavior.
+* Purpose: Provides grabsharedmemory helper behavior for the windowing and video backend.
 */
 function grabsharedmemory(size)
   size = size
@@ -1274,7 +2740,7 @@ end function
 
 /*
 * Function: Expand4
-* Purpose: Implements the Expand4 routine for the engine module behavior.
+* Purpose: Provides expand4 helper behavior for the windowing and video backend.
 */
 function Expand4(src, dst, count)
   if typeof(src) != "bytes" or typeof(dst) != "bytes" then return end if
@@ -1283,7 +2749,7 @@ end function
 
 /*
 * Function: UploadNewPalette
-* Purpose: Loads and prepares data required by the engine module behavior.
+* Purpose: Loads upload New Palette resources used by the video backend system.
 */
 function UploadNewPalette(pal)
   I_SetPalette(pal)
@@ -1291,7 +2757,7 @@ end function
 
 /*
 * Function: xlatekey
-* Purpose: Implements the xlatekey routine for the engine module behavior.
+* Purpose: Provides xlatekey helper behavior for the windowing and video backend.
 */
 function xlatekey(vk)
   _I_InitKeyMap()
@@ -1312,7 +2778,7 @@ end function
 
 /*
 * Function: I_GetEvent
-* Purpose: Reads or updates state used by the platform layer.
+* Purpose: Reads event data for the windowing and video backend.
 */
 function I_GetEvent()
   _I_PumpMessages()

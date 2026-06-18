@@ -30,7 +30,7 @@ const MAXDRAWSEGS = 256
 
 /*
 * Function: RDefs_U16LE
-* Purpose: Implements the RDefs_U16LE routine for the engine module behavior.
+* Purpose: Provides U16 little-endian helper behavior for the renderer.
 */
 function inline RDefs_U16LE(b, off)
   return b[off] +(b[off + 1] * 256)
@@ -38,7 +38,7 @@ end function
 
 /*
 * Function: RDefs_I16LE
-* Purpose: Implements the RDefs_I16LE routine for the engine module behavior.
+* Purpose: Provides i16 little-endian helper behavior for the renderer.
 */
 function inline RDefs_I16LE(b, off)
   x = RDefs_U16LE(b, off)
@@ -48,7 +48,7 @@ end function
 
 /*
 * Function: RDefs_U32LE
-* Purpose: Implements the RDefs_U32LE routine for the engine module behavior.
+* Purpose: Provides U32 little-endian helper behavior for the renderer.
 */
 function inline RDefs_U32LE(b, off)
   return b[off] +(b[off + 1] * 256) +(b[off + 2] * 65536) +(b[off + 3] * 16777216)
@@ -56,7 +56,7 @@ end function
 
 /*
 * Function: RDefs_I32LE
-* Purpose: Implements the RDefs_I32LE routine for the engine module behavior.
+* Purpose: Provides i32 little-endian helper behavior for the renderer.
 */
 function inline RDefs_I32LE(b, off)
   x = RDefs_U32LE(b, off)
@@ -66,7 +66,7 @@ end function
 
 /*
 * Function: Patch_Width
-* Purpose: Implements the Patch_Width routine for the engine module behavior.
+* Purpose: Provides width helper behavior for the renderer.
 */
 function Patch_Width(patchBytes)
   return RDefs_I16LE(patchBytes, 0)
@@ -74,7 +74,7 @@ end function
 
 /*
 * Function: Patch_Height
-* Purpose: Implements the Patch_Height routine for the engine module behavior.
+* Purpose: Provides height helper behavior for the renderer.
 */
 function Patch_Height(patchBytes)
   return RDefs_I16LE(patchBytes, 2)
@@ -82,7 +82,7 @@ end function
 
 /*
 * Function: Patch_LeftOffset
-* Purpose: Reads or updates state used by the engine module behavior.
+* Purpose: Provides left offset helper behavior for the renderer.
 */
 function inline Patch_LeftOffset(patchBytes)
   return RDefs_I16LE(patchBytes, 4)
@@ -90,7 +90,7 @@ end function
 
 /*
 * Function: Patch_TopOffset
-* Purpose: Reads or updates state used by the engine module behavior.
+* Purpose: Provides top offset helper behavior for the renderer.
 */
 function inline Patch_TopOffset(patchBytes)
   return RDefs_I16LE(patchBytes, 6)
@@ -98,7 +98,7 @@ end function
 
 /*
 * Function: Patch_ColumnOffset
-* Purpose: Reads or updates state used by the engine module behavior.
+* Purpose: Provides column offset helper behavior for the renderer.
 */
 function inline Patch_ColumnOffset(patchBytes, colIndex)
 
@@ -107,7 +107,7 @@ end function
 
 /*
 * Struct: vertex_t
-* Purpose: Stores runtime data for vertex type.
+* Purpose: Describes vertex geometry or asset data used by the renderer system.
 */
 struct vertex_t
   x
@@ -116,7 +116,7 @@ end struct
 
 /*
 * Struct: degenmobj_t
-* Purpose: Stores runtime data for degenmobj type.
+* Purpose: Stores degenmobj data used by the renderer system.
 */
 struct degenmobj_t
   thinker
@@ -127,7 +127,7 @@ end struct
 
 /*
 * Struct: sector_t
-* Purpose: Stores runtime data for sector type.
+* Purpose: Describes sector geometry or asset data used by the renderer system.
 */
 struct sector_t
   floorheight
@@ -152,7 +152,7 @@ end struct
 
 /*
 * Struct: side_t
-* Purpose: Stores runtime data for side type.
+* Purpose: Describes side geometry or asset data used by the renderer system.
 */
 struct side_t
   textureoffset
@@ -176,7 +176,7 @@ end enum
 
 /*
 * Struct: line_t
-* Purpose: Stores runtime data for line type.
+* Purpose: Describes line geometry or asset data used by the renderer system.
 */
 struct line_t
   v1
@@ -197,7 +197,7 @@ end struct
 
 /*
 * Struct: subsector_t
-* Purpose: Stores runtime data for subsector type.
+* Purpose: Describes subsector geometry or asset data used by the renderer system.
 */
 struct subsector_t
   sector
@@ -207,7 +207,7 @@ end struct
 
 /*
 * Struct: seg_t
-* Purpose: Stores runtime data for seg type.
+* Purpose: Describes seg geometry or asset data used by the renderer system.
 */
 struct seg_t
   v1
@@ -222,7 +222,7 @@ end struct
 
 /*
 * Struct: node_t
-* Purpose: Stores runtime data for node type.
+* Purpose: Describes node geometry or asset data used by the renderer system.
 */
 struct node_t
   x
@@ -235,7 +235,7 @@ end struct
 
 /*
 * Struct: post_t
-* Purpose: Stores runtime data for post type.
+* Purpose: Stores post data used by the renderer system.
 */
 struct post_t
   topdelta
@@ -244,7 +244,7 @@ end struct
 
 /*
 * Struct: drawseg_t
-* Purpose: Stores runtime data for drawseg type.
+* Purpose: Describes drawseg geometry or asset data used by the renderer system.
 */
 struct drawseg_t
   curline
@@ -263,7 +263,7 @@ end struct
 
 /*
 * Struct: patch_t
-* Purpose: Stores runtime data for patch type.
+* Purpose: Describes patch geometry or asset data used by the renderer system.
 */
 struct patch_t
   width
@@ -275,7 +275,7 @@ end struct
 
 /*
 * Struct: vissprite_t
-* Purpose: Stores runtime data for vissprite type.
+* Purpose: Describes vissprite geometry or asset data used by the renderer system.
 */
 struct vissprite_t
   prev
@@ -297,7 +297,7 @@ end struct
 
 /*
 * Struct: spriteframe_t
-* Purpose: Stores runtime data for spriteframe type.
+* Purpose: Describes spriteframe geometry or asset data used by the renderer system.
 */
 struct spriteframe_t
   rotate
@@ -307,7 +307,7 @@ end struct
 
 /*
 * Struct: spritedef_t
-* Purpose: Stores runtime data for spritedef type.
+* Purpose: Describes spritedef geometry or asset data used by the renderer system.
 */
 struct spritedef_t
   numframes
@@ -316,7 +316,7 @@ end struct
 
 /*
 * Struct: visplane_t
-* Purpose: Stores runtime data for visplane type.
+* Purpose: Describes visplane geometry or asset data used by the renderer system.
 */
 struct visplane_t
   height

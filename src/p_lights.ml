@@ -24,7 +24,7 @@ import r_state
 
 /*
 * Function: _P_MakeThinker
-* Purpose: Advances per-tick logic for the internal module support.
+* Purpose: Builds thinker data for the play simulation.
 */
 function inline _P_MakeThinker(acp1)
 
@@ -33,7 +33,7 @@ end function
 
 /*
 * Function: _P_AddThinkerIfPossible
-* Purpose: Advances per-tick logic for the internal module support.
+* Purpose: Adds thinker if possible entries to the play simulation.
 */
 function inline _P_AddThinkerIfPossible(th)
   if typeof(P_AddThinker) == "function" then
@@ -43,7 +43,7 @@ end function
 
 /*
 * Function: T_FireFlicker
-* Purpose: Implements the T_FireFlicker routine for the engine module behavior.
+* Purpose: Runs flicker behavior for the lighting thinker.
 */
 function T_FireFlicker(flick)
   if flick is void or flick.sector is void then return end if
@@ -82,7 +82,7 @@ end function
 
 /*
 * Function: T_LightFlash
-* Purpose: Implements the T_LightFlash routine for the engine module behavior.
+* Purpose: Provides light flash helper behavior for the play simulation.
 */
 function T_LightFlash(flash)
   if flash is void or flash.sector is void then return end if
@@ -124,7 +124,7 @@ end function
 
 /*
 * Function: T_StrobeFlash
-* Purpose: Implements the T_StrobeFlash routine for the engine module behavior.
+* Purpose: Provides strobe flash helper behavior for the play simulation.
 */
 function T_StrobeFlash(flash)
   if flash is void or flash.sector is void then return end if
@@ -194,8 +194,8 @@ function EV_StartLightStrobing(line)
   end function
 
   /*
-  * Function: EV_TurnTagLightsOff
-  * Purpose: Implements the EV_TurnTagLightsOff routine for the engine module behavior.
+* Function: EV_TurnTagLightsOff
+* Purpose: Provides turn tag lights off helper behavior for the play simulation.
   */
   function EV_TurnTagLightsOff(line)
     if line is void then return end if
@@ -211,8 +211,8 @@ function EV_StartLightStrobing(line)
     end function
 
     /*
-    * Function: EV_LightTurnOn
-    * Purpose: Implements the EV_LightTurnOn routine for the engine module behavior.
+* Function: EV_LightTurnOn
+* Purpose: Provides light turn on helper behavior for the play simulation.
     */
     function EV_LightTurnOn(line, bright)
       if line is void then return end if
@@ -233,8 +233,8 @@ function EV_StartLightStrobing(line)
       end function
 
       /*
-      * Function: T_Glow
-      * Purpose: Implements the T_Glow routine for the engine module behavior.
+* Function: T_Glow
+* Purpose: Provides glow helper behavior for the play simulation.
       */
       function T_Glow(g)
         if g is void or g.sector is void then return end if

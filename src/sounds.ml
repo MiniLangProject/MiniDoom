@@ -19,7 +19,7 @@
 
 /*
 * Struct: sfxinfo_t
-* Purpose: Stores runtime data for sfxinfo type.
+* Purpose: Stores sfxinfo data used by the sound definition system.
 */
 struct sfxinfo_t
   name
@@ -35,7 +35,7 @@ end struct
 
 /*
 * Struct: musicinfo_t
-* Purpose: Stores runtime data for musicinfo type.
+* Purpose: Stores musicinfo data used by the sound definition system.
 */
 struct musicinfo_t
   name

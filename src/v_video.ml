@@ -25,10 +25,25 @@ import doomdef
 import doomdata
 import m_bbox
 import m_swap
+import w_wad
+import r_upscaled
 
 screens =[0, 0, 0, 0, 0]
 
 dirtybox =[-2147483648, 2147483647, 2147483647, -2147483648]
+v_overlaymask = void
+v_overlay_minx = SCREENWIDTH
+v_overlay_miny = SCREENHEIGHT
+v_overlay_maxx = -1
+v_overlay_maxy = -1
+v_overlay_active = false
+v_hioverlay = void
+v_hioverlaymask = void
+v_hioverlay_scale = 1
+v_hioverlay_minx = 0
+v_hioverlay_miny = 0
+v_hioverlay_maxx = -1
+v_hioverlay_maxy = -1
 
 gammatable =[
 [
@@ -126,7 +141,7 @@ usegamma = 0
 
 /*
 * Function: _u16le
-* Purpose: Implements the _u16le routine for the internal module support.
+* Purpose: Provides u16le helper behavior for the video buffer.
 */
 function inline _u16le(b, off)
   return b[off] +(b[off + 1] << 8)
@@ -134,7 +149,7 @@ end function
 
 /*
 * Function: _s16le
-* Purpose: Implements the _s16le routine for the internal module support.
+* Purpose: Provides s16le helper behavior for the video buffer.
 */
 function inline _s16le(b, off)
   v = _u16le(b, off)
@@ -144,7 +159,7 @@ end function
 
 /*
 * Function: _u32le
-* Purpose: Implements the _u32le routine for the internal module support.
+* Purpose: Provides u32le helper behavior for the video buffer.
 */
 function inline _u32le(b, off)
   return b[off] +(b[off + 1] << 8) +(b[off + 2] << 16) +(b[off + 3] << 24)
@@ -152,7 +167,7 @@ end function
 
 /*
 * Function: _clampInt
-* Purpose: Implements the _clampInt routine for the internal module support.
+* Purpose: Clamps clamp Int values to the supported video buffer range.
 */
 function inline _clampInt(x, lo, hi)
   if x < lo then return lo end if
@@ -167,6 +182,12 @@ end function
 function V_Init()
   global screens
   global dirtybox
+  global v_overlaymask
+  global v_overlay_minx
+  global v_overlay_miny
+  global v_overlay_maxx
+  global v_overlay_maxy
+  global v_overlay_active
 
   n = SCREENWIDTH * SCREENHEIGHT
   tmp =[]
@@ -176,11 +197,281 @@ function V_Init()
   screens = tmp
 
   dirtybox =[-2147483648, 2147483647, 2147483647, -2147483648]
+  v_overlaymask = bytes(n, 0)
+  v_overlay_minx = SCREENWIDTH
+  v_overlay_miny = SCREENHEIGHT
+  v_overlay_maxx = -1
+  v_overlay_maxy = -1
+  v_overlay_active = false
+end function
+
+/*
+* Function: V_ClearOverlayMask
+* Purpose: Clears the per-frame mask of logical pixels drawn by late UI patches.
+*/
+function V_ClearOverlayMask()
+  global v_overlay_minx
+  global v_overlay_miny
+  global v_overlay_maxx
+  global v_overlay_maxy
+  global v_overlay_active
+
+  if typeof(v_overlaymask) == "bytes" then
+    if v_overlay_maxx >= v_overlay_minx and v_overlay_maxy >= v_overlay_miny then
+      y = v_overlay_miny
+      while y <= v_overlay_maxy
+        off = y * SCREENWIDTH + v_overlay_minx
+        fillBytes(v_overlaymask, off, v_overlay_maxx - v_overlay_minx + 1, 0)
+        y = y + 1
+      end while
+    else
+      fillBytes(v_overlaymask, 0, len(v_overlaymask), 0)
+    end if
+  end if
+  v_overlay_minx = SCREENWIDTH
+  v_overlay_miny = SCREENHEIGHT
+  v_overlay_maxx = -1
+  v_overlay_maxy = -1
+  v_overlay_active = true
+end function
+
+/*
+* Function: V_EndOverlayMask
+* Purpose: Stops recording late UI overlay pixels while keeping the recorded mask for presentation.
+*/
+function V_EndOverlayMask()
+  global v_overlay_active
+  v_overlay_active = false
+end function
+
+/*
+* Function: V_EnsureHighresOverlay
+* Purpose: Lazily allocates high-resolution patch overlay buffers.
+*/
+function V_EnsureHighresOverlay()
+  global v_hioverlay
+  global v_hioverlaymask
+  global v_hioverlay_scale
+
+  s = 1
+  if typeof(RU_RenderScale) == "function" then s = RU_RenderScale() end if
+  if typeof(s) != "int" or s < 1 then s = 1 end if
+  if s > 4 then s = 4 end if
+  if s <= 1 then return false end if
+  need = SCREENWIDTH * s * SCREENHEIGHT * s
+  if typeof(v_hioverlay) != "bytes" or len(v_hioverlay) < need or v_hioverlay_scale != s then
+    v_hioverlay = bytes(need, 0)
+    v_hioverlaymask = bytes(need, 0)
+    v_hioverlay_scale = s
+  end if
+  return true
+end function
+
+/*
+* Function: V_ClearHighresOverlay
+* Purpose: Clears high-resolution prepared patch overlay pixels from the previous frame.
+*/
+function V_ClearHighresOverlay()
+  global v_hioverlay_minx
+  global v_hioverlay_miny
+  global v_hioverlay_maxx
+  global v_hioverlay_maxy
+
+  if typeof(v_hioverlaymask) == "bytes" and V_EnsureHighresOverlay() then
+    w = SCREENWIDTH * v_hioverlay_scale
+    if v_hioverlay_maxx >= v_hioverlay_minx and v_hioverlay_maxy >= v_hioverlay_miny then
+      y = v_hioverlay_miny
+      while y <= v_hioverlay_maxy
+        off = y * w + v_hioverlay_minx
+        fillBytes(v_hioverlaymask, off, v_hioverlay_maxx - v_hioverlay_minx + 1, 0)
+        y = y + 1
+      end while
+    else
+      fillBytes(v_hioverlaymask, 0, len(v_hioverlaymask), 0)
+    end if
+  end if
+  v_hioverlay_minx = 0
+  v_hioverlay_miny = 0
+  v_hioverlay_maxx = -1
+  v_hioverlay_maxy = -1
+end function
+
+/*
+* Function: V_ClearHighresOverlayKeepLogicalY
+* Purpose: Clears high-resolution overlay pixels above a logical Y coordinate while preserving the lower persistent area.
+*/
+function V_ClearHighresOverlayKeepLogicalY(logicalY)
+  global v_hioverlay_minx
+  global v_hioverlay_miny
+  global v_hioverlay_maxx
+  global v_hioverlay_maxy
+
+  if typeof(logicalY) != "int" or logicalY <= 0 then
+    V_ClearHighresOverlay()
+    return
+  end if
+  if not V_EnsureHighresOverlay() or typeof(v_hioverlaymask) != "bytes" then
+    V_ClearHighresOverlay()
+    return
+  end if
+
+  w = SCREENWIDTH * v_hioverlay_scale
+  h = SCREENHEIGHT * v_hioverlay_scale
+  keepY = logicalY * v_hioverlay_scale
+  if keepY <= 0 then
+    V_ClearHighresOverlay()
+    return
+  end if
+  if keepY > h then keepY = h end if
+
+  if keepY > 0 then
+    y = 0
+    while y < keepY
+      fillBytes(v_hioverlaymask, y * w, w, 0)
+      y = y + 1
+    end while
+  end if
+
+  if keepY < h then
+    v_hioverlay_minx = 0
+    v_hioverlay_miny = keepY
+    v_hioverlay_maxx = w - 1
+    v_hioverlay_maxy = h - 1
+  else
+    v_hioverlay_minx = 0
+    v_hioverlay_miny = 0
+    v_hioverlay_maxx = -1
+    v_hioverlay_maxy = -1
+  end if
+end function
+
+/*
+* Function: V_ClearHighresOverlayRect
+* Purpose: Clears one logical rectangle from the high-resolution overlay mask.
+*/
+function V_ClearHighresOverlayRect(x, y, width, height)
+  if width <= 0 or height <= 0 then return end if
+  if typeof(v_hioverlaymask) != "bytes" or not V_EnsureHighresOverlay() then return end if
+  s = v_hioverlay_scale
+  w = SCREENWIDTH * s
+  h = SCREENHEIGHT * s
+  x0 = x * s
+  y0 = y * s
+  x1 = (x + width) * s - 1
+  y1 = (y + height) * s - 1
+  if x0 < 0 then x0 = 0 end if
+  if y0 < 0 then y0 = 0 end if
+  if x1 >= w then x1 = w - 1 end if
+  if y1 >= h then y1 = h - 1 end if
+  if x1 < x0 or y1 < y0 then return end if
+  yy = y0
+  while yy <= y1
+    fillBytes(v_hioverlaymask, yy * w + x0, x1 - x0 + 1, 0)
+    yy = yy + 1
+  end while
+end function
+
+/*
+* Function: V_MarkHighresOverlayPixel
+* Purpose: Marks one prepared high-resolution overlay pixel as valid.
+*/
+function inline V_MarkHighresOverlayPixel(idx, x, y)
+  global v_hioverlay_minx
+  global v_hioverlay_miny
+  global v_hioverlay_maxx
+  global v_hioverlay_maxy
+
+  if typeof(v_hioverlaymask) != "bytes" or idx < 0 or idx >= len(v_hioverlaymask) then return end if
+  v_hioverlaymask[idx] = 1
+  if v_hioverlay_maxx < v_hioverlay_minx then
+    v_hioverlay_minx = x
+    v_hioverlay_miny = y
+    v_hioverlay_maxx = x
+    v_hioverlay_maxy = y
+    return
+  end if
+  if x < v_hioverlay_minx then v_hioverlay_minx = x end if
+  if y < v_hioverlay_miny then v_hioverlay_miny = y end if
+  if x > v_hioverlay_maxx then v_hioverlay_maxx = x end if
+  if y > v_hioverlay_maxy then v_hioverlay_maxy = y end if
+end function
+
+/*
+* Function: V_DrawUpscaledPatchOverlay
+* Purpose: Draws a prepared upscaled patch image into the high-resolution overlay.
+*/
+function V_DrawNamedUpscaledPatchOverlay(x, y, name, flipped)
+  if typeof(name) != "string" or name == "" or not V_EnsureHighresOverlay() then return false end if
+  if typeof(RU_GetPatch) != "function" then return false end if
+  entry = RU_GetPatch(name)
+  if entry is void and typeof(RU_GetSprite) == "function" then entry = RU_GetSprite(name) end if
+  if entry is void or typeof(entry.data) != "bytes" then return false end if
+  if entry.width <= 0 or entry.height <= 0 or len(entry.data) < entry.width * entry.height then return false end if
+
+  s = v_hioverlay_scale
+  dw = SCREENWIDTH * s
+  dh = SCREENHEIGHT * s
+  baseX = x * s
+  baseY = y * s
+  yy = 0
+  while yy < entry.height
+    dy = baseY + yy
+    if dy >= 0 and dy < dh then
+      xx = 0
+      while xx < entry.width
+        sx = xx
+        if flipped then sx = entry.width - 1 - xx end if
+        dx = baseX + xx
+        if dx >= 0 and dx < dw then
+          c = entry.data[yy * entry.width + sx]
+          if c != 255 then
+            di = dy * dw + dx
+            v_hioverlay[di] = c
+            V_MarkHighresOverlayPixel(di, dx, dy)
+          end if
+        end if
+        xx = xx + 1
+      end while
+    end if
+    yy = yy + 1
+  end while
+  return true
+end function
+
+/*
+* Function: V_DrawUpscaledPatchOverlay
+* Purpose: Draws upscaled patch overlay output for the video buffer.
+*/
+function V_DrawUpscaledPatchOverlay(x, y, patch, flipped)
+  if typeof(patch) != "bytes" or not V_EnsureHighresOverlay() then return false end if
+  if typeof(W_NameForCachedData) != "function" or typeof(RU_GetPatch) != "function" then return false end if
+  name = W_NameForCachedData(patch)
+  if name == "" then return false end if
+  return V_DrawNamedUpscaledPatchOverlay(x, y, name, flipped)
+end function
+
+/*
+* Function: V_MarkOverlayPixel
+* Purpose: Marks one logical pixel as part of the late UI overlay.
+*/
+function inline V_MarkOverlayPixel(idx, x, y)
+  global v_overlay_minx
+  global v_overlay_miny
+  global v_overlay_maxx
+  global v_overlay_maxy
+
+  if not v_overlay_active then return end if
+  if typeof(v_overlaymask) != "bytes" or idx < 0 or idx >= len(v_overlaymask) then return end if
+  v_overlaymask[idx] = 1
+  if x < v_overlay_minx then v_overlay_minx = x end if
+  if y < v_overlay_miny then v_overlay_miny = y end if
+  if x > v_overlay_maxx then v_overlay_maxx = x end if
+  if y > v_overlay_maxy then v_overlay_maxy = y end if
 end function
 
 /*
 * Function: V_MarkRect
-* Purpose: Implements the V_MarkRect routine for the engine module behavior.
+* Purpose: Provides rect helper behavior for the video buffer.
 */
 function V_MarkRect(x, y, width, height)
 
@@ -200,7 +491,7 @@ end function
 
 /*
 * Function: V_CopyRect
-* Purpose: Implements the V_CopyRect routine for the engine module behavior.
+* Purpose: Updates rect state for the video buffer.
 */
 function V_CopyRect(srcx, srcy, srcscrn, width, height, destx, desty, destscrn)
   src = screens[srcscrn]
@@ -215,12 +506,13 @@ function V_CopyRect(srcx, srcy, srcscrn, width, height, destx, desty, destscrn)
 
   if destscrn == 0 then
     V_MarkRect(destx, desty, width, height)
+    V_ClearHighresOverlayRect(destx, desty, width, height)
   end if
 end function
 
 /*
 * Function: V_DrawPatch
-* Purpose: Draws or renders output for the engine module behavior.
+* Purpose: Draws patch output for the video buffer.
 */
 function V_DrawPatch(x, y, scrn, patch)
   if typeof(patch) != "bytes" then
@@ -238,6 +530,7 @@ function V_DrawPatch(x, y, scrn, patch)
 
   if scrn == 0 then
     V_MarkRect(x, y, width, height)
+    V_DrawUpscaledPatchOverlay(x, y, patch, false)
   end if
 
   destscreen = screens[scrn]
@@ -264,7 +557,9 @@ function V_DrawPatch(x, y, scrn, patch)
         for i = 0 to length - 1
           yy = dy + i
           if yy >= 0 and yy < SCREENHEIGHT then
-            destscreen[yy * SCREENWIDTH + dx] = patch[src + i]
+            idx = yy * SCREENWIDTH + dx
+            destscreen[idx] = patch[src + i]
+            if scrn == 0 then V_MarkOverlayPixel(idx, dx, yy) end if
           end if
         end for
       end if
@@ -276,7 +571,7 @@ end function
 
 /*
 * Function: V_DrawPatchDirect
-* Purpose: Draws or renders output for the engine module behavior.
+* Purpose: Draws patch direct output for the video buffer.
 */
 function V_DrawPatchDirect(x, y, scrn, patch)
   V_DrawPatch(x, y, scrn, patch)
@@ -284,7 +579,7 @@ end function
 
 /*
 * Function: V_DrawBlock
-* Purpose: Draws or renders output for the engine module behavior.
+* Purpose: Draws block output for the video buffer.
 */
 function V_DrawBlock(x, y, scrn, width, height, src)
   if typeof(src) != "bytes" then return end if
@@ -293,6 +588,14 @@ function V_DrawBlock(x, y, scrn, width, height, src)
   di = y * SCREENWIDTH + x
   for row = 0 to height - 1
     copyBytes(dest, di, src, si, width)
+    if scrn == 0 and typeof(v_overlaymask) == "bytes" then
+      mx = 0
+      while mx < width
+        idx = di + mx
+        if idx >= 0 and idx < len(v_overlaymask) then V_MarkOverlayPixel(idx, x + mx, y + row) end if
+        mx = mx + 1
+      end while
+    end if
     si = si + width
     di = di + SCREENWIDTH
   end for
@@ -304,7 +607,7 @@ end function
 
 /*
 * Function: V_GetBlock
-* Purpose: Reads or updates state used by the engine module behavior.
+* Purpose: Reads block data for the video buffer.
 */
 function V_GetBlock(x, y, scrn, width, height, destBuf)
   if typeof(destBuf) != "bytes" then return end if
@@ -320,7 +623,7 @@ end function
 
 /*
 * Function: V_DrawPatchFlipped
-* Purpose: Draws or renders output for the engine module behavior.
+* Purpose: Draws patch flipped output for the video buffer.
 */
 function V_DrawPatchFlipped(x, y, scrn, patch)
   if typeof(patch) != "bytes" then return end if
@@ -335,6 +638,7 @@ function V_DrawPatchFlipped(x, y, scrn, patch)
 
   if scrn == 0 then
     V_MarkRect(x, y, width, height)
+    V_DrawUpscaledPatchOverlay(x, y, patch, true)
   end if
 
   destscreen = screens[scrn]
@@ -357,7 +661,9 @@ function V_DrawPatchFlipped(x, y, scrn, patch)
         for i = 0 to length - 1
           yy = dy + i
           if yy >= 0 and yy < SCREENHEIGHT then
-            destscreen[yy * SCREENWIDTH + dx] = patch[src + i]
+            idx = yy * SCREENWIDTH + dx
+            destscreen[idx] = patch[src + i]
+            if scrn == 0 then V_MarkOverlayPixel(idx, dx, yy) end if
           end if
         end for
       end if

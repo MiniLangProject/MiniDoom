@@ -23,6 +23,7 @@ import w_wad
 import r_local
 import v_video
 import doomstat
+import r_hires
 import std.math
 
 dc_colormap = 0
@@ -47,6 +48,8 @@ ds_yfrac = 0
 ds_xstep = 0
 ds_ystep = 0
 ds_source = 0
+ds_source_width = 64
+ds_source_height = 64
 
 translationtables = 0
 dc_translation = 0
@@ -56,6 +59,7 @@ columnofs =[]
 const SBARHEIGHT = 32
 
 const FUZZTABLE = 50
+const RD_FLAT_PERIOD_MASK = 4194303
 fuzzoffset =[
 SCREENWIDTH, - SCREENWIDTH, SCREENWIDTH, - SCREENWIDTH, SCREENWIDTH, SCREENWIDTH, - SCREENWIDTH,
 SCREENWIDTH, SCREENWIDTH, - SCREENWIDTH, SCREENWIDTH, SCREENWIDTH, SCREENWIDTH, - SCREENWIDTH,
@@ -75,7 +79,7 @@ _rd_prof_enabled = false
 
 /*
 * Function: R_DrawProfileReset
-* Purpose: Draws or renders output for the renderer.
+* Purpose: Clears draw Profile Reset state before the next software drawing update.
 */
 function R_DrawProfileReset()
   global _rd_prof_col_calls
@@ -91,7 +95,7 @@ end function
 
 /*
 * Function: R_DrawProfileSetEnabled
-* Purpose: Draws or renders output for the renderer.
+* Purpose: Draws profile set enabled output for the software drawing.
 */
 function R_DrawProfileSetEnabled(on)
   global _rd_prof_enabled
@@ -100,7 +104,7 @@ end function
 
 /*
 * Function: R_DepthClear
-* Purpose: Implements the R_DepthClear routine for the renderer.
+* Purpose: Clears depth Clear state before the next software drawing update.
 */
 function R_DepthClear()
 
@@ -108,7 +112,7 @@ end function
 
 /*
 * Function: R_DepthBeginWall
-* Purpose: Implements the R_DepthBeginWall routine for the renderer.
+* Purpose: Provides begin wall helper behavior for the software drawing.
 */
 function R_DepthBeginWall(scale)
   scale = scale
@@ -116,14 +120,14 @@ end function
 
 /*
 * Function: R_DepthEndWall
-* Purpose: Implements the R_DepthEndWall routine for the renderer.
+* Purpose: Controls depth End Wall transitions in the software drawing system.
 */
 function R_DepthEndWall()
 end function
 
 /*
 * Function: R_DepthBeginSprite
-* Purpose: Implements the R_DepthBeginSprite routine for the renderer.
+* Purpose: Provides begin sprite helper behavior for the software drawing.
 */
 function R_DepthBeginSprite(scale)
   scale = scale
@@ -131,14 +135,14 @@ end function
 
 /*
 * Function: R_DepthEndSprite
-* Purpose: Implements the R_DepthEndSprite routine for the renderer.
+* Purpose: Controls depth End Sprite transitions in the software drawing system.
 */
 function R_DepthEndSprite()
 end function
 
 /*
 * Function: _RD_DepthPass
-* Purpose: Implements the _RD_DepthPass routine for the internal module support.
+* Purpose: Provides depth pass helper behavior for the software drawing.
 */
 function inline _RD_DepthPass(di)
   di = di
@@ -147,7 +151,7 @@ end function
 
 /*
 * Function: _RD_DepthStore
-* Purpose: Implements the _RD_DepthStore routine for the internal module support.
+* Purpose: Provides depth store helper behavior for the software drawing.
 */
 function inline _RD_DepthStore(di)
   di = di
@@ -155,7 +159,7 @@ end function
 
 /*
 * Function: _RD_IDiv
-* Purpose: Implements the _RD_IDiv routine for the internal module support.
+* Purpose: Performs integer division with software drawing rounding and guard rules.
 */
 function inline _RD_IDiv(a, b)
   if typeof(a) != "int" or typeof(b) != "int" or b == 0 then return 0 end if
@@ -166,7 +170,7 @@ end function
 
 /*
 * Function: _RD_CenterY
-* Purpose: Implements the _RD_CenterY routine for the internal module support.
+* Purpose: Provides center y helper behavior for the software drawing.
 */
 function inline _RD_CenterY()
   if typeof(centery) == "int" then return centery end if
@@ -174,8 +178,36 @@ function inline _RD_CenterY()
 end function
 
 /*
+* Function: _RD_TargetWidth
+* Purpose: Returns the active render target width.
+*/
+function inline _RD_TargetWidth()
+  if typeof(RH_IsActive) == "function" and RH_IsActive() then return RH_Width() end if
+  return SCREENWIDTH
+end function
+
+/*
+* Function: _RD_TargetHeight
+* Purpose: Returns the active render target height.
+*/
+function inline _RD_TargetHeight()
+  if typeof(RH_IsActive) == "function" and RH_IsActive() then return RH_Height() end if
+  return SCREENHEIGHT
+end function
+
+/*
+* Function: _RD_TargetBuffer
+* Purpose: Returns the active render target buffer.
+*/
+function inline _RD_TargetBuffer()
+  if typeof(RH_IsActive) == "function" and RH_IsActive() then return RH_Buffer() end if
+  if typeof(screens) == "array" and len(screens) > 0 then return screens[0] end if
+  return void
+end function
+
+/*
 * Function: _RD_WrapIndex
-* Purpose: Implements the _RD_WrapIndex routine for the internal module support.
+* Purpose: Provides wrap index helper behavior for the software drawing.
 */
 function inline _RD_WrapIndex(i, n)
   if typeof(i) != "int" or typeof(n) != "int" or n <= 0 then return 0 end if
@@ -188,8 +220,23 @@ function inline _RD_WrapIndex(i, n)
 end function
 
 /*
+* Function: _RD_FlatSampleCoord
+* Purpose: Maps Doom's fixed 64x64 flat coordinate into a variable-size source image.
+*/
+function inline _RD_FlatSampleCoord(frac, size)
+  if typeof(size) != "int" or size <= 0 then return 0 end if
+  period = 64 << FRACBITS
+  coord = frac % period
+  if coord < 0 then coord = coord + period end if
+  sample = _RD_IDiv(coord * size, period)
+  if sample < 0 then sample = 0 end if
+  if sample >= size then sample = size - 1 end if
+  return sample
+end function
+
+/*
 * Function: _RD_IsPow2
-* Purpose: Implements the _RD_IsPow2 routine for the internal module support.
+* Purpose: Provides is pow2 helper behavior for the software drawing.
 */
 function inline _RD_IsPow2(n)
   if typeof(n) != "int" or n <= 0 then return false end if
@@ -198,7 +245,7 @@ end function
 
 /*
 * Function: _RD_DrawPatchIfExists
-* Purpose: Draws or renders output for the internal module support.
+* Purpose: Draws patch if exists output for the software drawing.
 */
 function inline _RD_DrawPatchIfExists(x, y, scrn, name)
   if typeof(W_CheckNumForName) != "function" then return end if
@@ -217,33 +264,35 @@ function R_InitBuffer(width, height)
   global viewwindowx
   global viewwindowy
 
-  if typeof(width) != "int" or width <= 0 then width = SCREENWIDTH end if
-  if typeof(height) != "int" or height <= 0 then height = SCREENHEIGHT end if
-  if width > SCREENWIDTH then width = SCREENWIDTH end if
-  if height > SCREENHEIGHT then height = SCREENHEIGHT end if
+  targetW = _RD_TargetWidth()
+  targetH = _RD_TargetHeight()
+  if typeof(width) != "int" or width <= 0 then width = targetW end if
+  if typeof(height) != "int" or height <= 0 then height = targetH end if
+  if width > targetW then width = targetW end if
+  if height > targetH then height = targetH end if
 
-  viewwindowx =(SCREENWIDTH - width) >> 1
+  viewwindowx =(targetW - width) >> 1
 
   columnofs =[]
   for x = 0 to width - 1
     columnofs = columnofs +[viewwindowx + x]
   end for
 
-  if width == SCREENWIDTH then
+  if width == targetW then
     viewwindowy = 0
   else
-    viewwindowy =(SCREENHEIGHT - SBARHEIGHT - height) >> 1
+    viewwindowy =(targetH - SBARHEIGHT - height) >> 1
   end if
 
   ylookup =[]
   for y = 0 to height - 1
-    ylookup = ylookup +[(y + viewwindowy) * SCREENWIDTH]
+    ylookup = ylookup +[(y + viewwindowy) * targetW]
   end for
 end function
 
 /*
 * Function: R_VideoErase
-* Purpose: Implements the R_VideoErase routine for the renderer.
+* Purpose: Provides erase helper behavior for the software drawing.
 */
 function R_VideoErase(ofs, count)
 
@@ -267,14 +316,13 @@ end function
 
 /*
 * Function: R_DrawColumn
-* Purpose: Draws or renders output for the renderer.
+* Purpose: Draws column output for the software drawing.
 */
 function R_DrawColumn()
   global _rd_prof_col_calls
   global _rd_prof_col_pixels
 
-  if typeof(screens) != "array" or len(screens) == 0 then return end if
-  dest = screens[0]
+  dest = _RD_TargetBuffer()
   if typeof(dest) != "bytes" then return end if
   if typeof(dc_colormap) != "bytes" or len(dc_colormap) <= 0 then return end if
   if typeof(dc_x) != "int" or dc_x < 0 or dc_x >= len(columnofs) then return end if
@@ -301,6 +349,12 @@ function R_DrawColumn()
     end if
   end if
   if typeof(srcBase) != "bytes" or srcLen <= 0 then return end if
+  sourceScale = 1
+  if typeof(dc_sourcebase) != "bytes" and typeof(rd_column_source_scale) == "int" then
+    sourceScale = rd_column_source_scale
+    if sourceScale < 1 then sourceScale = 1 end if
+    if sourceScale > 4 then sourceScale = 4 end if
+  end if
 
   yl = dc_yl
   yh = dc_yh
@@ -317,6 +371,10 @@ function R_DrawColumn()
 
   fracstep = dc_iscale
   frac = dc_texturemid +(yl - _RD_CenterY()) * fracstep
+  if sourceScale != 1 then
+    frac = frac * sourceScale
+    fracstep = fracstep * sourceScale
+  end if
 
   x = columnofs[dc_x]
   cmapLen = len(dc_colormap)
@@ -356,14 +414,13 @@ end function
 
 /*
 * Function: R_DrawColumnLow
-* Purpose: Draws or renders output for the renderer.
+* Purpose: Draws column low output for the software drawing.
 */
 function R_DrawColumnLow()
   global _rd_prof_col_calls
   global _rd_prof_col_pixels
 
-  if typeof(screens) != "array" or len(screens) == 0 then return end if
-  dest = screens[0]
+  dest = _RD_TargetBuffer()
   if typeof(dest) != "bytes" then return end if
   if typeof(dc_source) != "bytes" or len(dc_source) <= 0 then return end if
   if typeof(dc_colormap) != "bytes" or len(dc_colormap) <= 0 then return end if
@@ -391,11 +448,22 @@ function R_DrawColumnLow()
   fracstep = dc_iscale
   frac = dc_texturemid +(yl - _RD_CenterY()) * fracstep
   srcLen = len(dc_source)
+  sourceScale = 1
+  if typeof(dc_sourcebase) != "bytes" and typeof(rd_column_source_scale) == "int" then
+    sourceScale = rd_column_source_scale
+    if sourceScale < 1 then sourceScale = 1 end if
+    if sourceScale > 4 then sourceScale = 4 end if
+  end if
   cmapLen = len(dc_colormap)
   srcPow2 = _RD_IsPow2(srcLen)
   srcMask = srcLen - 1
   sx1 = columnofs[x1]
   sx2 = columnofs[x2]
+  if sx1 < 0 or sx2 < 0 then return end if
+  if sourceScale != 1 then
+    frac = frac * sourceScale
+    fracstep = fracstep * sourceScale
+  end if
 
   if srcPow2 and cmapLen >= 256 then
     for y = yl to yh
@@ -404,6 +472,10 @@ function R_DrawColumnLow()
       row = ylookup[y]
       di1 = row + sx1
       di2 = row + sx2
+      if di1 < 0 or di2 < 0 or di1 >= len(dest) or di2 >= len(dest) then
+        frac = frac + fracstep
+        continue
+      end if
       dest[di1] = c
       dest[di2] = c
       frac = frac + fracstep
@@ -420,6 +492,10 @@ function R_DrawColumnLow()
     row = ylookup[y]
     di1 = row + sx1
     di2 = row + sx2
+    if di1 < 0 or di2 < 0 or di1 >= len(dest) or di2 >= len(dest) then
+      frac = frac + fracstep
+      continue
+    end if
     dest[di1] = c
     dest[di2] = c
     frac = frac + fracstep
@@ -428,12 +504,11 @@ end function
 
 /*
 * Function: R_DrawFuzzColumn
-* Purpose: Draws or renders output for the renderer.
+* Purpose: Draws fuzz column output for the software drawing.
 */
 function R_DrawFuzzColumn()
   global fuzzpos
-  if typeof(screens) != "array" or len(screens) == 0 then return end if
-  dest = screens[0]
+  dest = _RD_TargetBuffer()
   if typeof(dest) != "bytes" then return end if
   if typeof(colormaps) != "bytes" or len(colormaps) <(6 * 256 + 256) then return end if
   if typeof(dc_x) != "int" or dc_x < 0 or dc_x >= len(columnofs) then return end if
@@ -462,7 +537,7 @@ end function
 
 /*
 * Function: R_DrawFuzzColumnLow
-* Purpose: Draws or renders output for the renderer.
+* Purpose: Draws fuzz column low output for the software drawing.
 */
 function R_DrawFuzzColumnLow()
   R_DrawFuzzColumn()
@@ -470,11 +545,10 @@ end function
 
 /*
 * Function: R_DrawTranslatedColumn
-* Purpose: Draws or renders output for the renderer.
+* Purpose: Draws translated column output for the software drawing.
 */
 function R_DrawTranslatedColumn()
-  if typeof(screens) != "array" or len(screens) == 0 then return end if
-  dest = screens[0]
+  dest = _RD_TargetBuffer()
   if typeof(dest) != "bytes" then return end if
   if typeof(dc_colormap) != "bytes" or len(dc_colormap) <= 0 then return end if
   if typeof(dc_x) != "int" or dc_x < 0 or dc_x >= len(columnofs) then return end if
@@ -501,6 +575,12 @@ function R_DrawTranslatedColumn()
     end if
   end if
   if typeof(srcBase) != "bytes" or slen <= 0 then return end if
+  sourceScale = 1
+  if typeof(dc_sourcebase) != "bytes" and typeof(rd_column_source_scale) == "int" then
+    sourceScale = rd_column_source_scale
+    if sourceScale < 1 then sourceScale = 1 end if
+    if sourceScale > 4 then sourceScale = 4 end if
+  end if
 
   yl = dc_yl
   yh = dc_yh
@@ -512,6 +592,10 @@ function R_DrawTranslatedColumn()
 
   fracstep = dc_iscale
   frac = dc_texturemid +(yl - _RD_CenterY()) * fracstep
+  if sourceScale != 1 then
+    frac = frac * sourceScale
+    fracstep = fracstep * sourceScale
+  end if
   sx = columnofs[dc_x]
   cmapLen = len(dc_colormap)
   srcPow2 = _RD_IsPow2(slen) and(not srcClamp)
@@ -554,7 +638,7 @@ end function
 
 /*
 * Function: R_DrawTranslatedColumnLow
-* Purpose: Draws or renders output for the renderer.
+* Purpose: Draws translated column low output for the software drawing.
 */
 function R_DrawTranslatedColumnLow()
   R_DrawTranslatedColumn()
@@ -562,7 +646,7 @@ end function
 
 /*
 * Function: R_DrawSpan
-* Purpose: Draws or renders output for the renderer.
+* Purpose: Draws span output for the software drawing.
 */
 function R_DrawSpan()
   global _rd_prof_span_calls
@@ -575,8 +659,16 @@ function R_DrawSpan()
   if typeof(ds_x1) != "int" or typeof(ds_x2) != "int" then return end if
   if ds_x1 < 0 or ds_x2 >= len(columnofs) then return end if
 
-  dest = screens[0]
+  dest = _RD_TargetBuffer()
   if typeof(dest) != "bytes" then return end if
+  srcW = ds_source_width
+  srcH = ds_source_height
+  if typeof(srcW) != "int" or srcW <= 0 then srcW = 64 end if
+  if typeof(srcH) != "int" or srcH <= 0 then srcH = 64 end if
+  if len(ds_source) < srcW * srcH then
+    srcW = 64
+    srcH = 64
+  end if
   y = ds_y
   xf = ds_xfrac
   yf = ds_yfrac
@@ -587,18 +679,33 @@ function R_DrawSpan()
     _rd_prof_span_pixels = _rd_prof_span_pixels +(count + 1)
   end if
 
-  for i = 0 to count
-    spot =((yf >>(FRACBITS - 6)) &(63 * 64)) +((xf >> FRACBITS) & 63)
-    dest[di + i] = ds_colormap[ds_source[spot]]
-    xf = xf + ds_xstep
-    yf = yf + ds_ystep
-  end for
+  if (srcW & 63) == 0 and(srcH & 63) == 0 then
+    xScale = srcW >> 6
+    yScale = srcH >> 6
+    for i = 0 to count
+      srcX = ((xf & RD_FLAT_PERIOD_MASK) * xScale) >> FRACBITS
+      srcY = ((yf & RD_FLAT_PERIOD_MASK) * yScale) >> FRACBITS
+      spot = srcY * srcW + srcX
+      dest[di + i] = ds_colormap[ds_source[spot]]
+      xf = xf + ds_xstep
+      yf = yf + ds_ystep
+    end for
+  else
+    for i = 0 to count
+      srcX = _RD_FlatSampleCoord(xf, srcW)
+      srcY = _RD_FlatSampleCoord(yf, srcH)
+      spot = srcY * srcW + srcX
+      dest[di + i] = ds_colormap[ds_source[spot]]
+      xf = xf + ds_xstep
+      yf = yf + ds_ystep
+    end for
+  end if
 
 end function
 
 /*
 * Function: R_DrawSpanLow
-* Purpose: Draws or renders output for the renderer.
+* Purpose: Draws span low output for the software drawing.
 */
 function R_DrawSpanLow()
   global _rd_prof_span_calls
@@ -610,8 +717,16 @@ function R_DrawSpanLow()
   if typeof(ds_y) != "int" or ds_y < 0 or ds_y >= len(ylookup) then return end if
   if typeof(ds_x1) != "int" or typeof(ds_x2) != "int" then return end if
 
-  dest = screens[0]
+  dest = _RD_TargetBuffer()
   if typeof(dest) != "bytes" then return end if
+  srcW = ds_source_width
+  srcH = ds_source_height
+  if typeof(srcW) != "int" or srcW <= 0 then srcW = 64 end if
+  if typeof(srcH) != "int" or srcH <= 0 then srcH = 64 end if
+  if len(ds_source) < srcW * srcH then
+    srcW = 64
+    srcH = 64
+  end if
 
   xf = ds_xfrac
   yf = ds_yfrac
@@ -620,19 +735,41 @@ function R_DrawSpanLow()
     _rd_prof_span_calls = _rd_prof_span_calls + 1
     _rd_prof_span_pixels = _rd_prof_span_pixels +((ds_x2 - ds_x1 + 1) * 2)
   end if
-  while x <= ds_x2
-    sx = x << 1
-    if sx >= 0 and(sx + 1) < len(columnofs) then
-      spot =((yf >>(FRACBITS - 6)) &(63 * 64)) +((xf >> FRACBITS) & 63)
-      c = ds_colormap[ds_source[spot]]
-      di = ylookup[ds_y] + columnofs[sx]
-      dest[di] = c
-      dest[di + 1] = c
-    end if
-    xf = xf + ds_xstep
-    yf = yf + ds_ystep
-    x = x + 1
-  end while
+  if (srcW & 63) == 0 and(srcH & 63) == 0 then
+    xScale = srcW >> 6
+    yScale = srcH >> 6
+    while x <= ds_x2
+      sx = x << 1
+      if sx >= 0 and(sx + 1) < len(columnofs) then
+        srcX = ((xf & RD_FLAT_PERIOD_MASK) * xScale) >> FRACBITS
+        srcY = ((yf & RD_FLAT_PERIOD_MASK) * yScale) >> FRACBITS
+        spot = srcY * srcW + srcX
+        c = ds_colormap[ds_source[spot]]
+        di = ylookup[ds_y] + columnofs[sx]
+        dest[di] = c
+        dest[di + 1] = c
+      end if
+      xf = xf + ds_xstep
+      yf = yf + ds_ystep
+      x = x + 1
+    end while
+  else
+    while x <= ds_x2
+      sx = x << 1
+      if sx >= 0 and(sx + 1) < len(columnofs) then
+        srcX = _RD_FlatSampleCoord(xf, srcW)
+        srcY = _RD_FlatSampleCoord(yf, srcH)
+        spot = srcY * srcW + srcX
+        c = ds_colormap[ds_source[spot]]
+        di = ylookup[ds_y] + columnofs[sx]
+        dest[di] = c
+        dest[di + 1] = c
+      end if
+      xf = xf + ds_xstep
+      yf = yf + ds_ystep
+      x = x + 1
+    end while
+  end if
 
 end function
 
@@ -664,7 +801,7 @@ end function
 
 /*
 * Function: R_FillBackScreen
-* Purpose: Implements the R_FillBackScreen routine for the renderer.
+* Purpose: Draws back screen output for the software drawing.
 */
 function R_FillBackScreen()
   if typeof(scaledviewwidth) != "int" then return end if
@@ -724,7 +861,7 @@ end function
 
 /*
 * Function: R_DrawViewBorder
-* Purpose: Draws or renders output for the renderer.
+* Purpose: Draws view border output for the software drawing.
 */
 function R_DrawViewBorder()
   if typeof(scaledviewwidth) != "int" then return end if

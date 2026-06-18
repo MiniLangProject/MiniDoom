@@ -27,7 +27,7 @@ import sounds
 
 /*
 * Function: _DoorsMakeThinker
-* Purpose: Advances per-tick logic for the internal module support.
+* Purpose: Provides make thinker helper behavior for the play simulation.
 */
 function inline _DoorsMakeThinker(fn)
   return thinker_t(void, void, actionf_t(fn, void, void), void)
@@ -35,7 +35,7 @@ end function
 
 /*
 * Function: _DoorsAddThinkerIfPossible
-* Purpose: Advances per-tick logic for the internal module support.
+* Purpose: Provides add thinker if possible helper behavior for the play simulation.
 */
 function inline _DoorsAddThinkerIfPossible(th)
   if typeof(P_AddThinker) == "function" then P_AddThinker(th) end if
@@ -53,7 +53,7 @@ end function
 
 /*
 * Function: _DoorsSoundOrg
-* Purpose: Implements the _DoorsSoundOrg routine for the internal module support.
+* Purpose: Provides sound origin helper behavior for the play simulation.
 */
 function inline _DoorsSoundOrg(sec)
   if sec is void then return void end if
@@ -62,7 +62,7 @@ end function
 
 /*
 * Function: _DoorsIsSeq
-* Purpose: Implements the _DoorsIsSeq routine for the internal module support.
+* Purpose: Provides is sequence helper behavior for the play simulation.
 */
 function inline _DoorsIsSeq(v)
   t = typeof(v)
@@ -71,7 +71,7 @@ end function
 
 /*
 * Function: _DoorsHasCard
-* Purpose: Implements the _DoorsHasCard routine for the internal module support.
+* Purpose: Provides has card helper behavior for the play simulation.
 */
 function _DoorsHasCard(player, card)
   if player is void then return false end if
@@ -108,7 +108,7 @@ end function
 
 /*
 * Function: _DoorsBackSector
-* Purpose: Implements the _DoorsBackSector routine for the internal module support.
+* Purpose: Provides back sector helper behavior for the play simulation.
 */
 function inline _DoorsBackSector(line)
   if line is void then return void end if
@@ -125,7 +125,7 @@ end function
 
 /*
 * Function: T_VerticalDoor
-* Purpose: Implements the T_VerticalDoor routine for the engine module behavior.
+* Purpose: Provides vertical door helper behavior for the play simulation.
 */
 function T_VerticalDoor(door)
   if door is void or door.sector is void then return end if
@@ -227,7 +227,7 @@ end function
 
 /*
 * Function: EV_DoLockedDoor
-* Purpose: Implements the EV_DoLockedDoor routine for the engine module behavior.
+* Purpose: Provides do locked door helper behavior for the play simulation.
 */
 function EV_DoLockedDoor(line, type, thing)
   if line is void or thing is void then return 0 end if
@@ -266,7 +266,7 @@ end function
 
 /*
 * Function: EV_DoDoor
-* Purpose: Implements the EV_DoDoor routine for the engine module behavior.
+* Purpose: Provides do door helper behavior for the play simulation.
 */
 function EV_DoDoor(line, type)
   if line is void then return 0 end if
@@ -335,8 +335,8 @@ function EV_DoDoor(line, type)
   end function
 
   /*
-  * Function: EV_VerticalDoor
-  * Purpose: Implements the EV_VerticalDoor routine for the engine module behavior.
+* Function: EV_VerticalDoor
+* Purpose: Provides vertical door helper behavior for the play simulation.
   */
   function EV_VerticalDoor(line, thing)
     if line is void then return end if
@@ -485,8 +485,8 @@ function EV_DoDoor(line, type)
   end function
 
   /*
-  * Function: P_FindSlidingDoorType
-  * Purpose: Implements the P_FindSlidingDoorType routine for the gameplay and world simulation.
+* Function: P_FindSlidingDoorType
+* Purpose: Computes sliding door type values for the play simulation.
   */
   function P_FindSlidingDoorType(line)
     line = line
@@ -494,16 +494,16 @@ function EV_DoDoor(line, type)
   end function
 
   /*
-  * Function: T_SlidingDoor
-  * Purpose: Implements the T_SlidingDoor routine for the engine module behavior.
+* Function: T_SlidingDoor
+* Purpose: Provides sliding door helper behavior for the play simulation.
   */
   function T_SlidingDoor(door)
     door = door
   end function
 
   /*
-  * Function: EV_SlidingDoor
-  * Purpose: Implements the EV_SlidingDoor routine for the engine module behavior.
+* Function: EV_SlidingDoor
+* Purpose: Provides sliding door helper behavior for the play simulation.
   */
   function EV_SlidingDoor(line, thing)
     line = line

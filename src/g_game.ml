@@ -144,8 +144,21 @@ function G_InitNew(skill, episode, map)
   if typeof(P_SetupLevel) == "function" then
     P_SetupLevel(episode, map, 1, skill)
   end if
+  if typeof(RGL_EnsureGeometryCache) == "function" then
+    wantGL = false
+    if typeof(IGL_IsActive) == "function" and IGL_IsActive() then
+      wantGL = true
+    else if typeof(IGL_WantsOpenGL) == "function" and IGL_WantsOpenGL() then
+      wantGL = true
+    end if
+    if wantGL then
+      if typeof(I_SetLoadingStatus) == "function" then I_SetLoadingStatus("Loading GL geometry...") end if
+      RGL_EnsureGeometryCache()
+    end if
+  end if
   if typeof(I_SetLoadingStatus) == "function" then I_SetLoadingStatus("") end if
 
+  if typeof(D_ForceWipe) == "function" then D_ForceWipe() end if
   gamestate = gamestate_t.GS_LEVEL
 end function
 
@@ -167,7 +180,7 @@ end function
 
 /*
 * Function: G_DeferedPlayDemo
-* Purpose: Implements the G_DeferedPlayDemo routine for the game flow.
+* Purpose: Provides play demo helper behavior for the gameplay.
 */
 function G_DeferedPlayDemo(demo)
   global _G_defDemo
@@ -179,7 +192,7 @@ end function
 
 /*
 * Function: G_LoadGame
-* Purpose: Loads and prepares data required by the game flow.
+* Purpose: Reads game data for the gameplay.
 */
 function G_LoadGame(name)
   global _G_loadName
@@ -207,7 +220,7 @@ _G_cpars =[
 
 /*
 * Function: _G_ParTimeTics
-* Purpose: Implements the _G_ParTimeTics routine for the internal module support.
+* Purpose: Provides time tics helper behavior for the gameplay.
 */
 function _G_ParTimeTics(episode, map)
   if typeof(map) != "int" then return 0 end if
@@ -232,7 +245,7 @@ end function
 
 /*
 * Function: _G_CopyFrags
-* Purpose: Implements the _G_CopyFrags routine for the internal module support.
+* Purpose: Updates frags state for the gameplay.
 */
 function _G_CopyFrags(fr)
   arr =[0, 0, 0, 0]
@@ -247,7 +260,7 @@ end function
 
 /*
 * Function: _G_SaveFileName
-* Purpose: Implements the _G_SaveFileName routine for the internal module support.
+* Purpose: Writes file name data for the gameplay.
 */
 function inline _G_SaveFileName(slot)
   s = slot
@@ -260,7 +273,7 @@ end function
 
 /*
 * Function: G_DoLoadGame
-* Purpose: Loads and prepares data required by the game flow.
+* Purpose: Loads do Load Game resources used by the gameplay system.
 */
 function G_DoLoadGame()
   global gameaction
@@ -329,7 +342,7 @@ end function
 
 /*
 * Function: G_CmdChecksum
-* Purpose: Evaluates conditions and returns a decision for the game flow.
+* Purpose: Finds cmd Checksum information for gameplay processing.
 */
 function G_CmdChecksum(cmd)
   if cmd is void then return 0 end if
@@ -358,7 +371,7 @@ end function
 
 /*
 * Function: G_PlayerFinishLevel
-* Purpose: Implements the G_PlayerFinishLevel routine for the game flow.
+* Purpose: Controls player Finish Level transitions in the gameplay system.
 */
 function G_PlayerFinishLevel(playernum)
   if typeof(players) != "array" then return end if
@@ -395,7 +408,7 @@ end function
 
 /*
 * Function: G_PlayerReborn
-* Purpose: Implements the G_PlayerReborn routine for the game flow.
+* Purpose: Provides reborn helper behavior for the gameplay.
 */
 function G_PlayerReborn(playernum)
   if typeof(players) != "array" then return end if
@@ -492,7 +505,7 @@ end function
 
 /*
 * Function: G_CheckSpot
-* Purpose: Evaluates conditions and returns a decision for the game flow.
+* Purpose: Finds check Spot information for gameplay processing.
 */
 function G_CheckSpot(playernum, mthing)
   playernum = playernum
@@ -502,7 +515,7 @@ end function
 
 /*
 * Function: G_DoLoadLevel
-* Purpose: Loads and prepares data required by the game flow.
+* Purpose: Loads do Load Level resources used by the gameplay system.
 */
 function G_DoLoadLevel()
   global gamestate
@@ -514,30 +527,18 @@ function G_DoLoadLevel()
     P_SetupLevel(gameepisode, gamemap, 0, gameskill)
   end if
   if typeof(I_SetLoadingStatus) == "function" then I_SetLoadingStatus("") end if
+  if typeof(D_ForceWipe) == "function" then D_ForceWipe() end if
   gamestate = gamestate_t.GS_LEVEL
   gameaction = gameaction_t.ga_nothing
 end function
 
 /*
 * Function: _G_ShowLoadingFrame
-* Purpose: Loads and prepares data required by the internal module support.
+* Purpose: Loads show Loading Frame resources used by the gameplay system.
 */
 function _G_ShowLoadingFrame(text)
   if typeof(I_SetLoadingStatus) == "function" then
     I_SetLoadingStatus(text)
-  end if
-
-  if typeof(screens) == "array" and len(screens) > 0 and typeof(screens[0]) == "bytes" then
-    if typeof(V_DrawPatch) == "function" and typeof(W_CheckNumForName) == "function" and typeof(W_CacheLumpName) == "function" and W_CheckNumForName("TITLEPIC") != -1 then
-      V_DrawPatch(0, 0, 0, W_CacheLumpName("TITLEPIC", PU_CACHE))
-    else
-      fb = screens[0]
-      i = 0
-      while i < len(fb)
-        fb[i] = 0
-        i = i + 1
-      end while
-    end if
   end if
 
   if typeof(I_LoadingPulse) == "function" then
@@ -549,7 +550,7 @@ end function
 
 /*
 * Function: G_DoReborn
-* Purpose: Implements the G_DoReborn routine for the game flow.
+* Purpose: Runs reborn behavior for the gameplay.
 */
 function G_DoReborn(playernum)
   global gameaction
@@ -597,7 +598,7 @@ end function
 
 /*
 * Function: G_DoCompleted
-* Purpose: Implements the G_DoCompleted routine for the game flow.
+* Purpose: Runs completed behavior for the gameplay.
 */
 function G_DoCompleted()
   global players
@@ -730,7 +731,7 @@ end function
 
 /*
 * Function: G_DoWorldDone
-* Purpose: Implements the G_DoWorldDone routine for the game flow.
+* Purpose: Runs world done behavior for the gameplay.
 */
 function G_DoWorldDone()
   global gamemap
@@ -754,7 +755,7 @@ end function
 
 /*
 * Function: G_DoSaveGame
-* Purpose: Implements the G_DoSaveGame routine for the game flow.
+* Purpose: Saves do Save Game state for the gameplay system.
 */
 function G_DoSaveGame()
   global gameaction
@@ -810,7 +811,7 @@ end function
 
 /*
 * Function: G_DoNewGame
-* Purpose: Implements the G_DoNewGame routine for the game flow.
+* Purpose: Runs new game behavior for the gameplay.
 */
 function G_DoNewGame()
   global gameaction
@@ -820,7 +821,7 @@ end function
 
 /*
 * Function: G_DoPlayDemo
-* Purpose: Implements the G_DoPlayDemo routine for the game flow.
+* Purpose: Runs play demo behavior for the gameplay.
 */
 function G_DoPlayDemo()
   global gameaction
@@ -896,7 +897,7 @@ end function
 
 /*
 * Function: G_SaveGame
-* Purpose: Implements the G_SaveGame routine for the game flow.
+* Purpose: Writes game data for the gameplay.
 */
 function G_SaveGame(slot, description)
   global _G_saveSlot
@@ -910,7 +911,7 @@ end function
 
 /*
 * Function: _G_DemoReadU8
-* Purpose: Implements the _G_DemoReadU8 routine for the internal module support.
+* Purpose: Reads demo Read U8 data from the gameplay data stream.
 */
 function inline _G_DemoReadU8()
   if typeof(demobuffer) != "bytes" or _G_demo_p < 0 or _G_demo_p >= len(demobuffer) then
@@ -925,7 +926,7 @@ end function
 
 /*
 * Function: _G_DemoWriteU8
-* Purpose: Implements the _G_DemoWriteU8 routine for the internal module support.
+* Purpose: Writes demo Write U8 data for the gameplay data stream.
 */
 function inline _G_DemoWriteU8(v)
   if typeof(demobuffer) != "bytes" then return end if
@@ -942,7 +943,7 @@ end function
 
 /*
 * Function: G_ReadDemoTiccmd
-* Purpose: Implements the G_ReadDemoTiccmd routine for the game flow.
+* Purpose: Reads demo tic command data for the gameplay.
 */
 function G_ReadDemoTiccmd(cmd)
   if cmd is void then return end if
@@ -970,7 +971,7 @@ end function
 
 /*
 * Function: G_WriteDemoTiccmd
-* Purpose: Implements the G_WriteDemoTiccmd routine for the game flow.
+* Purpose: Writes demo tic command data for the gameplay.
 */
 function G_WriteDemoTiccmd(cmd)
   if cmd is void then return end if
@@ -994,7 +995,7 @@ end function
 
 /*
 * Function: G_RecordDemo
-* Purpose: Implements the G_RecordDemo routine for the game flow.
+* Purpose: Runs demo lifecycle logic for the gameplay.
 */
 function G_RecordDemo(name)
   global usergame
@@ -1026,7 +1027,7 @@ end function
 
 /*
 * Function: G_BeginRecording
-* Purpose: Implements the G_BeginRecording routine for the game flow.
+* Purpose: Provides recording helper behavior for the gameplay.
 */
 function G_BeginRecording()
   if typeof(demobuffer) != "bytes" or len(demobuffer) == 0 then
@@ -1056,7 +1057,7 @@ end function
 
 /*
 * Function: G_PlayDemo
-* Purpose: Implements the G_PlayDemo routine for the game flow.
+* Purpose: Runs demo lifecycle logic for the gameplay.
 */
 function G_PlayDemo(name)
   global demoplayback
@@ -1070,7 +1071,7 @@ end function
 
 /*
 * Function: G_TimeDemo
-* Purpose: Implements the G_TimeDemo routine for the game flow.
+* Purpose: Provides demo helper behavior for the gameplay.
 */
 function G_TimeDemo(name)
   global nodrawers
@@ -1090,7 +1091,7 @@ end function
 
 /*
 * Function: G_CheckDemoStatus
-* Purpose: Evaluates conditions and returns a decision for the game flow.
+* Purpose: Finds check Demo Status information for gameplay processing.
 */
 function G_CheckDemoStatus()
   global demorecording
@@ -1103,7 +1104,7 @@ end function
 
 /*
 * Function: G_ExitLevel
-* Purpose: Implements the G_ExitLevel routine for the game flow.
+* Purpose: Runs level lifecycle logic for the gameplay.
 */
 function G_ExitLevel()
   global gameaction
@@ -1115,7 +1116,7 @@ end function
 
 /*
 * Function: G_SecretExitLevel
-* Purpose: Implements the G_SecretExitLevel routine for the game flow.
+* Purpose: Provides exit level helper behavior for the gameplay.
 */
 function G_SecretExitLevel()
   global gameaction
@@ -1131,7 +1132,7 @@ end function
 
 /*
 * Function: G_WorldDone
-* Purpose: Implements the G_WorldDone routine for the game flow.
+* Purpose: Provides done helper behavior for the gameplay.
 */
 function G_WorldDone()
   global players
@@ -1199,7 +1200,7 @@ end function
 
 /*
 * Function: G_Ticker
-* Purpose: Advances per-tick logic for the game flow.
+* Purpose: Advances ticker logic during the gameplay tick.
 */
 function G_Ticker()
   global demoplayback
@@ -1235,7 +1236,7 @@ end function
 
 /*
 * Function: _G_EnsureInputState
-* Purpose: Implements the _G_EnsureInputState routine for the internal module support.
+* Purpose: Builds input state data for the gameplay.
 */
 function _G_EnsureInputState()
   global _G_keydown
@@ -1257,7 +1258,7 @@ end function
 
 /*
 * Function: _G_IDiv
-* Purpose: Implements the _G_IDiv routine for the internal module support.
+* Purpose: Performs integer division with gameplay rounding and guard rules.
 */
 function inline _G_IDiv(a, b)
   if typeof(a) != "int" or typeof(b) != "int" or b == 0 then return 0 end if
@@ -1268,7 +1269,7 @@ end function
 
 /*
 * Function: _G_KeyIndex
-* Purpose: Implements the _G_KeyIndex routine for the internal module support.
+* Purpose: Provides index helper behavior for the gameplay.
 */
 function inline _G_KeyIndex(k)
   if typeof(k) != "int" then return -1 end if
@@ -1278,7 +1279,7 @@ end function
 
 /*
 * Function: _G_KeyIsDown
-* Purpose: Implements the _G_KeyIsDown routine for the internal module support.
+* Purpose: Provides is down helper behavior for the gameplay.
 */
 function inline _G_KeyIsDown(k)
   _G_EnsureInputState()
@@ -1289,7 +1290,7 @@ end function
 
 /*
 * Function: _G_ButtonIsDown
-* Purpose: Implements the _G_ButtonIsDown routine for the internal module support.
+* Purpose: Provides is down helper behavior for the gameplay.
 */
 function inline _G_ButtonIsDown(arr, idx)
   if typeof(arr) != "array" then return false end if
@@ -1339,7 +1340,7 @@ end function
 
 /*
 * Function: G_Responder
-* Purpose: Implements the G_Responder routine for the game flow.
+* Purpose: Handles responder events for the gameplay system.
 */
 function G_Responder(ev)
   global sendpause
@@ -1420,8 +1421,8 @@ function G_Responder(ev)
   end function
 
   /*
-  * Function: G_ScreenShot
-  * Purpose: Implements the G_ScreenShot routine for the game flow.
+* Function: G_ScreenShot
+* Purpose: Provides shot helper behavior for the gameplay.
   */
   function G_ScreenShot()
     global gameaction
@@ -1430,8 +1431,8 @@ function G_Responder(ev)
   end function
 
   /*
-  * Function: G_BuildTiccmd
-  * Purpose: Implements the G_BuildTiccmd routine for the game flow.
+* Function: G_BuildTiccmd
+* Purpose: Builds tic command data for the gameplay.
   */
   function G_BuildTiccmd(cmd)
     global _G_turnheld

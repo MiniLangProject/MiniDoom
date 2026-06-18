@@ -75,7 +75,7 @@ end enum
 
 /*
 * Struct: mobj_t
-* Purpose: Stores runtime data for mobj type.
+* Purpose: Stores mobj data used by the mobile object system.
 */
 struct mobj_t
   thinker
@@ -162,7 +162,7 @@ end function
 
 /*
 * Function: _PM_RegisterThinker
-* Purpose: Advances per-tick logic for the internal module support.
+* Purpose: Advances register Thinker logic during the mobile object tick.
 */
 function inline _PM_RegisterThinker(node, owner)
   global _pm_thinker_nodes
@@ -197,7 +197,7 @@ end function
 
 /*
 * Function: _PM_ResolveThinkerOwner
-* Purpose: Advances per-tick logic for the internal module support.
+* Purpose: Advances resolve Thinker Owner logic during the mobile object tick.
 */
 function inline _PM_ResolveThinkerOwner(node)
   i = len(_pm_thinker_nodes) - 1
@@ -232,7 +232,7 @@ end function
 
 /*
 * Function: _PM_UnregisterThinker
-* Purpose: Advances per-tick logic for the internal module support.
+* Purpose: Advances unregister Thinker logic during the mobile object tick.
 */
 function inline _PM_UnregisterThinker(node)
   global _pm_thinker_nodes
@@ -252,7 +252,7 @@ end function
 
 /*
 * Function: _PM_IDiv
-* Purpose: Implements the _PM_IDiv routine for the internal module support.
+* Purpose: Performs integer division with mobile object rounding and guard rules.
 */
 function inline _PM_IDiv(a, b)
   if typeof(a) != "int" or typeof(b) != "int" or b == 0 then return 0 end if
@@ -263,7 +263,7 @@ end function
 
 /*
 * Function: _PM_ToInt
-* Purpose: Implements the _PM_ToInt routine for the internal module support.
+* Purpose: Converts int values for the mobile object.
 */
 function inline _PM_ToInt(v, fallback)
   if typeof(v) == "int" then return v end if
@@ -282,7 +282,7 @@ end function
 
 /*
 * Function: _PM_MobjTypeIndex
-* Purpose: Implements the _PM_MobjTypeIndex routine for the internal module support.
+* Purpose: Provides mobile-object type index helper behavior for the mobile object.
 */
 function _PM_MobjTypeIndex(v)
   if typeof(v) == "int" then return v end if
@@ -328,7 +328,7 @@ end function
 
 /*
 * Function: _Mobj_Default
-* Purpose: Implements the _Mobj_Default routine for the internal module support.
+* Purpose: Provides default helper behavior for the mobile object.
 */
 function _Mobj_Default()
 
@@ -357,7 +357,7 @@ end function
 
 /*
 * Function: _PM_StateSpriteIndex
-* Purpose: Implements the _PM_StateSpriteIndex routine for the internal module support.
+* Purpose: Provides state sprite index helper behavior for the mobile object.
 */
 function inline _PM_StateSpriteIndex(spr)
   if typeof(spr) == "int" then return spr end if
@@ -377,7 +377,7 @@ end function
 
 /*
 * Function: P_SetMobjState
-* Purpose: Reads or updates state used by the gameplay and world simulation.
+* Purpose: Updates mobile-object state state for the mobile object.
 */
 function P_SetMobjState(mobj, state)
   if mobj is void then return false end if
@@ -551,7 +551,7 @@ end function
 
 /*
 * Function: P_ExplodeMissile
-* Purpose: Implements the P_ExplodeMissile routine for the gameplay and world simulation.
+* Purpose: Provides missile helper behavior for the mobile object.
 */
 function P_ExplodeMissile(mo)
   if mo is void then return end if
@@ -575,7 +575,7 @@ end function
 
 /*
 * Function: P_CheckMissileSpawn
-* Purpose: Evaluates conditions and returns a decision for the gameplay and world simulation.
+* Purpose: Finds check Missile Spawn information for mobile object processing.
 */
 function P_CheckMissileSpawn(th)
   if th is void then return end if
@@ -710,7 +710,7 @@ end function
 
 /*
 * Function: _PM_EnsurePlayerSlots
-* Purpose: Implements the _PM_EnsurePlayerSlots routine for the internal module support.
+* Purpose: Provides ensure player slots helper behavior for the mobile object.
 */
 function _PM_EnsurePlayerSlots()
   global players
@@ -1224,7 +1224,7 @@ end function
 
 /*
 * Function: P_MobjThinker
-* Purpose: Advances per-tick logic for the gameplay and world simulation.
+* Purpose: Advances mobj Thinker logic during the mobile object tick.
 */
 function P_MobjThinker(mo)
   if mo is void then return end if

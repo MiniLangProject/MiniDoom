@@ -46,7 +46,7 @@ end function
 
 /*
 * Function: _PlatMakeThinker
-* Purpose: Advances per-tick logic for the internal module support.
+* Purpose: Provides make thinker helper behavior for the play simulation.
 */
 function inline _PlatMakeThinker(fn)
   return thinker_t(void, void, actionf_t(fn, void, void), void)
@@ -64,7 +64,7 @@ end function
 
 /*
 * Function: _PlatSoundOrg
-* Purpose: Implements the _PlatSoundOrg routine for the internal module support.
+* Purpose: Provides sound origin helper behavior for the play simulation.
 */
 function inline _PlatSoundOrg(sec)
   if sec is void then return void end if
@@ -73,7 +73,7 @@ end function
 
 /*
 * Function: _PlatSetSlot
-* Purpose: Reads or updates state used by the internal module support.
+* Purpose: Updates slot state for the platform thinker.
 */
 function _PlatSetSlot(idx, v)
   global activeplats
@@ -97,7 +97,7 @@ end function
 
 /*
 * Function: _PlatFrontSector
-* Purpose: Implements the _PlatFrontSector routine for the internal module support.
+* Purpose: Provides front sector helper behavior for the play simulation.
 */
 function inline _PlatFrontSector(line)
   if line is void then return void end if
@@ -111,7 +111,7 @@ end function
 
 /*
 * Function: P_AddActivePlat
-* Purpose: Implements the P_AddActivePlat routine for the gameplay and world simulation.
+* Purpose: Adds active plat entries to the play simulation.
 */
 function P_AddActivePlat(plat)
   _InitActivePlats()
@@ -155,7 +155,7 @@ end function
 
 /*
 * Function: P_ActivateInStasis
-* Purpose: Implements the P_ActivateInStasis routine for the gameplay and world simulation.
+* Purpose: Runs in stasis behavior for the play simulation.
 */
 function P_ActivateInStasis(tag)
   _InitActivePlats()
@@ -201,7 +201,7 @@ end function
 
 /*
 * Function: T_PlatRaise
-* Purpose: Implements the T_PlatRaise routine for the engine module behavior.
+* Purpose: Provides plat raise helper behavior for the play simulation.
 */
 function T_PlatRaise(plat)
   if plat is void or plat.sector is void then return end if
@@ -266,7 +266,7 @@ end function
 
 /*
 * Function: EV_DoPlat
-* Purpose: Implements the EV_DoPlat routine for the engine module behavior.
+* Purpose: Provides do plat helper behavior for the play simulation.
 */
 function EV_DoPlat(line, type, amount)
   if line is void then return 0 end if

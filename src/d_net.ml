@@ -57,7 +57,7 @@ end enum
 
 /*
 * Struct: doomdata_t
-* Purpose: Stores runtime data for doomdata type.
+* Purpose: Stores doomdata data used by the network game system.
 */
 struct doomdata_t
   checksum
@@ -70,7 +70,7 @@ end struct
 
 /*
 * Struct: doomcom_t
-* Purpose: Stores runtime data for doomcom type.
+* Purpose: Stores doomcom data used by the network game system.
 */
 struct doomcom_t
   id
@@ -260,7 +260,7 @@ _dnet_mp_snap_cache_side_rows = []
 
 /*
 * Function: _DNet_DefaultCmds
-* Purpose: Implements the _DNet_DefaultCmds routine for the internal module support.
+* Purpose: Provides default commands helper behavior for the network game.
 */
 function inline _DNet_DefaultCmds()
   a = array(BACKUPTICS)
@@ -274,7 +274,7 @@ end function
 
 /*
 * Function: _DNet_IsSeq
-* Purpose: Implements the _DNet_IsSeq routine for the internal module support.
+* Purpose: Provides is sequence helper behavior for the network game.
 */
 function inline _DNet_IsSeq(v)
   t = typeof(v)
@@ -283,7 +283,7 @@ end function
 
 /*
 * Function: _DNet_ToInt
-* Purpose: Implements the _DNet_ToInt routine for the internal module support.
+* Purpose: Converts source to int values for the network game.
 */
 function inline _DNet_ToInt(v, fallback)
   if typeof(v) == "int" then return v end if
@@ -323,7 +323,7 @@ end function
 
 /*
 * Function: _DNet_IDiv
-* Purpose: Implements the _DNet_IDiv routine for the internal module support.
+* Purpose: Performs integer division with network game rounding and guard rules.
 */
 function inline _DNet_IDiv(a, b)
   ai = _DNet_ToInt(a, 0)
@@ -375,7 +375,7 @@ end function
 
 /*
 * Function: _DNet_EnsureStateArrays
-* Purpose: Implements the _DNet_EnsureStateArrays routine for the internal module support.
+* Purpose: Provides ensure state arrays helper behavior for the network game.
 */
 function _DNet_EnsureStateArrays()
   global localcmds
@@ -415,7 +415,7 @@ end function
 
 /*
 * Function: _DNet_CopyCmd
-* Purpose: Implements the _DNet_CopyCmd routine for the internal module support.
+* Purpose: Provides copy command helper behavior for the network game.
 */
 function inline _DNet_CopyCmd(src)
   if src is void then return ticcmd_t(0, 0, 0, 0, 0, 0) end if
@@ -5670,7 +5670,7 @@ end function
 
 /*
 * Function: _DNet_MakeStoreFromBuffer
-* Purpose: Implements the _DNet_MakeStoreFromBuffer routine for the internal module support.
+* Purpose: Provides make store from buffer helper behavior for the network game.
 */
 function _DNet_MakeStoreFromBuffer()
   if netbuffer is void then return doomdata_t(0, 0, 0, 0, 0, _DNet_DefaultCmds()) end if
@@ -5694,7 +5694,7 @@ end function
 
 /*
 * Function: _DNet_CopyStoreToBuffer
-* Purpose: Implements the _DNet_CopyStoreToBuffer routine for the internal module support.
+* Purpose: Provides copy store to buffer helper behavior for the network game.
 */
 function _DNet_CopyStoreToBuffer(src)
   if src is void or netbuffer is void then return end if
@@ -5786,7 +5786,7 @@ end function
 
 /*
 * Function: D_CheckNetGame
-* Purpose: Evaluates conditions and returns a decision for the core game definitions.
+* Purpose: Finds check Net Game information for network game processing.
 */
 function D_CheckNetGame()
   global consoleplayer
@@ -5850,7 +5850,7 @@ end function
 
 /*
 * Function: D_QuitNetGame
-* Purpose: Implements the D_QuitNetGame routine for the core game definitions.
+* Purpose: Runs network game lifecycle logic for the network game.
 */
 function D_QuitNetGame()
   if (not netgame) or(not usergame) or consoleplayer == -1 or demoplayback then
@@ -5881,7 +5881,7 @@ end function
 
 /*
 * Function: NetUpdate
-* Purpose: Advances per-tick logic for the engine module behavior.
+* Purpose: Advances net Update logic during the network game tick.
 */
 function NetUpdate()
   global gametime
@@ -6097,7 +6097,7 @@ end function
 
 /*
 * Function: _DNet_RunGameTics
-* Purpose: Implements the _DNet_RunGameTics routine for the internal module support.
+* Purpose: Provides run game tics helper behavior for the network game.
 */
 function _DNet_RunGameTics(counts)
   global gametic
@@ -6382,7 +6382,7 @@ end function
 
 /*
 * Function: NetbufferSize
-* Purpose: Implements the NetbufferSize routine for the engine module behavior.
+* Purpose: Provides size helper behavior for the network game.
 */
 function inline NetbufferSize()
   if netbuffer is void then return 0 end if
@@ -6395,7 +6395,7 @@ end function
 
 /*
 * Function: NetbufferChecksum
-* Purpose: Evaluates conditions and returns a decision for the engine module behavior.
+* Purpose: Finds netbuffer Checksum information for network game processing.
 */
 function NetbufferChecksum()
   if netbuffer is void then return 0 end if
@@ -6425,7 +6425,7 @@ end function
 
 /*
 * Function: ExpandTics
-* Purpose: Implements the ExpandTics routine for the engine module behavior.
+* Purpose: Provides tics helper behavior for the network game.
 */
 function ExpandTics(low)
   if typeof(low) != "int" then return 0 end if
@@ -6445,7 +6445,7 @@ end function
 
 /*
 * Function: HSendPacket
-* Purpose: Implements the HSendPacket routine for the engine module behavior.
+* Purpose: Controls hSend Packet transitions in the network game system.
 */
 function HSendPacket(node, flags)
   if netbuffer is void then return false end if
@@ -6472,7 +6472,7 @@ end function
 
 /*
 * Function: HGetPacket
-* Purpose: Reads or updates state used by the engine module behavior.
+* Purpose: Provides get packet helper behavior for the network game.
 */
 function HGetPacket()
   if reboundpacket then
@@ -6500,7 +6500,7 @@ end function
 
 /*
 * Function: GetPackets
-* Purpose: Reads or updates state used by the engine module behavior.
+* Purpose: Reads packets data for the network game.
 */
 function GetPackets()
   while HGetPacket()
@@ -6579,7 +6579,7 @@ end function
 
 /*
 * Function: CheckAbort
-* Purpose: Evaluates conditions and returns a decision for the engine module behavior.
+* Purpose: Finds check Abort information for network game processing.
 */
 function CheckAbort()
   stoptic = 0

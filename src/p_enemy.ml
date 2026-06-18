@@ -70,7 +70,7 @@ _PE_brain_easy = 0
 
 /*
 * Function: _PE_Abs
-* Purpose: Implements the _PE_Abs routine for the internal module support.
+* Purpose: Provides absolute-value helper behavior for the play simulation.
 */
 function inline _PE_Abs(v)
   if v < 0 then return - v end if
@@ -79,7 +79,7 @@ end function
 
 /*
 * Function: _PE_IDiv
-* Purpose: Implements the _PE_IDiv routine for the internal module support.
+* Purpose: Performs integer division with enemy AI rounding and guard rules.
 */
 function inline _PE_IDiv(a, b)
   if typeof(a) != "int" or typeof(b) != "int" or b == 0 then return 0 end if
@@ -100,7 +100,7 @@ end function
 
 /*
 * Function: _PE_JunkLineWithTag
-* Purpose: Implements the _PE_JunkLineWithTag routine for the internal module support.
+* Purpose: Provides junk line with tag helper behavior for the play simulation.
 */
 function inline _PE_JunkLineWithTag(tag)
   return line_t(void, void, 0, 0, 0, 0, tag,[0, -1],[0, 0, 0, 0], 0, void, void, 0, void)
@@ -108,7 +108,7 @@ end function
 
 /*
 * Function: _PE_ResolveThinkerMobj
-* Purpose: Advances per-tick logic for the internal module support.
+* Purpose: Advances resolve Thinker Mobj logic during the enemy AI tick.
 */
 function inline _PE_ResolveThinkerMobj(cur)
   if cur is void then return void end if
@@ -118,12 +118,13 @@ function inline _PE_ResolveThinkerMobj(cur)
     own = P_ResolveThinkerOwner(cur)
     if own is not void then obj = own end if
   end if
+  if obj is void or obj == cur then return void end if
   return obj
 end function
 
 /*
 * Function: _PE_HasOtherAliveType
-* Purpose: Implements the _PE_HasOtherAliveType routine for the internal module support.
+* Purpose: Provides has other alive type helper behavior for the play simulation.
 */
 function _PE_HasOtherAliveType(exceptMo, moType)
   cur = thinkercap.next
@@ -139,7 +140,7 @@ end function
 
 /*
 * Function: P_RecursiveSound
-* Purpose: Implements the P_RecursiveSound routine for the gameplay and world simulation.
+* Purpose: Provides sound helper behavior for the play simulation.
 */
 function P_RecursiveSound(sec, soundblocks)
   global soundtarget
@@ -188,7 +189,7 @@ end function
 
 /*
 * Function: P_NoiseAlert
-* Purpose: Implements the P_NoiseAlert routine for the gameplay and world simulation.
+* Purpose: Provides alert helper behavior for the play simulation.
 */
 function P_NoiseAlert(target, emmiter)
   global soundtarget
@@ -201,7 +202,7 @@ end function
 
 /*
 * Function: P_CheckMeleeRange
-* Purpose: Evaluates conditions and returns a decision for the gameplay and world simulation.
+* Purpose: Finds check Melee Range information for enemy AI processing.
 */
 function P_CheckMeleeRange(actor)
   if actor is void or actor.target is void then return false end if
@@ -218,7 +219,7 @@ end function
 
 /*
 * Function: P_CheckMissileRange
-* Purpose: Evaluates conditions and returns a decision for the gameplay and world simulation.
+* Purpose: Finds check Missile Range information for enemy AI processing.
 */
 function P_CheckMissileRange(actor)
   if actor is void or actor.target is void then return false end if
@@ -318,7 +319,7 @@ end function
 
 /*
 * Function: P_NewChaseDir
-* Purpose: Implements the P_NewChaseDir routine for the gameplay and world simulation.
+* Purpose: Builds chase directory data for the play simulation.
 */
 function P_NewChaseDir(actor)
   if actor is void or actor.target is void then
@@ -408,7 +409,7 @@ end function
 
 /*
 * Function: P_LookForPlayers
-* Purpose: Implements the P_LookForPlayers routine for the gameplay and world simulation.
+* Purpose: Provides for players helper behavior for the play simulation.
 */
 function P_LookForPlayers(actor, allaround)
   if actor is void then return false end if
@@ -465,7 +466,7 @@ end function
 
 /*
 * Function: A_Fall
-* Purpose: Implements the A_Fall routine for the engine module behavior.
+* Purpose: Provides fall helper behavior for the play simulation.
 */
 function A_Fall(actor)
   if actor is void then return end if
@@ -474,7 +475,7 @@ end function
 
 /*
 * Function: A_KeenDie
-* Purpose: Implements the A_KeenDie routine for the engine module behavior.
+* Purpose: Controls keen Die transitions in the enemy AI system.
 */
 function A_KeenDie(mo)
   if mo is void then return end if
@@ -488,7 +489,7 @@ end function
 
 /*
 * Function: A_Look
-* Purpose: Implements the A_Look routine for the engine module behavior.
+* Purpose: Provides look helper behavior for the play simulation.
 */
 function A_Look(actor)
   if actor is void then return end if
@@ -535,7 +536,7 @@ end function
 
 /*
 * Function: A_Chase
-* Purpose: Implements the A_Chase routine for the engine module behavior.
+* Purpose: Provides chase helper behavior for the play simulation.
 */
 function A_Chase(actor)
   if actor is void or actor.info is void then return end if
@@ -610,7 +611,7 @@ end function
 
 /*
 * Function: A_FaceTarget
-* Purpose: Reads or updates state used by the engine module behavior.
+* Purpose: Provides face target helper behavior for the play simulation.
 */
 function A_FaceTarget(actor)
   if actor is void or actor.target is void then return end if
@@ -623,7 +624,7 @@ end function
 
 /*
 * Function: A_PosAttack
-* Purpose: Implements the A_PosAttack routine for the engine module behavior.
+* Purpose: Provides position attack helper behavior for the play simulation.
 */
 function A_PosAttack(actor)
   if actor is void or actor.target is void then return end if
@@ -638,7 +639,7 @@ end function
 
 /*
 * Function: A_SPosAttack
-* Purpose: Implements the A_SPosAttack routine for the engine module behavior.
+* Purpose: Provides s position attack helper behavior for the play simulation.
 */
 function A_SPosAttack(actor)
   if actor is void or actor.target is void then return end if
@@ -656,7 +657,7 @@ end function
 
 /*
 * Function: A_CPosAttack
-* Purpose: Implements the A_CPosAttack routine for the engine module behavior.
+* Purpose: Provides c position attack helper behavior for the play simulation.
 */
 function A_CPosAttack(actor)
   if actor is void or actor.target is void then return end if
@@ -671,7 +672,7 @@ end function
 
 /*
 * Function: A_CPosRefire
-* Purpose: Implements the A_CPosRefire routine for the engine module behavior.
+* Purpose: Provides c position refire helper behavior for the play simulation.
 */
 function A_CPosRefire(actor)
   if actor is void then return end if
@@ -684,7 +685,7 @@ end function
 
 /*
 * Function: A_SpidRefire
-* Purpose: Implements the A_SpidRefire routine for the engine module behavior.
+* Purpose: Provides spid refire helper behavior for the play simulation.
 */
 function A_SpidRefire(actor)
   if actor is void then return end if
@@ -697,7 +698,7 @@ end function
 
 /*
 * Function: A_BspiAttack
-* Purpose: Implements the A_BspiAttack routine for the engine module behavior.
+* Purpose: Provides bspi attack helper behavior for the play simulation.
 */
 function A_BspiAttack(actor)
   if actor is void or actor.target is void then return end if
@@ -707,7 +708,7 @@ end function
 
 /*
 * Function: A_TroopAttack
-* Purpose: Implements the A_TroopAttack routine for the engine module behavior.
+* Purpose: Provides troop attack helper behavior for the play simulation.
 */
 function A_TroopAttack(actor)
   if actor is void or actor.target is void then return end if
@@ -723,7 +724,7 @@ end function
 
 /*
 * Function: A_SargAttack
-* Purpose: Implements the A_SargAttack routine for the engine module behavior.
+* Purpose: Provides sarg attack helper behavior for the play simulation.
 */
 function A_SargAttack(actor)
   if actor is void or actor.target is void then return end if
@@ -736,7 +737,7 @@ end function
 
 /*
 * Function: A_HeadAttack
-* Purpose: Implements the A_HeadAttack routine for the engine module behavior.
+* Purpose: Provides head attack helper behavior for the play simulation.
 */
 function A_HeadAttack(actor)
   if actor is void or actor.target is void then return end if
@@ -751,7 +752,7 @@ end function
 
 /*
 * Function: A_CyberAttack
-* Purpose: Implements the A_CyberAttack routine for the engine module behavior.
+* Purpose: Provides cyber attack helper behavior for the play simulation.
 */
 function A_CyberAttack(actor)
   if actor is void or actor.target is void then return end if
@@ -761,7 +762,7 @@ end function
 
 /*
 * Function: A_BruisAttack
-* Purpose: Implements the A_BruisAttack routine for the engine module behavior.
+* Purpose: Provides bruis attack helper behavior for the play simulation.
 */
 function A_BruisAttack(actor)
   if actor is void or actor.target is void then return end if
@@ -776,7 +777,7 @@ end function
 
 /*
 * Function: A_SkelMissile
-* Purpose: Implements the A_SkelMissile routine for the engine module behavior.
+* Purpose: Provides skel missile helper behavior for the play simulation.
 */
 function A_SkelMissile(actor)
   if actor is void or actor.target is void then return end if
@@ -793,7 +794,7 @@ end function
 
 /*
 * Function: A_Tracer
-* Purpose: Implements the A_Tracer routine for the engine module behavior.
+* Purpose: Provides tracer helper behavior for the play simulation.
 */
 function A_Tracer(actor)
   if actor is void then return end if
@@ -848,7 +849,7 @@ end function
 
 /*
 * Function: A_SkelWhoosh
-* Purpose: Implements the A_SkelWhoosh routine for the engine module behavior.
+* Purpose: Provides skel whoosh helper behavior for the play simulation.
 */
 function A_SkelWhoosh(actor)
   if actor is void or actor.target is void then return end if
@@ -858,7 +859,7 @@ end function
 
 /*
 * Function: A_SkelFist
-* Purpose: Implements the A_SkelFist routine for the engine module behavior.
+* Purpose: Provides skel fist helper behavior for the play simulation.
 */
 function A_SkelFist(actor)
   if actor is void or actor.target is void then return end if
@@ -872,7 +873,7 @@ end function
 
 /*
 * Function: PIT_VileCheck
-* Purpose: Evaluates conditions and returns a decision for the engine module behavior.
+* Purpose: Finds vile Check information for enemy AI processing.
 */
 function PIT_VileCheck(thing)
   global corpsehit
@@ -885,8 +886,9 @@ function PIT_VileCheck(thing)
   if thing.info is void or thing.info.raisestate == statenum_t.S_NULL then return true end if
 
   maxdist = thing.info.radius
-  if typeof(mobjinfo) == "array" and mobjtype_t.MT_VILE < len(mobjinfo) and mobjinfo[mobjtype_t.MT_VILE] is not void then
-    maxdist = maxdist + mobjinfo[mobjtype_t.MT_VILE].radius
+  vileIdx = _PM_MobjTypeIndex(mobjtype_t.MT_VILE)
+  if typeof(mobjinfo) == "array" and vileIdx >= 0 and vileIdx < len(mobjinfo) and mobjinfo[vileIdx] is not void then
+    maxdist = maxdist + mobjinfo[vileIdx].radius
   end if
 
   if _PE_Abs(thing.x - viletryx) > maxdist or _PE_Abs(thing.y - viletryy) > maxdist then
@@ -911,7 +913,7 @@ end function
 
 /*
 * Function: A_VileChase
-* Purpose: Implements the A_VileChase routine for the engine module behavior.
+* Purpose: Provides vile chase helper behavior for the play simulation.
 */
 function A_VileChase(actor)
   global viletryx
@@ -986,7 +988,7 @@ end function
 
 /*
 * Function: A_FireCrackle
-* Purpose: Implements the A_FireCrackle routine for the engine module behavior.
+* Purpose: Runs crackle firing behavior for the actor AI.
 */
 function A_FireCrackle(actor)
   if actor is void then return end if
@@ -996,7 +998,7 @@ end function
 
 /*
 * Function: A_Fire
-* Purpose: Implements the A_Fire routine for the engine module behavior.
+* Purpose: Runs fire firing behavior for the actor AI.
 */
 function A_Fire(actor)
   if actor is void then return end if
@@ -1016,7 +1018,7 @@ end function
 
 /*
 * Function: A_VileTarget
-* Purpose: Reads or updates state used by the engine module behavior.
+* Purpose: Provides vile target helper behavior for the play simulation.
 */
 function A_VileTarget(actor)
   if actor is void or actor.target is void then return end if
@@ -1033,7 +1035,7 @@ end function
 
 /*
 * Function: A_VileAttack
-* Purpose: Implements the A_VileAttack routine for the engine module behavior.
+* Purpose: Provides vile attack helper behavior for the play simulation.
 */
 function A_VileAttack(actor)
   if actor is void or actor.target is void then return end if
@@ -1061,7 +1063,7 @@ end function
 
 /*
 * Function: A_FatRaise
-* Purpose: Implements the A_FatRaise routine for the engine module behavior.
+* Purpose: Provides fat raise helper behavior for the play simulation.
 */
 function A_FatRaise(actor)
   if actor is void then return end if
@@ -1071,7 +1073,7 @@ end function
 
 /*
 * Function: A_FatAttack1
-* Purpose: Implements the A_FatAttack1 routine for the engine module behavior.
+* Purpose: Provides fat attack1 helper behavior for the play simulation.
 */
 function A_FatAttack1(actor)
   if actor is void or actor.target is void then return end if
@@ -1092,7 +1094,7 @@ end function
 
 /*
 * Function: A_FatAttack2
-* Purpose: Implements the A_FatAttack2 routine for the engine module behavior.
+* Purpose: Provides fat attack2 helper behavior for the play simulation.
 */
 function A_FatAttack2(actor)
   if actor is void or actor.target is void then return end if
@@ -1113,7 +1115,7 @@ end function
 
 /*
 * Function: A_FatAttack3
-* Purpose: Implements the A_FatAttack3 routine for the engine module behavior.
+* Purpose: Provides fat attack3 helper behavior for the play simulation.
 */
 function A_FatAttack3(actor)
   if actor is void or actor.target is void then return end if
@@ -1142,7 +1144,7 @@ end function
 
 /*
 * Function: A_SkullAttack
-* Purpose: Implements the A_SkullAttack routine for the engine module behavior.
+* Purpose: Provides skull attack helper behavior for the play simulation.
 */
 function A_SkullAttack(actor)
   if actor is void or actor.target is void then return end if
@@ -1165,7 +1167,7 @@ end function
 
 /*
 * Function: _PE_PainShootSkull
-* Purpose: Implements the _PE_PainShootSkull routine for the internal module support.
+* Purpose: Provides pain shoot skull helper behavior for the play simulation.
 */
 function _PE_PainShootSkull(actor, angle)
   if actor is void or actor.target is void then return end if
@@ -1175,19 +1177,18 @@ function _PE_PainShootSkull(actor, angle)
   if thinkercap is not void then
     cur = thinkercap.next
     while cur is not void and cur != thinkercap
-      obj = cur
-      if typeof(P_ResolveThinkerOwner) == "function" then
-        own = P_ResolveThinkerOwner(cur)
-        if own is not void then obj = own end if
-      end if
+      obj = _PE_ResolveThinkerMobj(cur)
       if obj is not void and obj.type == mobjtype_t.MT_SKULL then count = count + 1 end if
       cur = cur.next
     end while
   end if
   if count > 20 then return end if
 
+  skullIdx = _PM_MobjTypeIndex(mobjtype_t.MT_SKULL)
+  if skullIdx < 0 or skullIdx >= len(mobjinfo) or mobjinfo[skullIdx] is void then return end if
+
   an =(angle >> ANGLETOFINESHIFT) & FINEMASK
-  prestep = 4 * PE_FRACUNIT + _PE_IDiv(3 *(actor.info.radius + mobjinfo[mobjtype_t.MT_SKULL].radius), 2)
+  prestep = 4 * PE_FRACUNIT + _PE_IDiv(3 *(actor.info.radius + mobjinfo[skullIdx].radius), 2)
   x = actor.x + FixedMul(prestep, finecosine[an])
   y = actor.y + FixedMul(prestep, finesine[an])
   z = actor.z + 8 * PE_FRACUNIT
@@ -1206,7 +1207,7 @@ end function
 
 /*
 * Function: A_PainShootSkull
-* Purpose: Implements the A_PainShootSkull routine for the engine module behavior.
+* Purpose: Provides pain shoot skull helper behavior for the play simulation.
 */
 function A_PainShootSkull(actor, angle)
   _PE_PainShootSkull(actor, angle)
@@ -1214,7 +1215,7 @@ end function
 
 /*
 * Function: A_PainAttack
-* Purpose: Implements the A_PainAttack routine for the engine module behavior.
+* Purpose: Provides pain attack helper behavior for the play simulation.
 */
 function A_PainAttack(actor)
   if actor is void or actor.target is void then return end if
@@ -1224,7 +1225,7 @@ end function
 
 /*
 * Function: A_PainDie
-* Purpose: Implements the A_PainDie routine for the engine module behavior.
+* Purpose: Provides pain die helper behavior for the play simulation.
 */
 function A_PainDie(actor)
   if actor is void then return end if
@@ -1236,7 +1237,7 @@ end function
 
 /*
 * Function: A_Scream
-* Purpose: Implements the A_Scream routine for the engine module behavior.
+* Purpose: Provides scream helper behavior for the play simulation.
 */
 function A_Scream(actor)
   if actor is void or actor.info is void then return end if
@@ -1259,7 +1260,7 @@ end function
 
 /*
 * Function: A_XScream
-* Purpose: Implements the A_XScream routine for the engine module behavior.
+* Purpose: Provides x scream helper behavior for the play simulation.
 */
 function A_XScream(actor)
   _PE_StartSound(actor, sfxenum_t.sfx_slop)
@@ -1267,7 +1268,7 @@ end function
 
 /*
 * Function: A_Pain
-* Purpose: Implements the A_Pain routine for the engine module behavior.
+* Purpose: Provides pain helper behavior for the play simulation.
 */
 function A_Pain(actor)
   if actor is void or actor.info is void then return end if
@@ -1278,7 +1279,7 @@ end function
 
 /*
 * Function: A_Explode
-* Purpose: Implements the A_Explode routine for the engine module behavior.
+* Purpose: Provides explode helper behavior for the play simulation.
 */
 function A_Explode(thingy)
   if thingy is void then return end if
@@ -1289,7 +1290,7 @@ end function
 
 /*
 * Function: A_BossDeath
-* Purpose: Implements the A_BossDeath routine for the engine module behavior.
+* Purpose: Provides boss death helper behavior for the play simulation.
 */
 function A_BossDeath(mo)
   if mo is void then return end if
@@ -1394,7 +1395,7 @@ end function
 
 /*
 * Function: A_Hoof
-* Purpose: Implements the A_Hoof routine for the engine module behavior.
+* Purpose: Provides hoof helper behavior for the play simulation.
 */
 function A_Hoof(mo)
   _PE_StartSound(mo, sfxenum_t.sfx_hoof)
@@ -1403,7 +1404,7 @@ end function
 
 /*
 * Function: A_Metal
-* Purpose: Implements the A_Metal routine for the engine module behavior.
+* Purpose: Provides metal helper behavior for the play simulation.
 */
 function A_Metal(mo)
   _PE_StartSound(mo, sfxenum_t.sfx_metal)
@@ -1412,7 +1413,7 @@ end function
 
 /*
 * Function: A_BabyMetal
-* Purpose: Implements the A_BabyMetal routine for the engine module behavior.
+* Purpose: Provides baby metal helper behavior for the play simulation.
 */
 function A_BabyMetal(mo)
   _PE_StartSound(mo, sfxenum_t.sfx_bspwlk)
@@ -1421,7 +1422,7 @@ end function
 
 /*
 * Function: A_OpenShotgun2
-* Purpose: Implements the A_OpenShotgun2 routine for the engine module behavior.
+* Purpose: Runs shotgun2 lifecycle logic for the actor AI.
 */
 function A_OpenShotgun2(player, psp)
   psp = psp
@@ -1432,7 +1433,7 @@ end function
 
 /*
 * Function: A_LoadShotgun2
-* Purpose: Loads and prepares data required by the engine module behavior.
+* Purpose: Provides load shotgun2 helper behavior for the play simulation.
 */
 function A_LoadShotgun2(player, psp)
   psp = psp
@@ -1443,7 +1444,7 @@ end function
 
 /*
 * Function: A_CloseShotgun2
-* Purpose: Implements the A_CloseShotgun2 routine for the engine module behavior.
+* Purpose: Provides close shotgun2 helper behavior for the play simulation.
 */
 function A_CloseShotgun2(player, psp)
   if player is not void and player.mo is not void then
@@ -1456,7 +1457,7 @@ end function
 
 /*
 * Function: A_BrainAwake
-* Purpose: Implements the A_BrainAwake routine for the engine module behavior.
+* Purpose: Provides brain awake helper behavior for the play simulation.
 */
 function A_BrainAwake(mo)
   global braintargets
@@ -1485,7 +1486,7 @@ end function
 
 /*
 * Function: A_BrainPain
-* Purpose: Implements the A_BrainPain routine for the engine module behavior.
+* Purpose: Provides brain pain helper behavior for the play simulation.
 */
 function A_BrainPain(mo)
   mo = mo
@@ -1494,7 +1495,7 @@ end function
 
 /*
 * Function: A_BrainScream
-* Purpose: Implements the A_BrainScream routine for the engine module behavior.
+* Purpose: Provides brain scream helper behavior for the play simulation.
 */
 function A_BrainScream(mo)
   if mo is void then return end if
@@ -1518,7 +1519,7 @@ end function
 
 /*
 * Function: A_BrainExplode
-* Purpose: Implements the A_BrainExplode routine for the engine module behavior.
+* Purpose: Provides brain explode helper behavior for the play simulation.
 */
 function A_BrainExplode(mo)
   if mo is void then return end if
@@ -1535,7 +1536,7 @@ end function
 
 /*
 * Function: A_BrainDie
-* Purpose: Implements the A_BrainDie routine for the engine module behavior.
+* Purpose: Provides brain die helper behavior for the play simulation.
 */
 function A_BrainDie(mo)
   mo = mo
@@ -1544,7 +1545,7 @@ end function
 
 /*
 * Function: A_BrainSpit
-* Purpose: Implements the A_BrainSpit routine for the engine module behavior.
+* Purpose: Provides brain spit helper behavior for the play simulation.
 */
 function A_BrainSpit(mo)
   global _PE_brain_easy
@@ -1652,7 +1653,7 @@ end function
 
 /*
 * Function: A_PlayerScream
-* Purpose: Implements the A_PlayerScream routine for the engine module behavior.
+* Purpose: Provides player scream helper behavior for the play simulation.
 */
 function A_PlayerScream(mo)
   if mo is void then return end if

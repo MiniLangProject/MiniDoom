@@ -49,7 +49,7 @@ const CH_Y = 121
 
 /*
 * Function: _min
-* Purpose: Implements the _min routine for the internal module support.
+* Purpose: Provides min helper behavior for the utility.
 */
 function inline _min(a, b)
   if a < b then return a end if
@@ -58,7 +58,7 @@ end function
 
 /*
 * Function: _toupperByte
-* Purpose: Implements the _toupperByte routine for the internal module support.
+* Purpose: Converts toupper Byte text to the required case for menu lookups.
 */
 function inline _toupperByte(c)
 
@@ -68,7 +68,7 @@ end function
 
 /*
 * Function: _bytesOf
-* Purpose: Implements the _bytesOf routine for the internal module support.
+* Purpose: Provides of helper behavior for the utility.
 */
 function inline _bytesOf(x)
   if typeof(x) == "bytes" then return x end if
@@ -79,7 +79,7 @@ end function
 
 /*
 * Function: _MMENU_IDiv
-* Purpose: Implements the _MMENU_IDiv routine for the internal module support.
+* Purpose: Performs integer division with menu rounding and guard rules.
 */
 function inline _MMENU_IDiv(a, b)
   if typeof(a) != "int" or typeof(b) != "int" or b == 0 then return 0 end if
@@ -109,7 +109,7 @@ end function
 
 /*
 * Function: _MMENU_ItemCount
-* Purpose: Implements the _MMENU_ItemCount routine for the internal module support.
+* Purpose: Provides item count helper behavior for the utility.
 */
 function inline _MMENU_ItemCount(menu)
   if menu is void or menu == 0 then return 0 end if
@@ -125,7 +125,7 @@ end function
 
 /*
 * Function: _MMENU_ClampCursor
-* Purpose: Implements the _MMENU_ClampCursor routine for the internal module support.
+* Purpose: Clamps mMENU Clamp Cursor values to the supported menu range.
 */
 function _MMENU_ClampCursor()
   global currentMenu
@@ -148,7 +148,7 @@ end function
 
 /*
 * Function: _patchWidth
-* Purpose: Implements the _patchWidth routine for the internal module support.
+* Purpose: Provides width helper behavior for the utility.
 */
 function inline _patchWidth(patch)
   if typeof(patch) != "bytes" then return 0 end if
@@ -159,7 +159,7 @@ end function
 
 /*
 * Function: _patchHeight
-* Purpose: Implements the _patchHeight routine for the internal module support.
+* Purpose: Provides height helper behavior for the utility.
 */
 function inline _patchHeight(patch)
   if typeof(patch) != "bytes" then return 0 end if
@@ -170,7 +170,7 @@ end function
 
 /*
 * Function: _cstrClear
-* Purpose: Implements the _cstrClear routine for the internal module support.
+* Purpose: Clears cstr Clear state before the next menu update.
 */
 function _cstrClear(buf)
   if typeof(buf) != "bytes" then return end if
@@ -181,7 +181,7 @@ end function
 
 /*
 * Function: _cstrLen
-* Purpose: Implements the _cstrLen routine for the internal module support.
+* Purpose: Provides len helper behavior for the utility.
 */
 function _cstrLen(buf)
   if typeof(buf) != "bytes" then return 0 end if
@@ -194,7 +194,7 @@ end function
 
 /*
 * Function: _cstrFromString
-* Purpose: Implements the _cstrFromString routine for the internal module support.
+* Purpose: Provides from string helper behavior for the utility.
 */
 function _cstrFromString(buf, s)
   if typeof(buf) != "bytes" then return end if
@@ -209,7 +209,7 @@ end function
 
 /*
 * Function: _cstrCopy
-* Purpose: Implements the _cstrCopy routine for the internal module support.
+* Purpose: Provides copy helper behavior for the utility.
 */
 function _cstrCopy(dst, src)
   if typeof(dst) != "bytes" or typeof(src) != "bytes" then return end if
@@ -223,7 +223,7 @@ end function
 
 /*
 * Function: _cstrEqString
-* Purpose: Implements the _cstrEqString routine for the internal module support.
+* Purpose: Provides eq string helper behavior for the utility.
 */
 function inline _cstrEqString(buf, s)
   if typeof(buf) != "bytes" then return false end if
@@ -232,7 +232,7 @@ end function
 
 /*
 * Function: _fmt1
-* Purpose: Implements the _fmt1 routine for the internal module support.
+* Purpose: Provides fmt1 helper behavior for the utility.
 */
 function _fmt1(fmt, arg)
 
@@ -279,7 +279,7 @@ end function
 
 /*
 * Struct: menuitem_t
-* Purpose: Stores runtime data for menuitem type.
+* Purpose: Stores menuitem data used by the menu system.
 */
 struct menuitem_t
   status
@@ -290,7 +290,7 @@ end struct
 
 /*
 * Struct: menu_t
-* Purpose: Stores runtime data for menu type.
+* Purpose: Stores menu data used by the menu system.
 */
 struct menu_t
   numitems
@@ -304,7 +304,7 @@ end struct
 
 /*
 * Function: _MI
-* Purpose: Implements the _MI routine for the internal module support.
+* Purpose: Provides mi helper behavior for the utility.
 */
 function inline _MI(status, name, routine, alphaKey)
   return menuitem_t(status, name, routine, alphaKey)
@@ -312,7 +312,7 @@ end function
 
 /*
 * Function: _Menu
-* Purpose: Implements the _Menu routine for the internal module support.
+* Purpose: Provides menu helper behavior for the utility.
 */
 function inline _Menu(numitems, prevMenu, menuitems, routine, x, y, lastOn)
   return menu_t(numitems, prevMenu, menuitems, routine, x, y, lastOn)
@@ -543,7 +543,7 @@ end function
 
 /*
 * Function: _BuildMenus
-* Purpose: Implements the _BuildMenus routine for the internal module support.
+* Purpose: Builds menus data for the utility.
 */
 function _BuildMenus()
   global MainMenu
@@ -680,7 +680,7 @@ end function
 
 /*
 * Function: M_ReadSaveStrings
-* Purpose: Implements the M_ReadSaveStrings routine for the utility/math layer.
+* Purpose: Reads save strings data for the utility.
 */
 function M_ReadSaveStrings()
   global savegamestrings
@@ -728,7 +728,7 @@ end function
 
 /*
 * Function: M_DrawLoad
-* Purpose: Loads and prepares data required by the utility/math layer.
+* Purpose: Loads draw Load resources used by the menu system.
 */
 function M_DrawLoad()
   V_DrawPatchDirect(72, 28, 0, W_CacheLumpName("M_LOADG", PU_CACHE))
@@ -740,7 +740,7 @@ end function
 
 /*
 * Function: M_DrawSaveLoadBorder
-* Purpose: Loads and prepares data required by the utility/math layer.
+* Purpose: Loads draw Save Load Border resources used by the menu system.
 */
 function M_DrawSaveLoadBorder(x, y)
   V_DrawPatchDirect(x - 8, y + 7, 0, W_CacheLumpName("M_LSLEFT", PU_CACHE))
@@ -753,7 +753,7 @@ end function
 
 /*
 * Function: M_LoadSelect
-* Purpose: Loads and prepares data required by the utility/math layer.
+* Purpose: Reads select data for the utility.
 */
 function M_LoadSelect(choice)
   name = ""
@@ -768,7 +768,7 @@ end function
 
 /*
 * Function: M_LoadGame
-* Purpose: Loads and prepares data required by the utility/math layer.
+* Purpose: Reads game data for the utility.
 */
 function M_LoadGame(choice)
   choice = choice
@@ -783,7 +783,7 @@ end function
 
 /*
 * Function: M_DrawSave
-* Purpose: Draws or renders output for the utility/math layer.
+* Purpose: Saves draw Save state for the menu system.
 */
 function M_DrawSave()
   V_DrawPatchDirect(72, 28, 0, W_CacheLumpName("M_SAVEG", PU_CACHE))
@@ -800,7 +800,7 @@ end function
 
 /*
 * Function: M_DoSave
-* Purpose: Implements the M_DoSave routine for the utility/math layer.
+* Purpose: Saves do Save state for the menu system.
 */
 function M_DoSave(slot)
   global quickSaveSlot
@@ -814,7 +814,7 @@ end function
 
 /*
 * Function: M_SaveSelect
-* Purpose: Implements the M_SaveSelect routine for the utility/math layer.
+* Purpose: Writes select data for the utility.
 */
 function M_SaveSelect(choice)
   global saveStringEnter
@@ -832,7 +832,7 @@ end function
 
 /*
 * Function: M_SaveGame
-* Purpose: Implements the M_SaveGame routine for the utility/math layer.
+* Purpose: Writes game data for the utility.
 */
 function M_SaveGame(choice)
   choice = choice
@@ -852,7 +852,7 @@ end function
 
 /*
 * Function: M_QuickSaveResponse
-* Purpose: Implements the M_QuickSaveResponse routine for the utility/math layer.
+* Purpose: Saves quick Save Response state for the menu system.
 */
 function M_QuickSaveResponse(ch)
   if ch == CH_Y then
@@ -863,7 +863,7 @@ end function
 
 /*
 * Function: M_QuickSave
-* Purpose: Implements the M_QuickSave routine for the utility/math layer.
+* Purpose: Saves quick Save state for the menu system.
 */
 function M_QuickSave()
   global quickSaveSlot
@@ -889,7 +889,7 @@ end function
 
 /*
 * Function: M_QuickLoadResponse
-* Purpose: Loads and prepares data required by the utility/math layer.
+* Purpose: Loads quick Load Response resources used by the menu system.
 */
 function M_QuickLoadResponse(ch)
   if ch == CH_Y then
@@ -900,7 +900,7 @@ end function
 
 /*
 * Function: M_QuickLoad
-* Purpose: Loads and prepares data required by the utility/math layer.
+* Purpose: Loads quick Load resources used by the menu system.
 */
 function M_QuickLoad()
   global tempstring
@@ -920,7 +920,7 @@ end function
 
 /*
 * Function: M_DrawReadThis1
-* Purpose: Draws or renders output for the utility/math layer.
+* Purpose: Reads draw Read This1 data from the menu data stream.
 */
 function M_DrawReadThis1()
   global inhelpscreens
@@ -934,7 +934,7 @@ end function
 
 /*
 * Function: M_DrawReadThis2
-* Purpose: Draws or renders output for the utility/math layer.
+* Purpose: Reads draw Read This2 data from the menu data stream.
 */
 function M_DrawReadThis2()
   global inhelpscreens
@@ -948,7 +948,7 @@ end function
 
 /*
 * Function: M_DrawSound
-* Purpose: Draws or renders output for the utility/math layer.
+* Purpose: Draws sound output for the utility.
 */
 function M_DrawSound()
   V_DrawPatchDirect(60, 38, 0, W_CacheLumpName("M_SVOL", PU_CACHE))
@@ -958,7 +958,7 @@ end function
 
 /*
 * Function: M_Sound
-* Purpose: Implements the M_Sound routine for the utility/math layer.
+* Purpose: Provides sound helper behavior for the utility.
 */
 function M_Sound(choice)
   choice = choice
@@ -967,7 +967,7 @@ end function
 
 /*
 * Function: M_SfxVol
-* Purpose: Implements the M_SfxVol routine for the utility/math layer.
+* Purpose: Provides vol helper behavior for the utility.
 */
 function M_SfxVol(choice)
   global snd_SfxVolume
@@ -981,7 +981,7 @@ end function
 
 /*
 * Function: M_MusicVol
-* Purpose: Implements the M_MusicVol routine for the utility/math layer.
+* Purpose: Provides vol helper behavior for the utility.
 */
 function M_MusicVol(choice)
   global snd_MusicVolume
@@ -995,7 +995,7 @@ end function
 
 /*
 * Function: M_DrawMainMenu
-* Purpose: Draws or renders output for the utility/math layer.
+* Purpose: Draws main menu output for the utility.
 */
 function M_DrawMainMenu()
   V_DrawPatchDirect(94, 2, 0, W_CacheLumpName("M_DOOM", PU_CACHE))
@@ -1594,7 +1594,7 @@ end function
 
 /*
 * Function: M_DrawNewGame
-* Purpose: Draws or renders output for the utility/math layer.
+* Purpose: Draws new game output for the utility.
 */
 function M_DrawNewGame()
   V_DrawPatchDirect(96, 14, 0, W_CacheLumpName("M_NEWG", PU_CACHE))
@@ -1603,7 +1603,7 @@ end function
 
 /*
 * Function: M_NewGame
-* Purpose: Implements the M_NewGame routine for the utility/math layer.
+* Purpose: Builds game data for the utility.
 */
 function M_NewGame(choice)
   choice = choice
@@ -1621,7 +1621,7 @@ end function
 
 /*
 * Function: M_DrawEpisode
-* Purpose: Draws or renders output for the utility/math layer.
+* Purpose: Draws episode output for the utility.
 */
 function M_DrawEpisode()
   V_DrawPatchDirect(54, 38, 0, W_CacheLumpName("M_EPISOD", PU_CACHE))
@@ -1629,7 +1629,7 @@ end function
 
 /*
 * Function: M_VerifyNightmare
-* Purpose: Implements the M_VerifyNightmare routine for the utility/math layer.
+* Purpose: Provides nightmare helper behavior for the utility.
 */
 function M_VerifyNightmare(ch)
   if ch != CH_Y then return end if
@@ -1639,7 +1639,7 @@ end function
 
 /*
 * Function: M_ChooseSkill
-* Purpose: Implements the M_ChooseSkill routine for the utility/math layer.
+* Purpose: Computes skill values for the utility.
 */
 function M_ChooseSkill(choice)
   if choice == nightmare then
@@ -1653,7 +1653,7 @@ end function
 
 /*
 * Function: M_Episode
-* Purpose: Implements the M_Episode routine for the utility/math layer.
+* Purpose: Provides episode helper behavior for the utility.
 */
 function M_Episode(choice)
   global epi
@@ -1674,7 +1674,7 @@ end function
 
 /*
 * Function: M_DrawOptions
-* Purpose: Draws or renders output for the utility/math layer.
+* Purpose: Draws options output for the utility.
 */
 function M_DrawOptions()
   V_DrawPatchDirect(108, 15, 0, W_CacheLumpName("M_OPTTTL", PU_CACHE))
@@ -1693,7 +1693,7 @@ end function
 
 /*
 * Function: M_Options
-* Purpose: Implements the M_Options routine for the utility/math layer.
+* Purpose: Provides options helper behavior for the utility.
 */
 function M_Options(choice)
   choice = choice
@@ -1702,7 +1702,7 @@ end function
 
 /*
 * Function: M_ChangeMessages
-* Purpose: Implements the M_ChangeMessages routine for the utility/math layer.
+* Purpose: Runs messages behavior for the utility.
 */
 function M_ChangeMessages(choice)
   global showMessages
@@ -1723,7 +1723,7 @@ end function
 
 /*
 * Function: M_EndGameResponse
-* Purpose: Implements the M_EndGameResponse routine for the utility/math layer.
+* Purpose: Controls end Game Response transitions in the menu system.
 */
 function M_EndGameResponse(ch)
   if ch != CH_Y then return end if
@@ -1734,7 +1734,7 @@ end function
 
 /*
 * Function: M_EndGame
-* Purpose: Implements the M_EndGame routine for the utility/math layer.
+* Purpose: Controls end Game transitions in the menu system.
 */
 function M_EndGame(choice)
   choice = choice
@@ -1753,7 +1753,7 @@ end function
 
 /*
 * Function: M_ReadThis
-* Purpose: Implements the M_ReadThis routine for the utility/math layer.
+* Purpose: Reads this data for the utility.
 */
 function M_ReadThis(choice)
   choice = choice
@@ -1762,7 +1762,7 @@ end function
 
 /*
 * Function: M_ReadThis2
-* Purpose: Implements the M_ReadThis2 routine for the utility/math layer.
+* Purpose: Reads this2 data for the utility.
 */
 function M_ReadThis2(choice)
   choice = choice
@@ -1771,7 +1771,7 @@ end function
 
 /*
 * Function: M_FinishReadThis
-* Purpose: Implements the M_FinishReadThis routine for the utility/math layer.
+* Purpose: Reads finish Read This data from the menu data stream.
 */
 function M_FinishReadThis(choice)
   choice = choice
@@ -1780,7 +1780,7 @@ end function
 
 /*
 * Function: M_QuitResponse
-* Purpose: Implements the M_QuitResponse routine for the utility/math layer.
+* Purpose: Runs response lifecycle logic for the utility.
 */
 function M_QuitResponse(ch)
   if not(ch == CH_Y or ch == KEY_ENTER) then return end if
@@ -1799,7 +1799,7 @@ end function
 
 /*
 * Function: M_QuitDOOM
-* Purpose: Implements the M_QuitDOOM routine for the utility/math layer.
+* Purpose: Runs doom lifecycle logic for the utility.
 */
 function M_QuitDOOM(choice)
   global endstring
@@ -1817,7 +1817,7 @@ end function
 
 /*
 * Function: M_ChangeSensitivity
-* Purpose: Implements the M_ChangeSensitivity routine for the utility/math layer.
+* Purpose: Runs sensitivity behavior for the utility.
 */
 function M_ChangeSensitivity(choice)
   global mouseSensitivity
@@ -1830,7 +1830,7 @@ end function
 
 /*
 * Function: M_ChangeDetail
-* Purpose: Implements the M_ChangeDetail routine for the utility/math layer.
+* Purpose: Runs detail behavior for the utility.
 */
 function M_ChangeDetail(choice)
   global detailLevel
@@ -1882,7 +1882,7 @@ end function
 
 /*
 * Function: M_SizeDisplay
-* Purpose: Implements the M_SizeDisplay routine for the utility/math layer.
+* Purpose: Provides display helper behavior for the utility.
 */
 function M_SizeDisplay(choice)
   global screenblocks
@@ -1904,7 +1904,7 @@ end function
 
 /*
 * Function: M_DrawThermo
-* Purpose: Draws or renders output for the utility/math layer.
+* Purpose: Draws thermo output for the utility.
 */
 function M_DrawThermo(x, y, thermWidth, thermDot)
   xx = x
@@ -1921,7 +1921,7 @@ end function
 
 /*
 * Function: M_DrawEmptyCell
-* Purpose: Draws or renders output for the utility/math layer.
+* Purpose: Draws empty cell output for the utility.
 */
 function M_DrawEmptyCell(menu, item)
   V_DrawPatchDirect(menu.x - 10, menu.y + item * LINEHEIGHT - 1, 0,
@@ -1930,7 +1930,7 @@ end function
 
 /*
 * Function: M_DrawSelCell
-* Purpose: Draws or renders output for the utility/math layer.
+* Purpose: Draws sel cell output for the utility.
 */
 function M_DrawSelCell(menu, item)
   V_DrawPatchDirect(menu.x - 10, menu.y + item * LINEHEIGHT - 1, 0,
@@ -1985,7 +1985,7 @@ end function
 
 /*
 * Function: M_StringWidth
-* Purpose: Implements the M_StringWidth routine for the utility/math layer.
+* Purpose: Provides width helper behavior for the utility.
 */
 function M_StringWidth(string)
   b = _bytesOf(string)
@@ -2013,7 +2013,7 @@ end function
 
 /*
 * Function: M_StringHeight
-* Purpose: Implements the M_StringHeight routine for the utility/math layer.
+* Purpose: Provides height helper behavior for the utility.
 */
 function M_StringHeight(string)
   b = _bytesOf(string)
@@ -2031,7 +2031,7 @@ end function
 
 /*
 * Function: M_WriteText
-* Purpose: Implements the M_WriteText routine for the utility/math layer.
+* Purpose: Writes text data for the utility.
 */
 function M_WriteText(x, y, string)
   b = _bytesOf(string)
@@ -2110,11 +2110,23 @@ function _MMENU_DrawPatchScale2(x, y, scrn, patch)
           sy = dy0 + (topdelta + i) * 2
           if sy >= 0 and sy < SCREENHEIGHT then
             c = patch[src + i]
-            destscreen[sy * SCREENWIDTH + dx] = c
-            if dx + 1 < SCREENWIDTH then destscreen[sy * SCREENWIDTH + dx + 1] = c end if
+            idx = sy * SCREENWIDTH + dx
+            destscreen[idx] = c
+            if scrn == 0 then V_MarkOverlayPixel(idx, dx, sy) end if
+            if dx + 1 < SCREENWIDTH then
+              idx2 = sy * SCREENWIDTH + dx + 1
+              destscreen[idx2] = c
+              if scrn == 0 then V_MarkOverlayPixel(idx2, dx + 1, sy) end if
+            end if
             if sy + 1 < SCREENHEIGHT then
-              destscreen[(sy + 1) * SCREENWIDTH + dx] = c
-              if dx + 1 < SCREENWIDTH then destscreen[(sy + 1) * SCREENWIDTH + dx + 1] = c end if
+              idx3 = (sy + 1) * SCREENWIDTH + dx
+              destscreen[idx3] = c
+              if scrn == 0 then V_MarkOverlayPixel(idx3, dx, sy + 1) end if
+              if dx + 1 < SCREENWIDTH then
+                idx4 = (sy + 1) * SCREENWIDTH + dx + 1
+                destscreen[idx4] = c
+                if scrn == 0 then V_MarkOverlayPixel(idx4, dx + 1, sy + 1) end if
+              end if
             end if
           end if
         end for
@@ -2270,7 +2282,7 @@ end function
 
 /*
 * Function: M_Responder
-* Purpose: Implements the M_Responder routine for the utility/math layer.
+* Purpose: Handles responder events for the menu system.
 */
 function M_Responder(ev)
   global _joywait
@@ -2633,8 +2645,8 @@ function M_Responder(ev)
     end function
 
     /*
-    * Function: M_Drawer
-    * Purpose: Draws or renders output for the utility/math layer.
+* Function: M_Drawer
+* Purpose: Provides drawer helper behavior for the utility.
     */
     function M_Drawer()
       global inhelpscreens
@@ -2696,8 +2708,8 @@ function M_Responder(ev)
     end function
 
     /*
-    * Function: M_ClearMenus
-    * Purpose: Implements the M_ClearMenus routine for the utility/math layer.
+* Function: M_ClearMenus
+* Purpose: Updates menus state for the utility.
     */
 function M_ClearMenus()
   global menuactive
@@ -2714,8 +2726,8 @@ function M_ClearMenus()
 end function
 
     /*
-    * Function: M_SetupNextMenu
-    * Purpose: Reads or updates state used by the utility/math layer.
+* Function: M_SetupNextMenu
+* Purpose: Runs next menu lifecycle logic for the utility.
     */
     function M_SetupNextMenu(menudef)
       global currentMenu
@@ -2731,8 +2743,8 @@ end function
     end function
 
     /*
-    * Function: M_Ticker
-    * Purpose: Advances per-tick logic for the utility/math layer.
+* Function: M_Ticker
+* Purpose: Advances ticker logic during the menu tick.
     */
 function M_Ticker()
   global skullAnimCounter

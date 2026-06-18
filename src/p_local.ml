@@ -47,7 +47,7 @@ const ONCEILINGZ = 2147483647
 
 /*
 * Struct: divline_t
-* Purpose: Stores runtime data for divline type.
+* Purpose: Describes divline geometry or asset data used by the play simulation system.
 */
 struct divline_t
   x
@@ -58,7 +58,7 @@ end struct
 
 /*
 * Struct: intercept_t
-* Purpose: Stores runtime data for intercept type.
+* Purpose: Stores intercept data used by the play simulation system.
 */
 struct intercept_t
   frac

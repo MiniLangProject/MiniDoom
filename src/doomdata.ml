@@ -33,7 +33,7 @@ const ML_BLOCKMAP = 10
 
 /*
 * Struct: mapvertex_t
-* Purpose: Stores runtime data for mapvertex type.
+* Purpose: Describes mapvertex geometry or asset data used by the Doom shared system.
 */
 struct mapvertex_t
   x
@@ -42,7 +42,7 @@ end struct
 
 /*
 * Struct: mapsidedef_t
-* Purpose: Stores runtime data for mapsidedef type.
+* Purpose: Describes mapsidedef geometry or asset data used by the Doom shared system.
 */
 struct mapsidedef_t
   textureoffset
@@ -55,7 +55,7 @@ end struct
 
 /*
 * Struct: maplinedef_t
-* Purpose: Stores runtime data for maplinedef type.
+* Purpose: Describes maplinedef geometry or asset data used by the Doom shared system.
 */
 struct maplinedef_t
   v1
@@ -78,7 +78,7 @@ const ML_MAPPED = 256
 
 /*
 * Struct: mapsector_t
-* Purpose: Stores runtime data for mapsector type.
+* Purpose: Describes mapsector geometry or asset data used by the Doom shared system.
 */
 struct mapsector_t
   floorheight
@@ -92,7 +92,7 @@ end struct
 
 /*
 * Struct: mapsubsector_t
-* Purpose: Stores runtime data for mapsubsector type.
+* Purpose: Describes mapsubsector geometry or asset data used by the Doom shared system.
 */
 struct mapsubsector_t
   numsegs
@@ -101,7 +101,7 @@ end struct
 
 /*
 * Struct: mapseg_t
-* Purpose: Stores runtime data for mapseg type.
+* Purpose: Describes mapseg geometry or asset data used by the Doom shared system.
 */
 struct mapseg_t
   v1
@@ -116,7 +116,7 @@ const NF_SUBSECTOR = 0x8000
 
 /*
 * Struct: mapnode_t
-* Purpose: Stores runtime data for mapnode type.
+* Purpose: Describes mapnode geometry or asset data used by the Doom shared system.
 */
 struct mapnode_t
   x
@@ -130,7 +130,7 @@ end struct
 
 /*
 * Struct: mapthing_t
-* Purpose: Stores runtime data for mapthing type.
+* Purpose: Stores map thing fields used by the engine.
 */
 struct mapthing_t
   x

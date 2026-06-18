@@ -63,7 +63,7 @@ rw_solidwall = false
 
 /*
 * Function: _RS_IDiv
-* Purpose: Implements the _RS_IDiv routine for the internal module support.
+* Purpose: Performs integer division with wall segment renderer rounding and guard rules.
 */
 function inline _RS_IDiv(a, b)
   if typeof(a) != "int" or typeof(b) != "int" or b == 0 then return 0 end if
@@ -74,7 +74,7 @@ end function
 
 /*
 * Function: _RS_ToInt
-* Purpose: Implements the _RS_ToInt routine for the internal module support.
+* Purpose: Converts int values for the wall segment renderer.
 */
 function inline _RS_ToInt(v, fallback)
   if typeof(v) == "int" then return v end if
@@ -93,7 +93,7 @@ end function
 
 /*
 * Function: _RS_Clamp
-* Purpose: Implements the _RS_Clamp routine for the internal module support.
+* Purpose: Clamps clamp values to the supported wall segment renderer range.
 */
 function inline _RS_Clamp(v, lo, hi)
   if v < lo then return lo end if
@@ -103,7 +103,7 @@ end function
 
 /*
 * Function: _RS_Abs
-* Purpose: Implements the _RS_Abs routine for the internal module support.
+* Purpose: Provides absolute-value helper behavior for the renderer.
 */
 function inline _RS_Abs(v)
   vi = _RS_ToInt(v, 0)
@@ -113,7 +113,7 @@ end function
 
 /*
 * Function: _RS_WrapIndex
-* Purpose: Implements the _RS_WrapIndex routine for the internal module support.
+* Purpose: Provides wrap index helper behavior for the renderer.
 */
 function inline _RS_WrapIndex(i, n)
   if typeof(i) != "int" then i = 0 end if
@@ -128,7 +128,7 @@ end function
 
 /*
 * Function: _RS_ClampIndex
-* Purpose: Implements the _RS_ClampIndex routine for the internal module support.
+* Purpose: Clamps clamp Index values to the supported wall segment renderer range.
 */
 function inline _RS_ClampIndex(i, n)
   if typeof(i) != "int" then i = 0 end if
@@ -140,7 +140,7 @@ end function
 
 /*
 * Function: _RS_IsSeq
-* Purpose: Implements the _RS_IsSeq routine for the internal module support.
+* Purpose: Provides is sequence helper behavior for the renderer.
 */
 function inline _RS_IsSeq(v)
   t = typeof(v)
@@ -149,7 +149,7 @@ end function
 
 /*
 * Function: _RS_AllocIntList
-* Purpose: Implements the _RS_AllocIntList routine for the internal module support.
+* Purpose: Provides alloc int list helper behavior for the renderer.
 */
 function inline _RS_AllocIntList(n, fill)
   lst =[]
@@ -163,7 +163,7 @@ end function
 
 /*
 * Function: _RS_EnsureOpeningsCapacity
-* Purpose: Implements the _RS_EnsureOpeningsCapacity routine for the internal module support.
+* Purpose: Provides ensure openings capacity helper behavior for the renderer.
 */
 function _RS_EnsureOpeningsCapacity(needed)
   global openings
@@ -174,7 +174,13 @@ function _RS_EnsureOpeningsCapacity(needed)
 
   cap = len(openings)
   if cap <= 0 then cap = MAXOPENINGS end if
-  if cap <= 0 then cap = SCREENWIDTH * 64 end if
+  if cap <= 0 then
+    if typeof(viewwidth) == "int" and viewwidth > 0 then
+      cap = viewwidth * 64
+    else
+      cap = SCREENWIDTH * 64
+    end if
+  end if
   if cap <= 0 then cap = 4096 end if
 
   while cap < needed
@@ -191,7 +197,7 @@ end function
 
 /*
 * Function: R_ClearSolidClipScales
-* Purpose: Implements the R_ClearSolidClipScales routine for the renderer.
+* Purpose: Updates solid clip scales state for the renderer.
 */
 function R_ClearSolidClipScales()
 
@@ -199,7 +205,7 @@ end function
 
 /*
 * Function: _RS_AngNorm
-* Purpose: Implements the _RS_AngNorm routine for the internal module support.
+* Purpose: Provides ang norm helper behavior for the renderer.
 */
 function inline _RS_AngNorm(a)
   ai = _RS_ToInt(a, 0)
@@ -208,7 +214,7 @@ end function
 
 /*
 * Function: _RS_AngSub
-* Purpose: Implements the _RS_AngSub routine for the internal module support.
+* Purpose: Provides ang sub helper behavior for the renderer.
 */
 function inline _RS_AngSub(a, b)
   return _RS_AngNorm(_RS_AngNorm(a) - _RS_AngNorm(b))
@@ -216,7 +222,7 @@ end function
 
 /*
 * Function: _RS_ResolveTexture
-* Purpose: Implements the _RS_ResolveTexture routine for the internal module support.
+* Purpose: Provides resolve texture helper behavior for the renderer.
 */
 function inline _RS_ResolveTexture(texId)
   t = texId
@@ -231,7 +237,7 @@ end function
 
 /*
 * Function: _RS_SelectWallLights
-* Purpose: Implements the _RS_SelectWallLights routine for the internal module support.
+* Purpose: Provides select wall lights helper behavior for the renderer.
 */
 function _RS_SelectWallLights(line, sec)
   global walllights
@@ -270,7 +276,7 @@ end function
 
 /*
 * Function: _RS_GetClipValue
-* Purpose: Reads or updates state used by the internal module support.
+* Purpose: Provides get clip value helper behavior for the renderer.
 */
 function inline _RS_GetClipValue(clipref, x, fallback)
   if typeof(x) != "int" or x < 0 then return fallback end if
@@ -287,7 +293,7 @@ end function
 
 /*
 * Function: _RS_SetClipValue
-* Purpose: Reads or updates state used by the internal module support.
+* Purpose: Updates clip value state for the wall segment renderer.
 */
 function inline _RS_SetClipValue(clipref, x, value)
   if typeof(x) != "int" or x < 0 then return end if
@@ -303,7 +309,7 @@ end function
 
 /*
 * Function: _RS_CopyClipToOpenings
-* Purpose: Implements the _RS_CopyClipToOpenings routine for the internal module support.
+* Purpose: Provides copy clip to openings helper behavior for the renderer.
 */
 function _RS_CopyClipToOpenings(src, start, stop, fallback)
   global lastopening
@@ -332,7 +338,7 @@ end function
 
 /*
 * Function: _RS_AllocMaskedCols
-* Purpose: Implements the _RS_AllocMaskedCols routine for the internal module support.
+* Purpose: Provides alloc masked cols helper behavior for the renderer.
 */
 function _RS_AllocMaskedCols(start, stop)
   global lastopening
@@ -358,7 +364,7 @@ end function
 
 /*
 * Function: _RS_ReadMaskedCol
-* Purpose: Implements the _RS_ReadMaskedCol routine for the internal module support.
+* Purpose: Reads masked column data for the wall segment renderer.
 */
 function inline _RS_ReadMaskedCol(maskref, x)
   if typeof(x) != "int" or x < 0 then return MAXSHORT end if
@@ -375,7 +381,7 @@ end function
 
 /*
 * Function: _RS_WriteMaskedCol
-* Purpose: Implements the _RS_WriteMaskedCol routine for the internal module support.
+* Purpose: Writes masked column data for the wall segment renderer.
 */
 function inline _RS_WriteMaskedCol(maskref, x, value)
   if typeof(x) != "int" or x < 0 then return end if
@@ -391,7 +397,7 @@ end function
 
 /*
 * Function: _RS_DrawTexturedRange
-* Purpose: Draws or renders output for the internal module support.
+* Purpose: Draws textured range output for the wall segment renderer.
 */
 function _RS_DrawTexturedRange(fb, x, y1, y2, texnum, texCol, cmap)
   if y2 < y1 then return end if
@@ -409,14 +415,16 @@ function _RS_DrawTexturedRange(fb, x, y1, y2, texnum, texCol, cmap)
     if ti < 0 then ti = 0 end if
     if ti >= texH then ti = texH - 1 end if
     v = col[ti]
-    fb[y * SCREENWIDTH + x] = cmap[v]
+    stride = SCREENWIDTH
+    if typeof(viewwidth) == "int" and viewwidth > SCREENWIDTH then stride = viewwidth end if
+    fb[y * stride + x] = cmap[v]
     y = y + 1
   end while
 end function
 
 /*
 * Function: _RS_DrawMaskedTextureColumn
-* Purpose: Draws or renders output for the internal module support.
+* Purpose: Draws masked texture column output for the wall segment renderer.
 */
 function _RS_DrawMaskedTextureColumn(x, texnum, texturecolumn, texturemid, yscale, topclip, bottomclip)
   global colfunc
@@ -486,8 +494,8 @@ function _RS_DrawMaskedTextureColumn(x, texnum, texturecolumn, texturemid, yscal
       tclip = _RS_GetClipValue(topclip, x, -1)
       if y1 <= tclip then y1 = tclip + 1 end if
 
-      y1 = _RS_Clamp(y1, 0, SCREENHEIGHT - 1)
-      y2 = _RS_Clamp(y2, 0, SCREENHEIGHT - 1)
+      y1 = _RS_Clamp(y1, 0, viewheight - 1)
+      y2 = _RS_Clamp(y2, 0, viewheight - 1)
 
       if y2 >= y1 then
         dc_x = x
@@ -522,7 +530,7 @@ end function
 
 /*
 * Function: R_RenderMaskedSegRange
-* Purpose: Draws or renders output for the renderer.
+* Purpose: Draws render Masked Seg Range output for the wall segment renderer renderer.
 */
 function R_RenderMaskedSegRange(ds, x1, x2)
   global curline
@@ -605,7 +613,7 @@ end function
 
 /*
 * Function: R_RenderSegLoop
-* Purpose: Draws or renders output for the renderer.
+* Purpose: Draws render Seg Loop output for the wall segment renderer renderer.
 */
 function R_RenderSegLoop()
   global rw_x
@@ -755,7 +763,7 @@ end function
 
 /*
 * Function: R_StoreWallRange
-* Purpose: Implements the R_StoreWallRange routine for the renderer.
+* Purpose: Writes wall range data for the renderer.
 */
 function R_StoreWallRange(start, stop)
   global sidedef

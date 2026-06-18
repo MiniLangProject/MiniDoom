@@ -20,7 +20,7 @@ import doomtype
 
 /*
 * Struct: ticcmd_t
-* Purpose: Stores runtime data for ticcmd type.
+* Purpose: Stores ticcmd event data for the Doom core system.
 */
 struct ticcmd_t
   forwardmove

@@ -53,7 +53,7 @@ NUMPSPRITES = 2
 
 /*
 * Struct: pspdef_t
-* Purpose: Stores runtime data for pspdef type.
+* Purpose: Stores pspdef data used by the player weapon sprite system.
 */
 struct pspdef_t
   state
@@ -86,7 +86,7 @@ _psDiagFireCount = 0
 
 /*
 * Function: _PS_DiagFireEnabled
-* Purpose: Implements the _PS_DiagFireEnabled routine for the internal module support.
+* Purpose: Provides diag fire enabled helper behavior for the player weapon sprite.
 */
 function _PS_DiagFireEnabled()
   global _psDiagFireInit
@@ -107,7 +107,7 @@ end function
 
 /*
 * Function: _PS_DiagFireLog
-* Purpose: Implements the _PS_DiagFireLog routine for the internal module support.
+* Purpose: Provides diag fire log helper behavior for the player weapon sprite.
 */
 function inline _PS_DiagFireLog(msg)
   global _psDiagFireCount
@@ -121,7 +121,7 @@ end function
 
 /*
 * Function: _PS_WeaponIndex
-* Purpose: Implements the _PS_WeaponIndex routine for the internal module support.
+* Purpose: Provides weapon index helper behavior for the player weapon sprite.
 */
 function _PS_WeaponIndex(w)
   if typeof(w) == "int" then
@@ -142,7 +142,7 @@ end function
 
 /*
 * Function: _PS_AmmoIndex
-* Purpose: Implements the _PS_AmmoIndex routine for the internal module support.
+* Purpose: Provides ammo index helper behavior for the player weapon sprite.
 */
 function inline _PS_AmmoIndex(a)
   if typeof(a) == "int" then
@@ -158,7 +158,7 @@ end function
 
 /*
 * Function: _PS_PowerIndex
-* Purpose: Implements the _PS_PowerIndex routine for the internal module support.
+* Purpose: Provides power index helper behavior for the player weapon sprite.
 */
 function _PS_PowerIndex(pw)
   if typeof(pw) == "int" then
@@ -176,7 +176,7 @@ end function
 
 /*
 * Function: _PS_WeaponInfo
-* Purpose: Implements the _PS_WeaponInfo routine for the internal module support.
+* Purpose: Provides weapon info helper behavior for the player weapon sprite.
 */
 function inline _PS_WeaponInfo(w)
   wi = _PS_WeaponIndex(w)
@@ -188,7 +188,7 @@ end function
 
 /*
 * Function: _PS_GetAmmoCount
-* Purpose: Reads or updates state used by the internal module support.
+* Purpose: Provides get ammo count helper behavior for the player weapon sprite.
 */
 function inline _PS_GetAmmoCount(player, ammoType)
   if player is void then return 0 end if
@@ -204,7 +204,7 @@ end function
 
 /*
 * Function: _PS_SetAmmoCount
-* Purpose: Reads or updates state used by the internal module support.
+* Purpose: Updates ammo count state for the player weapon sprite.
 */
 function inline _PS_SetAmmoCount(player, ammoType, value)
   if player is void then return end if
@@ -219,7 +219,7 @@ end function
 
 /*
 * Function: _PS_HasWeapon
-* Purpose: Implements the _PS_HasWeapon routine for the internal module support.
+* Purpose: Provides has weapon helper behavior for the player weapon sprite.
 */
 function inline _PS_HasWeapon(player, weaponType)
   if player is void then return false end if
@@ -233,7 +233,7 @@ end function
 
 /*
 * Function: _PS_StateObjectIndex
-* Purpose: Implements the _PS_StateObjectIndex routine for the internal module support.
+* Purpose: Provides state object index helper behavior for the player weapon sprite.
 */
 function _PS_StateObjectIndex(stobj)
   if stobj is void then return -1 end if
@@ -248,7 +248,7 @@ end function
 
 /*
 * Function: _PS_PSpriteInState
-* Purpose: Implements the _PS_PSpriteInState routine for the internal module support.
+* Purpose: Provides p sprite in state helper behavior for the player weapon sprite.
 */
 function inline _PS_PSpriteInState(psp, stnum)
   if psp is void then return false end if
@@ -260,7 +260,7 @@ end function
 
 /*
 * Function: _PS_MobjInState
-* Purpose: Implements the _PS_MobjInState routine for the internal module support.
+* Purpose: Provides mobile-object in state helper behavior for the player weapon sprite.
 */
 function inline _PS_MobjInState(mo, stnum)
   if mo is void then return false end if
@@ -272,7 +272,7 @@ end function
 
 /*
 * Function: _PS_PlaySound
-* Purpose: Implements the _PS_PlaySound routine for the internal module support.
+* Purpose: Provides play sound helper behavior for the player weapon sprite.
 */
 function inline _PS_PlaySound(origin, sfx)
   if typeof(S_StartSound) == "function" then
@@ -282,7 +282,7 @@ end function
 
 /*
 * Function: _ensurePsprites
-* Purpose: Implements the _ensurePsprites routine for the internal module support.
+* Purpose: Builds player sprites data for the player weapon sprite.
 */
 function _ensurePsprites(player)
   if player is void then return end if
@@ -299,7 +299,7 @@ end function
 
 /*
 * Function: P_SetPsprite
-* Purpose: Reads or updates state used by the gameplay and world simulation.
+* Purpose: Updates player sprite state for the player weapon sprite.
 */
 function P_SetPsprite(player, position, stnum)
   _ensurePsprites(player)
@@ -359,8 +359,8 @@ function P_SetPsprite(player, position, stnum)
   end function
 
   /*
-  * Function: P_CalcSwing
-  * Purpose: Implements the P_CalcSwing routine for the gameplay and world simulation.
+* Function: P_CalcSwing
+* Purpose: Computes swing values for the player weapon sprite.
   */
   function P_CalcSwing(player)
     global swingx
@@ -386,8 +386,8 @@ function P_SetPsprite(player, position, stnum)
   end function
 
   /*
-  * Function: P_BringUpWeapon
-  * Purpose: Implements the P_BringUpWeapon routine for the gameplay and world simulation.
+* Function: P_BringUpWeapon
+* Purpose: Provides up weapon helper behavior for the player weapon sprite.
   */
   function P_BringUpWeapon(player)
     if player is void then return end if
@@ -414,8 +414,8 @@ function P_SetPsprite(player, position, stnum)
   end function
 
   /*
-  * Function: P_CheckAmmo
-  * Purpose: Evaluates conditions and returns a decision for the gameplay and world simulation.
+* Function: P_CheckAmmo
+* Purpose: Finds check Ammo information for player weapon sprite processing.
   */
   function P_CheckAmmo(player)
     if player is void then return true end if
@@ -462,8 +462,8 @@ function P_SetPsprite(player, position, stnum)
   end function
 
   /*
-  * Function: P_FireWeapon
-  * Purpose: Implements the P_FireWeapon routine for the gameplay and world simulation.
+* Function: P_FireWeapon
+* Purpose: Runs weapon behavior for the player weapon sprite.
   */
   function P_FireWeapon(player)
     if player is void then return end if
@@ -484,8 +484,8 @@ function P_SetPsprite(player, position, stnum)
   end function
 
   /*
-  * Function: P_DropWeapon
-  * Purpose: Implements the P_DropWeapon routine for the gameplay and world simulation.
+* Function: P_DropWeapon
+* Purpose: Provides weapon helper behavior for the player weapon sprite.
   */
   function P_DropWeapon(player)
     if player is void then return end if
@@ -495,8 +495,8 @@ function P_SetPsprite(player, position, stnum)
   end function
 
   /*
-  * Function: P_SetupPsprites
-  * Purpose: Reads or updates state used by the gameplay and world simulation.
+* Function: P_SetupPsprites
+* Purpose: Runs player sprites lifecycle logic for the player weapon sprite.
   */
   function P_SetupPsprites(player)
     if player is void then return end if
@@ -542,8 +542,8 @@ function P_SetPsprite(player, position, stnum)
   end function
 
   /*
-  * Function: A_WeaponReady
-  * Purpose: Implements the A_WeaponReady routine for the engine module behavior.
+* Function: A_WeaponReady
+* Purpose: Reads weapon Ready data from the player weapon sprite data stream.
   */
   function A_WeaponReady(player, psp)
     if player is void or psp is void then return end if
@@ -595,8 +595,8 @@ function P_SetPsprite(player, position, stnum)
   end function
 
   /*
-  * Function: A_ReFire
-  * Purpose: Implements the A_ReFire routine for the engine module behavior.
+* Function: A_ReFire
+* Purpose: Provides re fire helper behavior for the player weapon sprite.
   */
   function A_ReFire(player, psp)
     psp = psp
@@ -617,8 +617,8 @@ function P_SetPsprite(player, position, stnum)
   end function
 
   /*
-  * Function: A_CheckReload
-  * Purpose: Loads and prepares data required by the engine module behavior.
+* Function: A_CheckReload
+* Purpose: Loads check Reload resources used by the player weapon sprite system.
   */
   function A_CheckReload(player, psp)
     psp = psp
@@ -627,8 +627,8 @@ function P_SetPsprite(player, position, stnum)
   end function
 
   /*
-  * Function: A_Lower
-  * Purpose: Implements the A_Lower routine for the engine module behavior.
+* Function: A_Lower
+* Purpose: Provides lower helper behavior for the player weapon sprite.
   */
   function A_Lower(player, psp)
     if player is void or psp is void then return end if
@@ -655,8 +655,8 @@ function P_SetPsprite(player, position, stnum)
   end function
 
   /*
-  * Function: A_Raise
-  * Purpose: Implements the A_Raise routine for the engine module behavior.
+* Function: A_Raise
+* Purpose: Provides raise helper behavior for the player weapon sprite.
   */
   function A_Raise(player, psp)
     if player is void or psp is void then return end if
@@ -670,8 +670,8 @@ function P_SetPsprite(player, position, stnum)
   end function
 
   /*
-  * Function: A_GunFlash
-  * Purpose: Implements the A_GunFlash routine for the engine module behavior.
+* Function: A_GunFlash
+* Purpose: Provides gun flash helper behavior for the player weapon sprite.
   */
   function A_GunFlash(player, psp)
     psp = psp
@@ -685,8 +685,8 @@ function P_SetPsprite(player, position, stnum)
   end function
 
   /*
-  * Function: A_Punch
-  * Purpose: Implements the A_Punch routine for the engine module behavior.
+* Function: A_Punch
+* Purpose: Provides punch helper behavior for the player weapon sprite.
   */
   function A_Punch(player, psp)
     psp = psp
@@ -715,8 +715,8 @@ function P_SetPsprite(player, position, stnum)
   end function
 
   /*
-  * Function: A_Saw
-  * Purpose: Implements the A_Saw routine for the engine module behavior.
+* Function: A_Saw
+* Purpose: Provides saw helper behavior for the player weapon sprite.
   */
   function A_Saw(player, psp)
     psp = psp
@@ -761,8 +761,8 @@ function P_SetPsprite(player, position, stnum)
   end function
 
   /*
-  * Function: A_FirePistol
-  * Purpose: Implements the A_FirePistol routine for the engine module behavior.
+* Function: A_FirePistol
+* Purpose: Runs pistol firing behavior for the player weapon sprite.
   */
   function A_FirePistol(player, psp)
     psp = psp
@@ -785,8 +785,8 @@ function P_SetPsprite(player, position, stnum)
   end function
 
   /*
-  * Function: A_FireShotgun
-  * Purpose: Implements the A_FireShotgun routine for the engine module behavior.
+* Function: A_FireShotgun
+* Purpose: Runs shotgun firing behavior for the player weapon sprite.
   */
   function A_FireShotgun(player, psp)
     psp = psp
@@ -813,8 +813,8 @@ function P_SetPsprite(player, position, stnum)
   end function
 
   /*
-  * Function: A_FireShotgun2
-  * Purpose: Implements the A_FireShotgun2 routine for the engine module behavior.
+* Function: A_FireShotgun2
+* Purpose: Runs shotgun2 firing behavior for the player weapon sprite.
   */
   function A_FireShotgun2(player, psp)
     psp = psp
@@ -843,8 +843,8 @@ function P_SetPsprite(player, position, stnum)
   end function
 
   /*
-  * Function: A_FireCGun
-  * Purpose: Implements the A_FireCGun routine for the engine module behavior.
+* Function: A_FireCGun
+* Purpose: Runs c gun firing behavior for the player weapon sprite.
   */
   function A_FireCGun(player, psp)
     if player is void or player.mo is void then return end if
@@ -878,8 +878,8 @@ function P_SetPsprite(player, position, stnum)
   end function
 
   /*
-  * Function: A_FireMissile
-  * Purpose: Implements the A_FireMissile routine for the engine module behavior.
+* Function: A_FireMissile
+* Purpose: Runs missile firing behavior for the player weapon sprite.
   */
   function A_FireMissile(player, psp)
     psp = psp
@@ -893,8 +893,8 @@ function P_SetPsprite(player, position, stnum)
   end function
 
   /*
-  * Function: A_FirePlasma
-  * Purpose: Implements the A_FirePlasma routine for the engine module behavior.
+* Function: A_FirePlasma
+* Purpose: Runs plasma firing behavior for the player weapon sprite.
   */
   function A_FirePlasma(player, psp)
     psp = psp
@@ -912,8 +912,8 @@ function P_SetPsprite(player, position, stnum)
   end function
 
   /*
-  * Function: A_FireBFG
-  * Purpose: Implements the A_FireBFG routine for the engine module behavior.
+* Function: A_FireBFG
+* Purpose: Runs BFG firing behavior for the player weapon sprite.
   */
   function A_FireBFG(player, psp)
     psp = psp
@@ -927,8 +927,8 @@ function P_SetPsprite(player, position, stnum)
   end function
 
   /*
-  * Function: A_BFGsound
-  * Purpose: Implements the A_BFGsound routine for the engine module behavior.
+* Function: A_BFGsound
+* Purpose: Provides bf gsound helper behavior for the player weapon sprite.
   */
   function A_BFGsound(player, psp)
     psp = psp
@@ -937,8 +937,8 @@ function P_SetPsprite(player, position, stnum)
   end function
 
   /*
-  * Function: A_BFGSpray
-  * Purpose: Implements the A_BFGSpray routine for the engine module behavior.
+* Function: A_BFGSpray
+* Purpose: Provides BFG spray helper behavior for the player weapon sprite.
   */
   function A_BFGSpray(mo)
     if mo is void then return end if
@@ -975,8 +975,8 @@ function P_SetPsprite(player, position, stnum)
   end function
 
   /*
-  * Function: A_Light0
-  * Purpose: Implements the A_Light0 routine for the engine module behavior.
+* Function: A_Light0
+* Purpose: Provides light0 helper behavior for the player weapon sprite.
   */
   function A_Light0(player, psp)
     psp = psp
@@ -985,8 +985,8 @@ function P_SetPsprite(player, position, stnum)
   end function
 
   /*
-  * Function: A_Light1
-  * Purpose: Implements the A_Light1 routine for the engine module behavior.
+* Function: A_Light1
+* Purpose: Provides light1 helper behavior for the player weapon sprite.
   */
   function A_Light1(player, psp)
     psp = psp
@@ -995,8 +995,8 @@ function P_SetPsprite(player, position, stnum)
   end function
 
   /*
-  * Function: A_Light2
-  * Purpose: Implements the A_Light2 routine for the engine module behavior.
+* Function: A_Light2
+* Purpose: Provides light2 helper behavior for the player weapon sprite.
   */
   function A_Light2(player, psp)
     psp = psp
@@ -1005,8 +1005,8 @@ function P_SetPsprite(player, position, stnum)
   end function
 
   /*
-  * Function: P_BulletSlope
-  * Purpose: Implements the P_BulletSlope routine for the gameplay and world simulation.
+* Function: P_BulletSlope
+* Purpose: Provides slope helper behavior for the player weapon sprite.
   */
   function P_BulletSlope(mo)
     global bulletslope
@@ -1031,8 +1031,8 @@ function P_SetPsprite(player, position, stnum)
   end function
 
   /*
-  * Function: P_GunShot
-  * Purpose: Implements the P_GunShot routine for the gameplay and world simulation.
+* Function: P_GunShot
+* Purpose: Provides shot helper behavior for the player weapon sprite.
   */
   function P_GunShot(mo, accurate)
     if mo is void then return end if

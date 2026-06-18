@@ -19,7 +19,7 @@
 
 /*
 * Struct: actionf_t
-* Purpose: Stores runtime data for actionf type.
+* Purpose: Stores actionf data used by the Doom core system.
 */
 struct actionf_t
   acp1
@@ -29,7 +29,7 @@ end struct
 
 /*
 * Struct: thinker_t
-* Purpose: Stores runtime data for thinker type.
+* Purpose: Stores thinker data used by the Doom core system.
 */
 struct thinker_t
   prev

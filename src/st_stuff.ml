@@ -20,6 +20,7 @@ import doomtype
 import d_event
 import i_system
 import i_video
+import i_gl
 import z_zone
 import m_random
 import w_wad
@@ -252,7 +253,7 @@ cheat_mypos = cheatseq_t(bytes([0xb2, 0x26, 0xb6, 0xba, 0x2a, 0xf6, 0xea, 0xff])
 
 /*
 * Function: _ST_Player
-* Purpose: Implements the _ST_Player routine for the internal module support.
+* Purpose: Provides player helper behavior for the status bar.
 */
 function inline _ST_Player()
   if typeof(players) != "array" then return void end if
@@ -263,7 +264,7 @@ end function
 
 /*
 * Function: _ST_ToInt
-* Purpose: Implements the _ST_ToInt routine for the internal module support.
+* Purpose: Converts int values for the status bar.
 */
 function _ST_ToInt(v, fallback)
   if typeof(v) == "int" then return v end if
@@ -282,7 +283,7 @@ end function
 
 /*
 * Function: _ST_EnumIndex
-* Purpose: Implements the _ST_EnumIndex routine for the internal module support.
+* Purpose: Provides index helper behavior for the status bar.
 */
 function _ST_EnumIndex(v, limit)
   vi = _ST_ToInt(v, -1)
@@ -303,7 +304,7 @@ end function
 
 /*
 * Function: _ST_IDiv
-* Purpose: Implements the _ST_IDiv routine for the internal module support.
+* Purpose: Performs integer division with status bar rounding and guard rules.
 */
 function inline _ST_IDiv(a, b)
   a = _ST_ToInt(a, 0)
@@ -316,7 +317,7 @@ end function
 
 /*
 * Function: _ST_SetMessage
-* Purpose: Reads or updates state used by the internal module support.
+* Purpose: Updates message state for the status bar.
 */
 function inline _ST_SetMessage(msg)
   if st_plyr is void then return end if
@@ -325,7 +326,7 @@ end function
 
 /*
 * Function: _ST_DigitFromParam
-* Purpose: Implements the _ST_DigitFromParam routine for the internal module support.
+* Purpose: Provides from param helper behavior for the status bar.
 */
 function inline _ST_DigitFromParam(param, idx)
   if typeof(param) != "string" then return -1 end if
@@ -339,7 +340,7 @@ end function
 
 /*
 * Function: _ST_CheatParam
-* Purpose: Implements the _ST_CheatParam routine for the internal module support.
+* Purpose: Provides param helper behavior for the status bar.
 */
 function inline _ST_CheatParam(cheat)
 
@@ -349,7 +350,7 @@ end function
 
 /*
 * Function: _ST_GetRef
-* Purpose: Reads or updates state used by the internal module support.
+* Purpose: Reads ref data for the status bar.
 */
 function inline _ST_GetRef(refv, fallback)
   if typeof(refv) == "array" and len(refv) > 0 then
@@ -361,7 +362,7 @@ end function
 
 /*
 * Function: _ST_SetRef
-* Purpose: Reads or updates state used by the internal module support.
+* Purpose: Updates ref state for the status bar.
 */
 function inline _ST_SetRef(refv, v)
   if typeof(refv) == "array" and len(refv) > 0 then
@@ -371,7 +372,7 @@ end function
 
 /*
 * Function: _ST_LoadPatchMaybe
-* Purpose: Loads and prepares data required by the internal module support.
+* Purpose: Reads patch maybe data for the status bar.
 */
 function inline _ST_LoadPatchMaybe(name)
   if typeof(W_CheckNumForName) != "function" then return void end if
@@ -381,16 +382,20 @@ end function
 
 /*
 * Function: _ST_LoadPatchRequired
-* Purpose: Loads and prepares data required by the internal module support.
+* Purpose: Reads patch required data for the status bar.
 */
 function inline _ST_LoadPatchRequired(name)
   if typeof(W_CacheLumpName) != "function" then return void end if
-  return W_CacheLumpName(name, PU_STATIC)
+  p = W_CacheLumpName(name, PU_STATIC)
+  if typeof(STlib_RegisterPatchName) == "function" then
+    STlib_RegisterPatchName(p, name)
+  end if
+  return p
 end function
 
 /*
 * Function: _ST_GetPower
-* Purpose: Reads or updates state used by the internal module support.
+* Purpose: Reads power data for the status bar.
 */
 function inline _ST_GetPower(player, idx)
   idx = _ST_ToInt(idx, -1)
@@ -403,7 +408,7 @@ end function
 
 /*
 * Function: _ST_GetCard
-* Purpose: Reads or updates state used by the internal module support.
+* Purpose: Reads card data for the status bar.
 */
 function inline _ST_GetCard(player, idx)
   idx = _ST_ToInt(idx, -1)
@@ -415,7 +420,7 @@ end function
 
 /*
 * Function: _ST_GetWeaponOwned
-* Purpose: Reads or updates state used by the internal module support.
+* Purpose: Reads weapon owned data for the status bar.
 */
 function inline _ST_GetWeaponOwned(player, idx)
   idx = _ST_ToInt(idx, -1)
@@ -427,7 +432,7 @@ end function
 
 /*
 * Function: _ST_GetAmmo
-* Purpose: Reads or updates state used by the internal module support.
+* Purpose: Reads ammo data for the status bar.
 */
 function inline _ST_GetAmmo(player, idx)
   idx = _ST_ToInt(idx, -1)
@@ -439,7 +444,7 @@ end function
 
 /*
 * Function: _ST_GetMaxAmmo
-* Purpose: Reads or updates state used by the internal module support.
+* Purpose: Reads maximum ammo data for the status bar.
 */
 function inline _ST_GetMaxAmmo(player, idx)
   idx = _ST_ToInt(idx, -1)
@@ -451,7 +456,7 @@ end function
 
 /*
 * Function: _ST_WeaponAmmoType
-* Purpose: Implements the _ST_WeaponAmmoType routine for the internal module support.
+* Purpose: Provides ammo type helper behavior for the status bar.
 */
 function inline _ST_WeaponAmmoType(weapon)
   wi = _ST_EnumIndex(weapon, NUMWEAPONS)
@@ -467,7 +472,7 @@ end function
 
 /*
 * Function: ST_calcPainOffset
-* Purpose: Reads or updates state used by the status bar subsystem.
+* Purpose: Computes pain offset values for the status bar.
 */
 function ST_calcPainOffset()
   global st_lastcalc
@@ -488,7 +493,7 @@ end function
 
 /*
 * Function: ST_updateFaceWidget
-* Purpose: Advances per-tick logic for the status bar subsystem.
+* Purpose: Updates face widget state for the status bar.
 */
 function ST_updateFaceWidget()
   global st_facepriority
@@ -618,7 +623,7 @@ end function
 
 /*
 * Function: ST_updateWidgets
-* Purpose: Advances per-tick logic for the status bar subsystem.
+* Purpose: Updates widgets state for the status bar.
 */
 function ST_updateWidgets()
   global st_plyr
@@ -697,7 +702,7 @@ end function
 
 /*
 * Function: ST_Ticker
-* Purpose: Advances per-tick logic for the status bar subsystem.
+* Purpose: Advances ticker logic during the status bar tick.
 */
 function ST_Ticker()
   global st_clock
@@ -713,7 +718,7 @@ end function
 
 /*
 * Function: ST_doPaletteStuff
-* Purpose: Evaluates conditions and returns a decision for the status bar subsystem.
+* Purpose: Runs palette stuff behavior for the status bar.
 */
 function ST_doPaletteStuff()
   global st_palette
@@ -741,6 +746,11 @@ function ST_doPaletteStuff()
     palette = 0
   end if
 
+  if typeof(IGL_IsActive) == "function" and IGL_IsActive() then
+    if typeof(IGL_SetPaletteFlash) == "function" then IGL_SetPaletteFlash(palette) end if
+    if palette != 0 then palette = 0 end if
+  end if
+
   if palette != st_palette then
     st_palette = palette
 
@@ -758,7 +768,7 @@ end function
 
 /*
 * Function: ST_refreshBackground
-* Purpose: Implements the ST_refreshBackground routine for the status bar subsystem.
+* Purpose: Provides background helper behavior for the status bar.
 */
 function ST_refreshBackground()
   if not _ST_GetRef(st_statusbaron_ref, false) then return end if
@@ -769,11 +779,19 @@ function ST_refreshBackground()
     V_DrawPatch(ST_FX, 0, 4, st_faceback)
   end if
   V_CopyRect(0, 0, 4, ST_WIDTH, ST_HEIGHT, 0, ST_Y, 0)
+  if typeof(V_DrawNamedUpscaledPatchOverlay) == "function" then
+    V_DrawNamedUpscaledPatchOverlay(0, ST_Y, "STBAR", false)
+    if netgame and st_faceback is not void then
+      V_DrawNamedUpscaledPatchOverlay(ST_FX, ST_Y, "STFB" + consoleplayer, false)
+    end if
+  else if typeof(V_DrawUpscaledPatchOverlay) == "function" then
+    V_DrawUpscaledPatchOverlay(0, ST_Y, st_stbar, false)
+  end if
 end function
 
 /*
 * Function: ST_drawWidgets
-* Purpose: Draws or renders output for the status bar subsystem.
+* Purpose: Draws widgets output for the status bar.
 */
 function ST_drawWidgets(refresh)
   if not _ST_GetRef(st_statusbaron_ref, false) then return end if
@@ -813,7 +831,7 @@ end function
 
 /*
 * Function: ST_doRefresh
-* Purpose: Implements the ST_doRefresh routine for the status bar subsystem.
+* Purpose: Runs refresh behavior for the status bar.
 */
 function ST_doRefresh()
   global st_firsttime
@@ -824,7 +842,7 @@ end function
 
 /*
 * Function: ST_diffDraw
-* Purpose: Draws or renders output for the status bar subsystem.
+* Purpose: Draws diff Draw output for the status bar renderer.
 */
 function ST_diffDraw()
   ST_drawWidgets(false)
@@ -832,7 +850,7 @@ end function
 
 /*
 * Function: ST_loadGraphics
-* Purpose: Loads and prepares data required by the status bar subsystem.
+* Purpose: Reads graphics data for the status bar.
 */
 function ST_loadGraphics()
   global st_stbar
@@ -899,7 +917,7 @@ end function
 
 /*
 * Function: ST_loadData
-* Purpose: Loads and prepares data required by the status bar subsystem.
+* Purpose: Reads data data for the status bar.
 */
 function ST_loadData()
   global lu_palette
@@ -913,7 +931,7 @@ end function
 
 /*
 * Function: ST_unloadGraphics
-* Purpose: Loads and prepares data required by the status bar subsystem.
+* Purpose: Loads unload Graphics resources used by the status bar system.
 */
 function ST_unloadGraphics()
   global st_stbar
@@ -941,7 +959,7 @@ end function
 
 /*
 * Function: ST_unloadData
-* Purpose: Loads and prepares data required by the status bar subsystem.
+* Purpose: Loads unload Data resources used by the status bar system.
 */
 function ST_unloadData()
   ST_unloadGraphics()
@@ -1096,7 +1114,7 @@ end function
 
 /*
 * Function: ST_Responder
-* Purpose: Implements the ST_Responder routine for the status bar subsystem.
+* Purpose: Handles responder events for the status bar system.
 */
 function ST_Responder(ev)
   global st_plyr
@@ -1267,7 +1285,7 @@ end function
 
 /*
 * Function: ST_Drawer
-* Purpose: Draws or renders output for the status bar subsystem.
+* Purpose: Provides drawer helper behavior for the status bar.
 */
 function ST_Drawer(fullscreen, refresh)
   global st_firsttime

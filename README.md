@@ -59,13 +59,15 @@ python .\build.py `
 What this does:
 
 1. Compiles `tools/exe_icon_injector.ml` to `build/tools/exe_icon_injector.exe`
-2. Compiles `src/i_main.ml` to `build/MiniDoom.exe`
-3. Injects `icons/MiniDoom.ico` into `build/MiniDoom.exe`
+2. Compiles `tools/wad_upscale.ml` to `build/tools/wad_upscale.exe`
+3. Compiles `src/i_main.ml` to `build/MiniDoom.exe`
+4. Injects `icons/MiniDoom.ico` into `build/MiniDoom.exe`
 
 Final output:
 
 ```text
 build/MiniDoom.exe
+build/tools/wad_upscale.exe
 ```
 
 ### Useful Build Options
@@ -75,6 +77,7 @@ build/MiniDoom.exe
 - `--clean`: remove output directory before build
 - `--icon <path.ico>`: use a custom icon file
 - `--icon-group <id>` / `--icon-lang <id>`: resource ids for icon injection
+- `--skip-upscale-tool`: build without `tools/wad_upscale.ml`
 
 ## Build MiniDoom Manually (Without build.py)
 
@@ -111,6 +114,31 @@ Example run:
 ```
 
 If no `-iwad` is provided, the engine uses its internal IWAD search order and loads the first matching file it finds.
+
+## Optional Upscaled Graphics
+
+MiniDoom can load an optional sidecar graphics package next to the original WAD:
+
+```text
+DOOM2.WAD
+DOOM2.WAD.UPSCALED
+```
+
+Generate the package with palette-aware xBRZ scaling:
+
+```powershell
+.\build\tools\wad_upscale.exe "C:\Games\DOOM\DOOM2.WAD" "C:\Games\DOOM\DOOM2.WAD.UPSCALED" 2
+```
+
+Run with a physical presentation scale and the package:
+
+```powershell
+.\build\MiniDoom.exe -iwad "C:\Games\DOOM\DOOM2.WAD" -renderscale 2 -upscaled "C:\Games\DOOM\DOOM2.WAD.UPSCALED"
+```
+
+If `-upscaled` is omitted, MiniDoom automatically tries `<iwad>.UPSCALED`. Missing upscaled graphics fall back to the original WAD.
+
+The upscaled package stores prepared wall textures, flats, sprites, HUD/menu patches, fonts, and full-screen patch graphics. During normal high-resolution gameplay, MiniDoom consumes those prepared images directly; the xBRZ-style scaler belongs to the offline `wad_upscale` tool rather than the frame loop.
 
 ## Multiplayer Mode
 

@@ -30,7 +30,7 @@ const _S32_MAX = 2147483647
 
 /*
 * Function: _u32
-* Purpose: Implements the _u32 routine for the internal module support.
+* Purpose: Provides U32 helper behavior for the utility.
 */
 function inline _u32(x)
   if typeof(x) == "int" then
@@ -53,7 +53,7 @@ end function
 
 /*
 * Function: _s32
-* Purpose: Implements the _s32 routine for the internal module support.
+* Purpose: Provides s32 helper behavior for the utility.
 */
 function _s32(x)
   xi = 0
@@ -88,7 +88,7 @@ end function
 
 /*
 * Function: _absS32
-* Purpose: Implements the _absS32 routine for the internal module support.
+* Purpose: Provides s32 helper behavior for the utility.
 */
 function inline _absS32(x)
   x = _s32(x)
@@ -98,7 +98,7 @@ end function
 
 /*
 * Function: _idivS32
-* Purpose: Implements the _idivS32 routine for the internal module support.
+* Purpose: Performs integer division with utility rounding and guard rules.
 */
 function inline _idivS32(a, b)
   if typeof(a) != "int" or typeof(b) != "int" or b == 0 then return 0 end if
@@ -109,7 +109,7 @@ end function
 
 /*
 * Function: FixedMul
-* Purpose: Implements the FixedMul routine for the engine module behavior.
+* Purpose: Provides mul helper behavior for the utility.
 */
 function inline FixedMul(a, b)
 
@@ -120,7 +120,7 @@ end function
 
 /*
 * Function: FixedDiv
-* Purpose: Implements the FixedDiv routine for the engine module behavior.
+* Purpose: Performs integer division with utility rounding and guard rules.
 */
 function FixedDiv(a, b)
   a = _s32(a)
@@ -138,7 +138,7 @@ end function
 
 /*
 * Function: FixedDiv2
-* Purpose: Implements the FixedDiv2 routine for the engine module behavior.
+* Purpose: Performs integer division with utility rounding and guard rules.
 */
 function inline FixedDiv2(a, b)
   a = _s32(a)

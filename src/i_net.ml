@@ -358,7 +358,7 @@ end function
 
 /*
 * Function: I_NetCmd
-* Purpose: Implements the I_NetCmd routine for the platform layer.
+* Purpose: Provides command helper behavior for the network backend.
 */
 function I_NetCmd()
   _INet_SyncRuntimeFromPlatform()
@@ -390,7 +390,7 @@ end function
 
 /*
 * Function: UDPsocket
-* Purpose: Implements the UDPsocket routine for the engine module behavior.
+* Purpose: Provides psocket helper behavior for the network backend.
 */
 function UDPsocket()
   return -1
@@ -398,7 +398,7 @@ end function
 
 /*
 * Function: BindToLocalPort
-* Purpose: Implements the BindToLocalPort routine for the engine module behavior.
+* Purpose: Runs to local port lifecycle logic for the network backend.
 */
 function BindToLocalPort(sock, port)
   sock = sock
@@ -408,7 +408,7 @@ end function
 
 /*
 * Function: PacketSend
-* Purpose: Implements the PacketSend routine for the engine module behavior.
+* Purpose: Controls packet Send transitions in the network backend system.
 */
 function PacketSend(sock, node, data, length)
   sock = sock
@@ -420,7 +420,7 @@ end function
 
 /*
 * Function: PacketGet
-* Purpose: Reads or updates state used by the engine module behavior.
+* Purpose: Provides get helper behavior for the network backend.
 */
 function PacketGet(sock, nodeOut, dataOut, lengthOut)
   sock = sock
@@ -432,7 +432,7 @@ end function
 
 /*
 * Function: GetLocalAddress
-* Purpose: Reads or updates state used by the engine module behavior.
+* Purpose: Reads local address data for the network backend.
 */
 function GetLocalAddress()
   return "127.0.0.1"

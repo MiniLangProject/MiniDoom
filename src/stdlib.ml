@@ -19,7 +19,7 @@
 
 /*
 * Function: abs
-* Purpose: Implements the abs routine for the engine module behavior.
+* Purpose: Provides absolute-value helper behavior for the engine.
 */
 function inline abs(x)
   if x < 0 then return - x end if

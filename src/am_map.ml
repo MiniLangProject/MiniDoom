@@ -83,7 +83,7 @@ const AM_MAXINT = 2147483647
 
 /*
 * Struct: fpoint_t
-* Purpose: Stores runtime data for fpoint type.
+* Purpose: Describes fpoint geometry or asset data used by the automap system.
 */
 struct fpoint_t
   x
@@ -92,7 +92,7 @@ end struct
 
 /*
 * Struct: fline_t
-* Purpose: Stores runtime data for fline type.
+* Purpose: Describes fline geometry or asset data used by the automap system.
 */
 struct fline_t
   a
@@ -101,7 +101,7 @@ end struct
 
 /*
 * Struct: mpoint_t
-* Purpose: Stores runtime data for mpoint type.
+* Purpose: Describes mpoint geometry or asset data used by the automap system.
 */
 struct mpoint_t
   x
@@ -110,7 +110,7 @@ end struct
 
 /*
 * Struct: mline_t
-* Purpose: Stores runtime data for mline type.
+* Purpose: Describes mline geometry or asset data used by the automap system.
 */
 struct mline_t
   a
@@ -119,7 +119,7 @@ end struct
 
 /*
 * Struct: islope_t
-* Purpose: Stores runtime data for islope type.
+* Purpose: Stores islope data used by the automap system.
 */
 struct islope_t
   slp
@@ -128,7 +128,7 @@ end struct
 
 /*
 * Function: _AM_MPoint
-* Purpose: Implements the _AM_MPoint routine for the internal module support.
+* Purpose: Provides point helper behavior for the automap.
 */
 function inline _AM_MPoint(x, y)
   return mpoint_t(x, y)
@@ -136,7 +136,7 @@ end function
 
 /*
 * Function: _AM_FPoint
-* Purpose: Implements the _AM_FPoint routine for the internal module support.
+* Purpose: Provides point helper behavior for the automap.
 */
 function inline _AM_FPoint(x, y)
   return fpoint_t(x, y)
@@ -144,7 +144,7 @@ end function
 
 /*
 * Function: _AM_MLine
-* Purpose: Implements the _AM_MLine routine for the internal module support.
+* Purpose: Provides line helper behavior for the automap.
 */
 function inline _AM_MLine(x1, y1, x2, y2)
   return mline_t(_AM_MPoint(x1, y1), _AM_MPoint(x2, y2))
@@ -152,7 +152,7 @@ end function
 
 /*
 * Function: _AM_FLine
-* Purpose: Implements the _AM_FLine routine for the internal module support.
+* Purpose: Provides line helper behavior for the automap.
 */
 function inline _AM_FLine(x1, y1, x2, y2)
   return fline_t(_AM_FPoint(x1, y1), _AM_FPoint(x2, y2))
@@ -160,7 +160,7 @@ end function
 
 /*
 * Function: _AM_Abs
-* Purpose: Implements the _AM_Abs routine for the internal module support.
+* Purpose: Provides absolute-value helper behavior for the automap.
 */
 function inline _AM_Abs(v)
   if v < 0 then return - v end if
@@ -169,7 +169,7 @@ end function
 
 /*
 * Function: _AM_Clamp
-* Purpose: Implements the _AM_Clamp routine for the internal module support.
+* Purpose: Clamps clamp values to the supported automap range.
 */
 function inline _AM_Clamp(v, lo, hi)
   if v < lo then return lo end if
@@ -179,7 +179,7 @@ end function
 
 /*
 * Function: _AM_Mod
-* Purpose: Implements the _AM_Mod routine for the internal module support.
+* Purpose: Provides mod helper behavior for the automap.
 */
 function inline _AM_Mod(n, d)
   if d == 0 then return 0 end if
@@ -190,7 +190,7 @@ end function
 
 /*
 * Function: _AM_IDiv
-* Purpose: Implements the _AM_IDiv routine for the internal module support.
+* Purpose: Performs integer division with automap rounding and guard rules.
 */
 function inline _AM_IDiv(a, b)
   if typeof(a) != "int" or typeof(b) != "int" or b == 0 then return 0 end if
@@ -201,7 +201,7 @@ end function
 
 /*
 * Function: _AM_ToLowerAscii
-* Purpose: Implements the _AM_ToLowerAscii routine for the internal module support.
+* Purpose: Converts lower ASCII values for the automap.
 */
 function inline _AM_ToLowerAscii(c)
   if c >= 65 and c <= 90 then return c + 32 end if
@@ -210,7 +210,7 @@ end function
 
 /*
 * Function: _AM_CaseKey
-* Purpose: Implements the _AM_CaseKey routine for the internal module support.
+* Purpose: Provides key helper behavior for the automap.
 */
 function inline _AM_CaseKey(k)
   if typeof(k) != "int" then return -1 end if
@@ -232,7 +232,7 @@ end function
 
 /*
 * Function: _AM_FTOM
-* Purpose: Implements the _AM_FTOM routine for the internal module support.
+* Purpose: Provides ftom helper behavior for the automap.
 */
 function inline _AM_FTOM(x)
   return FixedMul(x << 16, scale_ftom)
@@ -240,7 +240,7 @@ end function
 
 /*
 * Function: _AM_MTOF
-* Purpose: Implements the _AM_MTOF routine for the internal module support.
+* Purpose: Provides mtof helper behavior for the automap.
 */
 function inline _AM_MTOF(x)
   return FixedMul(x, scale_mtof) >> 16
@@ -248,7 +248,7 @@ end function
 
 /*
 * Function: _AM_CXMTOF
-* Purpose: Implements the _AM_CXMTOF routine for the internal module support.
+* Purpose: Provides cxmtof helper behavior for the automap.
 */
 function inline _AM_CXMTOF(x)
   return f_x + _AM_MTOF(x - m_x)
@@ -256,7 +256,7 @@ end function
 
 /*
 * Function: _AM_CYMTOF
-* Purpose: Implements the _AM_CYMTOF routine for the internal module support.
+* Purpose: Provides cymtof helper behavior for the automap.
 */
 function inline _AM_CYMTOF(y)
   return f_y +(f_h - _AM_MTOF(y - m_y))
@@ -325,7 +325,7 @@ stopped = true
 
 /*
 * Function: AM_getIslope
-* Purpose: Reads or updates state used by the automap subsystem.
+* Purpose: Reads inverse slope data for the automap.
 */
 function AM_getIslope(ml, sl)
   if ml is void or sl is void then return end if
@@ -345,7 +345,7 @@ end function
 
 /*
 * Function: AM_activateNewScale
-* Purpose: Implements the AM_activateNewScale routine for the automap subsystem.
+* Purpose: Runs new scale behavior for the automap.
 */
 function AM_activateNewScale()
   global m_x
@@ -366,7 +366,7 @@ end function
 
 /*
 * Function: AM_saveScaleAndLoc
-* Purpose: Implements the AM_saveScaleAndLoc routine for the automap subsystem.
+* Purpose: Writes scale and location data for the automap.
 */
 function AM_saveScaleAndLoc()
   global old_m_x
@@ -381,7 +381,7 @@ end function
 
 /*
 * Function: AM_restoreScaleAndLoc
-* Purpose: Implements the AM_restoreScaleAndLoc routine for the automap subsystem.
+* Purpose: Updates scale and location state for the automap.
 */
 function AM_restoreScaleAndLoc()
   global m_x
@@ -403,7 +403,7 @@ end function
 
 /*
 * Function: AM_addMark
-* Purpose: Implements the AM_addMark routine for the automap subsystem.
+* Purpose: Adds mark entries to the automap.
 */
 function AM_addMark()
   if len(markpoints) != AM_NUMMARKPOINTS then
@@ -425,7 +425,7 @@ end function
 
 /*
 * Function: AM_findMinMaxBoundaries
-* Purpose: Implements the AM_findMinMaxBoundaries routine for the automap subsystem.
+* Purpose: Computes minimum maximum boundaries values for the automap.
 */
 function AM_findMinMaxBoundaries()
   if typeof(vertexes) != "array" or len(vertexes) == 0 then
@@ -476,7 +476,7 @@ end function
 
 /*
 * Function: AM_changeWindowLoc
-* Purpose: Implements the AM_changeWindowLoc routine for the automap subsystem.
+* Purpose: Runs window location behavior for the automap.
 */
 function AM_changeWindowLoc()
   if followplayer != 0 and plr is not void and plr.mo is not void then
@@ -562,7 +562,7 @@ end function
 
 /*
 * Function: AM_loadPics
-* Purpose: Loads and prepares data required by the automap subsystem.
+* Purpose: Reads patches data for the automap.
 */
 function AM_loadPics()
   global marknums
@@ -580,7 +580,7 @@ end function
 
 /*
 * Function: AM_unloadPics
-* Purpose: Loads and prepares data required by the automap subsystem.
+* Purpose: Loads unload Pics resources used by the automap system.
 */
 function AM_unloadPics()
   global marknums
@@ -589,7 +589,7 @@ end function
 
 /*
 * Function: AM_clearMarks
-* Purpose: Implements the AM_clearMarks routine for the automap subsystem.
+* Purpose: Updates marks state for the automap.
 */
 function AM_clearMarks()
   global markpoints
@@ -649,7 +649,7 @@ end function
 
 /*
 * Function: AM_minOutWindowScale
-* Purpose: Implements the AM_minOutWindowScale routine for the automap subsystem.
+* Purpose: Provides out window scale helper behavior for the automap.
 */
 function AM_minOutWindowScale()
   global scale_mtof
@@ -662,7 +662,7 @@ end function
 
 /*
 * Function: AM_maxOutWindowScale
-* Purpose: Implements the AM_maxOutWindowScale routine for the automap subsystem.
+* Purpose: Provides out window scale helper behavior for the automap.
 */
 function AM_maxOutWindowScale()
   global scale_mtof
@@ -675,7 +675,7 @@ end function
 
 /*
 * Function: AM_changeWindowScale
-* Purpose: Implements the AM_changeWindowScale routine for the automap subsystem.
+* Purpose: Runs window scale behavior for the automap.
 */
 function AM_changeWindowScale()
   global scale_mtof
@@ -689,7 +689,7 @@ end function
 
 /*
 * Function: AM_doFollowPlayer
-* Purpose: Implements the AM_doFollowPlayer routine for the automap subsystem.
+* Purpose: Runs follow player behavior for the automap.
 */
 function AM_doFollowPlayer()
   if plr is void or plr.mo is void then return end if
@@ -709,7 +709,7 @@ end function
 
 /*
 * Function: AM_updateLightLev
-* Purpose: Advances per-tick logic for the automap subsystem.
+* Purpose: Updates light lev state for the automap.
 */
 function AM_updateLightLev()
   global lightlev
@@ -718,7 +718,7 @@ end function
 
 /*
 * Function: _AM_PutPixel
-* Purpose: Implements the _AM_PutPixel routine for the internal module support.
+* Purpose: Provides pixel helper behavior for the automap.
 */
 function inline _AM_PutPixel(x, y, color)
   if x < f_x or x >= f_x + f_w or y < f_y or y >= f_y + f_h then return end if
@@ -733,7 +733,7 @@ end function
 
 /*
 * Function: AM_clearFB
-* Purpose: Implements the AM_clearFB routine for the automap subsystem.
+* Purpose: Updates fb state for the automap.
 */
 function AM_clearFB()
   if typeof(screens) != "array" or FB < 0 or FB >= len(screens) then return end if
@@ -755,7 +755,7 @@ end function
 
 /*
 * Function: AM_clipMline
-* Purpose: Implements the AM_clipMline routine for the automap subsystem.
+* Purpose: Computes mline values for the automap.
 */
 function AM_clipMline(ml, fl)
   if ml is void or fl is void then return false end if
@@ -777,7 +777,7 @@ end function
 
 /*
 * Function: AM_drawFline
-* Purpose: Draws or renders output for the automap subsystem.
+* Purpose: Draws frame line output for the automap.
 */
 function AM_drawFline(fl, color)
   if fl is void then return end if
@@ -812,7 +812,7 @@ end function
 
 /*
 * Function: AM_drawMline
-* Purpose: Draws or renders output for the automap subsystem.
+* Purpose: Draws map line output for the automap.
 */
 function AM_drawMline(ml, color)
   fl = _AM_FLine(0, 0, 0, 0)
@@ -823,7 +823,7 @@ end function
 
 /*
 * Function: AM_drawGrid
-* Purpose: Draws or renders output for the automap subsystem.
+* Purpose: Draws grid output for the automap.
 */
 function AM_drawGrid(color)
   if not grid then return end if
@@ -848,7 +848,7 @@ end function
 
 /*
 * Function: AM_drawWalls
-* Purpose: Draws or renders output for the automap subsystem.
+* Purpose: Draws walls output for the automap.
 */
 function AM_drawWalls()
   if typeof(lines) != "array" then return end if
@@ -881,7 +881,7 @@ end function
 
 /*
 * Function: AM_rotate
-* Purpose: Implements the AM_rotate routine for the automap subsystem.
+* Purpose: Provides rotate helper behavior for the automap.
 */
 function AM_rotate(x, y, a)
   if typeof(finecosine) != "array" or typeof(finesine) != "array" then
@@ -895,7 +895,7 @@ end function
 
 /*
 * Function: AM_drawLineCharacter
-* Purpose: Draws or renders output for the automap subsystem.
+* Purpose: Draws line character output for the automap.
 */
 function AM_drawLineCharacter(lineset, count, scale, angle, color, x, y)
   if typeof(lineset) != "array" then return end if
@@ -916,7 +916,7 @@ end function
 
 /*
 * Function: AM_drawPlayers
-* Purpose: Draws or renders output for the automap subsystem.
+* Purpose: Draws players output for the automap.
 */
 function AM_drawPlayers()
   if plr is void or plr.mo is void then return end if
@@ -937,7 +937,7 @@ end function
 
 /*
 * Function: AM_drawThings
-* Purpose: Draws or renders output for the automap subsystem.
+* Purpose: Draws things output for the automap.
 */
 function AM_drawThings(color, radius)
   color = color
@@ -947,7 +947,7 @@ end function
 
 /*
 * Function: AM_drawMarks
-* Purpose: Draws or renders output for the automap subsystem.
+* Purpose: Draws marks output for the automap.
 */
 function AM_drawMarks()
   if len(markpoints) == 0 then return end if
@@ -965,7 +965,7 @@ end function
 
 /*
 * Function: AM_drawCrosshair
-* Purpose: Draws or renders output for the automap subsystem.
+* Purpose: Draws crosshair output for the automap.
 */
 function AM_drawCrosshair(color)
   cx = f_x + _AM_IDiv(f_w, 2)
@@ -979,7 +979,7 @@ end function
 
 /*
 * Function: AM_Responder
-* Purpose: Implements the AM_Responder routine for the automap subsystem.
+* Purpose: Handles responder events for the automap system.
 */
 function AM_Responder(ev)
   if ev is void then return false end if
@@ -1066,7 +1066,7 @@ end function
 
 /*
 * Function: AM_Ticker
-* Purpose: Advances per-tick logic for the automap subsystem.
+* Purpose: Advances ticker logic during the automap tick.
 */
 function AM_Ticker()
   if not automapactive then return end if
@@ -1087,7 +1087,7 @@ end function
 
 /*
 * Function: AM_Drawer
-* Purpose: Draws or renders output for the automap subsystem.
+* Purpose: Provides drawer helper behavior for the automap.
 */
 function AM_Drawer()
   if not automapactive then return end if

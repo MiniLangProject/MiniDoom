@@ -25,7 +25,7 @@ import m_argv
 
 /*
 * Function: _abs
-* Purpose: Implements the _abs routine for the internal module support.
+* Purpose: Provides absolute-value helper behavior for the map utility.
 */
 function inline _abs(x)
   if x < 0 then return - x end if
@@ -34,7 +34,7 @@ end function
 
 /*
 * Function: _PMU_U32
-* Purpose: Implements the _PMU_U32 routine for the internal module support.
+* Purpose: Provides U32 helper behavior for the map utility.
 */
 function inline _PMU_U32(v)
   if typeof(v) != "int" then return 0 end if
@@ -43,7 +43,7 @@ end function
 
 /*
 * Function: _PMU_HasSignBit
-* Purpose: Implements the _PMU_HasSignBit routine for the internal module support.
+* Purpose: Provides has sign bit helper behavior for the map utility.
 */
 function inline _PMU_HasSignBit(v)
   return (_PMU_U32(v) & 0x80000000) != 0
@@ -51,7 +51,7 @@ end function
 
 /*
 * Function: _PMU_IsSeq
-* Purpose: Implements the _PMU_IsSeq routine for the internal module support.
+* Purpose: Provides is sequence helper behavior for the map utility.
 */
 function inline _PMU_IsSeq(v)
   t = typeof(v)
@@ -64,7 +64,7 @@ _pmuDiagUseCount = 0
 
 /*
 * Function: _PMU_DiagUseEnabled
-* Purpose: Implements the _PMU_DiagUseEnabled routine for the internal module support.
+* Purpose: Provides diag use enabled helper behavior for the map utility.
 */
 function inline _PMU_DiagUseEnabled()
   global _pmuDiagUseInit
@@ -85,7 +85,7 @@ end function
 
 /*
 * Function: _PMU_DiagUseLog
-* Purpose: Implements the _PMU_DiagUseLog routine for the internal module support.
+* Purpose: Provides diag use log helper behavior for the map utility.
 */
 function inline _PMU_DiagUseLog(msg)
   global _pmuDiagUseCount
@@ -98,7 +98,7 @@ end function
 
 /*
 * Function: P_AproxDistance
-* Purpose: Implements the P_AproxDistance routine for the gameplay and world simulation.
+* Purpose: Provides distance helper behavior for the map utility.
 */
 function inline P_AproxDistance(dx, dy)
   dx = _abs(dx)
@@ -111,7 +111,7 @@ end function
 
 /*
 * Function: P_PointOnLineSide
-* Purpose: Implements the P_PointOnLineSide routine for the gameplay and world simulation.
+* Purpose: Provides on line side helper behavior for the map utility.
 */
 function inline P_PointOnLineSide(x, y, line)
   if line is void then return 0 end if
@@ -142,7 +142,7 @@ end function
 
 /*
 * Function: P_BoxOnLineSide
-* Purpose: Implements the P_BoxOnLineSide routine for the gameplay and world simulation.
+* Purpose: Provides on line side helper behavior for the map utility.
 */
 function inline P_BoxOnLineSide(tmbox, ld)
   if tmbox is void or ld is void then return 0 end if
@@ -178,7 +178,7 @@ end function
 
 /*
 * Function: P_PointOnDivlineSide
-* Purpose: Implements the P_PointOnDivlineSide routine for the gameplay and world simulation.
+* Purpose: Performs integer division with map utility rounding and guard rules.
 */
 function inline P_PointOnDivlineSide(x, y, line)
   if line is void then return 0 end if
@@ -216,7 +216,7 @@ end function
 
 /*
 * Function: P_MakeDivline
-* Purpose: Implements the P_MakeDivline routine for the gameplay and world simulation.
+* Purpose: Performs integer division with map utility rounding and guard rules.
 */
 function inline P_MakeDivline(li, dl)
   if li is void or dl is void then return end if
@@ -228,7 +228,7 @@ end function
 
 /*
 * Function: P_InterceptVector
-* Purpose: Implements the P_InterceptVector routine for the gameplay and world simulation.
+* Purpose: Provides vector helper behavior for the map utility.
 */
 function inline P_InterceptVector(v2, v1)
   den = FixedMul(v1.dy >> 8, v2.dx) - FixedMul(v1.dx >> 8, v2.dy)
@@ -242,7 +242,7 @@ end function
 
 /*
 * Function: P_LineOpening
-* Purpose: Implements the P_LineOpening routine for the gameplay and world simulation.
+* Purpose: Provides opening helper behavior for the map utility.
 */
 function P_LineOpening(linedef)
   global opentop
@@ -296,7 +296,7 @@ end function
 
 /*
 * Function: P_UnsetThingPosition
-* Purpose: Reads or updates state used by the gameplay and world simulation.
+* Purpose: Provides thing position helper behavior for the map utility.
 */
 function P_UnsetThingPosition(thing)
   if thing is void then return end if
@@ -344,7 +344,7 @@ end function
 
 /*
 * Function: P_SetThingPosition
-* Purpose: Reads or updates state used by the gameplay and world simulation.
+* Purpose: Updates thing position state for the map utility.
 */
 function P_SetThingPosition(thing)
   if thing is void then return end if
@@ -393,7 +393,7 @@ end function
 
 /*
 * Function: P_BlockLinesIterator
-* Purpose: Implements the P_BlockLinesIterator routine for the gameplay and world simulation.
+* Purpose: Provides lines iterator helper behavior for the map utility.
 */
 function P_BlockLinesIterator(x, y, func)
   global validcount
@@ -443,7 +443,7 @@ end function
 
 /*
 * Function: P_BlockThingsIterator
-* Purpose: Implements the P_BlockThingsIterator routine for the gameplay and world simulation.
+* Purpose: Provides things iterator helper behavior for the map utility.
 */
 function P_BlockThingsIterator(x, y, func)
   if func is void then return true end if
@@ -475,7 +475,7 @@ ptflags = 0
 
 /*
 * Function: _EnsureIntercepts
-* Purpose: Implements the _EnsureIntercepts routine for the internal module support.
+* Purpose: Builds intercepts data for the map utility.
 */
 function inline _EnsureIntercepts()
   global intercepts
@@ -490,7 +490,7 @@ end function
 
 /*
 * Function: _PT_EnsureInterceptCapacity
-* Purpose: Implements the _PT_EnsureInterceptCapacity routine for the internal module support.
+* Purpose: Provides ensure intercept capacity helper behavior for the map utility.
 */
 function _PT_EnsureInterceptCapacity(need)
   global intercepts
@@ -521,7 +521,7 @@ end function
 
 /*
 * Function: _PT_AddLineIntercept
-* Purpose: Implements the _PT_AddLineIntercept routine for the internal module support.
+* Purpose: Provides add line intercept helper behavior for the map utility.
 */
 function _PT_AddLineIntercept(ld)
   global intercept_p
@@ -564,7 +564,7 @@ end function
 
 /*
 * Function: _PT_AddThingIntercept
-* Purpose: Implements the _PT_AddThingIntercept routine for the internal module support.
+* Purpose: Provides add thing intercept helper behavior for the map utility.
 */
 function _PT_AddThingIntercept(thing)
   global intercept_p
@@ -614,7 +614,7 @@ end function
 
 /*
 * Function: PIT_AddLineIntercepts
-* Purpose: Implements the PIT_AddLineIntercepts routine for the engine module behavior.
+* Purpose: Provides add line intercepts helper behavior for the map utility.
 */
 function PIT_AddLineIntercepts(ld)
   return _PT_AddLineIntercept(ld)
@@ -622,7 +622,7 @@ end function
 
 /*
 * Function: PIT_AddThingIntercepts
-* Purpose: Implements the PIT_AddThingIntercepts routine for the engine module behavior.
+* Purpose: Provides add thing intercepts helper behavior for the map utility.
 */
 function PIT_AddThingIntercepts(thing)
   return _PT_AddThingIntercept(thing)
@@ -630,7 +630,7 @@ end function
 
 /*
 * Function: P_TraverseIntercepts
-* Purpose: Implements the P_TraverseIntercepts routine for the gameplay and world simulation.
+* Purpose: Computes intercepts values for the map utility.
 */
 function P_TraverseIntercepts(func, maxfrac)
   if typeof(func) != "function" then return true end if
@@ -668,7 +668,7 @@ end function
 
 /*
 * Function: P_PathTraverse
-* Purpose: Implements the P_PathTraverse routine for the gameplay and world simulation.
+* Purpose: Provides traverse helper behavior for the map utility.
 */
 function P_PathTraverse(x1, y1, x2, y2, flags, trav)
   global intercept_p

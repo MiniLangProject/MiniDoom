@@ -29,7 +29,7 @@ const HU_MAXLINELENGTH = 80
 
 /*
 * Struct: hu_textline_t
-* Purpose: Stores runtime data for hu textline type.
+* Purpose: Describes textline geometry or asset data used by the heads-up display system.
 */
 struct hu_textline_t
   x
@@ -43,7 +43,7 @@ end struct
 
 /*
 * Struct: hu_stext_t
-* Purpose: Stores runtime data for hu stext type.
+* Purpose: Stores stext data used by the heads-up display system.
 */
 struct hu_stext_t
   l
@@ -55,7 +55,7 @@ end struct
 
 /*
 * Struct: hu_itext_t
-* Purpose: Stores runtime data for hu itext type.
+* Purpose: Stores itext data used by the heads-up display system.
 */
 struct hu_itext_t
   l
@@ -74,7 +74,7 @@ end function
 
 /*
 * Function: _HUlib_toByte
-* Purpose: Implements the _HUlib_toByte routine for the internal module support.
+* Purpose: Provides ulib to byte helper behavior for the heads-up display.
 */
 function inline _HUlib_toByte(ch)
   if typeof(ch) == "int" then
@@ -89,7 +89,7 @@ end function
 
 /*
 * Function: _HUlib_refBool
-* Purpose: Implements the _HUlib_refBool routine for the internal module support.
+* Purpose: Provides ulib ref boolean helper behavior for the heads-up display.
 */
 function inline _HUlib_refBool(v)
   if typeof(v) == "array" and len(v) > 0 then v = v[0] end if
@@ -100,7 +100,7 @@ end function
 
 /*
 * Function: _HUlib_patchWidth
-* Purpose: Implements the _HUlib_patchWidth routine for the internal module support.
+* Purpose: Provides ulib patch width helper behavior for the heads-up display.
 */
 function inline _HUlib_patchWidth(p)
   if typeof(p) != "bytes" then return 0 end if
@@ -109,7 +109,7 @@ end function
 
 /*
 * Function: _HUlib_patchHeight
-* Purpose: Implements the _HUlib_patchHeight routine for the internal module support.
+* Purpose: Provides ulib patch height helper behavior for the heads-up display.
 */
 function inline _HUlib_patchHeight(p)
   if typeof(p) != "bytes" then return 0 end if
@@ -118,7 +118,7 @@ end function
 
 /*
 * Function: _HUlib_patchAt
-* Purpose: Implements the _HUlib_patchAt routine for the internal module support.
+* Purpose: Provides ulib patch at helper behavior for the heads-up display.
 */
 function inline _HUlib_patchAt(font, idx)
   if typeof(font) != "array" then return void end if
@@ -128,7 +128,7 @@ end function
 
 /*
 * Function: _HUlib_upper
-* Purpose: Implements the _HUlib_upper routine for the internal module support.
+* Purpose: Provides ulib upper helper behavior for the heads-up display.
 */
 function inline _HUlib_upper(c)
   if c >= 97 and c <= 122 then return c - 32 end if
@@ -137,7 +137,7 @@ end function
 
 /*
 * Function: _HUlib_needsVal
-* Purpose: Implements the _HUlib_needsVal routine for the internal module support.
+* Purpose: Provides ulib needs val helper behavior for the heads-up display.
 */
 function inline _HUlib_needsVal(v)
   if typeof(v) == "int" or typeof(v) == "float" then return v end if
@@ -150,7 +150,7 @@ end function
 
 /*
 * Function: HUlib_clearTextLine
-* Purpose: Implements the HUlib_clearTextLine routine for the engine module behavior.
+* Purpose: Clears hUlib clear Text Line state before the next heads-up display update.
 */
 function HUlib_clearTextLine(t)
   if t == 0 then return end if
@@ -182,7 +182,7 @@ end function
 
 /*
 * Function: HUlib_addCharToTextLine
-* Purpose: Implements the HUlib_addCharToTextLine routine for the engine module behavior.
+* Purpose: Provides ulib add char to text line helper behavior for the heads-up display.
 */
 function HUlib_addCharToTextLine(t, ch)
   if t == 0 then return false end if
@@ -197,7 +197,7 @@ end function
 
 /*
 * Function: HUlib_delCharFromTextLine
-* Purpose: Implements the HUlib_delCharFromTextLine routine for the engine module behavior.
+* Purpose: Provides ulib del char from text line helper behavior for the heads-up display.
 */
 function HUlib_delCharFromTextLine(t)
   if t == 0 then return false end if
@@ -210,7 +210,7 @@ end function
 
 /*
 * Function: HUlib_drawTextLine
-* Purpose: Draws or renders output for the engine module behavior.
+* Purpose: Draws hUlib draw Text Line output for the heads-up display renderer.
 */
 function HUlib_drawTextLine(l, drawcursor)
   if l == 0 then return end if
@@ -244,7 +244,7 @@ end function
 
 /*
 * Function: HUlib_eraseTextLine
-* Purpose: Reads or updates state used by the engine module behavior.
+* Purpose: Provides ulib erase text line helper behavior for the heads-up display.
 */
 function HUlib_eraseTextLine(l)
   if l == 0 then return end if
@@ -299,7 +299,7 @@ end function
 
 /*
 * Function: HUlib_addLineToSText
-* Purpose: Implements the HUlib_addLineToSText routine for the engine module behavior.
+* Purpose: Provides ulib add line to s text helper behavior for the heads-up display.
 */
 function HUlib_addLineToSText(s)
   if s == 0 then return end if
@@ -316,7 +316,7 @@ end function
 
 /*
 * Function: _HUlib_appendBytes
-* Purpose: Implements the _HUlib_appendBytes routine for the internal module support.
+* Purpose: Controls hUlib append Bytes transitions in the heads-up display system.
 */
 function _HUlib_appendBytes(tl, b)
   if tl == 0 or b == 0 then return end if
@@ -327,7 +327,7 @@ end function
 
 /*
 * Function: HUlib_addMessageToSText
-* Purpose: Reads or updates state used by the engine module behavior.
+* Purpose: Provides ulib add message to s text helper behavior for the heads-up display.
 */
 function HUlib_addMessageToSText(s, prefix, msg)
   if s == 0 then return end if
@@ -339,7 +339,7 @@ end function
 
 /*
 * Function: HUlib_drawSText
-* Purpose: Draws or renders output for the engine module behavior.
+* Purpose: Draws hUlib draw SText output for the heads-up display renderer.
 */
 function HUlib_drawSText(s)
   if s == 0 then return end if
@@ -356,7 +356,7 @@ end function
 
 /*
 * Function: HUlib_eraseSText
-* Purpose: Implements the HUlib_eraseSText routine for the engine module behavior.
+* Purpose: Provides ulib erase s text helper behavior for the heads-up display.
 */
 function HUlib_eraseSText(s)
   if s == 0 then return end if
@@ -388,7 +388,7 @@ end function
 
 /*
 * Function: HUlib_delCharFromIText
-* Purpose: Implements the HUlib_delCharFromIText routine for the engine module behavior.
+* Purpose: Provides ulib del char from i text helper behavior for the heads-up display.
 */
 function HUlib_delCharFromIText(it)
   if it == 0 then return false end if
@@ -398,7 +398,7 @@ end function
 
 /*
 * Function: HUlib_eraseLineFromIText
-* Purpose: Implements the HUlib_eraseLineFromIText routine for the engine module behavior.
+* Purpose: Provides ulib erase line from i text helper behavior for the heads-up display.
 */
 function HUlib_eraseLineFromIText(it)
   if it == 0 then return end if
@@ -409,7 +409,7 @@ end function
 
 /*
 * Function: HUlib_resetIText
-* Purpose: Reads or updates state used by the engine module behavior.
+* Purpose: Clears hUlib reset IText state before the next heads-up display update.
 */
 function HUlib_resetIText(it)
   if it == 0 then return end if
@@ -419,7 +419,7 @@ end function
 
 /*
 * Function: HUlib_addPrefixToIText
-* Purpose: Implements the HUlib_addPrefixToIText routine for the engine module behavior.
+* Purpose: Provides ulib add prefix to i text helper behavior for the heads-up display.
 */
 function HUlib_addPrefixToIText(it, str)
   if it == 0 then return end if
@@ -449,7 +449,7 @@ end function
 
 /*
 * Function: HUlib_drawIText
-* Purpose: Draws or renders output for the engine module behavior.
+* Purpose: Draws hUlib draw IText output for the heads-up display renderer.
 */
 function HUlib_drawIText(it)
   if it == 0 then return end if
@@ -459,7 +459,7 @@ end function
 
 /*
 * Function: HUlib_eraseIText
-* Purpose: Implements the HUlib_eraseIText routine for the engine module behavior.
+* Purpose: Provides ulib erase i text helper behavior for the heads-up display.
 */
 function HUlib_eraseIText(it)
   if it == 0 then return end if

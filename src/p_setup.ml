@@ -41,7 +41,7 @@ import r_things
 
 /*
 * Function: _PS_U16LE
-* Purpose: Implements the _PS_U16LE routine for the internal module support.
+* Purpose: Provides U16 little-endian helper behavior for the play simulation.
 */
 function inline _PS_U16LE(b, off)
   return b[off] +(b[off + 1] << 8)
@@ -49,7 +49,7 @@ end function
 
 /*
 * Function: _PS_I16LE
-* Purpose: Implements the _PS_I16LE routine for the internal module support.
+* Purpose: Provides i16 little-endian helper behavior for the play simulation.
 */
 function inline _PS_I16LE(b, off)
   x = _PS_U16LE(b, off)
@@ -59,7 +59,7 @@ end function
 
 /*
 * Function: _PS_ReadLumpBytes
-* Purpose: Implements the _PS_ReadLumpBytes routine for the internal module support.
+* Purpose: Reads lump bytes data for the play simulation.
 */
 function inline _PS_ReadLumpBytes(lump)
   n = W_LumpLength(lump)
@@ -73,7 +73,7 @@ end function
 
 /*
 * Function: _PS_Name8
-* Purpose: Implements the _PS_Name8 routine for the internal module support.
+* Purpose: Provides name8 helper behavior for the play simulation.
 */
 function inline _PS_Name8(data, off)
   return slice(data, off, 8)
@@ -81,7 +81,7 @@ end function
 
 /*
 * Function: _PSET_IDiv
-* Purpose: Reads or updates state used by the internal module support.
+* Purpose: Performs integer division with level setup rounding and guard rules.
 */
 function inline _PSET_IDiv(a, b)
   if typeof(a) != "int" or typeof(b) != "int" or b == 0 then return 0 end if
@@ -92,7 +92,7 @@ end function
 
 /*
 * Function: _PSET_IsSeq
-* Purpose: Reads or updates state used by the internal module support.
+* Purpose: Provides is sequence helper behavior for the play simulation.
 */
 function inline _PSET_IsSeq(v)
   t = typeof(v)
@@ -117,7 +117,7 @@ end function
 
 /*
 * Function: _PS_VertexOrZero
-* Purpose: Implements the _PS_VertexOrZero routine for the internal module support.
+* Purpose: Provides vertex or zero helper behavior for the play simulation.
 */
 function inline _PS_VertexOrZero(idx)
   if idx < 0 or not _PSET_IsSeq(vertexes) or idx >= len(vertexes) then
@@ -128,7 +128,7 @@ end function
 
 /*
 * Function: _PS_MapName
-* Purpose: Implements the _PS_MapName routine for the internal module support.
+* Purpose: Provides map name helper behavior for the play simulation.
 */
 function inline _PS_MapName(episode, map)
   if gamemode == GameMode_t.commercial then
@@ -142,7 +142,7 @@ end function
 
 /*
 * Function: _PS_EnsureRuntimeArrays
-* Purpose: Implements the _PS_EnsureRuntimeArrays routine for the internal module support.
+* Purpose: Provides ensure runtime arrays helper behavior for the play simulation.
 */
 function _PS_EnsureRuntimeArrays()
   global players
@@ -176,7 +176,7 @@ end function
 
 /*
 * Function: P_LoadVertexes
-* Purpose: Loads and prepares data required by the gameplay and world simulation.
+* Purpose: Reads vertices data for the play simulation.
 */
 function P_LoadVertexes(lump)
   global numvertexes
@@ -198,7 +198,7 @@ end function
 
 /*
 * Function: P_LoadSectors
-* Purpose: Loads and prepares data required by the gameplay and world simulation.
+* Purpose: Reads sectors data for the play simulation.
 */
 function P_LoadSectors(lump)
   global numsectors
@@ -245,7 +245,7 @@ end function
 
 /*
 * Function: P_LoadSideDefs
-* Purpose: Loads and prepares data required by the gameplay and world simulation.
+* Purpose: Reads side defs data for the play simulation.
 */
 function P_LoadSideDefs(lump)
   global numsides
@@ -278,7 +278,7 @@ end function
 
 /*
 * Function: P_LoadLineDefs
-* Purpose: Loads and prepares data required by the gameplay and world simulation.
+* Purpose: Reads line defs data for the play simulation.
 */
 function P_LoadLineDefs(lump)
   global numlines
@@ -346,7 +346,7 @@ end function
 
 /*
 * Function: P_LoadSubsectors
-* Purpose: Loads and prepares data required by the gameplay and world simulation.
+* Purpose: Reads subsectors data for the play simulation.
 */
 function P_LoadSubsectors(lump)
   global numsubsectors
@@ -368,7 +368,7 @@ end function
 
 /*
 * Function: P_LoadNodes
-* Purpose: Loads and prepares data required by the gameplay and world simulation.
+* Purpose: Reads nodes data for the play simulation.
 */
 function P_LoadNodes(lump)
   global numnodes
@@ -412,7 +412,7 @@ end function
 
 /*
 * Function: P_LoadSegs
-* Purpose: Loads and prepares data required by the gameplay and world simulation.
+* Purpose: Reads segs data for the play simulation.
 */
 function P_LoadSegs(lump)
   global numsegs
@@ -469,7 +469,7 @@ end function
 
 /*
 * Function: P_LoadBlockMap
-* Purpose: Loads and prepares data required by the gameplay and world simulation.
+* Purpose: Reads block map data for the play simulation.
 */
 function P_LoadBlockMap(lump)
   global blockmaplump
@@ -531,7 +531,7 @@ end function
 
 /*
 * Function: P_LoadThings
-* Purpose: Loads and prepares data required by the gameplay and world simulation.
+* Purpose: Reads things data for the play simulation.
 */
 function P_LoadThings(lump)
   data = _PS_ReadLumpBytes(lump)
@@ -573,7 +573,7 @@ end function
 
 /*
 * Function: P_GroupLines
-* Purpose: Implements the P_GroupLines routine for the gameplay and world simulation.
+* Purpose: Provides lines helper behavior for the play simulation.
 */
 function P_GroupLines()
 
@@ -688,7 +688,7 @@ end function
 
 /*
 * Function: P_SetupLevel
-* Purpose: Reads or updates state used by the gameplay and world simulation.
+* Purpose: Runs level lifecycle logic for the play simulation.
 */
 function P_SetupLevel(episode, map, playermask, skill)
   global gameepisode

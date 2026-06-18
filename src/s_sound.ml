@@ -60,7 +60,7 @@ _s_sfxPrecached = false
 
 /*
 * Struct: channel_t
-* Purpose: Stores runtime data for channel type.
+* Purpose: Stores channel data used by the sound system.
 */
 struct channel_t
   sfxinfo
@@ -83,7 +83,7 @@ channels =[]
 
 /*
 * Function: _S_IsSeq
-* Purpose: Implements the _S_IsSeq routine for the internal module support.
+* Purpose: Checks sequence conditions for the sound system.
 */
 function inline _S_IsSeq(v)
   t = typeof(v)
@@ -92,7 +92,7 @@ end function
 
 /*
 * Function: _S_ToInt
-* Purpose: Implements the _S_ToInt routine for the internal module support.
+* Purpose: Converts int values for the sound system.
 */
 function inline _S_ToInt(v, fallback)
   if typeof(v) == "int" then return v end if
@@ -111,7 +111,7 @@ end function
 
 /*
 * Function: _S_EnumIndex
-* Purpose: Implements the _S_EnumIndex routine for the internal module support.
+* Purpose: Provides index helper behavior for the sound system.
 */
 function inline _S_EnumIndex(v, limit)
   if typeof(v) == "int" then return v end if
@@ -151,7 +151,7 @@ end function
 
 /*
 * Function: _S_SfxId
-* Purpose: Implements the _S_SfxId routine for the internal module support.
+* Purpose: Provides id helper behavior for the sound system.
 */
 function inline _S_SfxId(v)
   lim = 0
@@ -167,7 +167,7 @@ end function
 
 /*
 * Function: _S_MusicId
-* Purpose: Implements the _S_MusicId routine for the internal module support.
+* Purpose: Provides id helper behavior for the sound system.
 */
 function inline _S_MusicId(v)
   lim = 0
@@ -183,7 +183,7 @@ end function
 
 /*
 * Function: _S_IDiv
-* Purpose: Implements the _S_IDiv routine for the internal module support.
+* Purpose: Performs integer division with sound rounding and guard rules.
 */
 function inline _S_IDiv(a, b)
   if typeof(a) != "int" or typeof(b) != "int" or b == 0 then return 0 end if
@@ -194,7 +194,7 @@ end function
 
 /*
 * Function: _S_Clamp
-* Purpose: Implements the _S_Clamp routine for the internal module support.
+* Purpose: Clamps clamp values to the supported sound range.
 */
 function inline _S_Clamp(v, lo, hi)
   if v < lo then return lo end if
@@ -204,7 +204,7 @@ end function
 
 /*
 * Function: _S_Min
-* Purpose: Implements the _S_Min routine for the internal module support.
+* Purpose: Provides min helper behavior for the sound system.
 */
 function inline _S_Min(a, b)
   if a < b then return a end if
@@ -213,7 +213,7 @@ end function
 
 /*
 * Function: _S_Abs
-* Purpose: Implements the _S_Abs routine for the internal module support.
+* Purpose: Provides absolute-value helper behavior for the sound system.
 */
 function inline _S_Abs(v)
   if typeof(v) != "int" then return 0 end if
@@ -223,7 +223,7 @@ end function
 
 /*
 * Function: _S_AngNorm
-* Purpose: Implements the _S_AngNorm routine for the internal module support.
+* Purpose: Provides norm helper behavior for the sound system.
 */
 function inline _S_AngNorm(a)
   if typeof(a) != "int" then return 0 end if
@@ -232,7 +232,7 @@ end function
 
 /*
 * Function: _S_FineSineAt
-* Purpose: Implements the _S_FineSineAt routine for the internal module support.
+* Purpose: Provides sine at helper behavior for the sound system.
 */
 function inline _S_FineSineAt(idx)
   if not _S_IsSeq(finesine) or len(finesine) == 0 then return 0 end if
@@ -247,7 +247,7 @@ end function
 
 /*
 * Function: _S_EnsureChannels
-* Purpose: Implements the _S_EnsureChannels routine for the internal module support.
+* Purpose: Builds channels data for the sound system.
 */
 function inline _S_EnsureChannels()
   global channels
@@ -283,7 +283,7 @@ end function
 
 /*
 * Function: _S_GetListener
-* Purpose: Reads or updates state used by the internal module support.
+* Purpose: Reads listener data for the sound system.
 */
 function inline _S_GetListener()
   if not _S_IsSeq(players) then return void end if
@@ -296,7 +296,7 @@ end function
 
 /*
 * Function: _S_GetSfxById
-* Purpose: Reads or updates state used by the internal module support.
+* Purpose: Reads SFX by id data for the sound system.
 */
 function inline _S_GetSfxById(sound_id)
   sid = _S_SfxId(sound_id)
@@ -307,7 +307,7 @@ end function
 
 /*
 * Function: _S_LinkOf
-* Purpose: Implements the _S_LinkOf routine for the internal module support.
+* Purpose: Provides of helper behavior for the sound system.
 */
 function inline _S_LinkOf(sfx)
   if sfx is void then return void end if
@@ -326,7 +326,7 @@ end function
 
 /*
 * Function: _S_SfxPriority
-* Purpose: Implements the _S_SfxPriority routine for the internal module support.
+* Purpose: Provides priority helper behavior for the sound system.
 */
 function inline _S_SfxPriority(sfx)
   if sfx is void then return NORM_PRIORITY end if
@@ -335,7 +335,7 @@ end function
 
 /*
 * Function: _S_DegradeUsefulness
-* Purpose: Implements the _S_DegradeUsefulness routine for the internal module support.
+* Purpose: Provides usefulness helper behavior for the sound system.
 */
 function inline _S_DegradeUsefulness(sfx)
   if sfx is void then return end if
@@ -356,7 +356,7 @@ end function
 
 /*
 * Function: _S_SetSfxUsefulnessAndLump
-* Purpose: Reads or updates state used by the internal module support.
+* Purpose: Updates SFX usefulness and lump state for the sound system.
 */
 function inline _S_SetSfxUsefulnessAndLump(sid, sfx)
   if not _S_IsSeq(S_sfx) then return end if
@@ -366,7 +366,7 @@ end function
 
 /*
 * Function: _S_SameXY
-* Purpose: Implements the _S_SameXY routine for the internal module support.
+* Purpose: Provides xy helper behavior for the sound system.
 */
 function inline _S_SameXY(a, b)
   pa = _S_PosRef(a)
@@ -377,7 +377,7 @@ end function
 
 /*
 * Function: _S_PosRef
-* Purpose: Implements the _S_PosRef routine for the internal module support.
+* Purpose: Provides ref helper behavior for the sound system.
 */
 function inline _S_PosRef(v)
   if v is void then return void end if
@@ -394,7 +394,7 @@ end function
 
 /*
 * Function: _S_AngRef
-* Purpose: Implements the _S_AngRef routine for the internal module support.
+* Purpose: Provides ref helper behavior for the sound system.
 */
 function inline _S_AngRef(v)
   if v is void then return 0 end if
@@ -835,7 +835,7 @@ end function
 
 /*
 * Function: S_AdjustSoundParams
-* Purpose: Implements the S_AdjustSoundParams routine for the sound system.
+* Purpose: Provides sound params helper behavior for the sound system.
 */
 function S_AdjustSoundParams(listener, source, vol, sep, pitch)
   lp = _S_PosRef(listener)
@@ -902,7 +902,7 @@ end function
 
 /*
 * Function: S_getChannel
-* Purpose: Reads or updates state used by the sound system.
+* Purpose: Reads channel data for the sound system.
 */
 function S_getChannel(origin, sfxinfo)
   _S_EnsureChannels()
@@ -952,7 +952,7 @@ end function
 
 /*
 * Function: S_ChangeMusic
-* Purpose: Implements the S_ChangeMusic routine for the sound system.
+* Purpose: Runs music behavior for the sound system.
 */
 function S_ChangeMusic(music_id, looping)
   global mus_playing
@@ -1059,7 +1059,7 @@ end function
 
 /*
 * Function: S_PauseSound
-* Purpose: Implements the S_PauseSound routine for the sound system.
+* Purpose: Runs sound lifecycle logic for the sound system.
 */
 function S_PauseSound()
   global mus_paused
@@ -1072,7 +1072,7 @@ end function
 
 /*
 * Function: S_ResumeSound
-* Purpose: Implements the S_ResumeSound routine for the sound system.
+* Purpose: Runs sound lifecycle logic for the sound system.
 */
 function S_ResumeSound()
   global mus_paused
@@ -1085,7 +1085,7 @@ end function
 
 /*
 * Function: S_UpdateSounds
-* Purpose: Advances per-tick logic for the sound system.
+* Purpose: Updates sounds state for the sound system.
 */
 function S_UpdateSounds(listener_p)
   _S_EnsureChannels()
@@ -1150,7 +1150,7 @@ end function
 
 /*
 * Function: S_SetMusicVolume
-* Purpose: Reads or updates state used by the sound system.
+* Purpose: Updates music volume state for the sound system.
 */
 function S_SetMusicVolume(volume)
   global snd_MusicVolume
@@ -1166,7 +1166,7 @@ end function
 
 /*
 * Function: S_SetSfxVolume
-* Purpose: Reads or updates state used by the sound system.
+* Purpose: Updates SFX volume state for the sound system.
 */
 function S_SetSfxVolume(volume)
   global snd_SfxVolume

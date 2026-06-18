@@ -21,7 +21,7 @@ const __BIG_ENDIAN__ = false
 
 /*
 * Function: SwapSHORT
-* Purpose: Implements the SwapSHORT routine for the engine module behavior.
+* Purpose: Converts short values for the utility.
 */
 function SwapSHORT(x)
   u = x & 0xFFFF
@@ -30,7 +30,7 @@ end function
 
 /*
 * Function: SwapLONG
-* Purpose: Implements the SwapLONG routine for the engine module behavior.
+* Purpose: Converts long values for the utility.
 */
 function SwapLONG(x)
   u = x & 0xFFFFFFFF
@@ -42,7 +42,7 @@ end function
 
 /*
 * Function: SHORT
-* Purpose: Implements the SHORT routine for the engine module behavior.
+* Purpose: Provides short helper behavior for the utility.
 */
 function SHORT(x)
   if __BIG_ENDIAN__ then return SwapSHORT(x) end if
@@ -51,7 +51,7 @@ end function
 
 /*
 * Function: LONG
-* Purpose: Implements the LONG routine for the engine module behavior.
+* Purpose: Provides long helper behavior for the utility.
 */
 function LONG(x)
   if __BIG_ENDIAN__ then return SwapLONG(x) end if

@@ -35,7 +35,7 @@ import std.fs as fs
 
 /*
 * Function: _M_u16le
-* Purpose: Implements the _M_u16le routine for the internal module support.
+* Purpose: Provides u16le helper behavior for the utility.
 */
 function inline _M_u16le(b, off)
   return b[off] +(b[off + 1] << 8)
@@ -43,7 +43,7 @@ end function
 
 /*
 * Function: _M_patchWidth
-* Purpose: Implements the _M_patchWidth routine for the internal module support.
+* Purpose: Provides width helper behavior for the utility.
 */
 function inline _M_patchWidth(patch)
   if typeof(patch) != "bytes" then return 0 end if
@@ -52,7 +52,7 @@ end function
 
 /*
 * Function: _M_UpperAscii
-* Purpose: Implements the _M_UpperAscii routine for the internal module support.
+* Purpose: Converts ascii values for the utility.
 */
 function inline _M_UpperAscii(c)
   if c >= 97 and c <= 122 then return c - 32 end if
@@ -61,7 +61,7 @@ end function
 
 /*
 * Function: _MMISC_IDiv
-* Purpose: Implements the _MMISC_IDiv routine for the internal module support.
+* Purpose: Performs integer division with utility rounding and guard rules.
 */
 function inline _MMISC_IDiv(a, b)
   if typeof(a) != "int" or typeof(b) != "int" or b == 0 then return 0 end if
@@ -72,7 +72,7 @@ end function
 
 /*
 * Function: _M_WriteU16LE
-* Purpose: Implements the _M_WriteU16LE routine for the internal module support.
+* Purpose: Writes U16 little-endian data for the utility.
 */
 function inline _M_WriteU16LE(buf, off, value)
   if value < 0 then value = value + 65536 end if
@@ -82,7 +82,7 @@ end function
 
 /*
 * Function: _M_MakeShotName
-* Purpose: Implements the _M_MakeShotName routine for the internal module support.
+* Purpose: Builds shot name data for the utility.
 */
 function inline _M_MakeShotName(i)
   b = bytes("DOOM00.pcx")
@@ -93,7 +93,7 @@ end function
 
 /*
 * Function: _M_WritePCXfile
-* Purpose: Implements the _M_WritePCXfile routine for the internal module support.
+* Purpose: Writes pc xfile data for the utility.
 */
 function _M_WritePCXfile(filename, data, width, height, palette)
   if typeof(filename) != "string" then return false end if
@@ -152,7 +152,7 @@ end function
 
 /*
 * Function: WritePCXfile
-* Purpose: Implements the WritePCXfile routine for the engine module behavior.
+* Purpose: Writes pc xfile data for the utility.
 */
 function WritePCXfile(filename, data, width, height, palette)
   return _M_WritePCXfile(filename, data, width, height, palette)
@@ -160,7 +160,7 @@ end function
 
 /*
 * Function: _M_IsSpaceByte
-* Purpose: Implements the _M_IsSpaceByte routine for the internal module support.
+* Purpose: Checks space byte conditions for the utility.
 */
 function inline _M_IsSpaceByte(c)
   return c == 32 or c == 9
@@ -168,7 +168,7 @@ end function
 
 /*
 * Function: _M_Trim
-* Purpose: Implements the _M_Trim routine for the internal module support.
+* Purpose: Converts trim values for the utility.
 */
 function _M_Trim(s0)
   if typeof(s0) != "string" then return "" end if
@@ -191,7 +191,7 @@ end function
 
 /*
 * Function: _M_ParseInt
-* Purpose: Implements the _M_ParseInt routine for the internal module support.
+* Purpose: Parses parse Int input into utility runtime data.
 */
 function _M_ParseInt(s0)
   if typeof(s0) != "string" then return end if
@@ -266,7 +266,7 @@ end function
 
 /*
 * Function: _M_ApplyDefaultKV
-* Purpose: Implements the _M_ApplyDefaultKV routine for the internal module support.
+* Purpose: Provides default kv helper behavior for the utility.
 */
 function _M_ApplyDefaultKV(key, val)
   global mouseSensitivity
@@ -377,7 +377,7 @@ end function
 
 /*
 * Function: _M_GetDefaultFilePath
-* Purpose: Reads or updates state used by the internal module support.
+* Purpose: Reads default file path data for the utility.
 */
 function _M_GetDefaultFilePath()
   i = M_CheckParm("-config")
@@ -397,7 +397,7 @@ end function
 
 /*
 * Function: _M_ParseDefaultLine
-* Purpose: Implements the _M_ParseDefaultLine routine for the internal module support.
+* Purpose: Parses parse Default Line input into utility runtime data.
 */
 function _M_ParseDefaultLine(line)
   if typeof(line) != "string" then return end if
@@ -425,7 +425,7 @@ end function
 
 /*
 * Function: _M_ParentDirExists
-* Purpose: Implements the _M_ParentDirExists routine for the internal module support.
+* Purpose: Provides directory exists helper behavior for the utility.
 */
 function _M_ParentDirExists(path)
   if typeof(path) != "string" then return false end if
@@ -449,7 +449,7 @@ end function
 
 /*
 * Function: M_WriteFile
-* Purpose: Implements the M_WriteFile routine for the utility/math layer.
+* Purpose: Writes file data for the utility.
 */
 function M_WriteFile(name, source, length)
   if typeof(name) != "string" then return false end if
@@ -472,7 +472,7 @@ end function
 
 /*
 * Function: M_ReadFile
-* Purpose: Implements the M_ReadFile routine for the utility/math layer.
+* Purpose: Reads file data for the utility.
 */
 function M_ReadFile(name, bufferOut)
   if typeof(bufferOut) == "array" and len(bufferOut) > 0 then
@@ -499,7 +499,7 @@ end function
 
 /*
 * Function: M_ScreenShot
-* Purpose: Implements the M_ScreenShot routine for the utility/math layer.
+* Purpose: Provides shot helper behavior for the utility.
 */
 function M_ScreenShot()
   linear = 0
@@ -547,7 +547,7 @@ end function
 
 /*
 * Function: M_LoadDefaults
-* Purpose: Loads and prepares data required by the utility/math layer.
+* Purpose: Reads defaults data for the utility.
 */
 function M_LoadDefaults()
   global defaultfile
@@ -604,7 +604,7 @@ end function
 
 /*
 * Function: M_SaveDefaults
-* Purpose: Implements the M_SaveDefaults routine for the utility/math layer.
+* Purpose: Writes defaults data for the utility.
 */
 function M_SaveDefaults()
   global defaultfile
@@ -648,7 +648,7 @@ end function
 
 /*
 * Function: M_DrawText
-* Purpose: Draws or renders output for the utility/math layer.
+* Purpose: Draws text output for the utility.
 */
 function M_DrawText(x, y, direct, string)
   b = 0
@@ -703,7 +703,7 @@ defaultfile = void
 
 /*
 * Struct: default_t
-* Purpose: Stores runtime data for default type.
+* Purpose: Stores default data used by the utility system.
 */
 struct default_t
   name

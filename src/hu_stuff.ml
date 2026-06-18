@@ -136,7 +136,7 @@ _hu_local_chat_dest = HU_BROADCAST
 
 /*
 * Function: _HU_ToInt
-* Purpose: Implements the _HU_ToInt routine for the internal module support.
+* Purpose: Converts int values for the heads-up display.
 */
 function inline _HU_ToInt(v, fallback)
   if typeof(v) == "int" then return v end if
@@ -151,7 +151,7 @@ end function
 
 /*
 * Function: _HU_SetMessageOn
-* Purpose: Reads or updates state used by the internal module support.
+* Purpose: Updates message on state for the heads-up display.
 */
 function inline _HU_SetMessageOn(v)
   global message_on
@@ -164,7 +164,7 @@ end function
 
 /*
 * Function: _HU_SetChatOn
-* Purpose: Reads or updates state used by the internal module support.
+* Purpose: Updates chat on state for the heads-up display.
 */
 function inline _HU_SetChatOn(v)
   global chat_on
@@ -177,7 +177,7 @@ end function
 
 /*
 * Function: _HU_FontHeight
-* Purpose: Implements the _HU_FontHeight routine for the internal module support.
+* Purpose: Provides height helper behavior for the heads-up display.
 */
 function inline _HU_FontHeight()
   if typeof(hu_font) == "array" and len(hu_font) > 0 and hu_font[0] is not void then
@@ -188,7 +188,7 @@ end function
 
 /*
 * Function: _HU_KeyCodeFromString
-* Purpose: Implements the _HU_KeyCodeFromString routine for the internal module support.
+* Purpose: Provides code from string helper behavior for the heads-up display.
 */
 function inline _HU_KeyCodeFromString(s)
   if typeof(s) != "string" or len(s) == 0 then return 0 end if
@@ -199,7 +199,7 @@ end function
 
 /*
 * Function: _HU_ShowMessagesEnabled
-* Purpose: Implements the _HU_ShowMessagesEnabled routine for the internal module support.
+* Purpose: Provides messages enabled helper behavior for the heads-up display.
 */
 function inline _HU_ShowMessagesEnabled()
   if typeof(showMessages) == "int" then return showMessages != 0 end if
@@ -229,7 +229,7 @@ end function
 
 /*
 * Function: _HU_PlayerName
-* Purpose: Implements the _HU_PlayerName routine for the internal module support.
+* Purpose: Provides name helper behavior for the heads-up display.
 */
 function inline _HU_PlayerName(idx)
   if idx >= 0 and idx < len(player_names) then return player_names[idx] end if
@@ -238,7 +238,7 @@ end function
 
 /*
 * Function: _HU_ITextString
-* Purpose: Implements the _HU_ITextString routine for the internal module support.
+* Purpose: Provides text string helper behavior for the heads-up display.
 */
 function inline _HU_ITextString(it)
   if it is void or it.l is void then return "" end if
@@ -251,7 +251,7 @@ end function
 
 /*
 * Function: _HU_BuildBaseShiftMap
-* Purpose: Implements the _HU_BuildBaseShiftMap routine for the internal module support.
+* Purpose: Builds base shift map data for the heads-up display.
 */
 function _HU_BuildBaseShiftMap()
   m =[]
@@ -270,7 +270,7 @@ end function
 
 /*
 * Function: _HU_BuildEnglishShiftMap
-* Purpose: Implements the _HU_BuildEnglishShiftMap routine for the internal module support.
+* Purpose: Builds english shift map data for the heads-up display.
 */
 function _HU_BuildEnglishShiftMap()
   m = _HU_BuildBaseShiftMap()
@@ -302,7 +302,7 @@ end function
 
 /*
 * Function: _HU_BuildFrenchShiftMap
-* Purpose: Implements the _HU_BuildFrenchShiftMap routine for the internal module support.
+* Purpose: Builds french shift map data for the heads-up display.
 */
 function _HU_BuildFrenchShiftMap()
   m = _HU_BuildBaseShiftMap()
@@ -322,7 +322,7 @@ end function
 
 /*
 * Function: _HU_ShiftChar
-* Purpose: Implements the _HU_ShiftChar routine for the internal module support.
+* Purpose: Provides char helper behavior for the heads-up display.
 */
 function inline _HU_ShiftChar(c)
   if typeof(c) != "int" then return c end if
@@ -334,7 +334,7 @@ end function
 
 /*
 * Function: _HU_CurrentPlayer
-* Purpose: Implements the _HU_CurrentPlayer routine for the internal module support.
+* Purpose: Provides player helper behavior for the heads-up display.
 */
 function inline _HU_CurrentPlayer()
   if typeof(players) != "array" then return void end if
@@ -374,7 +374,7 @@ end function
 
 /*
 * Function: _HU_MapTitle
-* Purpose: Implements the _HU_MapTitle routine for the internal module support.
+* Purpose: Provides title helper behavior for the heads-up display.
 */
 function _HU_MapTitle()
   if gamemode == GameMode_t.shareware or gamemode == GameMode_t.registered or gamemode == GameMode_t.retail then
@@ -412,7 +412,7 @@ end function
 
 /*
 * Function: _HU_EnsureInputBuffers
-* Purpose: Implements the _HU_EnsureInputBuffers routine for the internal module support.
+* Purpose: Builds input buffers data for the heads-up display.
 */
 function _HU_EnsureInputBuffers()
   global w_inputbuffer
@@ -528,7 +528,7 @@ end function
 
 /*
 * Function: HU_Drawer
-* Purpose: Draws or renders output for the HUD subsystem.
+* Purpose: Provides drawer helper behavior for the heads-up display.
 */
 function HU_Drawer()
   if not headsupactive then return end if
@@ -539,7 +539,7 @@ end function
 
 /*
 * Function: HU_Erase
-* Purpose: Implements the HU_Erase routine for the HUD subsystem.
+* Purpose: Draws erase output for the heads-up display.
 */
 function HU_Erase()
   HUlib_eraseSText(w_message)
@@ -583,7 +583,7 @@ end function
 
 /*
 * Function: HU_Ticker
-* Purpose: Advances per-tick logic for the HUD subsystem.
+* Purpose: Advances ticker logic during the heads-up display tick.
 */
 function HU_Ticker()
   global message_counter
@@ -626,7 +626,7 @@ end function
 
 /*
 * Function: ForeignTranslation
-* Purpose: Implements the ForeignTranslation routine for the engine module behavior.
+* Purpose: Provides translation helper behavior for the heads-up display.
 */
 function ForeignTranslation(ch)
   if language != Language_t.french then return ch end if
@@ -638,7 +638,7 @@ end function
 
 /*
 * Function: HU_Responder
-* Purpose: Implements the HU_Responder routine for the HUD subsystem.
+* Purpose: Handles responder events for the heads-up display system.
 */
 function HU_Responder(ev)
   global shiftdown

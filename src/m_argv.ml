@@ -22,7 +22,7 @@ myargv = void
 
 /*
 * Function: M_SetArgv
-* Purpose: Reads or updates state used by the utility/math layer.
+* Purpose: Updates argument state for the utility.
 */
 function M_SetArgv(progName, args)
   global myargv
@@ -40,7 +40,7 @@ end function
 
 /*
 * Function: M_CheckParm
-* Purpose: Evaluates conditions and returns a decision for the utility/math layer.
+* Purpose: Finds check Parm information for utility processing.
 */
 function M_CheckParm(check)
   i = 1
@@ -55,7 +55,7 @@ end function
 
 /*
 * Function: _M_ToLowerAscii
-* Purpose: Implements the _M_ToLowerAscii routine for the internal module support.
+* Purpose: Converts lower ASCII values for the utility.
 */
 function inline _M_ToLowerAscii(c)
   if c >= 65 and c <= 90 then return c + 32 end if
@@ -64,7 +64,7 @@ end function
 
 /*
 * Function: _M_StrCaseEq
-* Purpose: Implements the _M_StrCaseEq routine for the internal module support.
+* Purpose: Provides case eq helper behavior for the utility.
 */
 function _M_StrCaseEq(a, b)
   if typeof(a) != "string" or typeof(b) != "string" then return false end if

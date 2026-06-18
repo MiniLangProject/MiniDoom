@@ -22,12 +22,16 @@ import i_system
 import z_zone
 import w_wad
 import r_local
+import v_video
 import doomstat
+import r_upscaled
+import r_hires
 import std.math
 
 const MAXVISSPRITES = 128
 const MINZ = 262144
 const BASEYCENTER = 100
+const RT_TRANSPARENT_INDEX = 255
 
 vissprites =[]
 vissprite_p = 0
@@ -145,7 +149,7 @@ end function
 
 /*
 * Function: _makeVisSprite
-* Purpose: Implements the _makeVisSprite routine for the internal module support.
+* Purpose: Builds visible sprite data for the sprite renderer.
 */
 function inline _makeVisSprite()
 
@@ -154,7 +158,7 @@ end function
 
 /*
 * Function: _RT_MakeEmptyFrame
-* Purpose: Implements the _RT_MakeEmptyFrame routine for the internal module support.
+* Purpose: Provides make empty frame helper behavior for the sprite renderer.
 */
 function inline _RT_MakeEmptyFrame()
   lumps = array(8, -1)
@@ -164,7 +168,7 @@ end function
 
 /*
 * Function: _RT_IDiv
-* Purpose: Implements the _RT_IDiv routine for the internal module support.
+* Purpose: Performs integer division with sprite renderer rounding and guard rules.
 */
 function inline _RT_IDiv(a, b)
   if typeof(a) != "int" or typeof(b) != "int" or b == 0 then return 0 end if
@@ -175,7 +179,7 @@ end function
 
 /*
 * Function: _RT_Abs
-* Purpose: Implements the _RT_Abs routine for the internal module support.
+* Purpose: Provides absolute-value helper behavior for the sprite renderer.
 */
 function inline _RT_Abs(v)
   vi = _RT_ToInt(v, 0)
@@ -185,7 +189,7 @@ end function
 
 /*
 * Function: _RT_Clamp
-* Purpose: Implements the _RT_Clamp routine for the internal module support.
+* Purpose: Clamps clamp values to the supported sprite renderer range.
 */
 function inline _RT_Clamp(v, lo, hi)
   if v < lo then return lo end if
@@ -195,7 +199,7 @@ end function
 
 /*
 * Function: _RT_ToInt
-* Purpose: Implements the _RT_ToInt routine for the internal module support.
+* Purpose: Converts int values for the sprite renderer.
 */
 function inline _RT_ToInt(v, fallback)
   if typeof(v) == "int" then return v end if
@@ -214,7 +218,7 @@ end function
 
 /*
 * Function: _RT_S32
-* Purpose: Implements the _RT_S32 routine for the internal module support.
+* Purpose: Provides s32 helper behavior for the sprite renderer.
 */
 function inline _RT_S32(v)
   vi = _RT_ToInt(v, 0)
@@ -225,7 +229,7 @@ end function
 
 /*
 * Function: _RT_AngNorm
-* Purpose: Implements the _RT_AngNorm routine for the internal module support.
+* Purpose: Provides ang norm helper behavior for the sprite renderer.
 */
 function inline _RT_AngNorm(a)
   ai = _RT_ToInt(a, 0)
@@ -234,7 +238,7 @@ end function
 
 /*
 * Function: _RT_IsSeq
-* Purpose: Implements the _RT_IsSeq routine for the internal module support.
+* Purpose: Provides is sequence helper behavior for the sprite renderer.
 */
 function inline _RT_IsSeq(v)
   t = typeof(v)
@@ -243,7 +247,7 @@ end function
 
 /*
 * Function: _RT_GetClipValue
-* Purpose: Reads or updates state used by the internal module support.
+* Purpose: Provides get clip value helper behavior for the sprite renderer.
 */
 function inline _RT_GetClipValue(clipref, x, fallback)
   if typeof(x) != "int" or x < 0 then return fallback end if
@@ -260,7 +264,7 @@ end function
 
 /*
 * Function: _RT_EnumIndex
-* Purpose: Implements the _RT_EnumIndex routine for the internal module support.
+* Purpose: Provides enum index helper behavior for the sprite renderer.
 */
 function inline _RT_EnumIndex(v, limit)
   if typeof(v) == "int" then return v end if
@@ -279,7 +283,7 @@ end function
 
 /*
 * Function: _RT_SpriteIndex
-* Purpose: Implements the _RT_SpriteIndex routine for the internal module support.
+* Purpose: Provides sprite index helper behavior for the sprite renderer.
 */
 function inline _RT_SpriteIndex(v)
   max = 0
@@ -293,7 +297,7 @@ end function
 
 /*
 * Function: _RT_UpperAscii
-* Purpose: Implements the _RT_UpperAscii routine for the internal module support.
+* Purpose: Provides upper ascii helper behavior for the sprite renderer.
 */
 function inline _RT_UpperAscii(c)
   if c >= 97 and c <= 122 then return c - 32 end if
@@ -302,7 +306,7 @@ end function
 
 /*
 * Function: _RT_Name4
-* Purpose: Implements the _RT_Name4 routine for the internal module support.
+* Purpose: Provides name4 helper behavior for the sprite renderer.
 */
 function inline _RT_Name4(s)
   if typeof(s) != "string" then return "" end if
@@ -319,7 +323,7 @@ end function
 
 /*
 * Function: _RT_LumpNameAt
-* Purpose: Implements the _RT_LumpNameAt routine for the internal module support.
+* Purpose: Provides lump name at helper behavior for the sprite renderer.
 */
 function inline _RT_LumpNameAt(lumpnum)
   if not _RT_IsSeq(lumpinfo) then return "" end if
@@ -331,7 +335,7 @@ end function
 
 /*
 * Function: R_InstallSpriteLump
-* Purpose: Implements the R_InstallSpriteLump routine for the renderer.
+* Purpose: Adds sprite lump entries to the sprite renderer.
 */
 function R_InstallSpriteLump(lump, frame, rotation, flipped)
 
@@ -343,7 +347,7 @@ end function
 
 /*
 * Function: _RT_InstallSpriteLump
-* Purpose: Implements the _RT_InstallSpriteLump routine for the internal module support.
+* Purpose: Provides install sprite lump helper behavior for the sprite renderer.
 */
 function _RT_InstallSpriteLump(frames, frame, rotation, lump, flipped, sprname, maxframe)
   if frame < 0 or frame >= 29 or rotation < 0 or rotation > 8 then
@@ -396,7 +400,7 @@ end function
 
 /*
 * Function: _RT_BuildSpriteDef
-* Purpose: Implements the _RT_BuildSpriteDef routine for the internal module support.
+* Purpose: Provides build sprite def helper behavior for the sprite renderer.
 */
 function _RT_BuildSpriteDef(sprname)
   frames = array(29)
@@ -460,7 +464,7 @@ end function
 
 /*
 * Function: R_ClearSprites
-* Purpose: Implements the R_ClearSprites routine for the renderer.
+* Purpose: Updates sprites state for the sprite renderer.
 */
 function R_ClearSprites()
   global vissprites
@@ -516,20 +520,23 @@ function R_ClearSprites()
   _rt_rejOffLeft = 0
   _rt_rejNoVis = 0
 
-  if len(negonearray) == 0 then
-    negonearray = array(SCREENWIDTH, -1)
-    screenheightarray = array(SCREENWIDTH, viewheight)
+  targetW = viewwidth
+  if typeof(targetW) != "int" or targetW <= 0 then targetW = SCREENWIDTH end if
+
+  if len(negonearray) != targetW then
+    negonearray = array(targetW, -1)
+    screenheightarray = array(targetW, viewheight)
   else
     x = 0
-    while x < SCREENWIDTH and x < len(screenheightarray)
+    while x < targetW and x < len(screenheightarray)
       screenheightarray[x] = viewheight
       x = x + 1
     end while
   end if
 
-  if len(_rt_clipbot_work) == 0 then
-    _rt_clipbot_work = array(SCREENWIDTH, -2)
-    _rt_cliptop_work = array(SCREENWIDTH, -2)
+  if len(_rt_clipbot_work) != targetW then
+    _rt_clipbot_work = array(targetW, -2)
+    _rt_cliptop_work = array(targetW, -2)
   end if
 
   if vsprsortedhead is void then
@@ -541,7 +548,7 @@ end function
 
 /*
 * Function: R_NewVisSprite
-* Purpose: Implements the R_NewVisSprite routine for the renderer.
+* Purpose: Builds visible sprite data for the sprite renderer.
 */
 function R_NewVisSprite()
   global vissprite_p
@@ -585,7 +592,7 @@ end function
 
 /*
 * Function: _RT_ColormapAt
-* Purpose: Implements the _RT_ColormapAt routine for the internal module support.
+* Purpose: Provides colormap at helper behavior for the sprite renderer.
 */
 function inline _RT_ColormapAt(idx)
   global _rt_colormap_cache
@@ -602,7 +609,7 @@ end function
 
 /*
 * Function: _RT_ShadowColormap
-* Purpose: Implements the _RT_ShadowColormap routine for the internal module support.
+* Purpose: Provides shadow colormap helper behavior for the sprite renderer.
 */
 function inline _RT_ShadowColormap()
   global _rt_shadowMap
@@ -616,7 +623,7 @@ end function
 
 /*
 * Function: _RT_SelectSpriteLights
-* Purpose: Implements the _RT_SelectSpriteLights routine for the internal module support.
+* Purpose: Provides select sprite lights helper behavior for the sprite renderer.
 */
 function inline _RT_SelectSpriteLights(lightnum)
   global spritelights
@@ -635,7 +642,7 @@ end function
 
 /*
 * Function: _RT_DrawMaskedPatchColumn
-* Purpose: Draws or renders output for the internal module support.
+* Purpose: Draws masked patch column output for the sprite renderer.
 */
 function _RT_DrawMaskedPatchColumn(patch, coloff)
   global colfunc
@@ -707,7 +714,7 @@ end function
 
 /*
 * Function: R_DrawMaskedColumn
-* Purpose: Draws or renders output for the renderer.
+* Purpose: Draws masked column output for the sprite renderer.
 */
 function R_DrawMaskedColumn(column)
 
@@ -715,8 +722,115 @@ function R_DrawMaskedColumn(column)
 end function
 
 /*
+* Function: _RT_TargetBuffer
+* Purpose: Returns the active sprite render target.
+*/
+function inline _RT_TargetBuffer()
+  if typeof(RH_IsActive) == "function" and RH_IsActive() then return RH_Buffer() end if
+  if typeof(screens) == "array" and len(screens) > 0 then return screens[0] end if
+  return void
+end function
+
+/*
+* Function: _RT_SourceScaleFromEntry
+* Purpose: Resolves the high-resolution source scale for an upscaled sprite entry.
+*/
+function inline _RT_SourceScaleFromEntry(entry, origW)
+  if entry is void or typeof(entry.width) != "int" or typeof(origW) != "int" or origW <= 0 then return 1 end if
+  s = _RT_IDiv(entry.width, origW)
+  if s < 1 then s = 1 end if
+  if s > 4 then s = 4 end if
+  return s
+end function
+
+/*
+* Function: _RT_DrawUpscaledLinearSprite
+* Purpose: Draws an upscaled transparent sprite image directly into the active framebuffer.
+*/
+function _RT_DrawUpscaledLinearSprite(vis, entry, origW, x1, x2)
+  global dc_translation
+
+  if vis is void or entry is void then return false end if
+  if typeof(entry.data) != "bytes" or typeof(entry.width) != "int" or typeof(entry.height) != "int" then return false end if
+  if entry.width <= 0 or entry.height <= 0 or len(entry.data) < entry.width * entry.height then return false end if
+  if typeof(vis.colormap) != "bytes" then return false end if
+
+  dest = _RT_TargetBuffer()
+  if typeof(dest) != "bytes" then return false end if
+  if not _RT_IsSeq(columnofs) or not _RT_IsSeq(ylookup) then return false end if
+
+  srcScale = _RT_SourceScaleFromEntry(entry, origW)
+  if srcScale <= 0 then srcScale = 1 end if
+
+  tr = void
+  if (vis.mobjflags & mobjflag_t.MF_TRANSLATION) != 0 and typeof(translationtables) == "bytes" and len(translationtables) >=(256 * 3) then
+    toff =(vis.mobjflags & mobjflag_t.MF_TRANSLATION) >>(mobjflag_t.MF_TRANSSHIFT - 8)
+    base = toff - 256
+    if base < 0 then base = 0 end if
+    if (base + 256) <= len(translationtables) then tr = slice(translationtables, base, 256) end if
+  end if
+
+  frac = vis.startfrac
+  spryscale = vis.scale
+  if spryscale <= 0 then return false end if
+  sprtopscreen = centeryfrac - FixedMul(vis.texturemid, spryscale)
+  origH = _RT_IDiv(entry.height, srcScale)
+  if origH <= 0 then origH = entry.height end if
+  spriteTopY = sprtopscreen >> FRACBITS
+  spriteBottomY = (sprtopscreen + spryscale * origH + FRACUNIT - 1) >> FRACBITS
+
+  x = x1
+  while x <= x2
+    sampleFrac = frac * srcScale
+    sx = sampleFrac >> FRACBITS
+    hrep = 1 << detailshift
+    if hrep < 1 then hrep = 1 end if
+    destColumn = x << detailshift
+    if sx >= 0 and sx < entry.width and destColumn >= 0 and destColumn < len(columnofs) then
+      bclip = _RT_GetClipValue(mfloorclip, x, viewheight)
+      tclip = _RT_GetClipValue(mceilingclip, x, -1)
+      yl = tclip + 1
+      yh = bclip - 1
+      if yl < spriteTopY then yl = spriteTopY end if
+      if yh > spriteBottomY then yh = spriteBottomY end if
+      if yl < 0 then yl = 0 end if
+      if yh >= viewheight then yh = viewheight - 1 end if
+      if yh >= yl then
+        sourceFixed = FixedDiv(((yl << FRACBITS) +(FRACUNIT >> 1)) - sprtopscreen, spryscale)
+        sourceStep = FixedDiv(FRACUNIT, spryscale)
+        y = yl
+        while y <= yh
+          sy = (sourceFixed * srcScale) >> FRACBITS
+          if sy >= 0 and sy < entry.height then
+            c = entry.data[sy * entry.width + sx]
+            if c != RT_TRANSPARENT_INDEX then
+              if typeof(tr) == "bytes" and c < len(tr) then c = tr[c] end if
+              if c >= 0 and c < len(vis.colormap) then
+                outc = vis.colormap[c]
+                rx = 0
+                while rx < hrep and(destColumn + rx) < len(columnofs)
+                  di = ylookup[y] + columnofs[destColumn + rx]
+                  if di >= 0 and di < len(dest) then dest[di] = outc end if
+                  rx = rx + 1
+                end while
+              end if
+            end if
+          end if
+          sourceFixed = sourceFixed + sourceStep
+          y = y + 1
+        end while
+      end if
+    end if
+    frac = frac + vis.xiscale
+    x = x + 1
+  end while
+
+  return true
+end function
+
+/*
 * Function: R_DrawVisSprite
-* Purpose: Draws or renders output for the renderer.
+* Purpose: Draws visible sprite output for the sprite renderer.
 */
 function R_DrawVisSprite(vis, x1, x2)
   global _rt_drawTranslation
@@ -741,6 +855,11 @@ function R_DrawVisSprite(vis, x1, x2)
 
   pw = Patch_Width(patch)
   if typeof(pw) != "int" or pw <= 0 then return end if
+
+  upEntry = void
+  if typeof(RU_GetSprite) == "function" then
+    upEntry = RU_GetSprite(_RT_LumpNameAt(vis.patch + firstspritelump))
+  end if
 
   oldColFunc = colfunc
   oldTranslation = dc_translation
@@ -778,6 +897,15 @@ function R_DrawVisSprite(vis, x1, x2)
     return
   end if
 
+  if colfunc != fuzzcolfunc and upEntry is not void then
+    if _RT_DrawUpscaledLinearSprite(vis, upEntry, pw, x1, x2) then
+      colfunc = oldColFunc
+      dc_translation = oldTranslation
+      _rt_drawTranslation = void
+      return
+    end if
+  end if
+
   dc_iscale = _RT_Abs(vis.xiscale) >> detailshift
   if dc_iscale <= 0 then dc_iscale = FRACUNIT end if
   dc_texturemid = vis.texturemid
@@ -804,7 +932,7 @@ end function
 
 /*
 * Function: R_ProjectSprite
-* Purpose: Implements the R_ProjectSprite routine for the renderer.
+* Purpose: Computes sprite values for the sprite renderer.
 */
 function R_ProjectSprite(thing)
   global viewx
@@ -966,7 +1094,7 @@ end function
 
 /*
 * Function: R_AddSprites
-* Purpose: Implements the R_AddSprites routine for the renderer.
+* Purpose: Adds sprites entries to the sprite renderer.
 */
 function R_AddSprites(sec)
   global viewplayer
@@ -997,7 +1125,7 @@ end function
 
 /*
 * Function: R_AddPSprites
-* Purpose: Implements the R_AddPSprites routine for the renderer.
+* Purpose: Adds p sprites entries to the sprite renderer.
 */
 function R_AddPSprites()
   if not _RT_IsSeq(players) then return end if
@@ -1009,7 +1137,7 @@ end function
 
 /*
 * Function: R_SortVisSprites
-* Purpose: Implements the R_SortVisSprites routine for the renderer.
+* Purpose: Provides visible sprites helper behavior for the sprite renderer.
 */
 function R_SortVisSprites()
   global _rt_sorted
@@ -1042,7 +1170,7 @@ end function
 
 /*
 * Function: R_DrawSprite
-* Purpose: Draws or renders output for the renderer.
+* Purpose: Draws sprite output for the sprite renderer.
 */
 function R_DrawSprite(spr)
   if spr is void then return end if
@@ -1051,7 +1179,7 @@ function R_DrawSprite(spr)
   clipbot = _rt_clipbot_work
   cliptop = _rt_cliptop_work
   x = spr.x1
-  while x <= spr.x2 and x < SCREENWIDTH
+  while x <= spr.x2 and x < viewwidth
     if x >= 0 then
       clipbot[x] = -2
       cliptop[x] = -2
@@ -1146,7 +1274,7 @@ function R_DrawSprite(spr)
   end while
 
   x = spr.x1
-  while x <= spr.x2 and x < SCREENWIDTH
+  while x <= spr.x2 and x < viewwidth
     if x >= 0 then
       if clipbot[x] == -2 then clipbot[x] = viewheight end if
       if cliptop[x] == -2 then cliptop[x] = -1 end if
@@ -1164,7 +1292,7 @@ end function
 
 /*
 * Function: R_DrawSprites
-* Purpose: Draws or renders output for the renderer.
+* Purpose: Draws sprites output for the sprite renderer.
 */
 function R_DrawSprites()
   global _rt_debug_disable_sprites
@@ -1188,11 +1316,14 @@ function R_InitSprites(namelist)
   global numsprites
   global sprites
 
-  if len(negonearray) == 0 then
+  targetW = viewwidth
+  if typeof(targetW) != "int" or targetW <= 0 then targetW = SCREENWIDTH end if
+
+  if len(negonearray) != targetW then
     global negonearray
-    negonearray = array(SCREENWIDTH, -1)
+    negonearray = array(targetW, -1)
     global screenheightarray
-    screenheightarray = array(SCREENWIDTH, viewheight)
+    screenheightarray = array(targetW, viewheight)
   end if
 
   if not _RT_IsSeq(namelist) then
@@ -1233,7 +1364,7 @@ end function
 
 /*
 * Function: R_DrawPSprite
-* Purpose: Draws or renders output for the renderer.
+* Purpose: Draws p sprite output for the sprite renderer.
 */
 function R_DrawPSprite(player, psp)
   if player is void or psp is void or psp.state is void then return end if
@@ -1313,7 +1444,7 @@ end function
 
 /*
 * Function: R_DrawPlayerSprites
-* Purpose: Draws or renders output for the renderer.
+* Purpose: Draws player sprites output for the sprite renderer.
 */
 function R_DrawPlayerSprites(player)
   global mfloorclip
@@ -1344,7 +1475,7 @@ end function
 
 /*
 * Function: R_ClipVisSprite
-* Purpose: Implements the R_ClipVisSprite routine for the renderer.
+* Purpose: Computes visible sprite values for the sprite renderer.
 */
 function R_ClipVisSprite(vis, xl, xh)
   vis = vis
@@ -1355,7 +1486,7 @@ end function
 
 /*
 * Function: R_DrawMasked
-* Purpose: Draws or renders output for the renderer.
+* Purpose: Draws masked output for the sprite renderer.
 */
 function R_DrawMasked()
   R_DrawSprites()

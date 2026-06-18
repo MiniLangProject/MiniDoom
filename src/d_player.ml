@@ -43,7 +43,7 @@ end enum
 
 /*
 * Struct: player_t
-* Purpose: Stores runtime data for player type.
+* Purpose: Stores player data used by the Doom core system.
 */
 struct player_t
   mo
@@ -99,7 +99,7 @@ end struct
 
 /*
 * Struct: wbplayerstruct_t
-* Purpose: Stores runtime data for wbplayerstruct type.
+* Purpose: Stores wbplayerstruct data used by the Doom core system.
 */
 struct wbplayerstruct_t
   inum
@@ -113,7 +113,7 @@ end struct
 
 /*
 * Struct: wbstartstruct_t
-* Purpose: Stores runtime data for wbstartstruct type.
+* Purpose: Stores wbstartstruct data used by the Doom core system.
 */
 struct wbstartstruct_t
   epsd
@@ -131,7 +131,7 @@ end struct
 
 /*
 * Function: _DP_IntArray
-* Purpose: Implements the _DP_IntArray routine for the internal module support.
+* Purpose: Provides int array helper behavior for the Doom core.
 */
 function _DP_IntArray(n, v)
   if typeof(n) != "int" or n < 0 then
@@ -148,7 +148,7 @@ end function
 
 /*
 * Function: _DP_BoolArray
-* Purpose: Implements the _DP_BoolArray routine for the internal module support.
+* Purpose: Provides boolean array helper behavior for the Doom core.
 */
 function _DP_BoolArray(n, v)
   if typeof(n) != "int" or n < 0 then
@@ -165,7 +165,7 @@ end function
 
 /*
 * Function: Player_MakeDefault
-* Purpose: Implements the Player_MakeDefault routine for the engine module behavior.
+* Purpose: Provides make default helper behavior for the Doom core.
 */
 function Player_MakeDefault()
 

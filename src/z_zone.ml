@@ -31,7 +31,7 @@ const PU_CACHE = 101
 
 /*
 * Struct: memblock_t
-* Purpose: Stores runtime data for memblock type.
+* Purpose: Stores memblock data used by the zone memory system.
 */
 struct memblock_t
   start
@@ -58,7 +58,7 @@ _Z_rover = 0
 
 /*
 * Function: _Z_Get
-* Purpose: Reads or updates state used by the internal module support.
+* Purpose: Reads get data for the zone memory.
 */
 function inline _Z_Get(i)
   if typeof(_Z_blocks) != "array" then
@@ -71,7 +71,7 @@ end function
 
 /*
 * Function: _Z_Set
-* Purpose: Reads or updates state used by the internal module support.
+* Purpose: Updates a zone allocation block in the zone memory table.
 */
 function inline _Z_Set(i, b)
   if typeof(_Z_blocks) != "array" then return end if
@@ -82,7 +82,7 @@ end function
 
 /*
 * Function: _Z_IsFree
-* Purpose: Implements the _Z_IsFree routine for the internal module support.
+* Purpose: Checks free conditions for the zone memory.
 */
 function inline _Z_IsFree(i)
   b = _Z_Get(i)
@@ -91,7 +91,7 @@ end function
 
 /*
 * Function: _Z_NewBlock
-* Purpose: Implements the _Z_NewBlock routine for the internal module support.
+* Purpose: Builds block data for the zone memory.
 */
 function inline _Z_NewBlock(start, size, user, tag, id, next, prev)
   return memblock_t(start, size, user, tag, id, next, prev)
@@ -99,7 +99,7 @@ end function
 
 /*
 * Function: _Z_Align4
-* Purpose: Implements the _Z_Align4 routine for the internal module support.
+* Purpose: Provides align4 helper behavior for the zone memory.
 */
 function inline _Z_Align4(n)
   return (n + 3) &(~3)
@@ -107,7 +107,7 @@ end function
 
 /*
 * Function: _Z_LinkAfter
-* Purpose: Implements the _Z_LinkAfter routine for the internal module support.
+* Purpose: Provides after helper behavior for the zone memory.
 */
 function inline _Z_LinkAfter(aIdx, bIdx)
 
@@ -130,7 +130,7 @@ end function
 
 /*
 * Function: _Z_Unlink
-* Purpose: Implements the _Z_Unlink routine for the internal module support.
+* Purpose: Provides unlink helper behavior for the zone memory.
 */
 function inline _Z_Unlink(i)
   b = _Z_Get(i)
@@ -153,7 +153,7 @@ end function
 
 /*
 * Function: _Z_FindBlockByPtr
-* Purpose: Implements the _Z_FindBlockByPtr routine for the internal module support.
+* Purpose: Computes block by pointer values for the zone memory.
 */
 function inline _Z_FindBlockByPtr(ptr)
 
@@ -170,7 +170,7 @@ end function
 
 /*
 * Function: _Z_AssignUser
-* Purpose: Implements the _Z_AssignUser routine for the internal module support.
+* Purpose: Provides user helper behavior for the zone memory.
 */
 function inline _Z_AssignUser(user, ptr)
 
@@ -181,7 +181,7 @@ end function
 
 /*
 * Function: Z_ClearZone
-* Purpose: Implements the Z_ClearZone routine for the zone memory system.
+* Purpose: Updates zone state for the zone memory.
 */
 function Z_ClearZone(zone)
   global _Z_blocks
@@ -226,7 +226,7 @@ end function
 
 /*
 * Function: Z_Free
-* Purpose: Implements the Z_Free routine for the zone memory system.
+* Purpose: Provides free helper behavior for the zone memory.
 */
 function Z_Free(ptr)
   global _Z_rover
@@ -282,7 +282,7 @@ end function
 
 /*
 * Function: Z_Malloc
-* Purpose: Implements the Z_Malloc routine for the zone memory system.
+* Purpose: Provides malloc helper behavior for the zone memory.
 */
 function Z_Malloc(size, tag, user)
   global _Z_blocks
@@ -368,8 +368,8 @@ function Z_Malloc(size, tag, user)
   end function
 
   /*
-  * Function: Z_FreeTags
-  * Purpose: Implements the Z_FreeTags routine for the zone memory system.
+* Function: Z_FreeTags
+* Purpose: Provides tags helper behavior for the zone memory.
   */
   function Z_FreeTags(lowtag, hightag)
     head = _Z_Get(_Z_blocklist)
@@ -396,8 +396,8 @@ function Z_Malloc(size, tag, user)
   end function
 
   /*
-  * Function: Z_DumpHeap
-  * Purpose: Implements the Z_DumpHeap routine for the zone memory system.
+* Function: Z_DumpHeap
+* Purpose: Provides heap helper behavior for the zone memory.
   */
   function Z_DumpHeap(lowtag, hightag)
     print "zone size: " + _Z_size
@@ -414,8 +414,8 @@ function Z_Malloc(size, tag, user)
   end function
 
   /*
-  * Function: Z_FileDumpHeap
-  * Purpose: Implements the Z_FileDumpHeap routine for the zone memory system.
+* Function: Z_FileDumpHeap
+* Purpose: Provides dump heap helper behavior for the zone memory.
   */
   function Z_FileDumpHeap(f)
 
@@ -423,8 +423,8 @@ function Z_Malloc(size, tag, user)
   end function
 
   /*
-  * Function: Z_CheckHeap
-  * Purpose: Evaluates conditions and returns a decision for the zone memory system.
+* Function: Z_CheckHeap
+* Purpose: Finds check Heap information for zone memory processing.
   */
   function Z_CheckHeap()
 
@@ -463,8 +463,8 @@ function Z_Malloc(size, tag, user)
   end function
 
   /*
-  * Function: Z_ChangeTag2
-  * Purpose: Reads or updates state used by the zone memory system.
+* Function: Z_ChangeTag2
+* Purpose: Runs tag2 behavior for the zone memory.
   */
   function Z_ChangeTag2(ptr, tag)
     idx = _Z_FindBlockByPtr(ptr)
@@ -490,16 +490,16 @@ function Z_Malloc(size, tag, user)
   end function
 
   /*
-  * Function: Z_ChangeTag
-  * Purpose: Reads or updates state used by the zone memory system.
+* Function: Z_ChangeTag
+* Purpose: Runs tag behavior for the zone memory.
   */
   function Z_ChangeTag(ptr, tag)
     Z_ChangeTag2(ptr, tag)
   end function
 
   /*
-  * Function: Z_FreeMemory
-  * Purpose: Implements the Z_FreeMemory routine for the zone memory system.
+* Function: Z_FreeMemory
+* Purpose: Provides memory helper behavior for the zone memory.
   */
   function Z_FreeMemory()
     free = 0
@@ -515,32 +515,32 @@ function Z_Malloc(size, tag, user)
   end function
 
   /*
-  * Function: Z_GetZoneBuffer
-  * Purpose: Reads or updates state used by the zone memory system.
+* Function: Z_GetZoneBuffer
+* Purpose: Reads zone buffer data for the zone memory.
   */
   function Z_GetZoneBuffer()
     return _Z_buf
   end function
 
   /*
-  * Function: Z_PeekByte
-  * Purpose: Implements the Z_PeekByte routine for the zone memory system.
+* Function: Z_PeekByte
+* Purpose: Provides byte helper behavior for the zone memory.
   */
   function Z_PeekByte(ptr)
     return _Z_buf[ptr]
   end function
 
   /*
-  * Function: Z_PokeByte
-  * Purpose: Implements the Z_PokeByte routine for the zone memory system.
+* Function: Z_PokeByte
+* Purpose: Provides byte helper behavior for the zone memory.
   */
   function Z_PokeByte(ptr, v)
     _Z_buf[ptr] = v & 255
   end function
 
   /*
-  * Function: Z_PokeBytes
-  * Purpose: Implements the Z_PokeBytes routine for the zone memory system.
+* Function: Z_PokeBytes
+* Purpose: Provides bytes helper behavior for the zone memory.
   */
   function Z_PokeBytes(dstPtr, srcBytes, srcOff, length)
     if typeof(dstPtr) != "int" then
@@ -561,8 +561,8 @@ function Z_Malloc(size, tag, user)
   end function
 
   /*
-  * Function: Z_BytesAt
-  * Purpose: Implements the Z_BytesAt routine for the zone memory system.
+* Function: Z_BytesAt
+* Purpose: Provides at helper behavior for the zone memory.
   */
   function Z_BytesAt(ptr, length)
     return slice(_Z_buf, ptr, length)

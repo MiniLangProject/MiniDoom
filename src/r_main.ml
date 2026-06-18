@@ -25,6 +25,8 @@ import m_argv
 import m_bbox
 import r_local
 import r_sky
+import r_hires
+import r_gl
 import std.math
 import std.time
 
@@ -101,7 +103,7 @@ _r_interp_cur_angle = 0
 
 /*
 * Function: _R_TimeMs
-* Purpose: Implements the _R_TimeMs routine for the internal module support.
+* Purpose: Provides milliseconds helper behavior for the renderer.
 */
 function inline _R_TimeMs()
   t = std.time.ticks()
@@ -110,7 +112,7 @@ end function
 
 /*
 * Function: _R_ProfileFlushMaybe
-* Purpose: Implements the _R_ProfileFlushMaybe routine for the internal module support.
+* Purpose: Provides flush maybe helper behavior for the renderer.
 */
 function _R_ProfileFlushMaybe()
   global _r_prof_t0
@@ -225,7 +227,7 @@ end function
 
 /*
 * Function: _R_Abs
-* Purpose: Implements the _R_Abs routine for the internal module support.
+* Purpose: Provides absolute-value helper behavior for the renderer.
 */
 function inline _R_Abs(x)
   xi = _R_ToIntOr(x, 0)
@@ -235,7 +237,7 @@ end function
 
 /*
 * Function: _R_IDiv
-* Purpose: Implements the _R_IDiv routine for the internal module support.
+* Purpose: Performs integer division with main renderer rounding and guard rules.
 */
 function inline _R_IDiv(a, b)
   a = _R_ToIntOr(a, 0)
@@ -248,7 +250,7 @@ end function
 
 /*
 * Function: _R_ToIntOr
-* Purpose: Implements the _R_ToIntOr routine for the internal module support.
+* Purpose: Converts int or values for the renderer.
 */
 function inline _R_ToIntOr(v, fallback)
   if typeof(v) == "int" then return v end if
@@ -267,7 +269,7 @@ end function
 
 /*
 * Function: _R_IsSeq
-* Purpose: Implements the _R_IsSeq routine for the internal module support.
+* Purpose: Checks sequence conditions for the renderer.
 */
 function inline _R_IsSeq(v)
   t = typeof(v)
@@ -276,7 +278,7 @@ end function
 
 /*
 * Function: _R_AngNorm
-* Purpose: Implements the _R_AngNorm routine for the internal module support.
+* Purpose: Provides norm helper behavior for the renderer.
 */
 function inline _R_AngNorm(a)
   ai = _R_ToIntOr(a, 0)
@@ -285,7 +287,7 @@ end function
 
 /*
 * Function: _R_AngSub
-* Purpose: Implements the _R_AngSub routine for the internal module support.
+* Purpose: Provides sub helper behavior for the renderer.
 */
 function inline _R_AngSub(a, b)
   return _R_AngNorm(_R_AngNorm(a) - _R_AngNorm(b))
@@ -293,7 +295,7 @@ end function
 
 /*
 * Function: _R_FineSineAt
-* Purpose: Implements the _R_FineSineAt routine for the internal module support.
+* Purpose: Provides sine at helper behavior for the renderer.
 */
 function inline _R_FineSineAt(angle)
   if not _R_IsSeq(finesine) or len(finesine) == 0 then return 0 end if
@@ -308,7 +310,7 @@ end function
 
 /*
 * Function: _R_TanToAngle
-* Purpose: Implements the _R_TanToAngle routine for the internal module support.
+* Purpose: Converts tan to angle values for the renderer core.
 */
 function inline _R_TanToAngle(num, den)
   if not _R_IsSeq(tantoangle) or len(tantoangle) == 0 then return 0 end if
@@ -325,7 +327,7 @@ end function
 
 /*
 * Function: _R_ColorMapAt
-* Purpose: Implements the _R_ColorMapAt routine for the internal module support.
+* Purpose: Provides map at helper behavior for the renderer.
 */
 function inline _R_ColorMapAt(level)
   if typeof(colormaps) != "bytes" or len(colormaps) < 256 then
@@ -341,7 +343,7 @@ end function
 
 /*
 * Function: _R_HasSignBit
-* Purpose: Implements the _R_HasSignBit routine for the internal module support.
+* Purpose: Checks sign bit conditions for the renderer.
 */
 function inline _R_HasSignBit(v)
   return (_R_AngNorm(v) & 0x80000000) != 0
@@ -349,7 +351,7 @@ end function
 
 /*
 * Function: _R_S32
-* Purpose: Implements the _R_S32 routine for the internal module support.
+* Purpose: Provides s32 helper behavior for the renderer.
 */
 function _R_S32(v)
   vi = 0
@@ -382,7 +384,7 @@ end function
 
 /*
 * Function: _R_ToFrac
-* Purpose: Implements the _R_ToFrac routine for the internal module support.
+* Purpose: Converts frac values for the renderer.
 */
 function inline _R_ToFrac(v)
   if typeof(v) == "float" then
@@ -409,7 +411,7 @@ end function
 
 /*
 * Function: _R_LerpS32
-* Purpose: Implements the _R_LerpS32 routine for the internal module support.
+* Purpose: Provides s32 helper behavior for the renderer.
 */
 function inline _R_LerpS32(a, b, frac)
   if frac <= 0 then return _R_S32(a) end if
@@ -421,7 +423,7 @@ end function
 
 /*
 * Function: _R_LerpAngle
-* Purpose: Implements the _R_LerpAngle routine for the internal module support.
+* Purpose: Provides angle helper behavior for the renderer.
 */
 function inline _R_LerpAngle(a, b, frac)
   if frac <= 0 then return _R_AngNorm(_R_ToIntOr(a, 0)) end if
@@ -435,7 +437,7 @@ end function
 
 /*
 * Function: R_PointOnSide
-* Purpose: Implements the R_PointOnSide routine for the renderer.
+* Purpose: Provides on side helper behavior for the renderer.
 */
 function inline R_PointOnSide(x, y, node)
 
@@ -478,7 +480,7 @@ end function
 
 /*
 * Function: R_PointOnSegSide
-* Purpose: Implements the R_PointOnSegSide routine for the renderer.
+* Purpose: Provides on seg side helper behavior for the renderer.
 */
 function inline R_PointOnSegSide(x, y, seg)
   if seg is void then return 0 end if
@@ -525,7 +527,7 @@ end function
 
 /*
 * Function: R_PointToAngle
-* Purpose: Implements the R_PointToAngle routine for the renderer.
+* Purpose: Converts point to angle values for the renderer core.
 */
 function R_PointToAngle(x, y)
   global viewx
@@ -576,7 +578,7 @@ end function
 
 /*
 * Function: R_PointToAngle2
-* Purpose: Implements the R_PointToAngle2 routine for the renderer.
+* Purpose: Converts point to angle2 values for the renderer core.
 */
 function inline R_PointToAngle2(x1, y1, x2, y2)
   global viewx
@@ -594,7 +596,7 @@ end function
 
 /*
 * Function: R_PointToDist
-* Purpose: Implements the R_PointToDist routine for the renderer.
+* Purpose: Converts point to distance values for the renderer core.
 */
 function inline R_PointToDist(x, y)
   global viewx
@@ -631,7 +633,7 @@ end function
 
 /*
 * Function: R_ScaleFromGlobalAngle
-* Purpose: Implements the R_ScaleFromGlobalAngle routine for the renderer.
+* Purpose: Provides from global angle helper behavior for the renderer.
 */
 function R_ScaleFromGlobalAngle(visangle)
   global rw_distance
@@ -681,7 +683,7 @@ end function
 
 /*
 * Function: R_PointInSubsector
-* Purpose: Implements the R_PointInSubsector routine for the renderer.
+* Purpose: Provides in subsector helper behavior for the renderer.
 */
 function R_PointInSubsector(x, y)
   if numnodes <= 0 then
@@ -705,7 +707,7 @@ end function
 
 /*
 * Function: R_AddPointToBox
-* Purpose: Implements the R_AddPointToBox routine for the renderer.
+* Purpose: Adds point to box entries to the renderer.
 */
 function R_AddPointToBox(x, y, box)
 
@@ -730,6 +732,7 @@ end function
 */
 function R_Init()
   global _r_prof_enabled
+  global detailLevel
 
   R_InitData()
   R_InitPlanes()
@@ -767,7 +770,7 @@ end function
 
 /*
 * Function: R_SetViewSize
-* Purpose: Reads or updates state used by the renderer.
+* Purpose: Updates view size state for the renderer.
 */
 function R_SetViewSize(blocks, detail)
   global detailshift
@@ -811,13 +814,26 @@ function R_SetViewSize(blocks, detail)
     viewheight =(_R_IDiv(blocks * 168, 10)) &(~7)
   end if
 
+  if typeof(RH_IsActive) == "function" and RH_IsActive() then
+    scale = 1
+    if typeof(rh_scale) == "int" then scale = rh_scale end if
+    scaledviewwidth = scaledviewwidth * scale
+    viewheight = viewheight * scale
+  end if
+
   detailshift = detail
   viewwidth = scaledviewwidth >> detailshift
 
   if viewwidth <= 0 then viewwidth = 1 end if
-  if scaledviewwidth > SCREENWIDTH then scaledviewwidth = SCREENWIDTH end if
-  if viewwidth > SCREENWIDTH then viewwidth = SCREENWIDTH end if
-  if viewheight > SCREENHEIGHT then viewheight = SCREENHEIGHT end if
+  maxW = SCREENWIDTH
+  maxH = SCREENHEIGHT
+  if typeof(RH_IsActive) == "function" and RH_IsActive() then
+    maxW = RH_Width()
+    maxH = RH_Height()
+  end if
+  if scaledviewwidth > maxW then scaledviewwidth = maxW end if
+  if viewwidth > maxW then viewwidth = maxW end if
+  if viewheight > maxH then viewheight = maxH end if
 
   centerx = _R_IDiv(viewwidth, 2)
   centery = _R_IDiv(viewheight, 2)
@@ -832,7 +848,7 @@ function R_SetViewSize(blocks, detail)
     fuzzcolfunc = R_DrawFuzzColumn
     transcolfunc = R_DrawTranslatedColumn
     spanfunc = R_DrawSpan
-  else
+  else if detailshift == 1 then
     colfunc = R_DrawColumnLow
     basecolfunc = R_DrawColumnLow
     fuzzcolfunc = R_DrawFuzzColumn
@@ -846,9 +862,10 @@ function R_SetViewSize(blocks, detail)
   _R_InitTextureMapping()
   if typeof(R_InitSkyMap) == "function" then R_InitSkyMap() end if
 
-  pspritescale = _R_IDiv(FRACUNIT * viewwidth, SCREENWIDTH)
+  logicalW = SCREENWIDTH
+  pspritescale = _R_IDiv(FRACUNIT * viewwidth, logicalW)
   if viewwidth > 0 then
-    pspriteiscale = _R_IDiv(FRACUNIT * SCREENWIDTH, viewwidth)
+    pspriteiscale = _R_IDiv(FRACUNIT * logicalW, viewwidth)
   else
     pspriteiscale = FRACUNIT
   end if
@@ -867,7 +884,7 @@ end function
 
 /*
 * Function: R_ExecuteSetViewSize
-* Purpose: Reads or updates state used by the renderer.
+* Purpose: Updates view size state for the renderer core.
 */
 function R_ExecuteSetViewSize()
   if not setsizeneeded then return end if
@@ -931,7 +948,7 @@ end function
 
 /*
 * Function: _R_RebuildScaleLight
-* Purpose: Implements the _R_RebuildScaleLight routine for the internal module support.
+* Purpose: Provides scale light helper behavior for the renderer.
 */
 function _R_RebuildScaleLight()
   global scalelight
@@ -967,7 +984,7 @@ end function
 
 /*
 * Function: R_SetupFrame
-* Purpose: Reads or updates state used by the renderer.
+* Purpose: Runs frame lifecycle logic for the renderer.
 */
 function R_SetupFrame(player)
   _R_SetupFrame(player)
@@ -975,7 +992,7 @@ end function
 
 /*
 * Function: R_RenderPlayerView
-* Purpose: Draws or renders output for the renderer.
+* Purpose: Draws render Player View output for the main renderer renderer.
 */
 function R_RenderPlayerView(player)
   global _r_prof_enabled
@@ -997,6 +1014,20 @@ function R_RenderPlayerView(player)
   // In client-authoritative snapshot gaps, keep drawing the last valid pose instead of blanking.
   if renderPlayer is void or renderPlayer.mo is void or renderPlayer.mo.subsector is void then
     return
+  end if
+
+  if typeof(RGL_RenderPlayerView) == "function" then
+    if RGL_RenderPlayerView(renderPlayer) then
+      if _r_prof_enabled then
+        _r_prof_frames = _r_prof_frames + 1
+        _R_ProfileFlushMaybe()
+      end if
+      return
+    end if
+  end if
+
+  if typeof(RH_Clear) == "function" and RH_IsActive() then
+    RH_Clear(0)
   end if
 
   if _r_prof_enabled then
@@ -1075,7 +1106,7 @@ end function
 
 /*
 * Function: _R_SetupFrame
-* Purpose: Reads or updates state used by the internal module support.
+* Purpose: Runs frame lifecycle logic for the renderer.
 */
 function _R_SetupFrame(player)
   global viewplayer

@@ -27,6 +27,7 @@ import r_local
 import p_local
 import doomstat
 import r_sky
+import r_upscaled
 
 firstflat = 0
 lastflat = 0
@@ -53,6 +54,8 @@ texturecolumncache = void
 
 flattranslation = void
 texturetranslation = void
+rd_upscaledtexturecolumncache = void
+rd_column_source_scale = 1
 
 spritewidth = void
 spriteoffset = void
@@ -67,7 +70,7 @@ _r_allSpritesPrecached = false
 
 /*
 * Struct: rd_texpatch_t
-* Purpose: Stores runtime data for rd texpatch type.
+* Purpose: Describes rd texpatch geometry or asset data used by the renderer data system.
 */
 struct rd_texpatch_t
   originx
@@ -77,7 +80,7 @@ end struct
 
 /*
 * Struct: rd_texture_t
-* Purpose: Stores runtime data for rd texture type.
+* Purpose: Describes rd texture geometry or asset data used by the renderer data system.
 */
 struct rd_texture_t
   name
@@ -88,7 +91,7 @@ end struct
 
 /*
 * Function: _allocIntArray
-* Purpose: Implements the _allocIntArray routine for the internal module support.
+* Purpose: Builds int array data for the renderer.
 */
 function inline _allocIntArray(n, fill)
   nn = n
@@ -99,7 +102,7 @@ end function
 
 /*
 * Function: _rd_isSeq
-* Purpose: Implements the _rd_isSeq routine for the internal module support.
+* Purpose: Provides is sequence helper behavior for the renderer.
 */
 function inline _rd_isSeq(v)
   t = typeof(v)
@@ -108,7 +111,7 @@ end function
 
 /*
 * Function: _rd_clamp
-* Purpose: Implements the _rd_clamp routine for the internal module support.
+* Purpose: Clamps rd clamp values to the supported renderer data range.
 */
 function inline _rd_clamp(v, lo, hi)
   if v < lo then return lo end if
@@ -117,8 +120,19 @@ function inline _rd_clamp(v, lo, hi)
 end function
 
 /*
+* Function: _rd_idiv
+* Purpose: Performs integer division with truncation toward zero.
+*/
+function inline _rd_idiv(a, b)
+  if typeof(a) != "int" or typeof(b) != "int" or b == 0 then return 0 end if
+  q = a / b
+  if q >= 0 then return std.math.floor(q) end if
+  return std.math.ceil(q)
+end function
+
+/*
 * Function: _rd_wrapColumn
-* Purpose: Implements the _rd_wrapColumn routine for the internal module support.
+* Purpose: Provides wrap column helper behavior for the renderer.
 */
 function inline _rd_wrapColumn(col, mask, width)
   c = col
@@ -138,7 +152,7 @@ end function
 
 /*
 * Function: _nameTo8
-* Purpose: Implements the _nameTo8 routine for the internal module support.
+* Purpose: Provides to8 helper behavior for the renderer.
 */
 function inline _nameTo8(name)
 
@@ -154,7 +168,7 @@ end function
 
 /*
 * Function: _rd_upperName8
-* Purpose: Implements the _rd_upperName8 routine for the internal module support.
+* Purpose: Provides upper name8 helper behavior for the renderer.
 */
 function _rd_upperName8(v)
   s = v
@@ -180,7 +194,7 @@ end function
 
 /*
 * Function: _rd_i16
-* Purpose: Implements the _rd_i16 routine for the internal module support.
+* Purpose: Provides i16 helper behavior for the renderer.
 */
 function inline _rd_i16(b, off)
   return RDefs_I16LE(b, off)
@@ -188,7 +202,7 @@ end function
 
 /*
 * Function: _rd_i32
-* Purpose: Implements the _rd_i32 routine for the internal module support.
+* Purpose: Provides i32 helper behavior for the renderer.
 */
 function inline _rd_i32(b, off)
   return RDefs_I32LE(b, off)
@@ -196,7 +210,7 @@ end function
 
 /*
 * Function: _rd_markPresent
-* Purpose: Implements the _rd_markPresent routine for the internal module support.
+* Purpose: Draws rd mark Present output for the renderer data renderer.
 */
 function inline _rd_markPresent(arr, idx)
   if not _rd_isSeq(arr) then return end if
@@ -207,7 +221,7 @@ end function
 
 /*
 * Function: _rd_enumIndex
-* Purpose: Implements the _rd_enumIndex routine for the internal module support.
+* Purpose: Provides enum index helper behavior for the renderer.
 */
 function inline _rd_enumIndex(v, limit)
   if typeof(v) == "int" then
@@ -247,7 +261,7 @@ end function
 
 /*
 * Function: _rd_parseTextureLump
-* Purpose: Reads or updates state used by the internal module support.
+* Purpose: Parses rd parse Texture Lump input into renderer data runtime data.
 */
 function _rd_parseTextureLump(lumpname, patchlookup)
   result =[]
@@ -304,7 +318,7 @@ end function
 
 /*
 * Function: _rd_drawPatchColumnToCanvas
-* Purpose: Draws or renders output for the internal module support.
+* Purpose: Draws rd draw Patch Column To Canvas output for the renderer data renderer.
 */
 function _rd_drawPatchColumnToCanvas(patchBytes, colOff, canvas, texW, texH, dstX, originY)
   off = colOff
@@ -330,7 +344,7 @@ end function
 
 /*
 * Function: _rd_generateTextureComposite
-* Purpose: Implements the _rd_generateTextureComposite routine for the internal module support.
+* Purpose: Provides generate texture composite helper behavior for the renderer.
 */
 function _rd_generateTextureComposite(texnum)
   global texturecomposite
@@ -468,7 +482,7 @@ end function
 
 /*
 * Function: R_GenerateComposite
-* Purpose: Implements the R_GenerateComposite routine for the renderer.
+* Purpose: Provides composite helper behavior for the renderer.
 */
 function R_GenerateComposite(texnum)
   global texturecomposite
@@ -528,7 +542,7 @@ end function
 
 /*
 * Function: R_GenerateLookup
-* Purpose: Implements the R_GenerateLookup routine for the renderer.
+* Purpose: Finds generate Lookup information for renderer data processing.
 */
 function R_GenerateLookup(texnum)
   global texturecolumnlump
@@ -639,7 +653,7 @@ end function
 
 /*
 * Function: R_FlatNumForName
-* Purpose: Implements the R_FlatNumForName routine for the renderer.
+* Purpose: Provides number for name helper behavior for the renderer.
 */
 function R_FlatNumForName(name)
 
@@ -655,7 +669,7 @@ end function
 
 /*
 * Function: R_GetFlat
-* Purpose: Reads or updates state used by the renderer.
+* Purpose: Reads flat data for the renderer.
 */
 function R_GetFlat(flatnum)
   if typeof(flatnum) != "int" then return void end if
@@ -729,6 +743,7 @@ function R_InitTextures()
   global texturecomposite
   global texturecolumncache
   global texturetranslation
+  global rd_upscaledtexturecolumncache
 
   global firstpatch
   firstpatch = W_CheckNumForName("P_START")
@@ -777,6 +792,7 @@ function R_InitTextures()
   texturecolumnofs = array(numtextures)
   texturecomposite = array(numtextures)
   texturecolumncache = array(numtextures)
+  rd_upscaledtexturecolumncache = array(numtextures)
   texturetranslation = array(numtextures, 0)
 
   i = 0
@@ -804,6 +820,7 @@ function R_InitTextures()
     texturecomposite[i] = bytes(0, 0)
     cc = array(w)
     texturecolumncache[i] = cc
+    rd_upscaledtexturecolumncache[i] = array(w)
     texturetranslation[i] = i
 
     i = i + 1
@@ -836,10 +853,68 @@ function inline _rd_ensureColumnCache(tex, width)
 end function
 
 /*
+* Function: _rd_getUpscaledTextureColumn
+* Purpose: Returns a column from an upscaled composited wall texture, if available.
+*/
+function _rd_getUpscaledTextureColumn(tex, col)
+  global rd_column_source_scale
+  if not _rd_isSeq(textures) or tex < 0 or tex >= len(textures) then return void end if
+  if not _rd_isSeq(rd_upscaledtexturecolumncache) or tex >= len(rd_upscaledtexturecolumncache) then return void end if
+  t = textures[tex]
+  if t is void or typeof(t.name) != "string" then return void end if
+  if typeof(RU_GetTexture) != "function" then return void end if
+
+  entry = RU_GetTexture(t.name)
+  if entry is void or typeof(entry.data) != "bytes" then return void end if
+  if typeof(entry.width) != "int" or typeof(entry.height) != "int" then return void end if
+  if entry.width <= 0 or entry.height <= 0 then return void end if
+  if typeof(t.width) != "int" or t.width <= 0 or typeof(t.height) != "int" or t.height <= 0 then return void end if
+
+  scale = _rd_idiv(entry.height, t.height)
+  if scale < 1 then scale = 1 end if
+  if scale > 4 then scale = 4 end if
+  if entry.width < t.width * scale then return void end if
+  if entry.height < t.height * scale then return void end if
+
+  c = col
+  if typeof(c) != "int" then c = 0 end if
+  c = c % t.width
+  if c < 0 then c = c + t.width end if
+
+  cols = rd_upscaledtexturecolumncache[tex]
+  if not _rd_isSeq(cols) or len(cols) != t.width then
+    cols = array(t.width)
+    rd_upscaledtexturecolumncache[tex] = cols
+  end if
+  if typeof(cols[c]) == "bytes" then
+    rd_column_source_scale = scale
+    return cols[c]
+  end if
+
+  srcX = c * scale + _rd_idiv(scale, 2)
+  if srcX >= entry.width then srcX = entry.width - 1 end if
+  outH = t.height * scale
+  colBytes = bytes(outH, 0)
+  y = 0
+  while y < outH
+    srcY = y
+    if srcY >= entry.height then srcY = entry.height - 1 end if
+    colBytes[y] = entry.data[srcY * entry.width + srcX]
+    y = y + 1
+  end while
+
+  cols[c] = colBytes
+  rd_column_source_scale = scale
+  return colBytes
+end function
+
+/*
 * Function: R_GetColumn
-* Purpose: Reads or updates state used by the renderer.
+* Purpose: Reads column data for the renderer.
 */
 function R_GetColumn(tex, col)
+  global rd_column_source_scale
+  rd_column_source_scale = 1
   if not _rd_isSeq(textures) then return void end if
   if typeof(tex) != "int" or tex < 0 or tex >= len(textures) then return void end if
   t = textures[tex]
@@ -851,6 +926,10 @@ function R_GetColumn(tex, col)
     m = texturewidthmask[tex]
   end if
   c = _rd_wrapColumn(col, m, w)
+
+  upCol = _rd_getUpscaledTextureColumn(tex, c)
+  if typeof(upCol) == "bytes" then return upCol end if
+  rd_column_source_scale = 1
 
   cols = _rd_ensureColumnCache(tex, w)
   if _rd_isSeq(cols) and c >= 0 and c < len(cols) and typeof(cols[c]) == "bytes" then
@@ -904,7 +983,7 @@ end function
 
 /*
 * Function: R_GetMaskedColumnRaw
-* Purpose: Reads or updates state used by the renderer.
+* Purpose: Reads masked column raw data for the renderer.
 */
 function R_GetMaskedColumnRaw(tex, col)
   if not _rd_isSeq(textures) then return void end if
@@ -940,7 +1019,7 @@ end function
 
 /*
 * Function: R_CheckTextureNumForName
-* Purpose: Evaluates conditions and returns a decision for the renderer.
+* Purpose: Finds check Texture Num For Name information for renderer data processing.
 */
 function R_CheckTextureNumForName(name)
   n = _rd_upperName8(name)
@@ -962,7 +1041,7 @@ end function
 
 /*
 * Function: R_TextureNumForName
-* Purpose: Implements the R_TextureNumForName routine for the renderer.
+* Purpose: Provides number for name helper behavior for the renderer.
 */
 function R_TextureNumForName(name)
   n = R_CheckTextureNumForName(name)

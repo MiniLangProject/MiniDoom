@@ -36,7 +36,7 @@ onground = false
 
 /*
 * Function: _P_FineIndexFromAngle
-* Purpose: Implements the _P_FineIndexFromAngle routine for the internal module support.
+* Purpose: Provides index from angle helper behavior for the play simulation.
 */
 function inline _P_FineIndexFromAngle(angle)
   if typeof(angle) != "int" then return 0 end if
@@ -50,7 +50,7 @@ end function
 
 /*
 * Function: _PU_WeaponIndex
-* Purpose: Implements the _PU_WeaponIndex routine for the internal module support.
+* Purpose: Provides index helper behavior for the play simulation.
 */
 function _PU_WeaponIndex(w)
   if typeof(w) == "int" then
@@ -71,7 +71,7 @@ end function
 
 /*
 * Function: _PU_PowerIndex
-* Purpose: Implements the _PU_PowerIndex routine for the internal module support.
+* Purpose: Provides index helper behavior for the play simulation.
 */
 function _PU_PowerIndex(pw)
   if typeof(pw) == "int" then
@@ -94,7 +94,7 @@ end function
 
 /*
 * Function: _PU_GetPower
-* Purpose: Reads or updates state used by the internal module support.
+* Purpose: Reads power data for the play simulation.
 */
 function _PU_GetPower(player, pw)
   if player is void then return 0 end if
@@ -114,7 +114,7 @@ end function
 
 /*
 * Function: _PU_SetPower
-* Purpose: Reads or updates state used by the internal module support.
+* Purpose: Updates power state for the play simulation.
 */
 function _PU_SetPower(player, pw, value)
   if player is void then return end if
@@ -132,7 +132,7 @@ end function
 
 /*
 * Function: _PU_HasWeapon
-* Purpose: Implements the _PU_HasWeapon routine for the internal module support.
+* Purpose: Checks weapon conditions for the play simulation.
 */
 function inline _PU_HasWeapon(player, w)
   if player is void then return false end if
@@ -144,7 +144,7 @@ end function
 
 /*
 * Function: P_Thrust
-* Purpose: Implements the P_Thrust routine for the gameplay and world simulation.
+* Purpose: Runs thrust behavior for the play simulation.
 */
 function P_Thrust(player, angle, move)
   if player is void or player.mo is void then return end if
@@ -160,7 +160,7 @@ end function
 
 /*
 * Function: P_CalcHeight
-* Purpose: Implements the P_CalcHeight routine for the gameplay and world simulation.
+* Purpose: Computes height values for the play simulation.
 */
 function P_CalcHeight(player)
   if player is void or player.mo is void then return end if
@@ -253,7 +253,7 @@ end function
 
 /*
 * Function: P_DeathThink
-* Purpose: Advances per-tick logic for the gameplay and world simulation.
+* Purpose: Advances death Think logic during the play simulation tick.
 */
 function P_DeathThink(player)
   global onground
@@ -296,7 +296,7 @@ end function
 
 /*
 * Function: P_PlayerThink
-* Purpose: Advances per-tick logic for the gameplay and world simulation.
+* Purpose: Advances player Think logic during the play simulation tick.
 */
 function P_PlayerThink(player)
   if player is void then return end if

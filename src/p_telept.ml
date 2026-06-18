@@ -27,7 +27,7 @@ import r_state
 
 /*
 * Function: _PTP_ResolveThinkerMobj
-* Purpose: Advances per-tick logic for the internal module support.
+* Purpose: Advances resolve Thinker Mobj logic during the play simulation tick.
 */
 function _PTP_ResolveThinkerMobj(th)
   if th is void then return void end if
@@ -51,7 +51,7 @@ end function
 
 /*
 * Function: EV_Teleport
-* Purpose: Implements the EV_Teleport routine for the engine module behavior.
+* Purpose: Provides teleport helper behavior for the play simulation.
 */
 function EV_Teleport(line, side, thing)
   if line is void or thing is void then return 0 end if

@@ -29,7 +29,7 @@ const BOXRIGHT = 3
 
 /*
 * Function: M_ClearBox
-* Purpose: Implements the M_ClearBox routine for the utility/math layer.
+* Purpose: Updates box state for the utility.
 */
 function M_ClearBox(box)
 
@@ -44,7 +44,7 @@ end function
 
 /*
 * Function: M_AddToBox
-* Purpose: Implements the M_AddToBox routine for the utility/math layer.
+* Purpose: Adds to box entries to the utility.
 */
 function M_AddToBox(box, x, y)
   if box is void then return end if

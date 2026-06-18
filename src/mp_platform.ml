@@ -131,9 +131,33 @@ _mp_chat_queue_head = 0
 * Purpose: Toggles socket mode (blocking/non-blocking) for UDP polling.
 */
 extern function ioctlsocket(s as ptr, cmd as i32, argp as bytes) from "ws2_32.dll" returns int
+/*
+ * Function: setsockopt
+ *
+ * Purpose: Maps the external setsockopt binding used for networking.
+ */
+
 extern function setsockopt(s as ptr, level as int, optname as int, optval as bytes, optlen as int) from "ws2_32.dll" symbol "setsockopt" returns int
+/*
+ * Function: socket
+ *
+ * Purpose: Maps the external socket binding used for networking.
+ */
+
 extern function socket(af as int, type as int, protocol as int) from "ws2_32.dll" returns ptr
+/*
+ * Function: bind
+ *
+ * Purpose: Maps the external bind binding used for networking.
+ */
+
 extern function bind(s as ptr, addr as bytes, addrlen as int) from "ws2_32.dll" returns int
+/*
+ * Function: closesocket
+ *
+ * Purpose: Maps the external closesocket binding used for networking.
+ */
+
 extern function closesocket(s as ptr) from "ws2_32.dll" returns int
 
 /*

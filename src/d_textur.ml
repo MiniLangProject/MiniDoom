@@ -20,7 +20,7 @@ import doomtype
 
 /*
 * Struct: pic_t
-* Purpose: Stores runtime data for pic type.
+* Purpose: Stores pic data used by the Doom core system.
 */
 struct pic_t
   width

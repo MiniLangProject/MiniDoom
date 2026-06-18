@@ -39,7 +39,7 @@ save_p = 0
 
 /*
 * Function: _PSave_EnsureBuffer
-* Purpose: Implements the _PSave_EnsureBuffer routine for the internal module support.
+* Purpose: Saves pSave Ensure Buffer state for the savegame system.
 */
 function inline _PSave_EnsureBuffer(size)
   global savebuffer
@@ -53,7 +53,7 @@ end function
 
 /*
 * Function: _PSV_Ensure
-* Purpose: Implements the _PSV_Ensure routine for the internal module support.
+* Purpose: Provides ensure helper behavior for the play simulation.
 */
 function _PSV_Ensure(extra)
   global savebuffer
@@ -82,7 +82,7 @@ end function
 
 /*
 * Function: _PSV_WriteU8
-* Purpose: Implements the _PSV_WriteU8 routine for the internal module support.
+* Purpose: Writes U8 data for the savegame serializer.
 */
 function inline _PSV_WriteU8(v)
   global save_p
@@ -93,7 +93,7 @@ end function
 
 /*
 * Function: _PSV_WriteBool
-* Purpose: Implements the _PSV_WriteBool routine for the internal module support.
+* Purpose: Writes boolean data for the savegame serializer.
 */
 function inline _PSV_WriteBool(v)
   if v then _PSV_WriteU8(1) else _PSV_WriteU8(0) end if
@@ -101,7 +101,7 @@ end function
 
 /*
 * Function: _PSV_WriteS32
-* Purpose: Implements the _PSV_WriteS32 routine for the internal module support.
+* Purpose: Writes S32 data for the savegame serializer.
 */
 function inline _PSV_WriteS32(v)
   _PSV_WriteU8(v & 255)
@@ -112,7 +112,7 @@ end function
 
 /*
 * Function: _PSV_WriteTag
-* Purpose: Implements the _PSV_WriteTag routine for the internal module support.
+* Purpose: Writes tag data for the savegame serializer.
 */
 function _PSV_WriteTag(tag)
   b = bytes(tag)
@@ -127,7 +127,7 @@ end function
 
 /*
 * Function: _PSV_WriteFixedString
-* Purpose: Implements the _PSV_WriteFixedString routine for the internal module support.
+* Purpose: Writes fixed-point string data for the savegame serializer.
 */
 function _PSV_WriteFixedString(s, width)
   b = bytes(s)
@@ -142,7 +142,7 @@ end function
 
 /*
 * Function: _PSV_ReadU8
-* Purpose: Implements the _PSV_ReadU8 routine for the internal module support.
+* Purpose: Reads U8 data for the savegame serializer.
 */
 function inline _PSV_ReadU8()
   global save_p
@@ -157,7 +157,7 @@ end function
 
 /*
 * Function: _PSV_ReadBool
-* Purpose: Implements the _PSV_ReadBool routine for the internal module support.
+* Purpose: Reads boolean data for the savegame serializer.
 */
 function inline _PSV_ReadBool()
   return _PSV_ReadU8() != 0
@@ -165,7 +165,7 @@ end function
 
 /*
 * Function: _PSV_ReadS32
-* Purpose: Implements the _PSV_ReadS32 routine for the internal module support.
+* Purpose: Reads S32 data for the savegame serializer.
 */
 function inline _PSV_ReadS32()
   b0 = _PSV_ReadU8()
@@ -179,7 +179,7 @@ end function
 
 /*
 * Function: _PSV_CheckTag
-* Purpose: Evaluates conditions and returns a decision for the internal module support.
+* Purpose: Finds check Tag information for savegame processing.
 */
 function _PSV_CheckTag(tag)
   b = bytes(tag)
@@ -197,7 +197,7 @@ end function
 
 /*
 * Function: _PSV_ReadFixedString
-* Purpose: Implements the _PSV_ReadFixedString routine for the internal module support.
+* Purpose: Reads fixed-point string data for the savegame serializer.
 */
 function _PSV_ReadFixedString(width)
   b = bytes(width, 0)
@@ -211,7 +211,7 @@ end function
 
 /*
 * Function: _PSV_ObjIndex
-* Purpose: Implements the _PSV_ObjIndex routine for the internal module support.
+* Purpose: Provides obj index helper behavior for the play simulation.
 */
 function _PSV_ObjIndex(arr, obj)
   if obj is void then return -1 end if
@@ -226,7 +226,7 @@ end function
 
 /*
 * Function: _PSV_PlayerIndex
-* Purpose: Implements the _PSV_PlayerIndex routine for the internal module support.
+* Purpose: Provides player index helper behavior for the play simulation.
 */
 function inline _PSV_PlayerIndex(p)
   if typeof(players) != "array" then return -1 end if
@@ -235,7 +235,7 @@ end function
 
 /*
 * Function: _PSV_SectorIndex
-* Purpose: Implements the _PSV_SectorIndex routine for the internal module support.
+* Purpose: Provides sector index helper behavior for the play simulation.
 */
 function inline _PSV_SectorIndex(sec)
   if typeof(sectors) != "array" then return -1 end if
@@ -244,7 +244,7 @@ end function
 
 /*
 * Function: _PSV_StateToIndex
-* Purpose: Implements the _PSV_StateToIndex routine for the internal module support.
+* Purpose: Provides state to index helper behavior for the play simulation.
 */
 function _PSV_StateToIndex(st)
   if st is void then return -1 end if
@@ -261,7 +261,7 @@ end function
 
 /*
 * Function: _PSV_StateFromIndex
-* Purpose: Implements the _PSV_StateFromIndex routine for the internal module support.
+* Purpose: Provides state from index helper behavior for the play simulation.
 */
 function inline _PSV_StateFromIndex(idx)
   if typeof(idx) != "int" or idx < 0 then return void end if
@@ -273,7 +273,7 @@ end function
 
 /*
 * Function: _PSV_WriteMapthing
-* Purpose: Implements the _PSV_WriteMapthing routine for the internal module support.
+* Purpose: Writes map thing data for the savegame serializer.
 */
 function inline _PSV_WriteMapthing(mt)
   if mt is void then
@@ -289,7 +289,7 @@ end function
 
 /*
 * Function: _PSV_ReadMapthing
-* Purpose: Implements the _PSV_ReadMapthing routine for the internal module support.
+* Purpose: Reads map thing data for the savegame serializer.
 */
 function inline _PSV_ReadMapthing()
   return mapthing_t(_PSV_ReadS32(), _PSV_ReadS32(), _PSV_ReadS32(), _PSV_ReadS32(), _PSV_ReadS32())
@@ -297,7 +297,7 @@ end function
 
 /*
 * Function: _PSV_WriteTiccmd
-* Purpose: Implements the _PSV_WriteTiccmd routine for the internal module support.
+* Purpose: Writes ticcmd data for the savegame serializer.
 */
 function inline _PSV_WriteTiccmd(cmd)
   if cmd is void then
@@ -314,7 +314,7 @@ end function
 
 /*
 * Function: _PSV_ReadTiccmd
-* Purpose: Implements the _PSV_ReadTiccmd routine for the internal module support.
+* Purpose: Reads ticcmd data for the savegame serializer.
 */
 function inline _PSV_ReadTiccmd()
   return ticcmd_t(_PSV_ReadS32(), _PSV_ReadS32(), _PSV_ReadS32(), _PSV_ReadS32(), _PSV_ReadS32(), _PSV_ReadS32())
@@ -322,7 +322,7 @@ end function
 
 /*
 * Function: _PSV_WritePsprite
-* Purpose: Implements the _PSV_WritePsprite routine for the internal module support.
+* Purpose: Writes psprite data for the savegame serializer.
 */
 function inline _PSV_WritePsprite(psp)
   if psp is void then
@@ -337,7 +337,7 @@ end function
 
 /*
 * Function: _PSV_ReadPsprite
-* Purpose: Implements the _PSV_ReadPsprite routine for the internal module support.
+* Purpose: Reads psprite data for the savegame serializer.
 */
 function inline _PSV_ReadPsprite()
   stidx = _PSV_ReadS32()
@@ -349,7 +349,7 @@ end function
 
 /*
 * Function: _PSV_ClearThingLists
-* Purpose: Implements the _PSV_ClearThingLists routine for the internal module support.
+* Purpose: Provides clear thing lists helper behavior for the play simulation.
 */
 function _PSV_ClearThingLists()
   if typeof(sectors) != "array" then return end if
@@ -367,7 +367,7 @@ end function
 
 /*
 * Function: _PSV_ClearBlockLinks
-* Purpose: Implements the _PSV_ClearBlockLinks routine for the internal module support.
+* Purpose: Provides clear block links helper behavior for the play simulation.
 */
 function _PSV_ClearBlockLinks()
   if typeof(blocklinks) != "array" then return end if
@@ -380,7 +380,7 @@ end function
 
 /*
 * Function: _PSV_ArchivePlayerV2
-* Purpose: Implements the _PSV_ArchivePlayerV2 routine for the internal module support.
+* Purpose: Provides archive player v2 helper behavior for the play simulation.
 */
 function _PSV_ArchivePlayerV2(p)
   _PSV_WriteS32(p.playerstate)
@@ -460,7 +460,7 @@ end function
 
 /*
 * Function: _PSV_UnArchivePlayerV1
-* Purpose: Implements the _PSV_UnArchivePlayerV1 routine for the internal module support.
+* Purpose: Provides un archive player v1 helper behavior for the play simulation.
 */
 function _PSV_UnArchivePlayerV1(p)
   p.playerstate = _PSV_ReadS32()
@@ -535,7 +535,7 @@ end function
 
 /*
 * Function: _PSV_UnArchivePlayerV2
-* Purpose: Implements the _PSV_UnArchivePlayerV2 routine for the internal module support.
+* Purpose: Provides un archive player v2 helper behavior for the play simulation.
 */
 function _PSV_UnArchivePlayerV2(p)
   p.playerstate = _PSV_ReadS32()
@@ -617,7 +617,7 @@ end function
 
 /*
 * Function: P_ArchivePlayers
-* Purpose: Implements the P_ArchivePlayers routine for the gameplay and world simulation.
+* Purpose: Provides players helper behavior for the play simulation.
 */
 function P_ArchivePlayers()
   _PSV_WriteTag("PLYR")
@@ -639,7 +639,7 @@ end function
 
 /*
 * Function: P_UnArchivePlayers
-* Purpose: Implements the P_UnArchivePlayers routine for the gameplay and world simulation.
+* Purpose: Provides archive players helper behavior for the play simulation.
 */
 function P_UnArchivePlayers()
   ok = _PSV_CheckTag("PLYR")
@@ -681,7 +681,7 @@ end function
 
 /*
 * Function: P_ArchiveWorld
-* Purpose: Implements the P_ArchiveWorld routine for the gameplay and world simulation.
+* Purpose: Provides world helper behavior for the play simulation.
 */
 function P_ArchiveWorld()
   _PSV_WriteTag("WRLD")
@@ -746,7 +746,7 @@ end function
 
 /*
 * Function: P_UnArchiveWorld
-* Purpose: Implements the P_UnArchiveWorld routine for the gameplay and world simulation.
+* Purpose: Provides archive world helper behavior for the play simulation.
 */
 function P_UnArchiveWorld()
   ok = _PSV_CheckTag("WRLD")
@@ -827,7 +827,7 @@ const _PSV_SC_GLOW = 7
 
 /*
 * Function: _PSV_ResolveThinkerMobj
-* Purpose: Advances per-tick logic for the internal module support.
+* Purpose: Advances resolve Thinker Mobj logic during the savegame tick.
 */
 function _PSV_ResolveThinkerMobj(node)
   if node is void then return void end if
@@ -847,7 +847,7 @@ end function
 
 /*
 * Function: _PSV_WriteMobj
-* Purpose: Implements the _PSV_WriteMobj routine for the internal module support.
+* Purpose: Writes mobj data for the savegame serializer.
 */
 function _PSV_WriteMobj(mo)
   _PSV_WriteS32(mo.x)
@@ -886,7 +886,7 @@ end function
 
 /*
 * Function: _PSV_ReadMobj
-* Purpose: Implements the _PSV_ReadMobj routine for the internal module support.
+* Purpose: Reads mobj data for the savegame serializer.
 */
 function _PSV_ReadMobj()
   mo = _Mobj_Default()
@@ -963,7 +963,7 @@ end function
 
 /*
 * Function: P_ArchiveThinkers
-* Purpose: Advances per-tick logic for the gameplay and world simulation.
+* Purpose: Advances archive Thinkers logic during the savegame tick.
 */
 function P_ArchiveThinkers()
   _PSV_WriteTag("THKR")
@@ -995,7 +995,7 @@ end function
 
 /*
 * Function: P_UnArchiveThinkers
-* Purpose: Advances per-tick logic for the gameplay and world simulation.
+* Purpose: Advances un Archive Thinkers logic during the savegame tick.
 */
 function P_UnArchiveThinkers()
   ok = _PSV_CheckTag("THKR")
@@ -1033,7 +1033,7 @@ end function
 
 /*
 * Function: _PSV_WriteCeiling
-* Purpose: Implements the _PSV_WriteCeiling routine for the internal module support.
+* Purpose: Writes ceiling data for the savegame serializer.
 */
 function inline _PSV_WriteCeiling(c)
   _PSV_WriteS32(_PSV_SectorIndex(c.sector))
@@ -1049,7 +1049,7 @@ end function
 
 /*
 * Function: _PSV_WriteDoor
-* Purpose: Implements the _PSV_WriteDoor routine for the internal module support.
+* Purpose: Writes door data for the savegame serializer.
 */
 function inline _PSV_WriteDoor(d)
   _PSV_WriteS32(_PSV_SectorIndex(d.sector))
@@ -1063,7 +1063,7 @@ end function
 
 /*
 * Function: _PSV_WriteFloor
-* Purpose: Implements the _PSV_WriteFloor routine for the internal module support.
+* Purpose: Writes floor data for the savegame serializer.
 */
 function inline _PSV_WriteFloor(f)
   _PSV_WriteS32(_PSV_SectorIndex(f.sector))
@@ -1078,7 +1078,7 @@ end function
 
 /*
 * Function: _PSV_WritePlat
-* Purpose: Implements the _PSV_WritePlat routine for the internal module support.
+* Purpose: Writes plat data for the savegame serializer.
 */
 function _PSV_WritePlat(p)
   _PSV_WriteS32(_PSV_SectorIndex(p.sector))
@@ -1096,7 +1096,7 @@ end function
 
 /*
 * Function: _PSV_WriteFlash
-* Purpose: Implements the _PSV_WriteFlash routine for the internal module support.
+* Purpose: Writes flash data for the savegame serializer.
 */
 function inline _PSV_WriteFlash(f)
   _PSV_WriteS32(_PSV_SectorIndex(f.sector))
@@ -1109,7 +1109,7 @@ end function
 
 /*
 * Function: _PSV_WriteStrobe
-* Purpose: Evaluates conditions and returns a decision for the internal module support.
+* Purpose: Writes strobe data for the savegame serializer.
 */
 function inline _PSV_WriteStrobe(s)
   _PSV_WriteS32(_PSV_SectorIndex(s.sector))
@@ -1122,7 +1122,7 @@ end function
 
 /*
 * Function: _PSV_WriteGlow
-* Purpose: Implements the _PSV_WriteGlow routine for the internal module support.
+* Purpose: Writes glow data for the savegame serializer.
 */
 function inline _PSV_WriteGlow(g)
   _PSV_WriteS32(_PSV_SectorIndex(g.sector))
@@ -1133,7 +1133,7 @@ end function
 
 /*
 * Function: P_ArchiveSpecials
-* Purpose: Implements the P_ArchiveSpecials routine for the gameplay and world simulation.
+* Purpose: Provides specials helper behavior for the play simulation.
 */
 function P_ArchiveSpecials()
   _PSV_WriteTag("SPCL")
@@ -1190,7 +1190,7 @@ end function
 
 /*
 * Function: _PSV_ReadSectorRef
-* Purpose: Implements the _PSV_ReadSectorRef routine for the internal module support.
+* Purpose: Reads sector ref data for the savegame serializer.
 */
 function inline _PSV_ReadSectorRef()
   idx = _PSV_ReadS32()
@@ -1201,7 +1201,7 @@ end function
 
 /*
 * Function: _PSV_ReadCeiling
-* Purpose: Implements the _PSV_ReadCeiling routine for the internal module support.
+* Purpose: Reads ceiling data for the savegame serializer.
 */
 function inline _PSV_ReadCeiling()
   sec = _PSV_ReadSectorRef()
@@ -1215,7 +1215,7 @@ end function
 
 /*
 * Function: _PSV_ReadDoor
-* Purpose: Implements the _PSV_ReadDoor routine for the internal module support.
+* Purpose: Reads door data for the savegame serializer.
 */
 function inline _PSV_ReadDoor()
   sec = _PSV_ReadSectorRef()
@@ -1228,7 +1228,7 @@ end function
 
 /*
 * Function: _PSV_ReadFloor
-* Purpose: Implements the _PSV_ReadFloor routine for the internal module support.
+* Purpose: Reads floor data for the savegame serializer.
 */
 function inline _PSV_ReadFloor()
   sec = _PSV_ReadSectorRef()
@@ -1241,7 +1241,7 @@ end function
 
 /*
 * Function: _PSV_ReadPlat
-* Purpose: Implements the _PSV_ReadPlat routine for the internal module support.
+* Purpose: Reads plat data for the savegame serializer.
 */
 function inline _PSV_ReadPlat()
   sec = _PSV_ReadSectorRef()
@@ -1256,7 +1256,7 @@ end function
 
 /*
 * Function: _PSV_ReadFlash
-* Purpose: Implements the _PSV_ReadFlash routine for the internal module support.
+* Purpose: Reads flash data for the savegame serializer.
 */
 function inline _PSV_ReadFlash()
   sec = _PSV_ReadSectorRef()
@@ -1268,7 +1268,7 @@ end function
 
 /*
 * Function: _PSV_ReadStrobe
-* Purpose: Implements the _PSV_ReadStrobe routine for the internal module support.
+* Purpose: Reads strobe data for the savegame serializer.
 */
 function inline _PSV_ReadStrobe()
   sec = _PSV_ReadSectorRef()
@@ -1280,7 +1280,7 @@ end function
 
 /*
 * Function: _PSV_ReadGlow
-* Purpose: Implements the _PSV_ReadGlow routine for the internal module support.
+* Purpose: Reads glow data for the savegame serializer.
 */
 function inline _PSV_ReadGlow()
   sec = _PSV_ReadSectorRef()
@@ -1292,7 +1292,7 @@ end function
 
 /*
 * Function: P_UnArchiveSpecials
-* Purpose: Implements the P_UnArchiveSpecials routine for the gameplay and world simulation.
+* Purpose: Provides archive specials helper behavior for the play simulation.
 */
 function P_UnArchiveSpecials()
   ok = _PSV_CheckTag("SPCL")

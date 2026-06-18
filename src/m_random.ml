@@ -45,7 +45,7 @@ prndindex = 0
 
 /*
 * Function: P_Random
-* Purpose: Implements the P_Random routine for the gameplay and world simulation.
+* Purpose: Provides random helper behavior for the utility.
 */
 function P_Random()
   global prndindex
@@ -56,7 +56,7 @@ end function
 
 /*
 * Function: M_Random
-* Purpose: Implements the M_Random routine for the utility/math layer.
+* Purpose: Provides random helper behavior for the utility.
 */
 function M_Random()
   global rndindex
@@ -67,7 +67,7 @@ end function
 
 /*
 * Function: M_ClearRandom
-* Purpose: Implements the M_ClearRandom routine for the utility/math layer.
+* Purpose: Updates random state for the utility.
 */
 function M_ClearRandom()
   global rndindex

@@ -50,7 +50,7 @@ dscalelight = void
 
 /*
 * Struct: cliprange_t
-* Purpose: Stores runtime data for cliprange type.
+* Purpose: Stores cliprange data used by the renderer system.
 */
 struct cliprange_t
   first
@@ -93,7 +93,7 @@ _rbsp_disable_bbox_cull = false
 
 /*
 * Function: R_BspProfileSetEnabled
-* Purpose: Reads or updates state used by the renderer.
+* Purpose: Provides profile set enabled helper behavior for the renderer.
 */
 function R_BspProfileSetEnabled(on)
   global _rb_prof_enabled
@@ -102,7 +102,7 @@ end function
 
 /*
 * Function: R_BspProfileReset
-* Purpose: Reads or updates state used by the renderer.
+* Purpose: Clears bsp Profile Reset state before the next renderer update.
 */
 function R_BspProfileReset()
   global _rb_prof_addline_ms
@@ -136,7 +136,7 @@ end function
 
 /*
 * Function: _RBSP_TimeMs
-* Purpose: Implements the _RBSP_TimeMs routine for the internal module support.
+* Purpose: Provides time milliseconds helper behavior for the renderer.
 */
 function inline _RBSP_TimeMs()
   t = std.time.ticks()
@@ -145,7 +145,7 @@ end function
 
 /*
 * Function: _RBSP_StoreWallRange
-* Purpose: Implements the _RBSP_StoreWallRange routine for the internal module support.
+* Purpose: Provides store wall range helper behavior for the renderer.
 */
 function inline _RBSP_StoreWallRange(first, last)
   global _rb_prof_store_ms
@@ -164,7 +164,7 @@ end function
 
 /*
 * Function: _makeDrawseg
-* Purpose: Draws or renders output for the internal module support.
+* Purpose: Draws make Drawseg output for the renderer renderer.
 */
 function inline _makeDrawseg()
 
@@ -173,7 +173,7 @@ end function
 
 /*
 * Function: _makeClip
-* Purpose: Implements the _makeClip routine for the internal module support.
+* Purpose: Builds clip data for the renderer.
 */
 function inline _makeClip(first, last)
   return cliprange_t(first, last)
@@ -181,7 +181,7 @@ end function
 
 /*
 * Function: _R_ClipGet
-* Purpose: Reads or updates state used by the internal module support.
+* Purpose: Computes get values for the renderer.
 */
 function inline _R_ClipGet(i)
   if i < 0 or i >= len(solidsegs) then return _makeClip(0, 0) end if
@@ -190,7 +190,7 @@ end function
 
 /*
 * Function: _R_ClipSet
-* Purpose: Reads or updates state used by the internal module support.
+* Purpose: Computes set values for the renderer.
 */
 function inline _R_ClipSet(i, c)
   global solidsegs
@@ -207,7 +207,7 @@ end function
 
 /*
 * Function: _RBSP_IsSeq
-* Purpose: Implements the _RBSP_IsSeq routine for the internal module support.
+* Purpose: Provides is sequence helper behavior for the renderer.
 */
 function inline _RBSP_IsSeq(v)
   t = typeof(v)
@@ -216,7 +216,7 @@ end function
 
 /*
 * Function: _RBSP_ToInt
-* Purpose: Implements the _RBSP_ToInt routine for the internal module support.
+* Purpose: Converts int values for the BSP renderer.
 */
 function inline _RBSP_ToInt(v, fallback)
   if typeof(v) == "int" then return v end if
@@ -235,7 +235,7 @@ end function
 
 /*
 * Function: _R_ViewAngleToX
-* Purpose: Implements the _R_ViewAngleToX routine for the internal module support.
+* Purpose: Provides angle to x helper behavior for the renderer.
 */
 function inline _R_ViewAngleToX(aidx)
   if not _RBSP_IsSeq(viewangletox) or len(viewangletox) == 0 then return centerx end if
@@ -247,7 +247,7 @@ end function
 
 /*
 * Function: _RBSP_AngNorm
-* Purpose: Implements the _RBSP_AngNorm routine for the internal module support.
+* Purpose: Provides ang norm helper behavior for the renderer.
 */
 function inline _RBSP_AngNorm(a)
   ai = _RBSP_ToInt(a, 0)
@@ -256,7 +256,7 @@ end function
 
 /*
 * Function: _RBSP_AngSub
-* Purpose: Implements the _RBSP_AngSub routine for the internal module support.
+* Purpose: Provides ang sub helper behavior for the renderer.
 */
 function inline _RBSP_AngSub(a, b)
   return _RBSP_AngNorm(_RBSP_AngNorm(a) - _RBSP_AngNorm(b))
@@ -264,7 +264,7 @@ end function
 
 /*
 * Function: R_ClearDrawSegs
-* Purpose: Draws or renders output for the renderer.
+* Purpose: Updates draw segs state for the renderer.
 */
 function R_ClearDrawSegs()
   global ds_p
@@ -283,7 +283,7 @@ end function
 
 /*
 * Function: R_ClearClipSegs
-* Purpose: Implements the R_ClearClipSegs routine for the renderer.
+* Purpose: Updates clip segs state for the renderer.
 */
 function R_ClearClipSegs()
   global solidsegs
@@ -297,7 +297,7 @@ end function
 
 /*
 * Function: R_ClipSolidWallSegment
-* Purpose: Implements the R_ClipSolidWallSegment routine for the renderer.
+* Purpose: Computes solid wall segment values for the renderer.
 */
 function R_ClipSolidWallSegment(first, last)
   global newend
@@ -374,7 +374,7 @@ end function
 
 /*
 * Function: R_ClipPassWallSegment
-* Purpose: Implements the R_ClipPassWallSegment routine for the renderer.
+* Purpose: Computes pass wall segment values for the renderer.
 */
 function R_ClipPassWallSegment(first, last)
   global _rb_prof_newend_max
@@ -410,7 +410,7 @@ end function
 
 /*
 * Function: R_AddLine
-* Purpose: Implements the R_AddLine routine for the renderer.
+* Purpose: Adds line entries to the renderer.
 */
 function R_AddLine(line)
   global _rb_prof_addline_ms
@@ -494,7 +494,7 @@ end function
 
 /*
 * Function: R_CheckBBox
-* Purpose: Evaluates conditions and returns a decision for the renderer.
+* Purpose: Finds check BBox information for renderer processing.
 */
 function R_CheckBBox(bspcoord)
   if _rbsp_disable_bbox_cull then return true end if
@@ -570,7 +570,7 @@ end function
 
 /*
 * Function: R_Subsector
-* Purpose: Implements the R_Subsector routine for the renderer.
+* Purpose: Provides subsector helper behavior for the renderer.
 */
 function R_Subsector(num)
   global _rb_prof_subsector_calls
@@ -630,7 +630,7 @@ end function
 
 /*
 * Function: R_RenderBSPNode
-* Purpose: Draws or renders output for the renderer.
+* Purpose: Draws render BSPNode output for the renderer renderer.
 */
 function R_RenderBSPNode(bspnum)
   global _rb_prof_bbox_ms
