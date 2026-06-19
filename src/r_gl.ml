@@ -85,7 +85,7 @@ rgl_dyn_light_g =[]
 rgl_dyn_light_b =[]
 rgl_dyn_light_radius =[]
 rgl_dyn_light_strength =[]
-const RGL_MAX_DYNAMIC_LIGHTS = 24
+const RGL_MAX_DYNAMIC_LIGHTS = 32
 
 const RGL_CACHE_BOUNDARY = 1
 const RGL_CACHE_WALL = 2
@@ -1177,6 +1177,139 @@ function RGL_AddDynamicLight(x, y, z, r, g, b, radius, strength)
 end function
 
 /*
+* Function: RGL_StringStartsWith
+* Purpose: Tests a short ASCII prefix without relying on optional string helpers.
+*/
+function RGL_StringStartsWith(s, prefix)
+  if typeof(s) != "string" or typeof(prefix) != "string" then return false end if
+  if len(prefix) > len(s) then return false end if
+  sb = bytes(s)
+  pb = bytes(prefix)
+  i = 0
+  while i < len(pb)
+    if sb[i] != pb[i] then return false end if
+    i = i + 1
+  end while
+  return true
+end function
+
+/*
+* Function: RGL_FlatNameForNum
+* Purpose: Resolves the currently translated flat name for liquid light classification.
+*/
+function RGL_FlatNameForNum(flatnum)
+  if typeof(flatnum) != "int" or flatnum < 0 then return "" end if
+  n = flatnum
+  if RGL_IsSeq(flattranslation) and n >= 0 and n < len(flattranslation) then n = flattranslation[n] end if
+  lump = firstflat + n
+  return RGL_LumpNameAt(lump)
+end function
+
+/*
+* Function: RGL_LiquidLightKind
+* Purpose: Classifies animated liquid flats that should emit subtle GL ambience.
+*/
+function RGL_LiquidLightKind(flatnum)
+  name = RGL_FlatNameForNum(flatnum)
+  if name == "" then return 0 end if
+  if RGL_StringStartsWith(name, "LAVA") or RGL_StringStartsWith(name, "FIRELAV") then return 1 end if
+  if RGL_StringStartsWith(name, "NUKAGE") or RGL_StringStartsWith(name, "SLIME") then return 2 end if
+  if RGL_StringStartsWith(name, "BLOOD") then return 3 end if
+  if RGL_StringStartsWith(name, "FWATER") then return 4 end if
+  return 0
+end function
+
+/*
+* Function: RGL_AddSectorLiquidLight
+* Purpose: Adds one restrained colored light above a nearby liquid sector.
+*/
+function RGL_AddSectorLiquidLight(sec, kind, player, pulse)
+  if sec is void or player is void or player.mo is void then return false end if
+  if not RGL_IsSeq(sec.lines) or typeof(sec.linecount) != "int" or sec.linecount <= 0 then return false end if
+
+  sx = 0.0
+  sy = 0.0
+  points = 0
+  i = 0
+  while i < sec.linecount and i < len(sec.lines)
+    li = sec.lines[i]
+    if li is not void then
+      if li.v1 is not void then
+        sx = sx + RGL_FixedToFloat(li.v1.x)
+        sy = sy + RGL_FixedToFloat(li.v1.y)
+        points = points + 1
+      end if
+      if li.v2 is not void then
+        sx = sx + RGL_FixedToFloat(li.v2.x)
+        sy = sy + RGL_FixedToFloat(li.v2.y)
+        points = points + 1
+      end if
+    end if
+    i = i + 1
+  end while
+  if points <= 0 then return false end if
+
+  sx = sx / points
+  sy = sy / points
+  px = RGL_FixedToFloat(player.mo.x)
+  py = RGL_FixedToFloat(player.mo.y)
+  dx = sx - px
+  dy = sy - py
+  near = 1800.0
+  if dx * dx + dy * dy > near * near then return false end if
+
+  z = RGL_FixedToFloat(sec.floorheight) + 10.0
+  rr = 180
+  gg = 90
+  bb = 24
+  radius = 460.0
+  strength = 24.0 + pulse * 8.0
+  if kind == 2 then
+    rr = 80
+    gg = 190
+    bb = 82
+    radius = 410.0
+    strength = 18.0 + pulse * 6.0
+  else if kind == 3 then
+    rr = 180
+    gg = 24
+    bb = 20
+    radius = 360.0
+    strength = 14.0 + pulse * 5.0
+  else if kind == 4 then
+    rr = 56
+    gg = 105
+    bb = 150
+    radius = 300.0
+    strength = 10.0 + pulse * 4.0
+  end if
+
+  RGL_AddDynamicLight(sx, z, -sy, rr, gg, bb, radius, strength)
+  return true
+end function
+
+/*
+* Function: RGL_AddLiquidSectorLights
+* Purpose: Adds a small budget of ambient lights for nearby liquid sectors.
+*/
+function RGL_AddLiquidSectorLights(player)
+  if player is void or player.mo is void or not RGL_IsSeq(sectors) then return end if
+  pulse = 0.5
+  if typeof(gametic) == "int" then pulse = 0.5 + std.math.sin(gametic * 0.18) * 0.5 end if
+  added = 0
+  i = 0
+  while i < len(sectors) and added < 6
+    sec = sectors[i]
+    kind = 0
+    if sec is not void then kind = RGL_LiquidLightKind(sec.floorpic) end if
+    if kind != 0 then
+      if RGL_AddSectorLiquidLight(sec, kind, player, pulse) then added = added + 1 end if
+    end if
+    i = i + 1
+  end while
+end function
+
+/*
 * Function: RGL_MobjLight
 * Purpose: Provides light helper behavior for the OpenGL renderer.
 */
@@ -1189,36 +1322,52 @@ function RGL_MobjLight(mo)
   t = mo.type
 
   if t == mobjtype_t.MT_ROCKET then
-    RGL_AddDynamicLight(x, y, z, 255, 96, 32, 430.0, 92.0)
+    RGL_AddDynamicLight(x, y, z, 255, 116, 34, 520.0, 118.0)
     return true
   end if
   if t == mobjtype_t.MT_PLASMA then
-    RGL_AddDynamicLight(x, y, z, 80, 150, 255, 360.0, 82.0)
+    RGL_AddDynamicLight(x, y, z, 72, 170, 255, 430.0, 104.0)
     return true
   end if
   if t == mobjtype_t.MT_ARACHPLAZ then
-    RGL_AddDynamicLight(x, y, z, 255, 220, 72, 360.0, 82.0)
+    RGL_AddDynamicLight(x, y, z, 255, 232, 78, 430.0, 104.0)
     return true
   end if
   if t == mobjtype_t.MT_BFG then
-    RGL_AddDynamicLight(x, y, z, 90, 255, 90, 720.0, 145.0)
+    RGL_AddDynamicLight(x, y, z, 86, 255, 106, 860.0, 180.0)
     return true
   end if
   if t == mobjtype_t.MT_HEADSHOT then
-    RGL_AddDynamicLight(x, y, z, 190, 80, 255, 350.0, 76.0)
+    RGL_AddDynamicLight(x, y, z, 205, 82, 255, 430.0, 98.0)
     return true
   end if
-  if t == mobjtype_t.MT_TROOPSHOT or t == mobjtype_t.MT_BRUISERSHOT or t == mobjtype_t.MT_FATSHOT then
-    RGL_AddDynamicLight(x, y, z, 255, 120, 42, 330.0, 70.0)
+  if t == mobjtype_t.MT_BRUISERSHOT then
+    RGL_AddDynamicLight(x, y, z, 92, 235, 86, 430.0, 98.0)
+    return true
+  end if
+  if t == mobjtype_t.MT_TROOPSHOT or t == mobjtype_t.MT_FATSHOT then
+    RGL_AddDynamicLight(x, y, z, 255, 128, 40, 390.0, 88.0)
     return true
   end if
   if t == mobjtype_t.MT_TRACER then
-    RGL_AddDynamicLight(x, y, z, 160, 220, 255, 360.0, 76.0)
+    RGL_AddDynamicLight(x, y, z, 170, 220, 255, 420.0, 90.0)
     return true
   end if
 
   if typeof(mo.flags) == "int" and (mo.flags & mobjflag_t.MF_JUSTATTACKED) != 0 then
-    RGL_AddDynamicLight(x, y, z, 255, 170, 92, 300.0, 55.0)
+    if t == mobjtype_t.MT_SPIDER or t == mobjtype_t.MT_POSSESSED or t == mobjtype_t.MT_SHOTGUY or t == mobjtype_t.MT_CHAINGUY or t == mobjtype_t.MT_WOLFSS then
+      RGL_AddDynamicLight(x, y, z, 255, 205, 110, 360.0, 78.0)
+    else if t == mobjtype_t.MT_BABY then
+      RGL_AddDynamicLight(x, y, z, 255, 232, 78, 390.0, 82.0)
+    else if t == mobjtype_t.MT_HEAD then
+      RGL_AddDynamicLight(x, y, z, 205, 82, 255, 390.0, 78.0)
+    else if t == mobjtype_t.MT_BRUISER or t == mobjtype_t.MT_KNIGHT then
+      RGL_AddDynamicLight(x, y, z, 92, 235, 86, 390.0, 78.0)
+    else if t == mobjtype_t.MT_CYBORG then
+      RGL_AddDynamicLight(x, y, z, 255, 116, 34, 460.0, 96.0)
+    else
+      RGL_AddDynamicLight(x, y, z, 255, 155, 76, 340.0, 66.0)
+    end if
     return true
   end if
   return false
@@ -1271,6 +1420,8 @@ function RGL_BuildDynamicLights(player)
       RGL_AddDynamicLight(lx, pz, lz, lr, lg, lb, 520.0, 48.0 + player.extralight * 46.0)
     end if
   end if
+
+  RGL_AddLiquidSectorLights(player)
 
   if not RGL_IsSeq(sectors) then return end if
   si = 0
