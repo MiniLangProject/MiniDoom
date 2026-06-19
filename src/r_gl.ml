@@ -38,6 +38,7 @@ const RGL_BASEYCENTER = 100
 const RGL_DYNAMIC_SETTLE_FRAMES = 3
 const RGL_GEOM_FIX_SCALE = 65536.0
 const RGL_GEOM_VERSION = 4
+const RGL_CAMERA_BACK_OFFSET = 0.0
 
 rgl_tex_keys =[]
 rgl_tex_ids =[]
@@ -50,6 +51,7 @@ rgl_view_x = 0.0
 rgl_view_y = 0.0
 rgl_view_yaw = 0.0
 rgl_building_cache = false
+rgl_flat_volatile_only = false
 rgl_cache_target = 0
 rgl_current_light = 255
 rgl_force_software = false
@@ -1928,6 +1930,9 @@ end function
 */
 function RGL_DrawLine(li)
   if li is void then return end if
+  if rgl_building_cache then
+    if RGL_IsVolatileSector(li.frontsector) or RGL_IsVolatileSector(li.backsector) then return end if
+  end if
   side = void
   if RGL_IsSeq(sides) and RGL_IsSeq(li.sidenum) and len(li.sidenum) > 0 then
     sid = li.sidenum[0]
@@ -1942,6 +1947,9 @@ end function
 */
 function RGL_DrawSeg(sg)
   if sg is void then return end if
+  if rgl_building_cache then
+    if RGL_IsVolatileSector(sg.frontsector) or RGL_IsVolatileSector(sg.backsector) then return end if
+  end if
   RGL_DrawWallPiece(sg.v1, sg.v2, sg.linedef, sg.sidedef, sg.frontsector, sg.backsector)
 end function
 
@@ -1974,6 +1982,9 @@ function RGL_DrawMaskedSeg(sg)
   global rgl_current_light
 
   if sg is void then return end if
+  if rgl_building_cache then
+    if RGL_IsVolatileSector(sg.frontsector) or RGL_IsVolatileSector(sg.backsector) then return end if
+  end if
   hasMid = false
   if sg.sidedef is not void and typeof(sg.sidedef.midtexture) == "int" and sg.sidedef.midtexture != 0 then hasMid = true end if
   oside = void
@@ -2931,8 +2942,11 @@ end function
 */
 function RGL_DrawBspLeafFlat(sidx, xs, ys, count)
   global rgl_current_light
+  global rgl_flat_volatile_only
 
   if sidx < 0 or not RGL_IsSeq(subsectors) or sidx >= len(subsectors) then return end if
+  if rgl_flat_volatile_only and not RGL_IsVolatileSubsectorIndex(sidx) then return end if
+  if rgl_building_cache and RGL_IsVolatileSubsectorIndex(sidx) then return end if
   ss = subsectors[sidx]
   if ss is void or ss.sector is void then return end if
   sec = ss.sector
@@ -2959,12 +2973,13 @@ function RGL_Restore3DProjection()
   if aspect <= 0 then aspect = 1.6 end if
   nearz = 4.0
   farz = 4096.0
-  top = 2.4
+  top = 2.505
+  yshift = -0.401
   right = top * aspect
 
   glMatrixMode(GL_PROJECTION)
   glLoadIdentity()
-  glFrustum(-right, right, -top, top, nearz, farz)
+  glFrustum(-right, right, -top + yshift, top + yshift, nearz, farz)
   glMatrixMode(GL_MODELVIEW)
   glLoadIdentity()
 end function
@@ -3298,6 +3313,8 @@ function RGL_BuildGeometryCache(sigMap, sigSegs, sigLines, sigNodes, sigSubsecto
   global rgl_depth_tris
   global rgl_depth_quads
 
+  RGL_EnsureVolatileSectorMap(sigMap)
+
   rgl_boundary_quads =[]
   rgl_wall_quads =[]
   rgl_masked_quads =[]
@@ -3401,6 +3418,15 @@ end function
 */
 function RGL_DrawVolatileFlats()
   global rgl_current_light
+  global rgl_flat_volatile_only
+
+  if RGL_IsSeq(nodes) and typeof(numnodes) == "int" and numnodes > 0 then
+    oldFilter = rgl_flat_volatile_only
+    rgl_flat_volatile_only = true
+    RGL_DrawAllBspFlats()
+    rgl_flat_volatile_only = oldFilter
+    return
+  end if
 
   if not RGL_IsSeq(rgl_volatile_subsectors) or not RGL_IsSeq(subsectors) then return end if
   i = 0
@@ -3517,6 +3543,10 @@ function RGL_RenderPlayerView(player)
   global rgl_view_x
   global rgl_view_y
   global rgl_view_yaw
+  global viewx
+  global viewy
+  global viewz
+  global viewangle
 
   if rgl_force_software then return false end if
   if not IGL_IsActive() then return false end if
@@ -3528,6 +3558,15 @@ function RGL_RenderPlayerView(player)
   py = -RGL_FixedToFloat(player.mo.y)
   pz = RGL_FixedToFloat(player.viewz)
   yaw = RGL_AngleToDegrees(player.mo.angle)
+  if typeof(viewx) == "int" then px = RGL_FixedToFloat(viewx) end if
+  if typeof(viewy) == "int" then py = -RGL_FixedToFloat(viewy) end if
+  if typeof(viewz) == "int" then pz = RGL_FixedToFloat(viewz) end if
+  if typeof(viewangle) == "int" then yaw = RGL_AngleToDegrees(viewangle) end if
+  if RGL_CAMERA_BACK_OFFSET != 0.0 then
+    yawRad = (yaw / 360.0) * 6.283185314
+    px = px - std.math.cos(yawRad) * RGL_CAMERA_BACK_OFFSET
+    py = py - std.math.sin(yawRad) * RGL_CAMERA_BACK_OFFSET
+  end if
   rgl_view_x = px
   rgl_view_y = -py
   rgl_view_yaw = yaw
@@ -3537,7 +3576,6 @@ function RGL_RenderPlayerView(player)
 
   pt = RGL_ProfileStart()
   useCache = RGL_EnsureGeometryCache()
-  if useCache and RGL_PlayerNearActiveSectorMotion(player) then useCache = false end if
   RGL_ProfileEnd(1, pt)
   pt = RGL_ProfileStart()
   RGL_DrawSky(yaw)
@@ -3558,15 +3596,18 @@ function RGL_RenderPlayerView(player)
     RGL_ProfileEnd(4, pt)
     pt = RGL_ProfileStart()
     RGL_DrawCachedFlatTris()
+    RGL_DrawVolatileFlats()
     RGL_ProfileEnd(5, pt)
     pt = RGL_ProfileStart()
     RGL_DrawCachedTexturedQuads(rgl_wall_quads)
+    RGL_DrawVolatileWalls()
     RGL_ProfileEnd(6, pt)
     pt = RGL_ProfileStart()
     RGL_DrawSpriteBillboards(player, yaw)
     RGL_ProfileEnd(7, pt)
     pt = RGL_ProfileStart()
     RGL_DrawCachedTexturedQuads(rgl_masked_quads)
+    RGL_DrawVolatileMaskedWorld()
     RGL_ProfileEnd(8, pt)
   else
     pt = RGL_ProfileStart()
