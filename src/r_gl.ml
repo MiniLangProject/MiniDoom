@@ -1298,20 +1298,20 @@ function RGL_SetVertexLight(base, x, y, z)
   dz = z + rgl_view_y
   d2 = dx * dx + dz * dz
 
-  nearR = 520.0
+  nearR = 720.0
   near2 = nearR * nearR
   if d2 < near2 then
-    boost = (1.0 -(d2 / near2)) * 42.0
+    boost = (1.0 -(d2 / near2)) * 64.0
     r = r + boost
     g = g + boost
     b = b + boost
   end if
 
-  fadeStart = 420.0 * 420.0
-  fadeEnd = 2400.0 * 2400.0
+  fadeStart = 520.0 * 520.0
+  fadeEnd = 2200.0 * 2200.0
   if d2 > fadeStart then
-    fade = ((d2 - fadeStart) / (fadeEnd - fadeStart)) * 120.0
-    if fade > 120.0 then fade = 120.0 end if
+    fade = ((d2 - fadeStart) / (fadeEnd - fadeStart)) * 145.0
+    if fade > 145.0 then fade = 145.0 end if
     r = r - fade
     g = g - fade
     b = b - fade
