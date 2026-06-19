@@ -294,6 +294,7 @@ extern function glReadBuffer(mode as u32) from "opengl32.dll" symbol "glReadBuff
 
 igl_enabled = false
 igl_active = false
+igl_renderer_enabled = false
 igl_frame_ready = false
 igl_hdc = void
 igl_hrc = void
@@ -355,10 +356,62 @@ end function
 
 /*
 * Function: IGL_IsActive
-* Purpose: Provides is active helper behavior for the OpenGL backend.
+* Purpose: Returns true when the OpenGL renderer is the active drawing path.
 */
 function IGL_IsActive()
+  return igl_active and igl_renderer_enabled
+end function
+
+/*
+* Function: IGL_IsAvailable
+* Purpose: Returns true when an OpenGL context exists for optional rendering.
+*/
+function IGL_IsAvailable()
   return igl_active
+end function
+
+/*
+* Function: IGL_MakeCurrent
+* Purpose: Ensures the WGL context is current before issuing OpenGL commands.
+*/
+function IGL_MakeCurrent()
+  if not igl_active then return false end if
+  if igl_hdc is void or igl_hrc is void then return false end if
+  return wglMakeCurrent(igl_hdc, igl_hrc)
+end function
+
+/*
+* Function: IGL_SetRendererEnabled
+* Purpose: Selects whether the OpenGL renderer or the classic CPU renderer is active.
+*/
+function IGL_SetRendererEnabled(v)
+  global igl_renderer_enabled
+  global igl_frame_ready
+
+  if not igl_active then
+    igl_renderer_enabled = false
+    igl_frame_ready = false
+    return false
+  end if
+
+  igl_renderer_enabled = false
+  if typeof(v) == "bool" and v then igl_renderer_enabled = true end if
+  igl_frame_ready = false
+  if igl_renderer_enabled then
+    print "Renderer: OpenGL"
+  else
+    print "Renderer: classic"
+  end if
+  return igl_renderer_enabled
+end function
+
+/*
+* Function: IGL_ToggleRenderer
+* Purpose: Toggles between the OpenGL and classic renderers when OpenGL is available.
+*/
+function IGL_ToggleRenderer()
+  if not igl_active then return false end if
+  return IGL_SetRendererEnabled(not igl_renderer_enabled)
 end function
 
 /*
@@ -368,6 +421,7 @@ end function
 function IGL_Init(hwnd, hdc, width, height)
   global igl_enabled
   global igl_active
+  global igl_renderer_enabled
   global igl_hdc
   global igl_hrc
   global igl_width
@@ -410,6 +464,7 @@ function IGL_Init(hwnd, hdc, width, height)
   igl_hdc = hdc
   igl_hrc = hrc
   igl_active = true
+  igl_renderer_enabled = true
   igl_width = width
   igl_height = height
   if igl_width <= 0 then igl_width = 320 end if
@@ -449,7 +504,7 @@ end function
 function IGL_Begin3D()
   global igl_frame_ready
 
-  if not igl_active then return false end if
+  if not IGL_IsActive() then return false end if
   igl_frame_ready = false
   glEnable(GL_DEPTH_TEST)
   glEnable(GL_BLEND)
@@ -485,7 +540,7 @@ end function
 * Purpose: Reads has Frame Ready data from the OpenGL backend data stream.
 */
 function IGL_HasFrameReady()
-  return igl_active and igl_frame_ready
+  return IGL_IsActive() and igl_frame_ready
 end function
 
 /*
@@ -497,6 +552,7 @@ function IGL_Swap()
 
   if not igl_active then return false end if
   if not igl_frame_ready then return false end if
+  if not IGL_MakeCurrent() then return false end if
   ok = SwapBuffers(igl_hdc)
   if ok then igl_frame_ready = false end if
   return ok
@@ -779,8 +835,8 @@ function IGL_EnsureFrameTexture()
   igl_frame_tex = IGL_ReadU32(idbuf, 0)
   if igl_frame_tex <= 0 then return 0 end if
   glBindTexture(GL_TEXTURE_2D, igl_frame_tex)
-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR)
-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR)
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST)
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST)
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP)
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP)
   return igl_frame_tex
@@ -845,6 +901,7 @@ function IGL_DrawIndexedFrame(data, width, height)
   global igl_frame_rgba
 
   if not igl_active then return false end if
+  if not IGL_MakeCurrent() then return false end if
   if typeof(data) != "bytes" then return false end if
   framepal = igl_texture_palette
   if typeof(framepal) != "bytes" or len(framepal) < 768 then framepal = igl_palette end if
@@ -904,6 +961,7 @@ end function
 */
 function IGL_DrawRGBAFrame(data, width, height)
   if not igl_active then return false end if
+  if not IGL_MakeCurrent() then return false end if
   if typeof(data) != "bytes" then return false end if
   if typeof(width) != "int" or typeof(height) != "int" then return false end if
   if width <= 0 or height <= 0 then return false end if
@@ -1025,6 +1083,7 @@ end function
 */
 function IGL_Shutdown()
   global igl_active
+  global igl_renderer_enabled
   global igl_hrc
   global igl_hdc
 
@@ -1033,6 +1092,7 @@ function IGL_Shutdown()
     if not(igl_hrc is void) then wglDeleteContext(igl_hrc) end if
   end if
   igl_active = false
+  igl_renderer_enabled = false
   igl_hrc = void
   igl_hdc = void
 end function

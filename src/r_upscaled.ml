@@ -17,6 +17,7 @@
   Purpose: Loads optional MiniDoom upscaled graphics packages and shared render-scale settings.
 */
 import m_argv
+import i_gl
 import std.fs as fs
 import std.math
 
@@ -317,11 +318,20 @@ function inline RU_RenderScale()
 end function
 
 /*
+* Function: RU_RendererAllowsHD
+* Purpose: Returns true when the active renderer may consume HDWAD assets.
+*/
+function inline RU_RendererAllowsHD()
+  if typeof(IGL_IsActive) != "function" then return false end if
+  return IGL_IsActive()
+end function
+
+/*
 * Function: RU_IsEnabled
 * Purpose: Returns true when a package is active.
 */
 function inline RU_IsEnabled()
-  return ru_enabled
+  return ru_enabled and RU_RendererAllowsHD()
 end function
 
 /*
@@ -329,7 +339,7 @@ end function
 * Purpose: Finds an entry by kind and Doom name.
 */
 function RU_FindEntry(kind, name)
-  if not ru_enabled then return void end if
+  if not RU_IsEnabled() then return void end if
   n = RU_Name8(name)
   i = 0
   while i < len(ru_entries)

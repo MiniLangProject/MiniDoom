@@ -156,6 +156,27 @@ function inline _W_Name8FromString(name)
 end function
 
 /*
+* Function: _W_Name8ToString
+* Purpose: Converts an internal eight-byte lump name to a safe display string.
+*/
+function _W_Name8ToString(name)
+  if typeof(name) == "string" then return name end if
+  if typeof(name) != "bytes" then return "" end if
+  n = len(name)
+  if n > 8 then n = 8 end if
+  outBytes = bytes(n, 0)
+  i = 0
+  while i < n
+    c = name[i]
+    if c == 0 then break end if
+    outBytes[i] = c
+    i = i + 1
+  end while
+  if i <= 0 then return "" end if
+  return decode(slice(outBytes, 0, i))
+end function
+
+/*
 * Function: _W_Name8Equals
 * Purpose: Provides equals helper behavior for the WAD resource.
 */
@@ -313,6 +334,7 @@ function _W_ToIntOr(v, fallback)
     end if
     return std.math.ceil(v)
   end if
+  if typeof(v) != "string" then return fallback end if
   n = toNumber(v)
   if typeof(n) == "int" then
     return n
@@ -365,17 +387,6 @@ function W_AddFile(filename)
   filename = _W_ToPathString(filename)
   if len(filename) == 0 then
     return
-  end if
-
-  wantsGL = false
-  if M_CheckParm("-opengl") != 0 or M_CheckParm("--opengl") != 0 or M_CheckParm("-gl") != 0 or M_CheckParm("--gl") != 0 then wantsGL = true end if
-  rebuildHD = M_CheckParm("-rebuildhdwad") != 0 or M_CheckParm("--rebuildhdwad") != 0
-  if _W_IsWadFilename(filename) and wantsGL and not rebuildHD then
-    hd = filename + ".hdwad"
-    if fs.exists(hd) and fs.isFile(hd) then
-      print " using HDWAD cache " + hd
-      filename = hd
-    end if
   end if
 
   fb = bytes(filename)
@@ -497,11 +508,16 @@ function _W_AddFilesFromArgv()
       continue
     end if
 
-    if (a == "-iwad" or a == "-hdwad" or a == "--hdwad") and i < myargc - 1 then
+    if a == "-iwad" and i < myargc - 1 then
       f = _W_ToPathString(myargv[i + 1])
       if len(f) > 0 then
         W_AddFile(f)
       end if
+      i = i + 2
+      continue
+    end if
+
+    if (a == "-hdwad" or a == "--hdwad") and i < myargc - 1 then
       i = i + 2
       continue
     end if
@@ -754,15 +770,50 @@ function W_ReadLump(lump, dest)
 end function
 
 /*
+* Function: _W_AddCachedDataName
+* Purpose: Appends one data/name pair to the cached lump name lookup without using concatenation.
+*/
+function _W_AddCachedDataName(data, name)
+  global wad_cached_patch_bytes
+  global wad_cached_patch_names
+
+  n = 0
+  if typeof(wad_cached_patch_bytes) == "array" then n = len(wad_cached_patch_bytes) end if
+  newBytes = array(n + 1)
+  newNames = array(n + 1)
+  i = 0
+  while i < n
+    newBytes[i] = wad_cached_patch_bytes[i]
+    if typeof(wad_cached_patch_names) == "array" and i < len(wad_cached_patch_names) then
+      newNames[i] = wad_cached_patch_names[i]
+    else
+      newNames[i] = ""
+    end if
+    i = i + 1
+  end while
+  newBytes[n] = data
+  if typeof(name) == "string" then
+    newNames[n] = name
+  else
+    newNames[n] = ""
+  end if
+  wad_cached_patch_bytes = newBytes
+  wad_cached_patch_names = newNames
+end function
+
+/*
 * Function: W_CacheLumpNum
 * Purpose: Retrieves and caches data for the WAD resource system.
 */
 function W_CacheLumpNum(lump, tag)
+  global wad_cached_patch_bytes
+  global wad_cached_patch_names
+
   lump = _W_ToIntOr(lump, -1)
   tag = _W_ToIntOr(tag, 0)
 
   if lump < 0 or lump >= numlumps then
-    I_Error("W_CacheLumpNum: " + _W_IntToString(lump) + " >= numlumps")
+    I_Error("W_CacheLumpNum: invalid lump index")
     return void
   end if
 
@@ -792,11 +843,34 @@ function W_CacheLumpNum(lump, tag)
       i = i + 1
     end while
     if not found then
-      wad_cached_patch_bytes = wad_cached_patch_bytes +[data]
-      wad_cached_patch_names = wad_cached_patch_names +[decodeZ(lumpinfo[lump].name)]
+      _W_AddCachedDataName(data, "")
     end if
   end if
   return data
+end function
+
+/*
+* Function: _W_RememberCachedDataName
+* Purpose: Associates cached lump bytes with a known name without touching lumpinfo metadata.
+*/
+function _W_RememberCachedDataName(data, name)
+  global wad_cached_patch_bytes
+  global wad_cached_patch_names
+
+  if typeof(data) != "bytes" or typeof(name) != "string" or name == "" then return end if
+  cacheName = _W_ToUpperAscii(name)
+  i = 0
+  while i < len(wad_cached_patch_bytes)
+    if wad_cached_patch_bytes[i] == data then
+      if i < len(wad_cached_patch_names) then
+        wad_cached_patch_names[i] = cacheName
+      end if
+      return
+    end if
+    i = i + 1
+  end while
+
+  _W_AddCachedDataName(data, cacheName)
 end function
 
 /*
@@ -815,6 +889,7 @@ function W_NameForCachedData(data)
     if wad_cached_patch_bytes[i] == data then
       wad_cached_patch_last_data = data
       wad_cached_patch_last_name = wad_cached_patch_names[i]
+      if typeof(wad_cached_patch_last_name) != "string" then wad_cached_patch_last_name = "" end if
       return wad_cached_patch_last_name
     end if
     i = i + 1
@@ -837,6 +912,7 @@ function W_NameForCachedData(data)
       if same then
         wad_cached_patch_last_data = data
         wad_cached_patch_last_name = wad_cached_patch_names[i]
+        if typeof(wad_cached_patch_last_name) != "string" then wad_cached_patch_last_name = "" end if
         return wad_cached_patch_last_name
       end if
     end if
@@ -873,7 +949,10 @@ end function
 * Purpose: Retrieves and caches data for the WAD resource system.
 */
 function W_CacheLumpName(name, tag)
-  return W_CacheLumpNum(W_GetNumForName(name), tag)
+  lump = W_GetNumForName(name)
+  data = W_CacheLumpNum(lump, tag)
+  _W_RememberCachedDataName(data, name)
+  return data
 end function
 
 _W_profile_info =[]

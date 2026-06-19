@@ -34,6 +34,7 @@ import std.math
 const RGL_ANGLE_FULL = 4294967296.0
 const RGL_FF_FRAMEMASK = 0x7fff
 const RGL_WORLD_SPRITE_FOOT_LIFT = 4.0
+const RGL_BASEYCENTER = 100
 const RGL_DYNAMIC_SETTLE_FRAMES = 3
 const RGL_GEOM_FIX_SCALE = 65536.0
 const RGL_GEOM_VERSION = 4
@@ -3227,6 +3228,13 @@ end function
 function RGL_DrawPlayerWeapon2D(player)
   if player is void or not RGL_IsSeq(player.psprites) or not RGL_IsSeq(sprites) then return end if
 
+  logicalCenterY = RGL_BASEYCENTER
+  if typeof(centery) == "int" then logicalCenterY = centery end if
+  renderScale = 1
+  if typeof(ru_scale) == "int" and ru_scale > 0 then renderScale = ru_scale end if
+  if renderScale > 1 and logicalCenterY > SCREENHEIGHT then logicalCenterY = logicalCenterY / renderScale end if
+  weaponViewYOffset = logicalCenterY - RGL_BASEYCENTER
+
   i = 0
   while i < len(player.psprites)
     psp = player.psprites[i]
@@ -3251,7 +3259,7 @@ function RGL_DrawPlayerWeapon2D(player)
                   w = entry.width / scale
                   h = entry.height / scale
                   x = RGL_FixedToFloat(psp.sx) - entry.xoffset / scale
-                  y = RGL_FixedToFloat(psp.sy) - entry.yoffset / scale
+                  y = RGL_FixedToFloat(psp.sy) - entry.yoffset / scale + weaponViewYOffset
                   IGL_DrawTextureRect(texid, x, y, w, h, flip != 0)
                 end if
               end if

@@ -339,6 +339,51 @@ function inline _ST_DigitFromParam(param, idx)
 end function
 
 /*
+* Function: _ST_DigitString
+* Purpose: Formats one numeric status-bar lump suffix without implicit string conversion.
+*/
+function inline _ST_DigitString(v)
+  if v == 1 then return "1" end if
+  if v == 2 then return "2" end if
+  if v == 3 then return "3" end if
+  if v == 4 then return "4" end if
+  if v == 5 then return "5" end if
+  if v == 6 then return "6" end if
+  if v == 7 then return "7" end if
+  if v == 8 then return "8" end if
+  if v == 9 then return "9" end if
+  return "0"
+end function
+
+/*
+* Function: _ST_ArrayAppend
+* Purpose: Returns a copy of an array with one appended item without using concatenation.
+*/
+function _ST_ArrayAppend(arr, item)
+  n = 0
+  if typeof(arr) == "array" then n = len(arr) end if
+  result = array(n + 1)
+  i = 0
+  while i < n
+    result[i] = arr[i]
+    i = i + 1
+  end while
+  result[n] = item
+  return result
+end function
+
+/*
+* Function: _ST_FacebackName
+* Purpose: Returns the fixed status-bar face background lump for the local player.
+*/
+function inline _ST_FacebackName()
+  if consoleplayer == 1 then return "STFB1" end if
+  if consoleplayer == 2 then return "STFB2" end if
+  if consoleplayer == 3 then return "STFB3" end if
+  return "STFB0"
+end function
+
+/*
 * Function: _ST_CheatParam
 * Purpose: Provides param helper behavior for the status bar.
 */
@@ -782,7 +827,7 @@ function ST_refreshBackground()
   if typeof(V_DrawNamedUpscaledPatchOverlay) == "function" then
     V_DrawNamedUpscaledPatchOverlay(0, ST_Y, "STBAR", false)
     if netgame and st_faceback is not void then
-      V_DrawNamedUpscaledPatchOverlay(ST_FX, ST_Y, "STFB" + consoleplayer, false)
+      V_DrawNamedUpscaledPatchOverlay(ST_FX, ST_Y, _ST_FacebackName(), false)
     end if
   else if typeof(V_DrawUpscaledPatchOverlay) == "function" then
     V_DrawUpscaledPatchOverlay(0, ST_Y, st_stbar, false)
@@ -862,12 +907,25 @@ function ST_loadGraphics()
   global st_keys
   global st_faces
 
+  tallNames =["STTNUM0", "STTNUM1", "STTNUM2", "STTNUM3", "STTNUM4", "STTNUM5", "STTNUM6", "STTNUM7", "STTNUM8", "STTNUM9"]
+  shortNames =["STYSNUM0", "STYSNUM1", "STYSNUM2", "STYSNUM3", "STYSNUM4", "STYSNUM5", "STYSNUM6", "STYSNUM7", "STYSNUM8", "STYSNUM9"]
+  keyNames =["STKEYS0", "STKEYS1", "STKEYS2", "STKEYS3", "STKEYS4", "STKEYS5"]
+  gunNames =["STGNUM2", "STGNUM3", "STGNUM4", "STGNUM5", "STGNUM6", "STGNUM7"]
+  faceNames =[
+    "STFST00", "STFST01", "STFST02", "STFTR00", "STFTL00", "STFOUCH0", "STFEVL0", "STFKILL0",
+    "STFST10", "STFST11", "STFST12", "STFTR10", "STFTL10", "STFOUCH1", "STFEVL1", "STFKILL1",
+    "STFST20", "STFST21", "STFST22", "STFTR20", "STFTL20", "STFOUCH2", "STFEVL2", "STFKILL2",
+    "STFST30", "STFST31", "STFST32", "STFTR30", "STFTL30", "STFOUCH3", "STFEVL3", "STFKILL3",
+    "STFST40", "STFST41", "STFST42", "STFTR40", "STFTL40", "STFOUCH4", "STFEVL4", "STFKILL4",
+    "STFGOD0", "STFDEAD0"
+  ]
+
   st_tallnum =[]
   st_shortnum =[]
   i = 0
-  while i < 10
-    st_tallnum = st_tallnum +[_ST_LoadPatchRequired("STTNUM" + i)]
-    st_shortnum = st_shortnum +[_ST_LoadPatchRequired("STYSNUM" + i)]
+  while i < len(tallNames) and i < len(shortNames)
+    st_tallnum = _ST_ArrayAppend(st_tallnum, _ST_LoadPatchRequired(tallNames[i]))
+    st_shortnum = _ST_ArrayAppend(st_shortnum, _ST_LoadPatchRequired(shortNames[i]))
     i = i + 1
   end while
 
@@ -875,16 +933,16 @@ function ST_loadGraphics()
 
   st_keys =[]
   i = 0
-  while i < NUMCARDS
-    st_keys = st_keys +[_ST_LoadPatchRequired("STKEYS" + i)]
+  while i < NUMCARDS and i < len(keyNames)
+    st_keys = _ST_ArrayAppend(st_keys, _ST_LoadPatchRequired(keyNames[i]))
     i = i + 1
   end while
 
   st_armsbg_patch = _ST_LoadPatchRequired("STARMS")
 
   i = 0
-  while i < 6
-    p0 = _ST_LoadPatchRequired("STGNUM" +(i + 2))
+  while i < 6 and i < len(gunNames)
+    p0 = _ST_LoadPatchRequired(gunNames[i])
     p1 = void
     if i + 2 < len(st_shortnum) then
       p1 = st_shortnum[i + 2]
@@ -893,26 +951,16 @@ function ST_loadGraphics()
     i = i + 1
   end while
 
-  st_faceback = _ST_LoadPatchRequired("STFB" + consoleplayer)
+  st_faceback = _ST_LoadPatchRequired(_ST_FacebackName())
   st_stbar = _ST_LoadPatchRequired("STBAR")
 
   st_faces =[]
   i = 0
-  while i < ST_NUMPAINFACES
-    j = 0
-    while j < ST_NUMSTRAIGHTFACES
-      st_faces = st_faces +[_ST_LoadPatchRequired("STFST" + i + j)]
-      j = j + 1
-    end while
-    st_faces = st_faces +[_ST_LoadPatchRequired("STFTR" + i + "0")]
-    st_faces = st_faces +[_ST_LoadPatchRequired("STFTL" + i + "0")]
-    st_faces = st_faces +[_ST_LoadPatchRequired("STFOUCH" + i)]
-    st_faces = st_faces +[_ST_LoadPatchRequired("STFEVL" + i)]
-    st_faces = st_faces +[_ST_LoadPatchRequired("STFKILL" + i)]
+  while i < len(faceNames)
+    facePatch = _ST_LoadPatchRequired(faceNames[i])
+    st_faces = _ST_ArrayAppend(st_faces, facePatch)
     i = i + 1
   end while
-  st_faces = st_faces +[_ST_LoadPatchRequired("STFGOD0")]
-  st_faces = st_faces +[_ST_LoadPatchRequired("STFDEAD0")]
 end function
 
 /*
@@ -1281,6 +1329,16 @@ function ST_Responder(ev)
   end if
 
   return false
+end function
+
+/*
+* Function: ST_ForceRefresh
+* Purpose: Forces the next status bar draw to rebuild all static and dynamic widgets.
+*/
+function ST_ForceRefresh()
+  global st_firsttime
+
+  st_firsttime = true
 end function
 
 /*

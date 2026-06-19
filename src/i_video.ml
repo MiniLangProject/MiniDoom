@@ -45,6 +45,10 @@ const _I_WM_DESTROY = 0x0002
 const _I_WM_NCDESTROY = 0x0082
 const _I_WM_PAINT = 0x000F
 const _I_WM_ERASEBKGND = 0x0014
+const _I_WM_KEYDOWN = 0x0100
+const _I_WM_KEYUP = 0x0101
+const _I_WM_SYSKEYDOWN = 0x0104
+const _I_WM_SYSKEYUP = 0x0105
 const _I_WS_OVERLAPPEDWINDOW = 0x00CF0000
 const _I_WS_POPUP = -2147483648
 const _I_WS_VISIBLE = 0x10000000
@@ -296,6 +300,7 @@ _i_windowFailed = false
 _i_keyVk =[]
 _i_keyDoom =[]
 _i_keyPrev =[]
+_i_altGPrev = false
 _i_screenshotEnabled = false
 _i_screenshotDir = "render_output"
 _i_screenshotDirReady = false
@@ -399,6 +404,48 @@ function I_SetForceSoftwarePresent(v)
 end function
 
 /*
+* Function: _I_ToggleRendererHotkey
+* Purpose: Switches renderer state and invalidates cached high-resolution overlays.
+*/
+function _I_ToggleRendererHotkey()
+  if typeof(IGL_ToggleRenderer) == "function" then
+    IGL_ToggleRenderer()
+  end if
+  if typeof(V_ClearHighresOverlay) == "function" then
+    V_ClearHighresOverlay()
+  end if
+  if typeof(ST_ForceRefresh) == "function" then
+    ST_ForceRefresh()
+  end if
+end function
+
+/*
+* Function: _I_HandleRendererHotkeyMessage
+* Purpose: Handles Alt+G from the Win32 message stream, independent of foreground polling.
+*/
+function _I_HandleRendererHotkeyMessage(msg, wparam, lparam)
+  global _i_altGPrev
+
+  if msg == _I_WM_KEYUP or msg == _I_WM_SYSKEYUP then
+    if wparam == 0x47 then _i_altGPrev = false end if
+    return false
+  end if
+
+  if msg != _I_WM_KEYDOWN and msg != _I_WM_SYSKEYDOWN then return false end if
+  if wparam != 0x47 then return false end if
+
+  altContext = msg == _I_WM_SYSKEYDOWN
+  if typeof(lparam) == "int" and((lparam & 0x20000000) != 0) then altContext = true end if
+  if not altContext then return false end if
+
+  if not _i_altGPrev then
+    _I_ToggleRendererHotkey()
+    _i_altGPrev = true
+  end if
+  return true
+end function
+
+/*
 * Function: _I_SaveLastPresentFrame
 * Purpose: Writes last present frame data for the windowing and video backend.
 */
@@ -416,6 +463,23 @@ function _I_SaveLastPresentFrame(src)
     _i_lastPresentRGBA = bytes(expected * 4, 0)
   end if
   _I_IndexedToRGBA(src, _i_lastPresentRGBA, _i_presentWidth, _i_presentHeight)
+end function
+
+/*
+* Function: _I_SaveLastRGBAFrameSized
+* Purpose: Converts an indexed frame of arbitrary dimensions for OpenGL presentation.
+*/
+function _I_SaveLastRGBAFrameSized(src, width, height)
+  global _i_lastPresentRGBA
+
+  if typeof(src) != "bytes" then return false end if
+  if typeof(width) != "int" or typeof(height) != "int" then return false end if
+  expected = width * height
+  if expected <= 0 or len(src) < expected then return false end if
+  if typeof(_i_lastPresentRGBA) != "bytes" or len(_i_lastPresentRGBA) < expected * 4 then
+    _i_lastPresentRGBA = bytes(expected * 4, 0)
+  end if
+  return _I_IndexedToRGBA(src, _i_lastPresentRGBA, width, height)
 end function
 
 /*
@@ -1049,7 +1113,7 @@ function _I_CreateWindow()
   winW = clientW
   winH = clientH
   if _i_fullscreen then
-    style = _I_WS_POPUP | _I_WS_VISIBLE
+    style = _I_WS_POPUP | _I_WS_VISIBLE | _I_SS_OWNERDRAW
     winX = 0
     winY = 0
     winW = sw
@@ -1079,7 +1143,7 @@ function _I_CreateWindow()
     IGL_Init(_i_hwnd, _i_hdc, _i_presentWidth, _i_presentHeight)
   end if
   if _i_fullscreen then
-    _ = SetWindowLongPtrW(_i_hwnd, _I_GWL_STYLE, _I_WS_POPUP | _I_WS_VISIBLE)
+    _ = SetWindowLongPtrW(_i_hwnd, _I_GWL_STYLE, _I_WS_POPUP | _I_WS_VISIBLE | _I_SS_OWNERDRAW)
     SetWindowPos(_i_hwnd, void, 0, 0, sw, sh, _I_SWP_FRAMECHANGED | _I_SWP_SHOWWINDOW)
     BringWindowToTop(_i_hwnd)
     SetForegroundWindow(_i_hwnd)
@@ -1106,9 +1170,14 @@ function _I_PumpMessages()
 
   while PeekMessageW(_i_msg, void, 0, 0, _I_PM_REMOVE)
     msg = _I_ReadU32(_i_msg, 8)
+    wparam = _I_ReadU32(_i_msg, 16)
+    lparam = _I_ReadU32(_i_msg, 24)
     if msg == _I_WM_CLOSE or msg == _I_WM_DESTROY or msg == _I_WM_NCDESTROY or msg == _I_WM_QUIT then
       if typeof(I_Quit) == "function" then I_Quit() end if
       return
+    end if
+    if _I_HandleRendererHotkeyMessage(msg, wparam, lparam) then
+      continue
     end if
     if msg == _I_WM_PAINT or msg == _I_WM_ERASEBKGND then
       // The built-in STATIC class can repaint its text into the client area.
@@ -1578,6 +1647,7 @@ end function
 * Purpose: Copies pre-upscaled patch pixels prepared by V_DrawPatch into the presentation frame.
 */
 function _I_OverlayPreparedHighresPatches()
+  if typeof(IGL_IsActive) != "function" or not IGL_IsActive() then return false end if
   if typeof(v_hioverlay) != "bytes" or typeof(v_hioverlaymask) != "bytes" then return false end if
   if typeof(_i_presentBuffer) != "bytes" then return false end if
   if len(v_hioverlay) < _i_presentWidth * _i_presentHeight then return false end if
@@ -1825,17 +1895,12 @@ function _I_DrawGLOverlayFrame()
   logical = screens[0]
   statusY = SCREENHEIGHT - _I_STATUSBAR_HEIGHT
   if statusY < 0 then statusY = 0 end if
-  hiCoversStatus = false
-  if typeof(v_hioverlay_maxx) == "int" and typeof(v_hioverlay_minx) == "int" and typeof(v_hioverlay_maxy) == "int" then
-    statusHiY = statusY * _i_presentScale
-    hiCoversStatus = v_hioverlay_minx <= 0 and v_hioverlay_maxx >= _i_presentWidth - 1 and v_hioverlay_maxy >= statusHiY
-  end if
-  if not hiCoversStatus then
-    if _I_GLOverlayLogicalRect(logical, 0, statusY, SCREENWIDTH, SCREENHEIGHT - statusY) then any = true end if
-  end if
+  menuOverlay = false
+  if typeof(menuactive) != "void" and menuactive then menuOverlay = true end if
+  if _I_GLOverlayLogicalRect(logical, 0, statusY, SCREENWIDTH, SCREENHEIGHT - statusY) then any = true end if
   if typeof(v_overlaymask) == "bytes" then
     scaledOverlay = void
-    if _i_presentScale > 1 and typeof(v_overlay_miny) == "int" and v_overlay_miny < statusY then
+    if (not menuOverlay) and _i_presentScale > 1 and typeof(v_overlay_miny) == "int" and v_overlay_miny < statusY then
       scaledOverlay = _I_BuildScaledLogicalFrame(logical)
     end if
     if typeof(scaledOverlay) == "bytes" then
@@ -1844,7 +1909,9 @@ function _I_DrawGLOverlayFrame()
       any = true
     end if
   end if
-  if _I_GLOverlayHighresPatches() then any = true end if
+  if not menuOverlay then
+    if _I_GLOverlayHighresPatches() then any = true end if
+  end if
   if not any then return false end if
   return IGL_DrawIndexedOverlay(_i_glOverlayBuffer, _i_glOverlayMask, _i_presentWidth, _i_presentHeight)
 end function
@@ -2003,6 +2070,9 @@ function _I_BuildPresentFrame()
   end if
 
   if typeof(screens) != "array" or len(screens) == 0 then return void end if
+  if typeof(IGL_IsActive) == "function" and IGL_IsActive() and gamestate != gamestate_t.GS_LEVEL then
+    return _I_BuildUpscaledLogicalFrame(screens[0])
+  end if
   return _I_BuildNearestLogicalFrame(screens[0])
 end function
 
@@ -2195,10 +2265,14 @@ end function
 * Purpose: Provides keyboard helper behavior for the windowing and video backend.
 */
 function _I_ReleaseKeyboard(postEvents)
+  global _i_altGPrev
+
   _I_InitKeyMap()
 
   if typeof(_i_keyPrev) != "array" then return end if
   if typeof(_i_keyDoom) != "array" then return end if
+
+  _i_altGPrev = false
 
   n = len(_i_keyPrev)
   i = 0
@@ -2218,6 +2292,8 @@ end function
 * Purpose: Provides keyboard helper behavior for the windowing and video backend.
 */
 function _I_PollKeyboard()
+  global _i_altGPrev
+
   _I_InitKeyMap()
 
   if typeof(_i_keyVk) != "array" then return end if
@@ -2234,6 +2310,14 @@ function _I_PollKeyboard()
     _I_ReleaseKeyboard(true)
     return
   end if
+
+  altDown =((GetAsyncKeyState(0x12) & 32768) != 0)
+  gDown =((GetAsyncKeyState(0x47) & 32768) != 0)
+  altGDown = altDown and gDown
+  if altGDown and not _i_altGPrev then
+    _I_ToggleRendererHotkey()
+  end if
+  _i_altGPrev = altGDown
 
   n = len(_i_keyVk)
   i = 0
@@ -2528,10 +2612,13 @@ end function
 * Function: _I_PresentIndexedFrameGL
 * Purpose: Draws present Indexed Frame GL output for the video backend renderer.
 */
-function _I_PresentIndexedFrameGL(src)
+function _I_PresentIndexedFrameGLSized(src, srcW, srcH)
   if typeof(src) != "bytes" then return false end if
-  if typeof(IGL_DrawIndexedFrame) != "function" then return false end if
-  _I_SaveLastPresentFrame(src)
+  if typeof(srcW) != "int" or typeof(srcH) != "int" then return false end if
+  if srcW <= 0 or srcH <= 0 then return false end if
+  if typeof(IGL_DrawRGBAFrame) != "function" then return false end if
+  if not _I_SaveLastRGBAFrameSized(src, srcW, srcH) then return false end if
+  if typeof(_i_lastPresentRGBA) != "bytes" then return false end if
 
   destW = _i_presentWidth
   destH = _i_presentHeight
@@ -2542,9 +2629,17 @@ function _I_PresentIndexedFrameGL(src)
     if ch > 0 then destH = ch end if
   end if
   if typeof(IGL_Resize) == "function" then IGL_Resize(destW, destH) end if
-  if not IGL_DrawIndexedFrame(src, _i_presentWidth, _i_presentHeight) then return false end if
+  if not IGL_DrawRGBAFrame(_i_lastPresentRGBA, srcW, srcH) then return false end if
   if typeof(IGL_MarkFrameReady) == "function" then IGL_MarkFrameReady() end if
   return IGL_Swap()
+end function
+
+/*
+* Function: _I_PresentIndexedFrameGL
+* Purpose: Presents an indexed frame whose dimensions match the physical presentation buffer.
+*/
+function _I_PresentIndexedFrameGL(src)
+  return _I_PresentIndexedFrameGLSized(src, _i_presentWidth, _i_presentHeight)
 end function
 
 /*
@@ -2654,7 +2749,11 @@ function I_FinishUpdate()
   src = void
   if _i_forceSoftwarePresent then
     if typeof(screens) != "array" or len(screens) == 0 then return end if
-    src = _I_BuildUpscaledLogicalFrame(screens[0])
+    if typeof(IGL_IsActive) == "function" and IGL_IsActive() then
+      src = _I_BuildUpscaledLogicalFrame(screens[0])
+    else
+      src = _I_BuildNearestLogicalFrame(screens[0])
+    end if
   else
     src = _I_BuildPresentFrame()
   end if
@@ -2663,7 +2762,7 @@ function I_FinishUpdate()
   _I_MaybeAutoScreenshot()
   _I_UpdateWindowTitle()
 
-  if typeof(IGL_IsActive) == "function" and IGL_IsActive() then
+  if typeof(IGL_IsAvailable) == "function" and IGL_IsAvailable() then
     if _I_PresentIndexedFrameGL(src) then return end if
   end if
 

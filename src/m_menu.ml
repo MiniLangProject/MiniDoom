@@ -1000,7 +1000,7 @@ end function
 function M_DrawMainMenu()
   V_DrawPatchDirect(94, 2, 0, W_CacheLumpName("M_DOOM", PU_CACHE))
   y = MainDef.y + LINEHEIGHT * main_multiplayer + 1
-  _MMENU_WriteTextMenuSized(MainDef.x, y, "MULTIPLAYER")
+  _MMENU_WriteMenuSizedOrText(MainDef.x, y, "MULTIPLAYER")
 end function
 
 /*
@@ -1228,13 +1228,13 @@ end function
 * Purpose: Draws the multiplayer root menu.
 */
 function M_DrawMultiplayerMenu()
-  _MMENU_WriteTextMenuSized(96, 20, "MULTIPLAYER")
+  _MMENU_WriteMenuSizedOrText(96, 20, "MULTIPLAYER")
   y0 = MultiplayerDef.y + LINEHEIGHT * mp_main_host
   y1 = MultiplayerDef.y + LINEHEIGHT * mp_main_join
   y2 = MultiplayerDef.y + LINEHEIGHT * mp_main_name
-  _MMENU_WriteTextMenuSized(MultiplayerDef.x, y0, "HOST GAME")
-  _MMENU_WriteTextMenuSized(MultiplayerDef.x, y1, "JOIN GAME")
-  _MMENU_WriteTextMenuSized(MultiplayerDef.x, y2, "PLAYER NAME")
+  _MMENU_WriteMenuSizedOrText(MultiplayerDef.x, y0, "HOST GAME")
+  _MMENU_WriteMenuSizedOrText(MultiplayerDef.x, y1, "JOIN GAME")
+  _MMENU_WriteMenuSizedOrText(MultiplayerDef.x, y2, "PLAYER NAME")
 end function
 
 /*
@@ -1277,7 +1277,7 @@ end function
 function M_DrawMPHostMenu()
   MP_ClampSettings()
   MP_RebuildMapList()
-  _MMENU_WriteTextMenuSized(108, 16, "HOST GAME")
+  _MMENU_WriteMenuSizedOrText(108, 16, "HOST GAME")
   y = MPHostDef.y
   x = MPHostDef.x
   y0 = y + LINEHEIGHT * mp_host_mode_item
@@ -1293,14 +1293,14 @@ function M_DrawMPHostMenu()
   skillText = _MMENU_MPSkillName(mp_host_skill)
   fragText = _MMENU_MPLimitText(mp_dm_frag_limit)
   timeText = _MMENU_MPLimitText(mp_dm_time_limit)
-  _MMENU_WriteTextMenuSized(x, y0, "MODE: " + modeText)
-  _MMENU_WriteTextMenuSized(x, y1, "MAP: " + mapText)
-  _MMENU_WriteTextMenuSized(x, y2, "SKILL: " + skillText)
-  _MMENU_WriteTextMenuSized(x, y3, "MAX PLAYERS: " + mp_host_max_players)
-  _MMENU_WriteTextMenuSized(x, y4, "FRAG LIMIT: " + fragText)
-  _MMENU_WriteTextMenuSized(x, y5, "TIME LIMIT: " + timeText)
-  _MMENU_WriteTextMenuSized(x, y6, "PORT: " + mp_host_port)
-  _MMENU_WriteTextMenuSized(x, y7, "START HOST")
+  _MMENU_WriteMenuSizedOrText(x, y0, "MODE: " + modeText)
+  _MMENU_WriteMenuSizedOrText(x, y1, "MAP: " + mapText)
+  _MMENU_WriteMenuSizedOrText(x, y2, "SKILL: " + skillText)
+  _MMENU_WriteMenuSizedOrText(x, y3, "MAX PLAYERS: " + mp_host_max_players)
+  _MMENU_WriteMenuSizedOrText(x, y4, "FRAG LIMIT: " + fragText)
+  _MMENU_WriteMenuSizedOrText(x, y5, "TIME LIMIT: " + timeText)
+  _MMENU_WriteMenuSizedOrText(x, y6, "PORT: " + mp_host_port)
+  _MMENU_WriteMenuSizedOrText(x, y7, "START HOST")
 end function
 
 /*
@@ -1308,21 +1308,21 @@ end function
 * Purpose: Draws join setup values and live host/name text editors.
 */
 function M_DrawMPJoinMenu()
-  _MMENU_WriteTextMenuSized(108, 16, "JOIN GAME")
+  _MMENU_WriteMenuSizedOrText(108, 16, "JOIN GAME")
   y = MPJoinDef.y
   x = MPJoinDef.x
   y0 = y + LINEHEIGHT * mp_join_host_item
   y1 = y + LINEHEIGHT * mp_join_port_item
   y2 = y + LINEHEIGHT * mp_join_start
   hostText = decodeZ(mpJoinHostBuf)
-  _MMENU_WriteTextMenuSized(x, y0, "HOST: " + hostText)
+  _MMENU_WriteMenuSizedOrText(x, y0, "HOST: " + hostText)
   if mpJoinHostEnter != 0 then
     hostLine = "HOST: " + hostText
     tx = x + _MMENU_StringWidthMenuSized(hostLine)
-    _MMENU_WriteTextMenuSized(tx, y0, "_")
+    _MMENU_WriteMenuSizedOrText(tx, y0, "_")
   end if
-  _MMENU_WriteTextMenuSized(x, y1, "PORT: " + mp_join_port)
-  _MMENU_WriteTextMenuSized(x, y2, "JOIN")
+  _MMENU_WriteMenuSizedOrText(x, y1, "PORT: " + mp_join_port)
+  _MMENU_WriteMenuSizedOrText(x, y2, "JOIN")
 end function
 
 /*
@@ -1330,19 +1330,19 @@ end function
 * Purpose: Draws player name editor with caret during text entry.
 */
 function M_DrawMPNameMenu()
-  _MMENU_WriteTextMenuSized(86, 24, "PLAYER NAME")
+  _MMENU_WriteMenuSizedOrText(86, 24, "PLAYER NAME")
   y = MPNameDef.y
   x = MPNameDef.x
   y0 = y + LINEHEIGHT * mp_name_edit
   y1 = y + LINEHEIGHT * mp_name_done
   nameText = decodeZ(mpNameBuf)
-  _MMENU_WriteTextMenuSized(x, y0, "NAME: " + nameText)
+  _MMENU_WriteMenuSizedOrText(x, y0, "NAME: " + nameText)
   if mpNameEnter != 0 then
     nameLine = "NAME: " + nameText
     tx = x + _MMENU_StringWidthMenuSized(nameLine)
-    _MMENU_WriteTextMenuSized(tx, y0, "_")
+    _MMENU_WriteMenuSizedOrText(tx, y0, "_")
   end if
-  _MMENU_WriteTextMenuSized(x, y1, "DONE")
+  _MMENU_WriteMenuSizedOrText(x, y1, "DONE")
 end function
 
 /*
@@ -1685,7 +1685,7 @@ function M_DrawOptions()
   V_DrawPatchDirect(OptionsDef.x + 120, OptionsDef.y + LINEHEIGHT * messages, 0,
   W_CacheLumpName(msgNames[showMessages], PU_CACHE))
 
-  _MMENU_WriteTextMenuSized(OptionsDef.x, OptionsDef.y + LINEHEIGHT * brightness, "BRIGHTNESS")
+  _MMENU_WriteMenuSizedOrText(OptionsDef.x, OptionsDef.y + LINEHEIGHT * brightness, "BRIGHTNESS")
   M_DrawThermo(OptionsDef.x, OptionsDef.y + LINEHEIGHT *(brightness + 1), 5, usegamma)
   M_DrawThermo(OptionsDef.x, OptionsDef.y + LINEHEIGHT *(mousesens + 1), 10, mouseSensitivity)
   M_DrawThermo(OptionsDef.x, OptionsDef.y + LINEHEIGHT *(scrnsize + 1), 9, screenSize)
@@ -1835,7 +1835,7 @@ end function
 function M_ChangeDetail(choice)
   global detailLevel
   choice = choice
-  detailLevel = 1 - detailLevel
+  detailLevel = 0
 
   if typeof(R_SetViewSize) == "function" then
     R_SetViewSize(screenblocks, detailLevel)
@@ -1844,11 +1844,7 @@ function M_ChangeDetail(choice)
   if typeof(players) == "array" and consoleplayer >= 0 and consoleplayer < len(players) then
     p = players[consoleplayer]
     if p is not void then
-      if detailLevel == 0 then
-        p.message = DETAILHI
-      else
-        p.message = DETAILLO
-      end if
+      p.message = DETAILHI
       players[consoleplayer] = p
     end if
   end if
@@ -2168,6 +2164,7 @@ function _MMENU_WriteTextMenuSized(x, y, string)
   cx = x
   cy = y
   i = 0
+  drawn = 0
   while i < len(b)
     c = b[i]
     i = i + 1
@@ -2189,8 +2186,19 @@ function _MMENU_WriteTextMenuSized(x, y, string)
     if cx + w + 2 > SCREENWIDTH then break end if
 
     _MMENU_DrawPatchScale2(cx, cy, 0, patch)
+    drawn = drawn + 1
     cx = cx + w + 2
   end while
+  return drawn > 0
+end function
+
+/*
+* Function: _MMENU_WriteMenuSizedOrText
+* Purpose: Draws custom menu labels and falls back to the normal menu font if needed.
+*/
+function _MMENU_WriteMenuSizedOrText(x, y, string)
+  if _MMENU_WriteTextMenuSized(x, y, string) then return end if
+  M_WriteText(x, y, string)
 end function
 
 _joywait = 0

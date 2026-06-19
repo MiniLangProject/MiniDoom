@@ -86,6 +86,34 @@ stlib_patch_name_data =[]
 stlib_patch_name_names =[]
 
 /*
+* Function: _STL_AddPatchName
+* Purpose: Appends one patch/name pair without relying on array concatenation.
+*/
+function _STL_AddPatchName(patch, name)
+  global stlib_patch_name_data
+  global stlib_patch_name_names
+
+  n = 0
+  if typeof(stlib_patch_name_data) == "array" then n = len(stlib_patch_name_data) end if
+  newData = array(n + 1)
+  newNames = array(n + 1)
+  i = 0
+  while i < n
+    newData[i] = stlib_patch_name_data[i]
+    if typeof(stlib_patch_name_names) == "array" and i < len(stlib_patch_name_names) then
+      newNames[i] = stlib_patch_name_names[i]
+    else
+      newNames[i] = ""
+    end if
+    i = i + 1
+  end while
+  newData[n] = patch
+  newNames[n] = name
+  stlib_patch_name_data = newData
+  stlib_patch_name_names = newNames
+end function
+
+/*
 * Function: STlib_RegisterPatchName
 * Purpose: Provides register patch name helper behavior for the status bar.
 */
@@ -101,8 +129,7 @@ function STlib_RegisterPatchName(patch, name)
     end if
     i = i + 1
   end while
-  stlib_patch_name_data = stlib_patch_name_data +[patch]
-  stlib_patch_name_names = stlib_patch_name_names +[name]
+  _STL_AddPatchName(patch, name)
 end function
 
 /*

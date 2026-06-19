@@ -2,6 +2,7 @@
 build/
 dist/
 out/
+test-results/
 
 # Compiler/runtime artifacts
 *.exe

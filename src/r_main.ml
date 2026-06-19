@@ -797,14 +797,12 @@ function R_SetViewSize(blocks, detail)
 
   setsizeneeded = true
   setblocks = blocks
-  setdetail = detail
+  setdetail = 0
 
   blocks = _R_ToIntOr(blocks, 10)
-  detail = _R_ToIntOr(detail, 0)
+  detail = 0
   if blocks < 3 then blocks = 3 end if
   if blocks > 11 then blocks = 11 end if
-  if detail < 0 then detail = 0 end if
-  if detail > 1 then detail = 1 end if
 
   if blocks == 11 then
     scaledviewwidth = SCREENWIDTH

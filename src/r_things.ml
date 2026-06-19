@@ -856,11 +856,6 @@ function R_DrawVisSprite(vis, x1, x2)
   pw = Patch_Width(patch)
   if typeof(pw) != "int" or pw <= 0 then return end if
 
-  upEntry = void
-  if typeof(RU_GetSprite) == "function" then
-    upEntry = RU_GetSprite(_RT_LumpNameAt(vis.patch + firstspritelump))
-  end if
-
   oldColFunc = colfunc
   oldTranslation = dc_translation
   _rt_drawTranslation = void
@@ -895,15 +890,6 @@ function R_DrawVisSprite(vis, x1, x2)
     dc_translation = oldTranslation
     _rt_drawTranslation = void
     return
-  end if
-
-  if colfunc != fuzzcolfunc and upEntry is not void then
-    if _RT_DrawUpscaledLinearSprite(vis, upEntry, pw, x1, x2) then
-      colfunc = oldColFunc
-      dc_translation = oldTranslation
-      _rt_drawTranslation = void
-      return
-    end if
   end if
 
   dc_iscale = _RT_Abs(vis.xiscale) >> detailshift

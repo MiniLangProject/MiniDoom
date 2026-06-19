@@ -27,6 +27,7 @@ import m_bbox
 import m_swap
 import w_wad
 import r_upscaled
+import i_gl
 
 screens =[0, 0, 0, 0, 0]
 
@@ -253,6 +254,7 @@ function V_EnsureHighresOverlay()
   global v_hioverlaymask
   global v_hioverlay_scale
 
+  if typeof(IGL_IsActive) != "function" or not IGL_IsActive() then return false end if
   s = 1
   if typeof(RU_RenderScale) == "function" then s = RU_RenderScale() end if
   if typeof(s) != "int" or s < 1 then s = 1 end if
@@ -277,7 +279,7 @@ function V_ClearHighresOverlay()
   global v_hioverlay_maxx
   global v_hioverlay_maxy
 
-  if typeof(v_hioverlaymask) == "bytes" and V_EnsureHighresOverlay() then
+  if typeof(v_hioverlaymask) == "bytes" then
     w = SCREENWIDTH * v_hioverlay_scale
     if v_hioverlay_maxx >= v_hioverlay_minx and v_hioverlay_maxy >= v_hioverlay_miny then
       y = v_hioverlay_miny

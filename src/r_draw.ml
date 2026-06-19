@@ -422,9 +422,31 @@ function R_DrawColumnLow()
 
   dest = _RD_TargetBuffer()
   if typeof(dest) != "bytes" then return end if
-  if typeof(dc_source) != "bytes" or len(dc_source) <= 0 then return end if
   if typeof(dc_colormap) != "bytes" or len(dc_colormap) <= 0 then return end if
   if typeof(dc_x) != "int" then return end if
+
+  srcBase = dc_source
+  srcOff = 0
+  srcLen = 0
+  srcClamp = false
+  if typeof(srcBase) == "bytes" then srcLen = len(srcBase) end if
+  if typeof(dc_sourcebase) == "bytes" and typeof(dc_sourcelen) == "int" and dc_sourcelen > 0 then
+    srcBase = dc_sourcebase
+    srcOff = dc_sourceoff
+    if typeof(srcOff) != "int" then srcOff = 0 end if
+    srcLen = dc_sourcelen
+    srcClamp = dc_sourceclamp
+    if srcOff < 0 then
+      srcLen = srcLen + srcOff
+      srcOff = 0
+    end if
+    if srcOff >= len(srcBase) then
+      srcLen = 0
+    else if srcOff + srcLen > len(srcBase) then
+      srcLen = len(srcBase) - srcOff
+    end if
+  end if
+  if typeof(srcBase) != "bytes" or srcLen <= 0 then return end if
 
   x1 = dc_x << 1
   x2 = x1 + 1
@@ -447,7 +469,6 @@ function R_DrawColumnLow()
 
   fracstep = dc_iscale
   frac = dc_texturemid +(yl - _RD_CenterY()) * fracstep
-  srcLen = len(dc_source)
   sourceScale = 1
   if typeof(dc_sourcebase) != "bytes" and typeof(rd_column_source_scale) == "int" then
     sourceScale = rd_column_source_scale
@@ -455,7 +476,7 @@ function R_DrawColumnLow()
     if sourceScale > 4 then sourceScale = 4 end if
   end if
   cmapLen = len(dc_colormap)
-  srcPow2 = _RD_IsPow2(srcLen)
+  srcPow2 = _RD_IsPow2(srcLen) and(not srcClamp)
   srcMask = srcLen - 1
   sx1 = columnofs[x1]
   sx2 = columnofs[x2]
@@ -468,7 +489,7 @@ function R_DrawColumnLow()
   if srcPow2 and cmapLen >= 256 then
     for y = yl to yh
       ti =(frac >> FRACBITS) & srcMask
-      c = dc_colormap[dc_source[ti]]
+      c = dc_colormap[srcBase[srcOff + ti]]
       row = ylookup[y]
       di1 = row + sx1
       di2 = row + sx2
@@ -484,8 +505,17 @@ function R_DrawColumnLow()
   end if
 
   for y = yl to yh
-    ti = _RD_WrapIndex(frac >> FRACBITS, srcLen)
-    tex = dc_source[ti]
+    ti = frac >> FRACBITS
+    if srcClamp then
+      if ti < 0 then
+        ti = 0
+      else if ti >= srcLen then
+        ti = srcLen - 1
+      end if
+    else
+      ti = _RD_WrapIndex(ti, srcLen)
+    end if
+    tex = srcBase[srcOff + ti]
     if tex >= cmapLen then tex = tex % cmapLen end if
     if tex < 0 then tex = 0 end if
     c = dc_colormap[tex]

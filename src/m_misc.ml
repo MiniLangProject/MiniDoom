@@ -322,7 +322,7 @@ function _M_ApplyDefaultKV(key, val)
     return
   end if
   if key == "detaillevel" and typeof(n) == "int" then
-    detailLevel = n
+    detailLevel = 0
     return
   end if
   if key == "brightness" and typeof(n) == "int" then

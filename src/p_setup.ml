@@ -132,12 +132,77 @@ end function
 */
 function inline _PS_MapName(episode, map)
   if gamemode == GameMode_t.commercial then
-    if map < 10 then
-      return "map0" + map
-    end if
-    return "map" + map
+    if map == 1 then return "MAP01" end if
+    if map == 2 then return "MAP02" end if
+    if map == 3 then return "MAP03" end if
+    if map == 4 then return "MAP04" end if
+    if map == 5 then return "MAP05" end if
+    if map == 6 then return "MAP06" end if
+    if map == 7 then return "MAP07" end if
+    if map == 8 then return "MAP08" end if
+    if map == 9 then return "MAP09" end if
+    if map == 10 then return "MAP10" end if
+    if map == 11 then return "MAP11" end if
+    if map == 12 then return "MAP12" end if
+    if map == 13 then return "MAP13" end if
+    if map == 14 then return "MAP14" end if
+    if map == 15 then return "MAP15" end if
+    if map == 16 then return "MAP16" end if
+    if map == 17 then return "MAP17" end if
+    if map == 18 then return "MAP18" end if
+    if map == 19 then return "MAP19" end if
+    if map == 20 then return "MAP20" end if
+    if map == 21 then return "MAP21" end if
+    if map == 22 then return "MAP22" end if
+    if map == 23 then return "MAP23" end if
+    if map == 24 then return "MAP24" end if
+    if map == 25 then return "MAP25" end if
+    if map == 26 then return "MAP26" end if
+    if map == 27 then return "MAP27" end if
+    if map == 28 then return "MAP28" end if
+    if map == 29 then return "MAP29" end if
+    if map == 30 then return "MAP30" end if
+    if map == 31 then return "MAP31" end if
+    if map == 32 then return "MAP32" end if
+    return "MAP01"
   end if
-  return "E" + episode + "M" + map
+  if episode == 1 and map == 1 then return "E1M1" end if
+  if episode == 1 and map == 2 then return "E1M2" end if
+  if episode == 1 and map == 3 then return "E1M3" end if
+  if episode == 1 and map == 4 then return "E1M4" end if
+  if episode == 1 and map == 5 then return "E1M5" end if
+  if episode == 1 and map == 6 then return "E1M6" end if
+  if episode == 1 and map == 7 then return "E1M7" end if
+  if episode == 1 and map == 8 then return "E1M8" end if
+  if episode == 1 and map == 9 then return "E1M9" end if
+  if episode == 2 and map == 1 then return "E2M1" end if
+  if episode == 2 and map == 2 then return "E2M2" end if
+  if episode == 2 and map == 3 then return "E2M3" end if
+  if episode == 2 and map == 4 then return "E2M4" end if
+  if episode == 2 and map == 5 then return "E2M5" end if
+  if episode == 2 and map == 6 then return "E2M6" end if
+  if episode == 2 and map == 7 then return "E2M7" end if
+  if episode == 2 and map == 8 then return "E2M8" end if
+  if episode == 2 and map == 9 then return "E2M9" end if
+  if episode == 3 and map == 1 then return "E3M1" end if
+  if episode == 3 and map == 2 then return "E3M2" end if
+  if episode == 3 and map == 3 then return "E3M3" end if
+  if episode == 3 and map == 4 then return "E3M4" end if
+  if episode == 3 and map == 5 then return "E3M5" end if
+  if episode == 3 and map == 6 then return "E3M6" end if
+  if episode == 3 and map == 7 then return "E3M7" end if
+  if episode == 3 and map == 8 then return "E3M8" end if
+  if episode == 3 and map == 9 then return "E3M9" end if
+  if episode == 4 and map == 1 then return "E4M1" end if
+  if episode == 4 and map == 2 then return "E4M2" end if
+  if episode == 4 and map == 3 then return "E4M3" end if
+  if episode == 4 and map == 4 then return "E4M4" end if
+  if episode == 4 and map == 5 then return "E4M5" end if
+  if episode == 4 and map == 6 then return "E4M6" end if
+  if episode == 4 and map == 7 then return "E4M7" end if
+  if episode == 4 and map == 8 then return "E4M8" end if
+  if episode == 4 and map == 9 then return "E4M9" end if
+  return "E1M1"
 end function
 
 /*
