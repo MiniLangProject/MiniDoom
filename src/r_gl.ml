@@ -1066,9 +1066,10 @@ end function
 function inline RGL_LightByte(sec)
   if sec is void or typeof(sec.lightlevel) != "int" then return 128 end if
   v = sec.lightlevel
-  if v < 32 then v = 32 end if
-  if v > 255 then v = 255 end if
-  return v
+  v = 8.0 +(v * 0.68)
+  if v < 12 then v = 12 end if
+  if v > 198 then v = 198 end if
+  return std.math.floor(v)
 end function
 
 /*
@@ -1298,20 +1299,20 @@ function RGL_SetVertexLight(base, x, y, z)
   dz = z + rgl_view_y
   d2 = dx * dx + dz * dz
 
-  nearR = 720.0
+  nearR = 640.0
   near2 = nearR * nearR
   if d2 < near2 then
-    boost = (1.0 -(d2 / near2)) * 64.0
+    boost = (1.0 -(d2 / near2)) * 54.0
     r = r + boost
     g = g + boost
     b = b + boost
   end if
 
-  fadeStart = 520.0 * 520.0
-  fadeEnd = 2200.0 * 2200.0
+  fadeStart = 280.0 * 280.0
+  fadeEnd = 1650.0 * 1650.0
   if d2 > fadeStart then
-    fade = ((d2 - fadeStart) / (fadeEnd - fadeStart)) * 145.0
-    if fade > 145.0 then fade = 145.0 end if
+    fade = ((d2 - fadeStart) / (fadeEnd - fadeStart)) * 190.0
+    if fade > 190.0 then fade = 190.0 end if
     r = r - fade
     g = g - fade
     b = b - fade
