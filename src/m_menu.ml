@@ -2193,12 +2193,30 @@ function _MMENU_WriteTextMenuSized(x, y, string)
 end function
 
 /*
+* Function: _MMENU_RevealLogicalMenuText
+* Purpose: Keeps startup/title-screen high-res patch overlays from covering generated menu text.
+*/
+function _MMENU_RevealLogicalMenuText(x, y, string)
+  if typeof(IGL_IsActive) != "function" or not IGL_IsActive() then return end if
+  if typeof(gamestate) != "void" and gamestate == gamestate_t.GS_LEVEL then return end if
+  if typeof(V_ClearHighresOverlayRect) != "function" then return end if
+
+  w = _MMENU_StringWidthMenuSized(string)
+  if w <= 0 then w = len(_bytesOf(string)) * 10 end if
+  V_ClearHighresOverlayRect(x - 4, y - 4, w + 8, 24)
+end function
+
+/*
 * Function: _MMENU_WriteMenuSizedOrText
 * Purpose: Draws custom menu labels and falls back to the normal menu font if needed.
 */
 function _MMENU_WriteMenuSizedOrText(x, y, string)
-  if _MMENU_WriteTextMenuSized(x, y, string) then return end if
+  if _MMENU_WriteTextMenuSized(x, y, string) then
+    _MMENU_RevealLogicalMenuText(x, y, string)
+    return
+  end if
   M_WriteText(x, y, string)
+  _MMENU_RevealLogicalMenuText(x, y, string)
 end function
 
 _joywait = 0
