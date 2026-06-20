@@ -86,7 +86,7 @@ rgl_dyn_light_g =[]
 rgl_dyn_light_b =[]
 rgl_dyn_light_radius =[]
 rgl_dyn_light_strength =[]
-const RGL_MAX_DYNAMIC_LIGHTS = 32
+const RGL_MAX_DYNAMIC_LIGHTS = 48
 
 const RGL_CACHE_BOUNDARY = 1
 const RGL_CACHE_WALL = 2
@@ -1311,6 +1311,125 @@ function RGL_AddLiquidSectorLights(player)
 end function
 
 /*
+* Function: RGL_MobjDecorLight
+* Purpose: Adds subtle OpenGL light from decorative light-emitting map objects.
+*/
+function RGL_MobjDecorLight(mo, x, z)
+  if mo is void or typeof(mo.sprite) != "int" then return false end if
+  sp = mo.sprite
+  y = RGL_FixedToFloat(mo.z) + 28.0
+  if typeof(mo.height) == "int" then
+    h = RGL_FixedToFloat(mo.height)
+    if h > 0.0 then y = RGL_FixedToFloat(mo.z) + h * 0.65 end if
+  end if
+
+  pulse = 1.0
+  if typeof(gametic) == "int" then
+    pulse = 0.88 + std.math.sin(gametic * 0.23 + x * 0.011 + z * 0.013) * 0.12
+  end if
+
+  if sp == spritenum_t.SPR_TBLU then
+    RGL_AddDynamicLight(x, y + 18.0, z, 76, 150, 255, 360.0, 38.0 * pulse)
+    return true
+  end if
+  if sp == spritenum_t.SPR_TGRN then
+    RGL_AddDynamicLight(x, y + 18.0, z, 76, 230, 92, 360.0, 36.0 * pulse)
+    return true
+  end if
+  if sp == spritenum_t.SPR_TRED then
+    RGL_AddDynamicLight(x, y + 18.0, z, 255, 80, 46, 360.0, 38.0 * pulse)
+    return true
+  end if
+  if sp == spritenum_t.SPR_SMBT then
+    RGL_AddDynamicLight(x, y + 10.0, z, 76, 145, 255, 285.0, 29.0 * pulse)
+    return true
+  end if
+  if sp == spritenum_t.SPR_SMGT then
+    RGL_AddDynamicLight(x, y + 10.0, z, 72, 220, 88, 285.0, 28.0 * pulse)
+    return true
+  end if
+  if sp == spritenum_t.SPR_SMRT then
+    RGL_AddDynamicLight(x, y + 10.0, z, 255, 78, 42, 285.0, 29.0 * pulse)
+    return true
+  end if
+  if sp == spritenum_t.SPR_CAND then
+    RGL_AddDynamicLight(x, y + 6.0, z, 255, 170, 82, 205.0, 18.0 * pulse)
+    return true
+  end if
+  if sp == spritenum_t.SPR_CBRA or sp == spritenum_t.SPR_POL3 then
+    RGL_AddDynamicLight(x, y + 12.0, z, 255, 166, 74, 295.0, 30.0 * pulse)
+    return true
+  end if
+  if sp == spritenum_t.SPR_TLMP then
+    RGL_AddDynamicLight(x, y + 14.0, z, 188, 235, 255, 345.0, 35.0 * pulse)
+    return true
+  end if
+  if sp == spritenum_t.SPR_TLP2 then
+    RGL_AddDynamicLight(x, y + 14.0, z, 170, 225, 255, 300.0, 28.0 * pulse)
+    return true
+  end if
+  if sp == spritenum_t.SPR_FCAN then
+    RGL_AddDynamicLight(x, y + 16.0, z, 255, 118, 38, 315.0, 34.0 * pulse)
+    return true
+  end if
+  if sp == spritenum_t.SPR_CEYE then
+    RGL_AddDynamicLight(x, y + 16.0, z, 130, 255, 82, 300.0, 26.0 * pulse)
+    return true
+  end if
+  if sp == spritenum_t.SPR_FSKU then
+    RGL_AddDynamicLight(x, y + 12.0, z, 255, 112, 58, 255.0, 22.0 * pulse)
+    return true
+  end if
+  return false
+end function
+
+/*
+* Function: RGL_MobjExplosionLight
+* Purpose: Adds short, bright OpenGL lights for explosion animation states.
+*/
+function RGL_MobjExplosionLight(mo, x, y, z)
+  if mo is void or mo.state is void or typeof(mo.state) != "struct" then return false end if
+  st = Info_StateIndex(mo.state)
+  if typeof(st) != "int" then return false end if
+
+  if st == statenum_t.S_EXPLODE1 then
+    RGL_AddDynamicLight(x, y, z, 255, 132, 36, 780.0, 190.0)
+    return true
+  end if
+  if st == statenum_t.S_EXPLODE2 then
+    RGL_AddDynamicLight(x, y, z, 255, 166, 62, 690.0, 145.0)
+    return true
+  end if
+  if st == statenum_t.S_EXPLODE3 then
+    RGL_AddDynamicLight(x, y, z, 255, 92, 28, 540.0, 82.0)
+    return true
+  end if
+
+  if st == statenum_t.S_BEXP then
+    RGL_AddDynamicLight(x, y + 18.0, z, 255, 118, 28, 820.0, 205.0)
+    return true
+  end if
+  if st == statenum_t.S_BEXP2 then
+    RGL_AddDynamicLight(x, y + 18.0, z, 255, 158, 48, 760.0, 170.0)
+    return true
+  end if
+  if st == statenum_t.S_BEXP3 then
+    RGL_AddDynamicLight(x, y + 14.0, z, 255, 126, 36, 650.0, 125.0)
+    return true
+  end if
+  if st == statenum_t.S_BEXP4 then
+    RGL_AddDynamicLight(x, y + 10.0, z, 255, 82, 24, 520.0, 78.0)
+    return true
+  end if
+  if st == statenum_t.S_BEXP5 then
+    RGL_AddDynamicLight(x, y + 6.0, z, 190, 64, 20, 360.0, 38.0)
+    return true
+  end if
+
+  return false
+end function
+
+/*
 * Function: RGL_MobjLight
 * Purpose: Provides light helper behavior for the OpenGL renderer.
 */
@@ -1321,6 +1440,8 @@ function RGL_MobjLight(mo)
   if typeof(mo.height) == "int" then y = y + RGL_FixedToFloat(mo.height) * 0.45 end if
   z = -RGL_FixedToFloat(mo.y)
   t = mo.type
+
+  if RGL_MobjExplosionLight(mo, x, y, z) then return true end if
 
   if t == mobjtype_t.MT_ROCKET then
     RGL_AddDynamicLight(x, y, z, 255, 116, 34, 520.0, 118.0)
@@ -1371,6 +1492,7 @@ function RGL_MobjLight(mo)
     end if
     return true
   end if
+  if RGL_MobjDecorLight(mo, x, z) then return true end if
   return false
 end function
 
