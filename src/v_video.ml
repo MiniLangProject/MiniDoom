@@ -45,6 +45,12 @@ v_hioverlay_minx = 0
 v_hioverlay_miny = 0
 v_hioverlay_maxx = -1
 v_hioverlay_maxy = -1
+v_hioverlay_cached_name = ""
+v_hioverlay_cached_x = 0
+v_hioverlay_cached_y = 0
+v_hioverlay_cached_flipped = false
+v_hioverlay_cached_scale = 0
+v_hioverlay_cached_valid = false
 
 gammatable =[
 [
@@ -278,6 +284,8 @@ function V_ClearHighresOverlay()
   global v_hioverlay_miny
   global v_hioverlay_maxx
   global v_hioverlay_maxy
+  global v_hioverlay_cached_valid
+  global v_hioverlay_cached_name
 
   if typeof(v_hioverlaymask) == "bytes" then
     w = SCREENWIDTH * v_hioverlay_scale
@@ -296,6 +304,19 @@ function V_ClearHighresOverlay()
   v_hioverlay_miny = 0
   v_hioverlay_maxx = -1
   v_hioverlay_maxy = -1
+  v_hioverlay_cached_valid = false
+  v_hioverlay_cached_name = ""
+end function
+
+/*
+* Function: V_HighresOverlayCanReuse
+* Purpose: Reports whether the previous high-resolution page overlay is still intact.
+*/
+function V_HighresOverlayCanReuse()
+  if not v_hioverlay_cached_valid then return false end if
+  if typeof(v_hioverlaymask) != "bytes" then return false end if
+  if v_hioverlay_maxx < v_hioverlay_minx or v_hioverlay_maxy < v_hioverlay_miny then return false end if
+  return true
 end function
 
 /*
@@ -307,6 +328,8 @@ function V_ClearHighresOverlayKeepLogicalY(logicalY)
   global v_hioverlay_miny
   global v_hioverlay_maxx
   global v_hioverlay_maxy
+  global v_hioverlay_cached_valid
+  global v_hioverlay_cached_name
 
   if typeof(logicalY) != "int" or logicalY <= 0 then
     V_ClearHighresOverlay()
@@ -345,6 +368,8 @@ function V_ClearHighresOverlayKeepLogicalY(logicalY)
     v_hioverlay_maxx = -1
     v_hioverlay_maxy = -1
   end if
+  v_hioverlay_cached_valid = false
+  v_hioverlay_cached_name = ""
 end function
 
 /*
@@ -352,8 +377,13 @@ end function
 * Purpose: Clears one logical rectangle from the high-resolution overlay mask.
 */
 function V_ClearHighresOverlayRect(x, y, width, height)
+  global v_hioverlay_cached_valid
+  global v_hioverlay_cached_name
+
   if width <= 0 or height <= 0 then return end if
   if typeof(v_hioverlaymask) != "bytes" or not V_EnsureHighresOverlay() then return end if
+  v_hioverlay_cached_valid = false
+  v_hioverlay_cached_name = ""
   s = v_hioverlay_scale
   w = SCREENWIDTH * s
   h = SCREENHEIGHT * s
@@ -403,7 +433,17 @@ end function
 * Purpose: Draws a prepared upscaled patch image into the high-resolution overlay.
 */
 function V_DrawNamedUpscaledPatchOverlay(x, y, name, flipped)
+  global v_hioverlay_cached_name
+  global v_hioverlay_cached_x
+  global v_hioverlay_cached_y
+  global v_hioverlay_cached_flipped
+  global v_hioverlay_cached_scale
+  global v_hioverlay_cached_valid
+
   if typeof(name) != "string" or name == "" or not V_EnsureHighresOverlay() then return false end if
+  if V_HighresOverlayCanReuse() and name == v_hioverlay_cached_name and x == v_hioverlay_cached_x and y == v_hioverlay_cached_y and flipped == v_hioverlay_cached_flipped and v_hioverlay_scale == v_hioverlay_cached_scale then
+    return true
+  end if
   if typeof(RU_GetPatch) != "function" then return false end if
   entry = RU_GetPatch(name)
   if entry is void and typeof(RU_GetSprite) == "function" then entry = RU_GetSprite(name) end if
@@ -435,6 +475,65 @@ function V_DrawNamedUpscaledPatchOverlay(x, y, name, flipped)
         xx = xx + 1
       end while
     end if
+    yy = yy + 1
+  end while
+  v_hioverlay_cached_name = name
+  v_hioverlay_cached_x = x
+  v_hioverlay_cached_y = y
+  v_hioverlay_cached_flipped = flipped
+  v_hioverlay_cached_scale = v_hioverlay_scale
+  v_hioverlay_cached_valid = true
+  return true
+end function
+
+/*
+* Function: V_DrawNamedUpscaledPatchOverlayLogicalScale
+* Purpose: Draws a prepared HDWAD patch at a Doom-layout scale without running any scaler.
+*/
+function V_DrawNamedUpscaledPatchOverlayLogicalScale(x, y, name, flipped, logicalScale)
+  if typeof(name) != "string" or name == "" or not V_EnsureHighresOverlay() then return false end if
+  if typeof(logicalScale) != "int" or logicalScale < 1 then logicalScale = 1 end if
+  if typeof(RU_GetPatch) != "function" then return false end if
+  entry = RU_GetPatch(name)
+  if entry is void and typeof(RU_GetSprite) == "function" then entry = RU_GetSprite(name) end if
+  if entry is void or typeof(entry.data) != "bytes" then return false end if
+  if entry.width <= 0 or entry.height <= 0 or len(entry.data) < entry.width * entry.height then return false end if
+
+  s = v_hioverlay_scale
+  dw = SCREENWIDTH * s
+  dh = SCREENHEIGHT * s
+  baseX = x * s - entry.xoffset * logicalScale
+  baseY = y * s - entry.yoffset * logicalScale
+  yy = 0
+  while yy < entry.height
+    xx = 0
+    while xx < entry.width
+      sx = xx
+      if flipped then sx = entry.width - 1 - xx end if
+      c = entry.data[yy * entry.width + sx]
+      if c != 255 then
+        by = baseY + yy * logicalScale
+        ly = 0
+        while ly < logicalScale
+          dy = by + ly
+          if dy >= 0 and dy < dh then
+            bx = baseX + xx * logicalScale
+            lx = 0
+            while lx < logicalScale
+              dx = bx + lx
+              if dx >= 0 and dx < dw then
+                di = dy * dw + dx
+                v_hioverlay[di] = c
+                V_MarkHighresOverlayPixel(di, dx, dy)
+              end if
+              lx = lx + 1
+            end while
+          end if
+          ly = ly + 1
+        end while
+      end if
+      xx = xx + 1
+    end while
     yy = yy + 1
   end while
   return true

@@ -795,6 +795,59 @@ function IGL_CreateIndexedTextureEx(data, width, height, transparent, repeatWrap
 end function
 
 /*
+* Function: IGL_CreateFuzzMaskTexture
+* Purpose: Creates a neutral alpha mask texture for Doom's shadow/fuzz sprites.
+*/
+function IGL_CreateFuzzMaskTexture(data, width, height, transparent)
+  if not igl_active then return 0 end if
+  if typeof(data) != "bytes" then return 0 end if
+  if typeof(width) != "int" or typeof(height) != "int" then return 0 end if
+  if width <= 0 or height <= 0 then return 0 end if
+  if len(data) < width * height then return 0 end if
+
+  rgba = bytes(width * height * 4, 0)
+  y = 0
+  while y < height
+    x = 0
+    while x < width
+      idx = y * width + x
+      c = data[idx]
+      ro = idx * 4
+      if transparent and c == 255 then
+        rgba[ro] = 0
+        rgba[ro + 1] = 0
+        rgba[ro + 2] = 0
+        rgba[ro + 3] = 0
+      else
+        bx = x - (x % 5)
+        by = y - (y % 5)
+        shade = 148 +(((bx * 23 + by * 17) % 64) - 32)
+        if shade < 82 then shade = 82 end if
+        if shade > 190 then shade = 190 end if
+        rgba[ro] = shade
+        rgba[ro + 1] = shade
+        rgba[ro + 2] = shade
+        rgba[ro + 3] = 125
+      end if
+      x = x + 1
+    end while
+    y = y + 1
+  end while
+
+  idbuf = bytes(4, 0)
+  glGenTextures(1, idbuf)
+  texid = IGL_ReadU32(idbuf, 0)
+  if texid <= 0 then return 0 end if
+  glBindTexture(GL_TEXTURE_2D, texid)
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST)
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST)
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP)
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP)
+  glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, rgba)
+  return texid
+end function
+
+/*
 * Function: IGL_CreateIndexedTexture
 * Purpose: Creates an indexed OpenGL texture using default Doom wall/sprite wrapping.
 */

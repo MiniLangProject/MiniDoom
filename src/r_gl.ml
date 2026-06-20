@@ -46,6 +46,7 @@ rgl_texnum_tex_ids =[]
 rgl_texnum_trans_tex_ids =[]
 rgl_flat_tex_ids =[]
 rgl_sprite_tex_ids =[]
+rgl_sprite_fuzz_tex_ids =[]
 rgl_palette_revision_seen = -1
 rgl_view_x = 0.0
 rgl_view_y = 0.0
@@ -1442,6 +1443,14 @@ end function
 * Purpose: Updates vertex light state for the OpenGL renderer.
 */
 function RGL_SetVertexLight(base, x, y, z)
+  RGL_SetVertexLightAlpha(base, x, y, z, 255)
+end function
+
+/*
+* Function: RGL_SetVertexLightAlpha
+* Purpose: Updates vertex light state with explicit alpha for translucent OpenGL sprites.
+*/
+function RGL_SetVertexLightAlpha(base, x, y, z, alpha)
   r = base
   g = base
   b = base
@@ -1486,7 +1495,7 @@ function RGL_SetVertexLight(base, x, y, z)
     i = i + 1
   end while
 
-  glColor4ub(RGL_ClampByte(r), RGL_ClampByte(g), RGL_ClampByte(b), 255)
+  glColor4ub(RGL_ClampByte(r), RGL_ClampByte(g), RGL_ClampByte(b), RGL_ClampByte(alpha))
 end function
 
 /*
@@ -1561,6 +1570,7 @@ function RGL_SyncPaletteRevision()
   global rgl_texnum_trans_tex_ids
   global rgl_flat_tex_ids
   global rgl_sprite_tex_ids
+  global rgl_sprite_fuzz_tex_ids
   global rgl_palette_revision_seen
   global rgl_geom_ready
 
@@ -1573,6 +1583,7 @@ function RGL_SyncPaletteRevision()
   rgl_texnum_trans_tex_ids =[]
   rgl_flat_tex_ids =[]
   rgl_sprite_tex_ids =[]
+  rgl_sprite_fuzz_tex_ids =[]
   rgl_palette_revision_seen = rev
   rgl_geom_ready = false
 end function
@@ -1702,6 +1713,37 @@ function RGL_TextureIdForSpriteLump(lump)
   if entry is void then entry = RU_GetPatch(name) end if
   texid = RGL_CachedTexture("S:" + name, entry, true, false)
   rgl_sprite_tex_ids[lump] = texid
+  return texid
+end function
+
+/*
+* Function: RGL_TextureIdForSpriteFuzzLump
+* Purpose: Returns a neutral alpha-mask texture for shadow/fuzz sprite billboards.
+*/
+function RGL_TextureIdForSpriteFuzzLump(lump)
+  global rgl_sprite_fuzz_tex_ids
+  if typeof(lump) != "int" or lump < 0 then return 0 end if
+  while len(rgl_sprite_fuzz_tex_ids) <= lump
+    rgl_sprite_fuzz_tex_ids = rgl_sprite_fuzz_tex_ids +[-1]
+  end while
+  cached = rgl_sprite_fuzz_tex_ids[lump]
+  if typeof(cached) == "int" and cached >= 0 then return cached end if
+  name = RGL_LumpNameAt(firstspritelump + lump)
+  if name == "" then
+    rgl_sprite_fuzz_tex_ids[lump] = 0
+    return 0
+  end if
+  entry = RU_GetSprite(name)
+  if entry is void then entry = RU_GetPatch(name) end if
+  if entry is void or typeof(entry.data) != "bytes" then
+    rgl_sprite_fuzz_tex_ids[lump] = 0
+    return 0
+  end if
+  texid = 0
+  if typeof(IGL_CreateFuzzMaskTexture) == "function" then
+    texid = IGL_CreateFuzzMaskTexture(entry.data, entry.width, entry.height, true)
+  end if
+  rgl_sprite_fuzz_tex_ids[lump] = texid
   return texid
 end function
 
@@ -3286,33 +3328,10 @@ function RGL_SelectSpriteLump(thing, player)
 end function
 
 /*
-* Function: RGL_DrawOneSpriteBillboard
-* Purpose: Draws one sprite billboard output for the OpenGL renderer.
+* Function: RGL_DrawSpriteQuad
+* Purpose: Draws one billboard quad using Doom sprite texture orientation.
 */
-function RGL_DrawOneSpriteBillboard(mo, lump, flip, rx, rz)
-  entry = RGL_SpriteEntryForLump(lump)
-  texid = RGL_TextureIdForSpriteLump(lump)
-  if texid <= 0 or entry is void then return end if
-
-  c = 192
-  if mo.subsector is not void and mo.subsector.sector is not void then c = RGL_LightByte(mo.subsector.sector) end if
-  scale = 1
-  if typeof(ru_scale) == "int" and ru_scale > 0 then scale = ru_scale end if
-  origW = entry.width / scale
-  origH = entry.height / scale
-  topOff = entry.yoffset / scale
-  x = RGL_FixedToFloat(mo.x)
-  y = -RGL_FixedToFloat(mo.y)
-  z1 = RGL_FixedToFloat(mo.z) + topOff + RGL_WORLD_SPRITE_FOOT_LIFT
-  z0 = z1 - origH
-  RGL_SetVertexLight(c, x, (z0 + z1) / 2.0, y)
-  halfw = origW / 2.0
-  if halfw < 2.0 then halfw = 2.0 end if
-  x0 = x - rx * halfw
-  y0 = y - rz * halfw
-  x1 = x + rx * halfw
-  y1 = y + rz * halfw
-  glBindTexture(GL_TEXTURE_2D, texid)
+function RGL_DrawSpriteQuad(x0, y0, x1, y1, z0, z1, flip)
   glBegin(GL_QUADS)
   if flip != 0 then
     glTexCoord2d(1.0, 1.0)
@@ -3334,6 +3353,82 @@ function RGL_DrawOneSpriteBillboard(mo, lump, flip, rx, rz)
     glVertex3d(x0, z1, y0)
   end if
   glEnd()
+end function
+
+/*
+* Function: RGL_DrawOneSpriteBillboard
+* Purpose: Draws one sprite billboard output for the OpenGL renderer.
+*/
+function RGL_DrawOneSpriteBillboard(mo, lump, flip, rx, rz)
+  entry = RGL_SpriteEntryForLump(lump)
+  if entry is void then return end if
+
+  shadow = false
+  if mo is not void and typeof(mo.flags) == "int" and (mo.flags & mobjflag_t.MF_SHADOW) != 0 then shadow = true end if
+  texid = 0
+  if shadow then
+    texid = RGL_TextureIdForSpriteFuzzLump(lump)
+  else
+    texid = RGL_TextureIdForSpriteLump(lump)
+  end if
+  if texid <= 0 then return end if
+  c = 192
+  if mo.subsector is not void and mo.subsector.sector is not void then c = RGL_LightByte(mo.subsector.sector) end if
+  scale = 1
+  if typeof(ru_scale) == "int" and ru_scale > 0 then scale = ru_scale end if
+  origW = entry.width / scale
+  origH = entry.height / scale
+  topOff = entry.yoffset / scale
+  x = RGL_FixedToFloat(mo.x)
+  y = -RGL_FixedToFloat(mo.y)
+  z1 = RGL_FixedToFloat(mo.z) + topOff + RGL_WORLD_SPRITE_FOOT_LIFT
+  z0 = z1 - origH
+  if not shadow then
+    RGL_SetVertexLight(c, x, (z0 + z1) / 2.0, y)
+  end if
+  halfw = origW / 2.0
+  if halfw < 2.0 then halfw = 2.0 end if
+  x0 = x - rx * halfw
+  y0 = y - rz * halfw
+  x1 = x + rx * halfw
+  y1 = y + rz * halfw
+  glBindTexture(GL_TEXTURE_2D, texid)
+  if shadow then
+    RGL_DisableCutoutAlpha()
+    glDepthMask(false)
+    shade = c
+    if shade > 126 then shade = 126 end if
+    if shade < 58 then shade = 58 end if
+    pass = 0
+    while pass < 5
+      side = 0.0
+      lift = 0.0
+      alpha = 22
+      if pass == 0 then
+        side = -2.8
+        alpha = 28
+      else if pass == 1 then
+        side = 2.8
+        alpha = 28
+      else if pass == 2 then
+        lift = 2.0
+      else if pass == 3 then
+        lift = -1.8
+      else
+        alpha = 34
+      end if
+      ox = rx * side
+      oy = rz * side
+      glColor4ub(shade, shade, shade, alpha)
+      RGL_DrawSpriteQuad(x0 + ox, y0 + oy, x1 + ox, y1 + oy, z0 + lift, z1 + lift, flip)
+      pass = pass + 1
+    end while
+    glDepthMask(true)
+    RGL_EnableCutoutAlpha()
+    glColor4ub(255, 255, 255, 255)
+  else
+    RGL_DrawSpriteQuad(x0, y0, x1, y1, z0, z1, flip)
+  end if
 end function
 
 /*

@@ -845,6 +845,33 @@ function _D_ReadHDWADLumpNames(path)
 end function
 
 /*
+* Function: _D_ReadHDWADImageNames
+* Purpose: Reads HDWAD image names from the high-resolution image directory.
+*/
+function _D_ReadHDWADImageNames(path)
+  names =[]
+  if typeof(path) != "string" or not fs.exists(path) or not fs.isFile(path) then return names end if
+  dataTry = try(fs.readAllBytes(path))
+  if typeof(dataTry) == "error" then return names end if
+  data = dataTry
+  if typeof(data) != "bytes" or len(data) < 28 then return names end if
+  if data[0] != 77 or data[1] != 68 or data[2] != 72 or data[3] != 68 then return names end if
+  version = data[4] +(data[5] << 8) +(data[6] << 16) +(data[7] << 24)
+  if version != 6 then return names end if
+  imageCount = data[16] +(data[17] << 8) +(data[18] << 16) +(data[19] << 24)
+  imageDirOfs = data[24] +(data[25] << 8) +(data[26] << 16) +(data[27] << 24)
+  if imageCount <= 0 then return names end if
+  if imageDirOfs < 28 or imageDirOfs + imageCount * 40 > len(data) then return names end if
+  i = 0
+  while i < imageCount
+    off = imageDirOfs + i * 40 + 4
+    names = names +[decodeZ(slice(data, off, 8))]
+    i = i + 1
+  end while
+  return names
+end function
+
+/*
 * Function: _D_NameInList
 * Purpose: Provides in list helper behavior for the Doom core.
 */
@@ -865,6 +892,13 @@ end function
 function _D_HDWADLooksComplete(path)
   names = _D_ReadHDWADLumpNames(path)
   if len(names) == 0 then return false end if
+  imageNames = _D_ReadHDWADImageNames(path)
+  if len(imageNames) == 0 then return false end if
+  code = 33
+  while code <= 95
+    if not _D_NameInList(imageNames, _D_HDWADFontLump(code)) then return false end if
+    code = code + 1
+  end while
   mapCount = 0
   i = 0
   while i < len(names)
@@ -1716,7 +1750,17 @@ function D_Display()
   if gamestate == gamestate_t.GS_LEVEL and typeof(IGL_IsActive) == "function" and IGL_IsActive() then
     if typeof(viewheight) == "int" and viewheight < SCREENHEIGHT then keepStatusOverlay = true end if
   end if
-  if keepStatusOverlay and typeof(V_ClearHighresOverlayKeepLogicalY) == "function" then
+  keepStaticPageOverlay = false
+  if gamestate == gamestate_t.GS_DEMOSCREEN and gamestate == wipegamestate and not advancedemo then
+    if typeof(menuactive) == "void" or not menuactive then
+      if typeof(IGL_IsActive) == "function" and IGL_IsActive() and typeof(V_HighresOverlayCanReuse) == "function" and V_HighresOverlayCanReuse() then
+        keepStaticPageOverlay = true
+      end if
+    end if
+  end if
+  if keepStaticPageOverlay then
+
+  else if keepStatusOverlay and typeof(V_ClearHighresOverlayKeepLogicalY) == "function" then
     V_ClearHighresOverlayKeepLogicalY(ST_Y)
   else if typeof(V_ClearHighresOverlay) == "function" then
     V_ClearHighresOverlay()

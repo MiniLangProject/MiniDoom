@@ -2156,6 +2156,17 @@ function _MMENU_StringWidthMenuSized(string)
 end function
 
 /*
+* Function: _MMENU_FontLumpName
+* Purpose: Builds the STCFN lump name for one HUD/menu font character.
+*/
+function _MMENU_FontLumpName(code)
+  h = _MMENU_IDiv(code, 100) % 10
+  t = _MMENU_IDiv(code, 10) % 10
+  o = code % 10
+  return "STCFN" + h + t + o
+end function
+
+/*
 * Function: _MMENU_WriteTextMenuSized
 * Purpose: Draws highlighted menu text for multiplayer entries with menu-like visual weight.
 */
@@ -2185,6 +2196,9 @@ function _MMENU_WriteTextMenuSized(x, y, string)
     w = _patchWidth(patch) * 2
     if cx + w + 2 > SCREENWIDTH then break end if
 
+    if typeof(IGL_IsActive) == "function" and IGL_IsActive() and typeof(V_DrawNamedUpscaledPatchOverlayLogicalScale) == "function" then
+      V_DrawNamedUpscaledPatchOverlayLogicalScale(cx, cy, _MMENU_FontLumpName(c + HU_FONTSTART), false, 2)
+    end if
     _MMENU_DrawPatchScale2(cx, cy, 0, patch)
     drawn = drawn + 1
     cx = cx + w + 2
@@ -2211,12 +2225,11 @@ end function
 * Purpose: Draws custom menu labels and falls back to the normal menu font if needed.
 */
 function _MMENU_WriteMenuSizedOrText(x, y, string)
+  _MMENU_RevealLogicalMenuText(x, y, string)
   if _MMENU_WriteTextMenuSized(x, y, string) then
-    _MMENU_RevealLogicalMenuText(x, y, string)
     return
   end if
   M_WriteText(x, y, string)
-  _MMENU_RevealLogicalMenuText(x, y, string)
 end function
 
 _joywait = 0

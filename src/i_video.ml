@@ -325,12 +325,8 @@ _i_presentScale = 1
 _i_presentWidth = SCREENWIDTH
 _i_presentHeight = SCREENHEIGHT
 _i_presentBuffer = void
-_i_scaledLogicalBuffer = void
-_i_presentBlendCache = void
-_i_presentXbrz = true
 _i_overlayBase = void
 _i_overlayRowBuffer = void
-_i_xbrzTarget = void
 _i_glOverlayBuffer = void
 _i_glOverlayMask = void
 _i_lastPresentFrame = void
@@ -342,7 +338,6 @@ _i_hdWipeY =[]
 _i_hdWipeActive = false
 _i_hdWipeSeed = 1234567
 _i_forceSoftwarePresent = false
-const _I_XBRZ_DIST_LIMIT = 4200
 const _I_STATUSBAR_HEIGHT = 32
 
 /*
@@ -546,7 +541,7 @@ function I_BeginHDWipe()
   end if
 
   if typeof(screens) != "array" or len(screens) == 0 or typeof(screens[0]) != "bytes" then return false end if
-  src = _I_BuildUpscaledLogicalFrame(screens[0])
+  src = _I_BuildNearestLogicalFrame(screens[0])
   if typeof(src) != "bytes" or len(src) < expected then return false end if
   return _I_IndexedToRGBA(src, _i_hdWipeStart, _i_presentWidth, _i_presentHeight)
 end function
@@ -1215,163 +1210,6 @@ function _I_EnsureScreenshotDir()
 end function
 
 /*
-* Function: _I_FramePixelAt
-* Purpose: Reads a clamped logical framebuffer pixel.
-*/
-function inline _I_FramePixelAt(src, x, y)
-  if x < 0 then x = 0 end if
-  if y < 0 then y = 0 end if
-  if x >= SCREENWIDTH then x = SCREENWIDTH - 1 end if
-  if y >= SCREENHEIGHT then y = SCREENHEIGHT - 1 end if
-  return src[y * SCREENWIDTH + x]
-end function
-
-/*
-* Function: _I_ColorDistance
-* Purpose: Computes weighted RGB distance between two palette indices.
-*/
-function inline _I_ColorDistance(a, b)
-  if a == b then return 0 end if
-  if typeof(_i_paletteRgb) != "bytes" or len(_i_paletteRgb) < 768 then
-    d = a - b
-    if d < 0 then d = -d end if
-    return d * d * 9
-  end if
-  ao = a * 3
-  bo = b * 3
-  dr = _i_paletteRgb[ao] - _i_paletteRgb[bo]
-  dg = _i_paletteRgb[ao + 1] - _i_paletteRgb[bo + 1]
-  db = _i_paletteRgb[ao + 2] - _i_paletteRgb[bo + 2]
-  return dr * dr * 3 + dg * dg * 4 + db * db * 2
-end function
-
-/*
-* Function: _I_SimilarColor
-* Purpose: Evaluates palette-aware color similarity for xBRZ edge decisions.
-*/
-function inline _I_SimilarColor(a, b)
-  return _I_ColorDistance(a, b) <= _I_XBRZ_DIST_LIMIT
-end function
-
-/*
-* Function: _I_NearestPaletteIndex
-* Purpose: Quantizes RGB back into the current Doom palette.
-*/
-function _I_NearestPaletteIndex(r, g, b)
-  if typeof(_i_paletteRgb) != "bytes" or len(_i_paletteRgb) < 768 then
-    v = _I_IDiv(r + g + b, 3)
-    if v < 0 then v = 0 end if
-    if v > 255 then v = 255 end if
-    return v
-  end if
-
-  best = 0
-  bestDist = 2147483647
-  i = 0
-  while i < 256
-    o = i * 3
-    dr = r - _i_paletteRgb[o]
-    dg = g - _i_paletteRgb[o + 1]
-    db = b - _i_paletteRgb[o + 2]
-    dist = dr * dr * 3 + dg * dg * 4 + db * db * 2
-    if dist < bestDist then
-      bestDist = dist
-      best = i
-      if dist == 0 then return best end if
-    end if
-    i = i + 1
-  end while
-  return best
-end function
-
-/*
-* Function: _I_BlendIndex
-* Purpose: Blends two palette indices and caches the quantized result.
-*/
-function _I_BlendIndex(base, edge, edgeWeight)
-  global _i_presentBlendCache
-
-  if edgeWeight <= 0 or base == edge then return base end if
-  if edgeWeight > 3 then edgeWeight = 3 end if
-  key =((base * 256) + edge) * 4 + edgeWeight
-  if typeof(_i_presentBlendCache) == "array" and key >= 0 and key < len(_i_presentBlendCache) and _i_presentBlendCache[key] >= 0 then
-    return _i_presentBlendCache[key]
-  end if
-
-  if typeof(_i_paletteRgb) != "bytes" or len(_i_paletteRgb) < 768 then return edge end if
-  inv = 4 - edgeWeight
-  bo = base * 3
-  eo = edge * 3
-  r = _I_IDiv(_i_paletteRgb[bo] * inv + _i_paletteRgb[eo] * edgeWeight + 2, 4)
-  g = _I_IDiv(_i_paletteRgb[bo + 1] * inv + _i_paletteRgb[eo + 1] * edgeWeight + 2, 4)
-  b = _I_IDiv(_i_paletteRgb[bo + 2] * inv + _i_paletteRgb[eo + 2] * edgeWeight + 2, 4)
-  idx = _I_NearestPaletteIndex(r, g, b)
-
-  if typeof(_i_presentBlendCache) == "array" and key >= 0 and key < len(_i_presentBlendCache) then
-    _i_presentBlendCache[key] = idx
-  end if
-  return idx
-end function
-
-/*
-* Function: _I_BestEdgeColor
-* Purpose: Chooses the closer edge color for a corner blend.
-*/
-function inline _I_BestEdgeColor(center, a, b)
-  da = _I_ColorDistance(center, a)
-  db = _I_ColorDistance(center, b)
-  if da <= db then return a end if
-  return b
-end function
-
-/*
-* Function: _I_CornerWeight
-* Purpose: Returns xBRZ corner blend weight for a scaled block coordinate.
-*/
-function inline _I_CornerWeight(dist, scale)
-  if dist >= scale then return 0 end if
-  w = 3 - _I_IDiv(dist * 3, scale)
-  if w < 1 then w = 1 end if
-  if w > 3 then w = 3 end if
-  return w
-end function
-
-/*
-* Function: _I_BlendPresentCorner
-* Purpose: Applies one xBRZ triangular corner blend inside a scaled output block.
-*/
-function _I_BlendPresentCorner(blockX, blockY, scale, corner, base, edge)
-  target = _i_xbrzTarget
-  if typeof(target) != "bytes" then target = _i_presentBuffer end if
-  if typeof(target) != "bytes" then return end if
-
-  yy = 0
-  while yy < scale
-    xx = 0
-    while xx < scale
-      dist = 0
-      if corner == 0 then
-        dist = xx + yy
-      else if corner == 1 then
-        dist =(scale - 1 - xx) + yy
-      else if corner == 2 then
-        dist = xx +(scale - 1 - yy)
-      else
-        dist =(scale - 1 - xx) +(scale - 1 - yy)
-      end if
-
-      weight = _I_CornerWeight(dist, scale)
-      if weight > 0 then
-        di =(blockY + yy) * _i_presentWidth + blockX + xx
-        target[di] = _I_BlendIndex(target[di], edge, weight)
-      end if
-      xx = xx + 1
-    end while
-    yy = yy + 1
-  end while
-end function
-
-/*
 * Function: _I_OverlayScaledRect
 * Purpose: Copies a scaled logical-screen rectangle into the high-resolution frame.
 */
@@ -1793,58 +1631,6 @@ function _I_GLOverlayLogicalMask(src, mask)
 end function
 
 /*
-* Function: _I_GLOverlayScaledLogicalMask
-* Purpose: Copies marked logical UI pixels from the xBRZ-scaled frame into the OpenGL overlay.
-*/
-function _I_GLOverlayScaledLogicalMask(scaled, mask)
-  if typeof(scaled) != "bytes" or len(scaled) < _i_presentWidth * _i_presentHeight then return false end if
-  if typeof(mask) != "bytes" or len(mask) < SCREENWIDTH * SCREENHEIGHT then return false end if
-  if typeof(v_overlay_maxx) != "int" or v_overlay_maxx < v_overlay_minx then return false end if
-
-  s = _i_presentScale
-  if s <= 1 then return false end if
-
-  minx = v_overlay_minx
-  miny = v_overlay_miny
-  maxx = v_overlay_maxx
-  maxy = v_overlay_maxy
-  if minx < 0 then minx = 0 end if
-  if miny < 0 then miny = 0 end if
-  if maxx >= SCREENWIDTH then maxx = SCREENWIDTH - 1 end if
-  if maxy >= SCREENHEIGHT then maxy = SCREENHEIGHT - 1 end if
-  if maxx < minx or maxy < miny then return false end if
-
-  any = false
-  sy = miny
-  while sy <= maxy
-    sx = minx
-    while sx <= maxx
-      idx = sy * SCREENWIDTH + sx
-      if mask[idx] != 0 then
-        any = true
-        blockX = sx * s
-        blockY = sy * s
-        yy = 0
-        while yy < s
-          si = (blockY + yy) * _i_presentWidth + blockX
-          di = si
-          xx = 0
-          while xx < s
-            _i_glOverlayBuffer[di + xx] = scaled[si + xx]
-            _i_glOverlayMask[di + xx] = 1
-            xx = xx + 1
-          end while
-          yy = yy + 1
-        end while
-      end if
-      sx = sx + 1
-    end while
-    sy = sy + 1
-  end while
-  return any
-end function
-
-/*
 * Function: _I_GLOverlayHighresPatches
 * Purpose: Provides overlay highres patches helper behavior for the windowing and video backend.
 */
@@ -1895,96 +1681,15 @@ function _I_DrawGLOverlayFrame()
   logical = screens[0]
   statusY = SCREENHEIGHT - _I_STATUSBAR_HEIGHT
   if statusY < 0 then statusY = 0 end if
-  menuOverlay = false
-  if typeof(menuactive) != "void" and menuactive then menuOverlay = true end if
   if _I_GLOverlayLogicalRect(logical, 0, statusY, SCREENWIDTH, SCREENHEIGHT - statusY) then any = true end if
   if typeof(v_overlaymask) == "bytes" then
-    scaledOverlay = void
-    if (not menuOverlay) and _i_presentScale > 1 and typeof(v_overlay_miny) == "int" and v_overlay_miny < statusY then
-      scaledOverlay = _I_BuildScaledLogicalFrame(logical)
-    end if
-    if typeof(scaledOverlay) == "bytes" then
-      if _I_GLOverlayScaledLogicalMask(scaledOverlay, v_overlaymask) then any = true end if
-    else if _I_GLOverlayLogicalMask(logical, v_overlaymask) then
+    if _I_GLOverlayLogicalMask(logical, v_overlaymask) then
       any = true
     end if
   end if
-  if not menuOverlay then
-    if _I_GLOverlayHighresPatches() then any = true end if
-  end if
+  if _I_GLOverlayHighresPatches() then any = true end if
   if not any then return false end if
   return IGL_DrawIndexedOverlay(_i_glOverlayBuffer, _i_glOverlayMask, _i_presentWidth, _i_presentHeight)
-end function
-
-/*
-* Function: _I_BuildScaledLogicalFrame
-* Purpose: Expands the logical Doom framebuffer into an xBRZ-scaled presentation framebuffer.
-*/
-function _I_BuildScaledLogicalFrame(src)
-  global _i_scaledLogicalBuffer
-  global _i_xbrzTarget
-
-  if typeof(src) != "bytes" then return src end if
-  if _i_presentScale <= 1 then return src end if
-  if typeof(_i_scaledLogicalBuffer) != "bytes" or len(_i_scaledLogicalBuffer) < _i_presentWidth * _i_presentHeight then
-    _i_scaledLogicalBuffer = bytes(_i_presentWidth * _i_presentHeight, 0)
-  end if
-
-  _i_xbrzTarget = _i_scaledLogicalBuffer
-  s = _i_presentScale
-  sy = 0
-  while sy < SCREENHEIGHT
-    sx = 0
-    while sx < SCREENWIDTH
-      a = _I_FramePixelAt(src, sx - 1, sy - 1)
-      b = _I_FramePixelAt(src, sx, sy - 1)
-      c = _I_FramePixelAt(src, sx + 1, sy - 1)
-      d = _I_FramePixelAt(src, sx - 1, sy)
-      e = _I_FramePixelAt(src, sx, sy)
-      f = _I_FramePixelAt(src, sx + 1, sy)
-      g = _I_FramePixelAt(src, sx - 1, sy + 1)
-      h = _I_FramePixelAt(src, sx, sy + 1)
-      ii = _I_FramePixelAt(src, sx + 1, sy + 1)
-
-      blockX = sx * s
-      blockY = sy * s
-      yy = 0
-      while yy < s
-        row = (blockY + yy) * _i_presentWidth + blockX
-        xx = 0
-        while xx < s
-          _i_scaledLogicalBuffer[row + xx] = e
-          xx = xx + 1
-        end while
-        yy = yy + 1
-      end while
-
-      if _i_presentXbrz and(not _I_SimilarColor(b, h)) and(not _I_SimilarColor(d, f)) then
-        if _I_SimilarColor(d, b) and(not _I_SimilarColor(e, a)) then
-          edge = _I_BestEdgeColor(e, d, b)
-          _I_BlendPresentCorner(blockX, blockY, s, 0, e, edge)
-        end if
-        if _I_SimilarColor(b, f) and(not _I_SimilarColor(e, c)) then
-          edge = _I_BestEdgeColor(e, b, f)
-          _I_BlendPresentCorner(blockX, blockY, s, 1, e, edge)
-        end if
-        if _I_SimilarColor(d, h) and(not _I_SimilarColor(e, g)) then
-          edge = _I_BestEdgeColor(e, d, h)
-          _I_BlendPresentCorner(blockX, blockY, s, 2, e, edge)
-        end if
-        if _I_SimilarColor(h, f) and(not _I_SimilarColor(e, ii)) then
-          edge = _I_BestEdgeColor(e, h, f)
-          _I_BlendPresentCorner(blockX, blockY, s, 3, e, edge)
-        end if
-      end if
-
-      sx = sx + 1
-    end while
-    sy = sy + 1
-  end while
-
-  _i_xbrzTarget = void
-  return _i_scaledLogicalBuffer
 end function
 
 /*
@@ -2005,24 +1710,6 @@ function _I_BuildNearestLogicalFrame(src)
 end function
 
 /*
-* Function: _I_BuildUpscaledLogicalFrame
-* Purpose: Builds upscaled logical frame data for the windowing and video backend.
-*/
-function _I_BuildUpscaledLogicalFrame(src)
-  global _i_presentBuffer
-
-  scaled = _I_BuildScaledLogicalFrame(src)
-  if _i_presentScale <= 1 then return scaled end if
-  if typeof(scaled) != "bytes" then return scaled end if
-  if typeof(_i_presentBuffer) != "bytes" or len(_i_presentBuffer) < _i_presentWidth * _i_presentHeight then
-    _i_presentBuffer = bytes(_i_presentWidth * _i_presentHeight, 0)
-  end if
-  copyBytes(_i_presentBuffer, 0, scaled, 0, _i_presentWidth * _i_presentHeight)
-  _I_OverlayPreparedHighresPatches()
-  return _i_presentBuffer
-end function
-
-/*
 * Function: _I_BuildHighresGameFrame
 * Purpose: Presents the native high-resolution world buffer plus scaled logical UI/overlay areas.
 */
@@ -2035,7 +1722,7 @@ function _I_BuildHighresGameFrame()
   logical = screens[0]
 
   if gamestate != gamestate_t.GS_LEVEL or automapactive then
-    return _I_BuildUpscaledLogicalFrame(logical)
+    return _I_BuildNearestLogicalFrame(logical)
   end if
 
   hi = RH_Buffer()
@@ -2071,7 +1758,7 @@ function _I_BuildPresentFrame()
 
   if typeof(screens) != "array" or len(screens) == 0 then return void end if
   if typeof(IGL_IsActive) == "function" and IGL_IsActive() and gamestate != gamestate_t.GS_LEVEL then
-    return _I_BuildUpscaledLogicalFrame(screens[0])
+    return _I_BuildNearestLogicalFrame(screens[0])
   end if
   return _I_BuildNearestLogicalFrame(screens[0])
 end function
@@ -2156,10 +1843,7 @@ function _I_InitPresentMetrics()
   global _i_presentWidth
   global _i_presentHeight
   global _i_presentBuffer
-  global _i_scaledLogicalBuffer
   global _i_overlayRowBuffer
-  global _i_presentBlendCache
-  global _i_presentXbrz
   global _i_overlayBase
   global _i_glOverlayBuffer
   global _i_glOverlayMask
@@ -2174,18 +1858,10 @@ function _I_InitPresentMetrics()
   _i_presentWidth = SCREENWIDTH * s
   _i_presentHeight = SCREENHEIGHT * s
   _i_presentBuffer = bytes(_i_presentWidth * _i_presentHeight, 0)
-  _i_scaledLogicalBuffer = bytes(_i_presentWidth * _i_presentHeight, 0)
   _i_overlayRowBuffer = bytes(_i_presentWidth, 0)
   _i_overlayBase = bytes(SCREENWIDTH * SCREENHEIGHT, 0)
   _i_glOverlayBuffer = bytes(_i_presentWidth * _i_presentHeight, 0)
   _i_glOverlayMask = bytes(_i_presentWidth * _i_presentHeight, 0)
-  _i_presentBlendCache = array(256 * 256 * 4, -1)
-  _i_presentXbrz = true
-  if typeof(M_CheckParm) == "function" then
-    if M_CheckParm("-nearestpresent") != 0 or M_CheckParm("--nearestpresent") != 0 then
-      _i_presentXbrz = false
-    end if
-  end if
 end function
 
 /*
@@ -2749,11 +2425,7 @@ function I_FinishUpdate()
   src = void
   if _i_forceSoftwarePresent then
     if typeof(screens) != "array" or len(screens) == 0 then return end if
-    if typeof(IGL_IsActive) == "function" and IGL_IsActive() then
-      src = _I_BuildUpscaledLogicalFrame(screens[0])
-    else
-      src = _I_BuildNearestLogicalFrame(screens[0])
-    end if
+    src = _I_BuildNearestLogicalFrame(screens[0])
   else
     src = _I_BuildPresentFrame()
   end if

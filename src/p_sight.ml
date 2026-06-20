@@ -156,22 +156,13 @@ function P_CrossSubsector(num)
 
           front = seg.frontsector
           back = seg.backsector
+          if front is void or back is void then return false end if
+
+          P_LineOpening(line)
+          // Treat closed dynamic openings, especially closed door sectors, as solid walls.
+          if openrange <= 0 then return false end if
 
           if front.floorheight != back.floorheight or front.ceilingheight != back.ceilingheight then
-            if front.ceilingheight < back.ceilingheight then
-              opentop = front.ceilingheight
-            else
-              opentop = back.ceilingheight
-            end if
-
-            if front.floorheight > back.floorheight then
-              openbottom = front.floorheight
-            else
-              openbottom = back.floorheight
-            end if
-
-            if openbottom >= opentop then return false end if
-
             frac = P_InterceptVector2(strace, divl)
 
             if front.floorheight != back.floorheight then
