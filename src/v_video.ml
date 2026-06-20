@@ -429,7 +429,43 @@ function inline V_MarkHighresOverlayPixel(idx, x, y)
 end function
 
 /*
-* Function: V_DrawUpscaledPatchOverlay
+* Function: V_DrawUpscaledFlatOverlay
+* Purpose: Draws a prepared upscaled flat image into the high-resolution overlay.
+*/
+function V_DrawUpscaledFlatOverlay(name)
+  global v_hioverlay_cached_valid
+  global v_hioverlay_cached_name
+
+  if typeof(name) != "string" or name == "" or not V_EnsureHighresOverlay() then return false end if
+  if typeof(RU_GetFlat) != "function" then return false end if
+  entry = RU_GetFlat(name)
+  if entry is void or typeof(entry.data) != "bytes" then return false end if
+  if entry.width <= 0 or entry.height <= 0 or len(entry.data) < entry.width * entry.height then return false end if
+
+  v_hioverlay_cached_valid = false
+  v_hioverlay_cached_name = ""
+  s = v_hioverlay_scale
+  dw = SCREENWIDTH * s
+  dh = SCREENHEIGHT * s
+  y = 0
+  while y < dh
+    sy = y % entry.height
+    row = y * dw
+    x = 0
+    while x < dw
+      sx = x % entry.width
+      idx = row + x
+      v_hioverlay[idx] = entry.data[sy * entry.width + sx]
+      V_MarkHighresOverlayPixel(idx, x, y)
+      x = x + 1
+    end while
+    y = y + 1
+  end while
+  return true
+end function
+
+/*
+* Function: V_DrawNamedUpscaledPatchOverlay
 * Purpose: Draws a prepared upscaled patch image into the high-resolution overlay.
 */
 function V_DrawNamedUpscaledPatchOverlay(x, y, name, flipped)

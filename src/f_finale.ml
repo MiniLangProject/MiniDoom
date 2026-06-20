@@ -160,6 +160,7 @@ function _F_DrawTiledFlat(name)
   end while
 
   V_MarkRect(0, 0, SCREENWIDTH, SCREENHEIGHT)
+  if typeof(V_DrawUpscaledFlatOverlay) == "function" then V_DrawUpscaledFlatOverlay(name) end if
 end function
 
 /*
@@ -466,6 +467,10 @@ function F_BunnyScroll()
     end if
     x = x + 1
   end while
+  if typeof(V_DrawNamedUpscaledPatchOverlay) == "function" then
+    V_DrawNamedUpscaledPatchOverlay(-scrolled, 0, "PFUB2", false)
+    V_DrawNamedUpscaledPatchOverlay(320 - scrolled, 0, "PFUB1", false)
+  end if
 
   if finale_count < 1130 then return end if
 

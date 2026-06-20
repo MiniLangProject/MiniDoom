@@ -177,6 +177,23 @@ function inline _WI_SafeDrawPatch(x, y, patch)
 end function
 
 /*
+* Function: _WI_SafeDrawNamedPatch
+* Purpose: Draws an intermission patch and its OpenGL high-resolution package image.
+*/
+function inline _WI_SafeDrawNamedPatch(x, y, patch, name)
+  _WI_SafeDrawPatch(x, y, patch)
+  if typeof(name) == "string" and name != "" and typeof(V_DrawNamedUpscaledPatchOverlay) == "function" then
+    left = 0
+    top = 0
+    if typeof(patch) == "bytes" then
+      if typeof(Patch_LeftOffset) == "function" then left = Patch_LeftOffset(patch) end if
+      if typeof(Patch_TopOffset) == "function" then top = Patch_TopOffset(patch) end if
+    end if
+    V_DrawNamedUpscaledPatchOverlay(x - left, y - top, name, false)
+  end if
+end function
+
+/*
 * Function: _WI_SafeStartSound
 * Purpose: Starts runtime behavior in the internal module support.
 */
@@ -267,29 +284,53 @@ cnt_pause = 0
 NUMCMAPS = 32
 
 bg = void
+bg_name = ""
 yah =[void, void]
+yah_names =["", ""]
 splat = void
+splat_name = ""
 percent = void
+percent_name = ""
 colon = void
+colon_name = ""
 num =[void, void, void, void, void, void, void, void, void, void]
+num_names =["WINUM0", "WINUM1", "WINUM2", "WINUM3", "WINUM4", "WINUM5", "WINUM6", "WINUM7", "WINUM8", "WINUM9"]
 wiminus = void
+wiminus_name = ""
 finished = void
+finished_name = ""
 entering = void
+entering_name = ""
 sp_secret = void
+sp_secret_name = ""
 kills = void
+kills_name = ""
 secret = void
+secret_name = ""
 items = void
+items_name = ""
 frags = void
+frags_name = ""
 timepatch = void
+timepatch_name = ""
 par = void
+par_name = ""
 sucks = void
+sucks_name = ""
 killers = void
+killers_name = ""
 victims = void
+victims_name = ""
 total = void
+total_name = ""
 star = void
+star_name = ""
 bstar = void
+bstar_name = ""
 wi_p =[void, void, void, void]
+wi_p_names =["STPB0", "STPB1", "STPB2", "STPB3"]
 wi_bp =[void, void, void, void]
+wi_bp_names =["WIBP1", "WIBP2", "WIBP3", "WIBP4"]
 lnames =[]
 
 lnodes =[
@@ -426,7 +467,7 @@ end function
 */
 function WI_slamBackground()
   if bg is not void then
-    _WI_SafeDrawPatch(0, 0, bg)
+    _WI_SafeDrawNamedPatch(0, 0, bg, bg_name)
   else
     if typeof(screens) == "array" and WI_FB < len(screens) and typeof(screens[WI_FB]) == "bytes" then
       buf = screens[WI_FB]
@@ -462,7 +503,7 @@ end function
 */
 function WI_drawLF()
   if finished is not void then
-    _WI_SafeDrawPatch(10, WI_TITLEY, finished)
+    _WI_SafeDrawNamedPatch(10, WI_TITLEY, finished, finished_name)
   end if
 end function
 
@@ -472,7 +513,7 @@ end function
 */
 function WI_drawEL()
   if entering is not void then
-    _WI_SafeDrawPatch(10, WI_TITLEY, entering)
+    _WI_SafeDrawNamedPatch(10, WI_TITLEY, entering, entering_name)
   end if
 end function
 
@@ -489,7 +530,7 @@ function WI_drawOnLnode(n, c)
   p = lnodes[ep][n]
   if p is void then return end if
   if splat is not void then
-    _WI_SafeDrawPatch(p.x, p.y, splat)
+    _WI_SafeDrawNamedPatch(p.x, p.y, splat, splat_name)
   else
     if typeof(screens) == "array" and WI_FB < len(screens) and typeof(screens[WI_FB]) == "bytes" then
       idx = p.y * SCREENWIDTH + p.x
@@ -575,7 +616,7 @@ function WI_drawNum(x, y, n, digits)
   end if
 
   if neg and wiminus is not void then
-    _WI_SafeDrawPatch(x, y, wiminus)
+    _WI_SafeDrawNamedPatch(x, y, wiminus, wiminus_name)
     x = x + _WI_PatchW(wiminus)
   end if
 
@@ -585,7 +626,9 @@ function WI_drawNum(x, y, n, digits)
     d = b[i] - 48
     if d >= 0 and d <= 9 and d < len(num) then
       p = num[d]
-      _WI_SafeDrawPatch(x, y, p)
+      nm = ""
+      if d >= 0 and d < len(num_names) then nm = num_names[d] end if
+      _WI_SafeDrawNamedPatch(x, y, p, nm)
       x = x + _WI_PatchW(p)
     end if
     i = i + 1
@@ -658,7 +701,7 @@ function WI_drawPercent(x, y, p)
   // Keep numbers clear of the percent glyph: shift left by digit count (1/2/3).
   WI_drawNumRight(x - digits, y, p, 0)
   if percent is not void then
-    _WI_SafeDrawPatch(x, y, percent)
+    _WI_SafeDrawNamedPatch(x, y, percent, percent_name)
   end if
   return x
 end function
@@ -670,7 +713,7 @@ end function
 function WI_drawPercentAligned(x, y, p)
   WI_drawNumRight(x, y, p, 0)
   if percent is not void then
-    _WI_SafeDrawPatch(x, y, percent)
+    _WI_SafeDrawNamedPatch(x, y, percent, percent_name)
   end if
 end function
 
@@ -726,7 +769,7 @@ end function
 function WI_drawTime(x, y, t)
   if t < 0 then
     if sucks is not void then
-      _WI_SafeDrawPatch(x, y, sucks)
+      _WI_SafeDrawNamedPatch(x, y, sucks, sucks_name)
     end if
     return
   end if
@@ -741,13 +784,13 @@ function WI_drawTime(x, y, t)
   if h > 0 then
     xx = WI_drawNum(xx, y, h, 0)
     if colon is not void then
-      _WI_SafeDrawPatch(xx, y, colon)
+      _WI_SafeDrawNamedPatch(xx, y, colon, colon_name)
       xx = xx + _WI_PatchW(colon)
     end if
   end if
   xx = WI_drawNum(xx, y, m, 2)
   if colon is not void then
-    _WI_SafeDrawPatch(xx, y, colon)
+    _WI_SafeDrawNamedPatch(xx, y, colon, colon_name)
     xx = xx + _WI_PatchW(colon)
   end if
   WI_drawNum(xx, y, s, 2)
@@ -978,10 +1021,10 @@ function WI_drawDeathmatchStats()
   WI_drawLF()
 
   if total is not void then
-    _WI_SafeDrawPatch(DM_TOTALSX - _WI_IDiv(_WI_PatchW(total), 2), DM_MATRIXY - WI_SPACINGY + 10, total)
+    _WI_SafeDrawNamedPatch(DM_TOTALSX - _WI_IDiv(_WI_PatchW(total), 2), DM_MATRIXY - WI_SPACINGY + 10, total, total_name)
   end if
-  if killers is not void then _WI_SafeDrawPatch(DM_KILLERSX, DM_KILLERSY, killers) end if
-  if victims is not void then _WI_SafeDrawPatch(DM_VICTIMSX, DM_VICTIMSY, victims) end if
+  if killers is not void then _WI_SafeDrawNamedPatch(DM_KILLERSX, DM_KILLERSY, killers, killers_name) end if
+  if victims is not void then _WI_SafeDrawNamedPatch(DM_VICTIMSX, DM_VICTIMSY, victims, victims_name) end if
 
   x = DM_MATRIXX + DM_SPACINGX
   y = DM_MATRIXY
@@ -1184,10 +1227,10 @@ function WI_drawNetgameStats()
   ngx = NG_STATSX + _WI_IDiv(_WI_PatchW(star), 2)
   if not dofrags then ngx = ngx + 32 end if
 
-  if kills is not void then _WI_SafeDrawPatch(ngx + NG_SPACINGX - _WI_PatchW(kills), NG_STATSY, kills) end if
-  if items is not void then _WI_SafeDrawPatch(ngx + 2 * NG_SPACINGX - _WI_PatchW(items), NG_STATSY, items) end if
-  if secret is not void then _WI_SafeDrawPatch(ngx + 3 * NG_SPACINGX - _WI_PatchW(secret), NG_STATSY, secret) end if
-  if dofrags and frags is not void then _WI_SafeDrawPatch(ngx + 4 * NG_SPACINGX - _WI_PatchW(frags), NG_STATSY, frags) end if
+  if kills is not void then _WI_SafeDrawNamedPatch(ngx + NG_SPACINGX - _WI_PatchW(kills), NG_STATSY, kills, kills_name) end if
+  if items is not void then _WI_SafeDrawNamedPatch(ngx + 2 * NG_SPACINGX - _WI_PatchW(items), NG_STATSY, items, items_name) end if
+  if secret is not void then _WI_SafeDrawNamedPatch(ngx + 3 * NG_SPACINGX - _WI_PatchW(secret), NG_STATSY, secret, secret_name) end if
+  if dofrags and frags is not void then _WI_SafeDrawNamedPatch(ngx + 4 * NG_SPACINGX - _WI_PatchW(frags), NG_STATSY, frags, frags_name) end if
 
   y = NG_STATSY + _WI_PatchH(kills)
   i = 0
@@ -1337,24 +1380,24 @@ function WI_drawStats()
   y = SP_STATSY
 
   if kills is not void then
-    _WI_SafeDrawPatch(x, y + _WI_IDiv(WI_SPACINGY * SP_KILLS, 2), kills)
+    _WI_SafeDrawNamedPatch(x, y + _WI_IDiv(WI_SPACINGY * SP_KILLS, 2), kills, kills_name)
   end if
   if items is not void then
-    _WI_SafeDrawPatch(x, y + _WI_IDiv(WI_SPACINGY * SP_ITEMS, 2), items)
+    _WI_SafeDrawNamedPatch(x, y + _WI_IDiv(WI_SPACINGY * SP_ITEMS, 2), items, items_name)
   end if
   if sp_secret is not void then
-    _WI_SafeDrawPatch(x, y + _WI_IDiv(WI_SPACINGY * SP_SECRET, 2), sp_secret)
+    _WI_SafeDrawNamedPatch(x, y + _WI_IDiv(WI_SPACINGY * SP_SECRET, 2), sp_secret, sp_secret_name)
   else if secret is not void then
-    _WI_SafeDrawPatch(x, y + _WI_IDiv(WI_SPACINGY * SP_SECRET, 2), secret)
+    _WI_SafeDrawNamedPatch(x, y + _WI_IDiv(WI_SPACINGY * SP_SECRET, 2), secret, secret_name)
   end if
 
   WI_drawPercent(SP_STATSX + 180, y + _WI_IDiv(WI_SPACINGY * SP_KILLS, 2), _WI_Clamp(cnt_kills[me], 0, 100))
   WI_drawPercent(SP_STATSX + 180, y + _WI_IDiv(WI_SPACINGY * SP_ITEMS, 2), _WI_Clamp(cnt_items[me], 0, 100))
   WI_drawPercent(SP_STATSX + 180, y + _WI_IDiv(WI_SPACINGY * SP_SECRET, 2), _WI_Clamp(cnt_secret[me], 0, 100))
 
-  if timepatch is not void then _WI_SafeDrawPatch(SP_TIMEX, SP_TIMEY, timepatch) end if
+  if timepatch is not void then _WI_SafeDrawNamedPatch(SP_TIMEX, SP_TIMEY, timepatch, timepatch_name) end if
   WI_drawTime(SP_TIMEX + 60, SP_TIMEY, cnt_time)
-  if par is not void then _WI_SafeDrawPatch(SP_TIMEX + 150, SP_TIMEY, par) end if
+  if par is not void then _WI_SafeDrawNamedPatch(SP_TIMEX + 150, SP_TIMEY, par, par_name) end if
   WI_drawTime(SP_TIMEX + 190, SP_TIMEY, cnt_par)
 end function
 
@@ -1409,6 +1452,7 @@ end function
 */
 function WI_loadData()
   global bg
+  global bg_name
   bgname = "WIMAP0"
   if gamemode == commercial then
 
@@ -1422,71 +1466,122 @@ function WI_loadData()
       bgname = "INTERPIC"
     end if
   end if
+  bg_name = bgname
   bg = _WI_CacheOrVoid(bgname, PU_CACHE)
 
   global yah
+  global yah_names
   if gamemode != commercial then
 
     yah =[_WI_CacheOrVoid("WIURH0", PU_CACHE), _WI_CacheOrVoid("WIURH1", PU_CACHE)]
+    yah_names =["WIURH0", "WIURH1"]
   else
 
     yah =[void, void]
+    yah_names =["", ""]
   end if
   global splat
+  global splat_name
   if gamemode != commercial then
     splat = _WI_CacheOrVoid("WISPLAT", PU_CACHE)
+    splat_name = "WISPLAT"
   else
     splat = void
+    splat_name = ""
   end if
   global percent
+  global percent_name
   percent = _WI_CacheOrVoid("WIPCNT", PU_CACHE)
+  percent_name = "WIPCNT"
   global colon
+  global colon_name
   colon = _WI_CacheOrVoid("WICOLON", PU_CACHE)
+  colon_name = "WICOLON"
   global wiminus
+  global wiminus_name
   wiminus = _WI_CacheOrVoid("WIMINUS", PU_CACHE)
+  wiminus_name = "WIMINUS"
   global finished
+  global finished_name
   finished = _WI_CacheOrVoid("WIF", PU_CACHE)
+  finished_name = "WIF"
   global entering
+  global entering_name
   entering = _WI_CacheOrVoid("WIENTER", PU_CACHE)
+  entering_name = "WIENTER"
 
   global num
+  global num_names
   num =[]
+  num_names =[]
   i = 0
   while i < 10
-    num = num +[_WI_CacheOrVoid("WINUM" + i, PU_CACHE)]
+    nm = "WINUM" + i
+    num = num +[_WI_CacheOrVoid(nm, PU_CACHE)]
+    num_names = num_names +[nm]
     i = i + 1
   end while
 
   global kills
+  global kills_name
   kills = _WI_CacheOrVoid("WIOSTK", PU_CACHE)
+  kills_name = "WIOSTK"
   global items
+  global items_name
   items = _WI_CacheOrVoid("WIOSTI", PU_CACHE)
+  items_name = "WIOSTI"
   global sp_secret
+  global sp_secret_name
   sp_secret = _WI_CacheOrVoid("WISCRT2", PU_CACHE)
+  sp_secret_name = "WISCRT2"
   global secret
+  global secret_name
   secret = _WI_CacheOrVoid("WIOSTS", PU_CACHE)
+  secret_name = "WIOSTS"
   global frags
+  global frags_name
   frags = _WI_CacheOrVoid("WIFRGS", PU_CACHE)
+  frags_name = "WIFRGS"
   global timepatch
+  global timepatch_name
   timepatch = _WI_CacheOrVoid("WITIME", PU_CACHE)
+  timepatch_name = "WITIME"
   global par
+  global par_name
   par = _WI_CacheOrVoid("WIPAR", PU_CACHE)
+  par_name = "WIPAR"
   global sucks
+  global sucks_name
   sucks = _WI_CacheOrVoid("WISUCKS", PU_CACHE)
+  sucks_name = "WISUCKS"
   global killers
+  global killers_name
   killers = _WI_CacheOrVoid("WIKILRS", PU_CACHE)
+  killers_name = "WIKILRS"
   global victims
+  global victims_name
   victims = _WI_CacheOrVoid("WIVCTMS", PU_CACHE)
+  victims_name = "WIVCTMS"
   global total
+  global total_name
   total = _WI_CacheOrVoid("WIMSTT", PU_CACHE)
+  total_name = "WIMSTT"
   global star
+  global star_name
   star = _WI_CacheOrVoid("STFST01", PU_CACHE)
+  star_name = "STFST01"
   global bstar
+  global bstar_name
   bstar = _WI_CacheOrVoid("STFDEAD0", PU_CACHE)
+  bstar_name = "STFDEAD0"
   global wi_p
   wi_p =[]
+  global wi_p_names
+  wi_p_names =[]
   global wi_bp
   wi_bp =[]
+  global wi_bp_names
+  wi_bp_names =[]
   pnames = ["STPB0", "STPB1", "STPB2", "STPB3"]
   bpnames = ["WIBP1", "WIBP2", "WIBP3", "WIBP4"]
   i = 0
@@ -1496,11 +1591,19 @@ function WI_loadData()
     if i >= 0 and i < len(pnames) then pname = pnames[i] end if
     if i >= 0 and i < len(bpnames) then bpname = bpnames[i] end if
     pp = _WI_CacheOrVoid(pname, PU_CACHE)
-    if pp is void then pp = _WI_CacheOrVoid("STPB0", PU_CACHE) end if
+    if pp is void then
+      pname = "STPB0"
+      pp = _WI_CacheOrVoid(pname, PU_CACHE)
+    end if
     wi_p = wi_p +[pp]
+    wi_p_names = wi_p_names +[pname]
     bp = _WI_CacheOrVoid(bpname, PU_CACHE)
-    if bp is void then bp = _WI_CacheOrVoid("WIBP1", PU_CACHE) end if
+    if bp is void then
+      bpname = "WIBP1"
+      bp = _WI_CacheOrVoid(bpname, PU_CACHE)
+    end if
     wi_bp = wi_bp +[bp]
+    wi_bp_names = wi_bp_names +[bpname]
     i = i + 1
   end while
 
@@ -1514,31 +1617,106 @@ end function
 function WI_unloadData()
   global bg
   bg = void
+  global bg_name
+  bg_name = ""
   global num
   num =[]
+  global num_names
+  num_names =[]
   i = 0
   while i < 10
     num = num +[void]
+    num_names = num_names +["WINUM" + i]
     i = i + 1
   end while
   global yah
   yah =[void, void]
+  global yah_names
+  yah_names =["", ""]
   global splat
   splat = void
+  global splat_name
+  splat_name = ""
   global percent
   percent = void
+  global percent_name
+  percent_name = ""
   global colon
   colon = void
+  global colon_name
+  colon_name = ""
   global wiminus
   wiminus = void
+  global wiminus_name
+  wiminus_name = ""
   global finished
   finished = void
+  global finished_name
+  finished_name = ""
   global entering
   entering = void
+  global entering_name
+  entering_name = ""
   global wi_p
   wi_p =[void, void, void, void]
+  global wi_p_names
+  wi_p_names =["STPB0", "STPB1", "STPB2", "STPB3"]
   global wi_bp
   wi_bp =[void, void, void, void]
+  global wi_bp_names
+  wi_bp_names =["WIBP1", "WIBP2", "WIBP3", "WIBP4"]
+  global sp_secret
+  sp_secret = void
+  global sp_secret_name
+  sp_secret_name = ""
+  global kills
+  kills = void
+  global kills_name
+  kills_name = ""
+  global secret
+  secret = void
+  global secret_name
+  secret_name = ""
+  global items
+  items = void
+  global items_name
+  items_name = ""
+  global frags
+  frags = void
+  global frags_name
+  frags_name = ""
+  global timepatch
+  timepatch = void
+  global timepatch_name
+  timepatch_name = ""
+  global par
+  par = void
+  global par_name
+  par_name = ""
+  global sucks
+  sucks = void
+  global sucks_name
+  sucks_name = ""
+  global killers
+  killers = void
+  global killers_name
+  killers_name = ""
+  global victims
+  victims = void
+  global victims_name
+  victims_name = ""
+  global total
+  total = void
+  global total_name
+  total_name = ""
+  global star
+  star = void
+  global star_name
+  star_name = ""
+  global bstar
+  bstar = void
+  global bstar_name
+  bstar_name = ""
 end function
 
 /*
