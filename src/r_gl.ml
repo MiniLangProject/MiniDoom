@@ -37,7 +37,7 @@ const RGL_WORLD_SPRITE_FOOT_LIFT = 4.0
 const RGL_BASEYCENTER = 100
 const RGL_DYNAMIC_SETTLE_FRAMES = 3
 const RGL_GEOM_FIX_SCALE = 65536.0
-const RGL_GEOM_VERSION = 4
+const RGL_GEOM_VERSION = 5
 const RGL_CAMERA_BACK_OFFSET = 0.0
 
 rgl_tex_keys =[]
@@ -3290,6 +3290,114 @@ function RGL_ClipPolyToNodeSide(xs, ys, count, node, side, outx, outy)
 end function
 
 /*
+* Function: RGL_ClipPolyToSegFront
+* Purpose: Clips a convex flat polygon to the playable front side of one boundary seg.
+*/
+function RGL_ClipPolyToSegFront(xs, ys, count, sg, outx, outy)
+  if count < 3 or sg is void or sg.v1 is void or sg.v2 is void then return 0 end if
+  outCount = 0
+  eps = 0.001
+  x0 = RGL_FixedToFloat(sg.v1.x)
+  y0 = RGL_FixedToFloat(sg.v1.y)
+  dx = RGL_FixedToFloat(sg.v2.x - sg.v1.x)
+  dy = RGL_FixedToFloat(sg.v2.y - sg.v1.y)
+
+  prev = count - 1
+  prevX = xs[prev]
+  prevY = ys[prev]
+  prevV =(prevX - x0) * dy -(prevY - y0) * dx
+  prevIn = prevV >= -eps
+
+  i = 0
+  while i < count
+    curX = xs[i]
+    curY = ys[i]
+    curV =(curX - x0) * dy -(curY - y0) * dx
+    curIn = curV >= -eps
+
+    if curIn != prevIn then
+      denom = prevV - curV
+      if denom > 0.000001 or denom < -0.000001 then
+        t = prevV / denom
+        if outCount < len(outx) then
+          outx[outCount] = prevX +(curX - prevX) * t
+          outy[outCount] = prevY +(curY - prevY) * t
+          outCount = outCount + 1
+        end if
+      end if
+    end if
+
+    if curIn then
+      if outCount < len(outx) then
+        outx[outCount] = curX
+        outy[outCount] = curY
+        outCount = outCount + 1
+      end if
+    end if
+
+    prevX = curX
+    prevY = curY
+    prevV = curV
+    prevIn = curIn
+    i = i + 1
+  end while
+
+  return outCount
+end function
+
+/*
+* Function: RGL_ClipBspFlatToBoundarySegs
+* Purpose: Trims BSP flat leaves against one-sided subsector walls so outside void space is not cached.
+*/
+function RGL_ClipBspFlatToBoundarySegs(ss, xs, ys, count, outx, outy)
+  if ss is void or count < 3 then return count end if
+  if typeof(ss.numlines) != "int" or typeof(ss.firstline) != "int" or not RGL_IsSeq(segs) then return count end if
+
+  cap = len(outx)
+  ax = array(cap, 0.0)
+  ay = array(cap, 0.0)
+  bx = array(cap, 0.0)
+  by = array(cap, 0.0)
+
+  i = 0
+  while i < count and i < cap
+    ax[i] = xs[i]
+    ay[i] = ys[i]
+    i = i + 1
+  end while
+  curCount = count
+
+  li = 0
+  while li < ss.numlines and curCount >= 3
+    segi = ss.firstline + li
+    if segi >= 0 and segi < len(segs) then
+      sg = segs[segi]
+      if sg is not void and sg.backsector is void then
+        nextCount = RGL_ClipPolyToSegFront(ax, ay, curCount, sg, bx, by)
+        if nextCount >= 3 then
+          j = 0
+          while j < nextCount and j < cap
+            ax[j] = bx[j]
+            ay[j] = by[j]
+            j = j + 1
+          end while
+          curCount = nextCount
+        end if
+      end if
+    end if
+    li = li + 1
+  end while
+
+  i = 0
+  while i < curCount and i < cap
+    outx[i] = ax[i]
+    outy[i] = ay[i]
+    i = i + 1
+  end while
+  return curCount
+end function
+
+/*
 * Function: RGL_DrawBspLeafFlat
 * Purpose: Draws BSP leaf flat output for the OpenGL renderer.
 */
@@ -3303,6 +3411,14 @@ function RGL_DrawBspLeafFlat(sidx, xs, ys, count)
   ss = subsectors[sidx]
   if ss is void or ss.sector is void then return end if
   sec = ss.sector
+  clippedX = array(512, 0.0)
+  clippedY = array(512, 0.0)
+  clippedCount = RGL_ClipBspFlatToBoundarySegs(ss, xs, ys, count, clippedX, clippedY)
+  if clippedCount >= 3 then
+    xs = clippedX
+    ys = clippedY
+    count = clippedCount
+  end if
   c = RGL_LightByte(sec)
   rgl_current_light = c
   glColor3ub(c, c, c)
