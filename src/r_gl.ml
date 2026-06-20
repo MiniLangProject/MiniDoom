@@ -1589,12 +1589,41 @@ function RGL_SyncPaletteRevision()
 end function
 
 /*
+* Function: RGL_ResolveTextureNum
+* Purpose: Resolves Doom texture animation translation for OpenGL texture binding.
+*/
+function inline RGL_ResolveTextureNum(texnum)
+  if typeof(texnum) != "int" or texnum < 0 then return -1 end if
+  n = texnum
+  if RGL_IsSeq(texturetranslation) and n >= 0 and n < len(texturetranslation) then
+    tn = texturetranslation[n]
+    if typeof(tn) == "int" and tn >= 0 then n = tn end if
+  end if
+  return n
+end function
+
+/*
+* Function: RGL_ResolveFlatNum
+* Purpose: Resolves Doom flat animation translation for OpenGL flat binding.
+*/
+function inline RGL_ResolveFlatNum(flatnum)
+  if typeof(flatnum) != "int" or flatnum < 0 then return -1 end if
+  n = flatnum
+  if RGL_IsSeq(flattranslation) and n >= 0 and n < len(flattranslation) then
+    fn = flattranslation[n]
+    if typeof(fn) == "int" and fn >= 0 then n = fn end if
+  end if
+  return n
+end function
+
+/*
 * Function: RGL_TextureName
 * Purpose: Provides name helper behavior for the OpenGL renderer.
 */
 function RGL_TextureName(texnum)
   if not RGL_IsSeq(textures) then return "" end if
-  if typeof(texnum) != "int" or texnum < 0 or texnum >= len(textures) then return "" end if
+  texnum = RGL_ResolveTextureNum(texnum)
+  if texnum < 0 or texnum >= len(textures) then return "" end if
   t = textures[texnum]
   if t is void or typeof(t.name) != "string" then return "" end if
   return t.name
@@ -1605,6 +1634,7 @@ end function
 * Purpose: Provides width helper behavior for the OpenGL renderer.
 */
 function RGL_TextureWidth(texnum)
+  texnum = RGL_ResolveTextureNum(texnum)
   if not RGL_IsSeq(textures) or texnum < 0 or texnum >= len(textures) then return 64 end if
   t = textures[texnum]
   if t is void or typeof(t.width) != "int" or t.width <= 0 then return 64 end if
@@ -1616,6 +1646,7 @@ end function
 * Purpose: Provides height helper behavior for the OpenGL renderer.
 */
 function RGL_TextureHeight(texnum)
+  texnum = RGL_ResolveTextureNum(texnum)
   if not RGL_IsSeq(textures) or texnum < 0 or texnum >= len(textures) then return 64 end if
   t = textures[texnum]
   if t is void or typeof(t.height) != "int" or t.height <= 0 then return 64 end if
@@ -1629,6 +1660,8 @@ end function
 function RGL_TextureIdForTexnum(texnum)
   global rgl_texnum_tex_ids
   if typeof(texnum) != "int" or texnum < 0 then return 0 end if
+  texnum = RGL_ResolveTextureNum(texnum)
+  if texnum < 0 then return 0 end if
   while len(rgl_texnum_tex_ids) <= texnum
     rgl_texnum_tex_ids = rgl_texnum_tex_ids +[-1]
   end while
@@ -1652,6 +1685,8 @@ end function
 function RGL_TextureIdForTexnumTransparent(texnum)
   global rgl_texnum_trans_tex_ids
   if typeof(texnum) != "int" or texnum < 0 then return 0 end if
+  texnum = RGL_ResolveTextureNum(texnum)
+  if texnum < 0 then return 0 end if
   while len(rgl_texnum_trans_tex_ids) <= texnum
     rgl_texnum_trans_tex_ids = rgl_texnum_trans_tex_ids +[-1]
   end while
@@ -1675,6 +1710,8 @@ end function
 function RGL_TextureIdForFlatnum(flatnum)
   global rgl_flat_tex_ids
   if typeof(flatnum) != "int" or flatnum < 0 then return 0 end if
+  flatnum = RGL_ResolveFlatNum(flatnum)
+  if flatnum < 0 then return 0 end if
   while len(rgl_flat_tex_ids) <= flatnum
     rgl_flat_tex_ids = rgl_flat_tex_ids +[-1]
   end while
