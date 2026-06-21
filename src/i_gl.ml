@@ -18,6 +18,7 @@
 */
 import m_argv
 import doomdef
+import r_renderer
 import std.math
 
 const IGL_PFD_DRAW_TO_WINDOW = 0x00000004
@@ -549,7 +550,13 @@ end function
 */
 function IGL_WantsOpenGL()
   if typeof(M_CheckParm) != "function" then return false end if
-  return M_CheckParm("-opengl") != 0 or M_CheckParm("--opengl") != 0 or M_CheckParm("-gl") != 0 or M_CheckParm("--gl") != 0
+  want = M_CheckParm("-opengl") != 0 or M_CheckParm("--opengl") != 0 or M_CheckParm("-gl") != 0 or M_CheckParm("--gl") != 0
+  if want then
+    R_RendererRequest(RENDERER_OPENGL)
+  else
+    R_RendererRequest(RENDERER_CLASSIC)
+  end if
+  return want
 end function
 
 /*
@@ -557,7 +564,7 @@ end function
 * Purpose: Returns true when the OpenGL renderer is the active drawing path.
 */
 function IGL_IsActive()
-  return igl_active and igl_renderer_enabled
+  return igl_active and igl_renderer_enabled and R_RendererIsOpenGL()
 end function
 
 /*
@@ -589,6 +596,8 @@ function IGL_SetRendererEnabled(v)
   if not igl_active then
     igl_renderer_enabled = false
     igl_frame_ready = false
+    R_RendererRequest(RENDERER_CLASSIC)
+    R_RendererSetActive(RENDERER_CLASSIC)
     return false
   end if
 
@@ -596,8 +605,12 @@ function IGL_SetRendererEnabled(v)
   if typeof(v) == "bool" and v then igl_renderer_enabled = true end if
   igl_frame_ready = false
   if igl_renderer_enabled then
+    R_RendererRequest(RENDERER_OPENGL)
+    R_RendererSetActive(RENDERER_OPENGL)
     print "Renderer: OpenGL"
   else
+    R_RendererRequest(RENDERER_CLASSIC)
+    R_RendererSetActive(RENDERER_CLASSIC)
     print "Renderer: classic"
   end if
   return igl_renderer_enabled
@@ -663,6 +676,8 @@ function IGL_Init(hwnd, hdc, width, height)
   igl_hrc = hrc
   igl_active = true
   igl_renderer_enabled = true
+  R_RendererRequest(RENDERER_OPENGL)
+  R_RendererSetActive(RENDERER_OPENGL)
   igl_width = width
   igl_height = height
   if igl_width <= 0 then igl_width = 320 end if
@@ -1306,6 +1321,8 @@ function IGL_Shutdown()
   end if
   igl_active = false
   igl_renderer_enabled = false
+  R_RendererRequest(RENDERER_CLASSIC)
+  R_RendererSetActive(RENDERER_CLASSIC)
   igl_hrc = void
   igl_hdc = void
 end function

@@ -18,7 +18,7 @@
 */
 import doomdef
 import r_upscaled
-import i_gl
+import r_renderer
 
 rh_enabled = false
 rh_scale = 1
@@ -81,7 +81,7 @@ end function
 * Purpose: Returns true when world rendering should use the high-resolution target.
 */
 function inline RH_IsActive()
-  if typeof(IGL_IsActive) != "function" or not IGL_IsActive() then return false end if
+  if not R_RendererUsesHDAssets() then return false end if
   return (not rh_force_logical) and rh_enabled and typeof(rh_buffer) == "bytes"
 end function
 

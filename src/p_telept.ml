@@ -31,6 +31,7 @@ import r_state
 */
 function _PTP_ResolveThinkerMobj(th)
   if th is void then return void end if
+  if th.func is void or th.func.acp1 != P_MobjThinker then return void end if
 
   if typeof(P_ResolveThinkerOwner) == "function" then
     mo = P_ResolveThinkerOwner(th)
@@ -40,10 +41,6 @@ function _PTP_ResolveThinkerMobj(th)
   if typeof(_PM_ResolveThinkerOwner) == "function" then
     mo = _PM_ResolveThinkerOwner(th)
     if mo is not void then return mo end if
-  end if
-
-  if typeof(th.type) == "int" and typeof(th.x) == "int" and typeof(th.y) == "int" then
-    return th
   end if
 
   return void

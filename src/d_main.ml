@@ -45,6 +45,7 @@ import r_local
 import r_gl
 import r_upscaled
 import r_hires
+import r_renderer
 import hdwad_builder
 import tables
 import std.fs as fs
@@ -271,7 +272,6 @@ end function
 * Purpose: Accumulates OpenGL batch visibility counts for renderer profiling.
 */
 function _D_ProfileGLBatches(kind, total, drawn, vertices)
-  return
   global _d_prof_gl_flat_batches
   global _d_prof_gl_flat_drawn
   global _d_prof_gl_flat_vertices
@@ -1794,13 +1794,13 @@ function D_Display()
 
   profiling = _d_profile_render
   keepStatusOverlay = false
-  if gamestate == gamestate_t.GS_LEVEL and typeof(IGL_IsActive) == "function" and IGL_IsActive() then
+  if gamestate == gamestate_t.GS_LEVEL and R_RendererIsOpenGL() then
     if typeof(viewheight) == "int" and viewheight < SCREENHEIGHT then keepStatusOverlay = true end if
   end if
   keepStaticPageOverlay = false
   if gamestate == gamestate_t.GS_DEMOSCREEN and gamestate == wipegamestate and not advancedemo then
     if typeof(menuactive) == "void" or not menuactive then
-      if typeof(IGL_IsActive) == "function" and IGL_IsActive() and typeof(V_HighresOverlayCanReuse) == "function" and V_HighresOverlayCanReuse() then
+      if R_RendererIsOpenGL() and typeof(V_HighresOverlayCanReuse) == "function" and V_HighresOverlayCanReuse() then
         keepStaticPageOverlay = true
       end if
     end if
@@ -1835,7 +1835,7 @@ function D_Display()
   end if
 
   glWipeToLevel = false
-  if wipe and typeof(IGL_IsActive) == "function" and IGL_IsActive() then
+  if wipe and R_RendererIsOpenGL() then
     glWipeToLevel = true
   end if
   if glWipeToLevel and typeof(I_BeginHDWipe) == "function" then

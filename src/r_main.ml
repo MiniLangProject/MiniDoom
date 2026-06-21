@@ -27,6 +27,7 @@ import r_local
 import r_sky
 import r_hires
 import r_gl
+import r_renderer
 import std.math
 import std.time
 
@@ -989,10 +990,44 @@ function R_SetupFrame(player)
 end function
 
 /*
-* Function: R_RenderPlayerView
-* Purpose: Draws render Player View output for the main renderer renderer.
+* Function: _R_RenderOpenGLPlayerView
+* Purpose: Attempts to draw the current player view with the active OpenGL renderer.
 */
-function R_RenderPlayerView(player)
+function _R_RenderOpenGLPlayerView(player)
+  global _r_prof_enabled
+  global _r_prof_frames
+
+  renderPlayer = player
+  if renderPlayer is void or renderPlayer.mo is void or renderPlayer.mo.subsector is void then
+    if typeof(viewplayer) == "struct" and viewplayer.mo is not void and viewplayer.mo.subsector is not void then
+      renderPlayer = viewplayer
+    end if
+  end if
+
+  _R_SetupFrame(renderPlayer)
+
+  // In client-authoritative snapshot gaps, keep drawing the last valid pose instead of blanking.
+  if renderPlayer is void or renderPlayer.mo is void or renderPlayer.mo.subsector is void then
+    return false
+  end if
+
+  if R_RendererIsOpenGL() and typeof(RGL_RenderPlayerView) == "function" then
+    if RGL_RenderPlayerView(renderPlayer) then
+      if _r_prof_enabled then
+        _r_prof_frames = _r_prof_frames + 1
+        _R_ProfileFlushMaybe()
+      end if
+      return true
+    end if
+  end if
+  return false
+end function
+
+/*
+* Function: R_RenderClassicPlayerView
+* Purpose: Draws the current player view with the classic CPU renderer only.
+*/
+function R_RenderClassicPlayerView(player)
   global _r_prof_enabled
   global _r_prof_frames
   global _r_prof_clear_ms
@@ -1012,16 +1047,6 @@ function R_RenderPlayerView(player)
   // In client-authoritative snapshot gaps, keep drawing the last valid pose instead of blanking.
   if renderPlayer is void or renderPlayer.mo is void or renderPlayer.mo.subsector is void then
     return
-  end if
-
-  if typeof(RGL_RenderPlayerView) == "function" then
-    if RGL_RenderPlayerView(renderPlayer) then
-      if _r_prof_enabled then
-        _r_prof_frames = _r_prof_frames + 1
-        _R_ProfileFlushMaybe()
-      end if
-      return
-    end if
   end if
 
   if typeof(RH_Clear) == "function" and RH_IsActive() then
@@ -1100,6 +1125,18 @@ function R_RenderPlayerView(player)
     _r_prof_frames = _r_prof_frames + 1
     _R_ProfileFlushMaybe()
   end if
+end function
+
+/*
+* Function: R_RenderPlayerView
+* Purpose: Dispatches the player view to exactly one active renderer.
+*/
+function R_RenderPlayerView(player)
+  if R_RendererIsOpenGL() then
+    if _R_RenderOpenGLPlayerView(player) then return end if
+  end if
+
+  R_RenderClassicPlayerView(player)
 end function
 
 /*

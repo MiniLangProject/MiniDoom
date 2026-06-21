@@ -27,6 +27,7 @@ import m_bbox
 import m_swap
 import w_wad
 import r_upscaled
+import r_renderer
 import i_gl
 
 screens =[0, 0, 0, 0, 0]
@@ -260,7 +261,7 @@ function V_EnsureHighresOverlay()
   global v_hioverlaymask
   global v_hioverlay_scale
 
-  if typeof(IGL_IsActive) != "function" or not IGL_IsActive() then return false end if
+  if not R_RendererUsesHDAssets() then return false end if
   s = 1
   if typeof(RU_RenderScale) == "function" then s = RU_RenderScale() end if
   if typeof(s) != "int" or s < 1 then s = 1 end if

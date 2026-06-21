@@ -26,6 +26,7 @@ import z_zone
 import v_video
 import w_wad
 import r_local
+import r_renderer
 import hu_stuff
 import g_game
 import m_argv
@@ -2196,7 +2197,7 @@ function _MMENU_WriteTextMenuSized(x, y, string)
     w = _patchWidth(patch) * 2
     if cx + w + 2 > SCREENWIDTH then break end if
 
-    if typeof(IGL_IsActive) == "function" and IGL_IsActive() and typeof(V_DrawNamedUpscaledPatchOverlayLogicalScale) == "function" then
+    if R_RendererIsOpenGL() and typeof(V_DrawNamedUpscaledPatchOverlayLogicalScale) == "function" then
       V_DrawNamedUpscaledPatchOverlayLogicalScale(cx, cy, _MMENU_FontLumpName(c + HU_FONTSTART), false, 2)
     end if
     _MMENU_DrawPatchScale2(cx, cy, 0, patch)
@@ -2211,7 +2212,7 @@ end function
 * Purpose: Keeps startup/title-screen high-res patch overlays from covering generated menu text.
 */
 function _MMENU_RevealLogicalMenuText(x, y, string)
-  if typeof(IGL_IsActive) != "function" or not IGL_IsActive() then return end if
+  if not R_RendererIsOpenGL() then return end if
   if typeof(gamestate) != "void" and gamestate == gamestate_t.GS_LEVEL then return end if
   if typeof(V_ClearHighresOverlayRect) != "function" then return end if
 

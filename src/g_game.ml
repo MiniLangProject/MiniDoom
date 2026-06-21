@@ -29,6 +29,7 @@ import m_random
 import i_system
 import i_video
 import p_setup
+import r_renderer
 import p_saveg
 import p_tick
 import d_main
@@ -146,9 +147,9 @@ function G_InitNew(skill, episode, map)
   end if
   if typeof(RGL_EnsureGeometryCache) == "function" then
     wantGL = false
-    if typeof(IGL_IsActive) == "function" and IGL_IsActive() then
+    if R_RendererIsOpenGL() then
       wantGL = true
-    else if typeof(IGL_WantsOpenGL) == "function" and IGL_WantsOpenGL() then
+    else if R_RendererRequestedOpenGL() then
       wantGL = true
     end if
     if wantGL then

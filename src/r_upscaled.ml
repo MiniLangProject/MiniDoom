@@ -17,7 +17,7 @@
   Purpose: Loads optional MiniDoom upscaled graphics packages and shared render-scale settings.
 */
 import m_argv
-import i_gl
+import r_renderer
 import std.fs as fs
 import std.math
 
@@ -322,8 +322,7 @@ end function
 * Purpose: Returns true when the active renderer may consume HDWAD assets.
 */
 function inline RU_RendererAllowsHD()
-  if typeof(IGL_IsActive) != "function" then return false end if
-  return IGL_IsActive()
+  return R_RendererUsesHDAssets()
 end function
 
 /*

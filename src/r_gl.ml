@@ -30,6 +30,7 @@ import info
 import p_mobj
 import i_gl
 import std.math
+import std.time
 
 const RGL_ANGLE_FULL = 4294967296.0
 const RGL_FF_FRAMEMASK = 0x7fff
@@ -37,7 +38,7 @@ const RGL_WORLD_SPRITE_FOOT_LIFT = 4.0
 const RGL_BASEYCENTER = 100
 const RGL_DYNAMIC_SETTLE_FRAMES = 3
 const RGL_GEOM_FIX_SCALE = 65536.0
-const RGL_GEOM_VERSION = 6
+const RGL_GEOM_VERSION = 7
 const RGL_CAMERA_BACK_OFFSET = 0.0
 
 rgl_tex_keys =[]
@@ -72,6 +73,8 @@ rgl_volatile_sectors =[]
 rgl_volatile_subsectors =[]
 rgl_volatile_segs =[]
 rgl_volatile_lines =[]
+rgl_volatile_flat_templates =[]
+rgl_collecting_volatile_flats = false
 rgl_boundary_quads =[]
 rgl_wall_quads =[]
 rgl_masked_quads =[]
@@ -112,7 +115,8 @@ const RGL_CACHE_WALL = 2
 const RGL_CACHE_MASKED = 3
 const RGL_WALL_ARRAY_BATCH_QUADS = 4096
 const RGL_FLAT_ARRAY_BATCH_TRIS = 8192
-const RGL_SPATIAL_BATCH_CELL = 24576.0
+const RGL_SPATIAL_BATCH_CELL = 4096.0
+const RGL_FLAT_SPATIAL_BATCH_CELL = 32768.0
 const RGL_SPATIAL_BATCH_ORIGIN = 32768.0
 const RGL_SPATIAL_BATCH_STRIDE = 128
 const RGL_NATIVE_BATCH_RECORD_SIZE = 28
@@ -171,6 +175,17 @@ struct rgl_flat_tri_t
   z2
   s2
   t2
+end struct
+
+/*
+* Struct: rgl_volatile_flat_template_t
+* Purpose: Stores a preclipped BSP leaf polygon for dynamic-sector flats.
+*/
+struct rgl_volatile_flat_template_t
+  subsector
+  count
+  xs
+  ys
 end struct
 
 /*
@@ -272,6 +287,20 @@ function RGL_SpatialBatchCellKey(x, z)
 end function
 
 /*
+* Function: RGL_FlatSpatialBatchCellKey
+* Purpose: Maps flat geometry to coarser cells because flat rendering is draw-call bound.
+*/
+function RGL_FlatSpatialBatchCellKey(x, z)
+  cx = std.math.floor((x + RGL_SPATIAL_BATCH_ORIGIN) / RGL_FLAT_SPATIAL_BATCH_CELL)
+  cz = std.math.floor((z + RGL_SPATIAL_BATCH_ORIGIN) / RGL_FLAT_SPATIAL_BATCH_CELL)
+  if cx < 0 then cx = 0 end if
+  if cz < 0 then cz = 0 end if
+  if cx >= RGL_SPATIAL_BATCH_STRIDE then cx = RGL_SPATIAL_BATCH_STRIDE - 1 end if
+  if cz >= RGL_SPATIAL_BATCH_STRIDE then cz = RGL_SPATIAL_BATCH_STRIDE - 1 end if
+  return cz * RGL_SPATIAL_BATCH_STRIDE + cx
+end function
+
+/*
 * Function: RGL_WallArrayBatchKey
 * Purpose: Builds a combined texture and spatial key for static wall batching.
 */
@@ -288,9 +317,7 @@ end function
 * Purpose: Builds a combined texture and spatial key for static flat batching.
 */
 function RGL_FlatArrayBatchKey(t)
-  cx = (t.x0 + t.x1 + t.x2) / 3.0
-  cz = (t.z0 + t.z1 + t.z2) / 3.0
-  return t.flatnum * 20000 + RGL_SpatialBatchCellKey(cx, cz)
+  return t.flatnum
 end function
 
 /*
@@ -1132,6 +1159,26 @@ function RGL_MarkVolatileSector(sec)
 end function
 
 /*
+* Function: RGL_LineMayMoveGeometry
+* Purpose: Returns true for Doom line specials that can move floors, ceilings, doors, or platforms.
+*/
+function RGL_LineMayMoveGeometry(li)
+  if li is void or typeof(li.special) != "int" then return false end if
+  switch li.special
+    case 1, 2, 3, 4, 5, 6, 10, 16, 19, 22, 25, 26, 27, 28, 30, 31, 32, 33, 34, 36, 37, 38, 40, 44
+      return true
+    end case
+    case 46, 47, 53, 56, 58, 59, 72, 73, 75, 76, 77, 82, 83, 84, 86, 87, 88, 90, 91, 92, 93
+      return true
+    end case
+    case 94, 95, 96, 98, 105, 106, 107, 108, 109, 110, 117, 118, 119, 120, 121, 128, 129, 130, 141
+      return true
+    end case
+  end switch
+  return false
+end function
+
+/*
 * Function: RGL_IsVolatileSector
 * Purpose: Returns true for sectors that may move or need uncached wall/flat updates.
 */
@@ -1215,6 +1262,7 @@ function RGL_BuildVolatileSectorMap(sigMap)
       if li is not void then
         activeLine = false
         if li.specialdata is not void then activeLine = true end if
+        if RGL_LineMayMoveGeometry(li) then activeLine = true end if
         if activeLine then
           RGL_MarkVolatileSector(li.frontsector)
           RGL_MarkVolatileSector(li.backsector)
@@ -1749,6 +1797,7 @@ function RGL_TryLoadGeometryCache(sigMap, sigSegs, sigLines, sigNodes, sigSubsec
   rgl_pending_sig_sides = sigSides
   rgl_pending_stable_frames = 0
   rgl_geom_ready = true
+  RGL_BuildVolatileFlatTemplates()
   RGL_ResetStaticDisplayLists()
   RGL_ResetStaticArrayBatches()
   print "RGL: loaded cached map geometry " + RGL_MapGeomLumpName()
@@ -1766,7 +1815,7 @@ function RGL_BuildCurrentMapGeometryLump()
   sigLines = RGL_SeqLen(lines)
   sigNodes = RGL_SeqLen(nodes)
   sigSubsectors = RGL_SeqLen(subsectors)
-  sigSectorMotion = RGL_SectorMotionSignature()
+  sigSectorMotion = 0
   sigSides = RGL_SideTextureSignature()
   RGL_BuildGeometryCache(sigMap, sigSegs, sigLines, sigNodes, sigSubsectors, sigSectorMotion, sigSides)
   blob = RGL_SerializeGeometryCache(sigMap, sigSegs, sigLines, sigNodes, sigSubsectors, sigSectorMotion, sigSides)
@@ -4165,11 +4214,11 @@ function RGL_ArrayBatchVisible(batch)
   side = dx *(-fwdY) + dy * fwdX
   if side < 0.0 then side = -side end if
   r = batch.radius
-  if forward + r < -192.0 then return false end if
+  if forward + r < -128.0 then return false end if
   if forward > 64.0 then
-    if side - r > forward * 2.4 + 768.0 then return false end if
+    if side - r > forward * 1.25 + 384.0 then return false end if
   else
-    if side - r > 1024.0 then return false end if
+    if side - r > 640.0 then return false end if
   end if
   return true
 end function
@@ -4683,14 +4732,35 @@ function RGL_ClipBspFlatToBoundarySegs(ss, xs, ys, count, outx, outy)
 end function
 
 /*
+* Function: RGL_AddVolatileFlatTemplate
+* Purpose: Saves one already clipped volatile flat leaf for fast per-frame drawing.
+*/
+function RGL_AddVolatileFlatTemplate(sidx, xs, ys, count)
+  global rgl_volatile_flat_templates
+
+  if count < 3 then return end if
+  copyX = array(count, 0.0)
+  copyY = array(count, 0.0)
+  i = 0
+  while i < count
+    copyX[i] = xs[i]
+    copyY[i] = ys[i]
+    i = i + 1
+  end while
+  rgl_volatile_flat_templates = rgl_volatile_flat_templates +[rgl_volatile_flat_template_t(sidx, count, copyX, copyY)]
+end function
+
+/*
 * Function: RGL_DrawBspLeafFlat
 * Purpose: Draws BSP leaf flat output for the OpenGL renderer.
 */
 function RGL_DrawBspLeafFlat(sidx, xs, ys, count)
   global rgl_current_light
   global rgl_flat_volatile_only
+  global rgl_collecting_volatile_flats
 
   if sidx < 0 or not RGL_IsSeq(subsectors) or sidx >= len(subsectors) then return end if
+  if rgl_collecting_volatile_flats and not RGL_IsVolatileSubsectorIndex(sidx) then return end if
   if rgl_flat_volatile_only and not RGL_IsVolatileSubsectorIndex(sidx) then return end if
   if rgl_building_cache and RGL_IsVolatileSubsectorIndex(sidx) then return end if
   ss = subsectors[sidx]
@@ -4703,6 +4773,10 @@ function RGL_DrawBspLeafFlat(sidx, xs, ys, count)
     xs = clippedX
     ys = clippedY
     count = clippedCount
+  end if
+  if rgl_collecting_volatile_flats then
+    RGL_AddVolatileFlatTemplate(sidx, xs, ys, count)
+    return
   end if
   c = RGL_LightByte(sec)
   rgl_current_light = c
@@ -5159,6 +5233,7 @@ function RGL_BuildGeometryCache(sigMap, sigSegs, sigLines, sigNodes, sigSubsecto
   rgl_pending_sig_sides = sigSides
   rgl_pending_stable_frames = 0
   rgl_geom_ready = true
+  RGL_BuildVolatileFlatTemplates()
   RGL_ResetStaticDisplayLists()
   RGL_ResetStaticArrayBatches()
 end function
@@ -5179,7 +5254,7 @@ function RGL_EnsureGeometryCache()
   sigNodes = RGL_SeqLen(nodes)
   sigSubsectors = RGL_SeqLen(subsectors)
   topologySame = rgl_geom_ready and rgl_geom_sig_map == sigMap and rgl_geom_sig_segs == sigSegs and rgl_geom_sig_lines == sigLines and rgl_geom_sig_nodes == sigNodes and rgl_geom_sig_subsectors == sigSubsectors
-  sigSectorMotion = RGL_SectorMotionSignature()
+  sigSectorMotion = 0
   sigSides = RGL_SideTextureSignature()
   if topologySame then
     if rgl_geom_sig_sector_motion == sigSectorMotion and rgl_geom_sig_sides == sigSides then return true end if
@@ -5222,12 +5297,95 @@ function RGL_DrawDirectWorld(player, yaw)
 end function
 
 /*
+* Function: RGL_BuildVolatileFlatTemplates
+* Purpose: Precomputes clipped BSP leaf polygons for dynamic-sector flats.
+*/
+function RGL_BuildVolatileFlatTemplates()
+  global rgl_volatile_flat_templates
+  global rgl_collecting_volatile_flats
+
+  rgl_volatile_flat_templates =[]
+  if not RGL_IsSeq(rgl_volatile_subsectors) or len(rgl_volatile_subsectors) <= 0 then return end if
+
+  if RGL_IsSeq(nodes) and typeof(numnodes) == "int" and numnodes > 0 then
+    oldCollect = rgl_collecting_volatile_flats
+    rgl_collecting_volatile_flats = true
+    RGL_DrawAllBspFlats()
+    rgl_collecting_volatile_flats = oldCollect
+    return
+  end if
+
+  i = 0
+  while i < len(rgl_volatile_subsectors)
+    idx = rgl_volatile_subsectors[i]
+    if typeof(idx) == "int" and idx >= 0 and RGL_IsSeq(subsectors) and idx < len(subsectors) then
+      ss = subsectors[idx]
+      if ss is not void and typeof(ss.numlines) == "int" and ss.numlines >= 3 and typeof(ss.firstline) == "int" and RGL_IsSeq(segs) then
+        xs = array(ss.numlines, 0.0)
+        ys = array(ss.numlines, 0.0)
+        j = 0
+        count = 0
+        while j < ss.numlines
+          segi = ss.firstline + j
+          if segi >= 0 and segi < len(segs) then
+            sg = segs[segi]
+            if sg is not void and sg.v1 is not void and count < len(xs) then
+              xs[count] = RGL_FixedToFloat(sg.v1.x)
+              ys[count] = RGL_FixedToFloat(sg.v1.y)
+              count = count + 1
+            end if
+          end if
+          j = j + 1
+        end while
+        if count >= 3 then RGL_AddVolatileFlatTemplate(idx, xs, ys, count) end if
+      end if
+    end if
+    i = i + 1
+  end while
+end function
+
+/*
+* Function: RGL_DrawVolatileFlatTemplate
+* Purpose: Draws one cached dynamic-sector floor and ceiling polygon at current heights.
+*/
+function RGL_DrawVolatileFlatTemplate(t)
+  global rgl_current_light
+
+  if t is void or not RGL_IsSeq(subsectors) then return end if
+  idx = t.subsector
+  if typeof(idx) != "int" or idx < 0 or idx >= len(subsectors) then return end if
+  ss = subsectors[idx]
+  if ss is void or ss.sector is void then return end if
+  sec = ss.sector
+  if not RGL_IsSeq(t.xs) or not RGL_IsSeq(t.ys) or t.count < 3 then return end if
+
+  c = RGL_LightByte(sec)
+  rgl_current_light = c
+  glColor3ub(c, c, c)
+  RGL_DrawFlatConvexFloat(t.xs, t.ys, t.count, sec.floorheight, sec.floorpic)
+  if sec.ceilingpic != skyflatnum then
+    RGL_DrawFlatConvexFloat(t.xs, t.ys, t.count, sec.ceilingheight, sec.ceilingpic)
+  else
+    RGL_DrawSkyDepthConvexFloat(t.xs, t.ys, t.count, sec.ceilingheight)
+  end if
+end function
+
+/*
 * Function: RGL_DrawVolatileFlats
 * Purpose: Draws only flats that belong to dynamic sector geometry.
 */
 function RGL_DrawVolatileFlats()
   global rgl_current_light
   global rgl_flat_volatile_only
+
+  if RGL_IsSeq(rgl_volatile_flat_templates) and len(rgl_volatile_flat_templates) > 0 then
+    i = 0
+    while i < len(rgl_volatile_flat_templates)
+      RGL_DrawVolatileFlatTemplate(rgl_volatile_flat_templates[i])
+      i = i + 1
+    end while
+    return
+  end if
 
   if RGL_IsSeq(nodes) and typeof(numnodes) == "int" and numnodes > 0 then
     oldFilter = rgl_flat_volatile_only
@@ -5330,7 +5488,10 @@ end function
 * Purpose: Returns a timestamp for fine-grained renderer profiling.
 */
 function inline RGL_ProfileStart()
-  return 0
+  if typeof(_d_profile_render) != "bool" or not _d_profile_render then return 0 end if
+  t = std.time.ticks()
+  if typeof(t) != "int" then return 0 end if
+  return t
 end function
 
 /*
@@ -5338,7 +5499,11 @@ end function
 * Purpose: Adds elapsed time to one fine-grained renderer profiling slot.
 */
 function inline RGL_ProfileEnd(slot, start)
-  return
+  if typeof(_d_profile_render) != "bool" or not _d_profile_render then return end if
+  if typeof(start) != "int" or start <= 0 then return end if
+  t = std.time.ticks()
+  if typeof(t) != "int" then return end if
+  if typeof(_D_ProfileGLAdd) == "function" then _D_ProfileGLAdd(slot, t - start) end if
 end function
 
 /*

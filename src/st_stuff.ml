@@ -29,6 +29,7 @@ import g_game
 import st_lib
 import r_local
 import r_main
+import r_renderer
 import p_local
 import p_inter
 import am_map
@@ -791,7 +792,7 @@ function ST_doPaletteStuff()
     palette = 0
   end if
 
-  if typeof(IGL_IsActive) == "function" and IGL_IsActive() then
+  if R_RendererIsOpenGL() then
     if typeof(IGL_SetPaletteFlash) == "function" then IGL_SetPaletteFlash(palette) end if
     if palette != 0 then palette = 0 end if
   end if

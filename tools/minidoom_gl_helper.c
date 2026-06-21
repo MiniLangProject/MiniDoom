@@ -265,15 +265,15 @@ __declspec(dllexport) BOOL __stdcall MGL_DrawVisibleGeomBatches(
     if (side < 0.0) {
       side = -side;
     }
-    if (forward + radius < -192.0) {
+    if (forward + radius < -128.0) {
       continue;
     }
     if (forward > 64.0) {
-      if (side - radius > forward * 2.4 + 768.0) {
+      if (side - radius > forward * 1.25 + 384.0) {
         continue;
       }
     } else {
-      if (side - radius > 1024.0) {
+      if (side - radius > 640.0) {
         continue;
       }
     }
