@@ -721,6 +721,36 @@ function _D_HDWADPathForWad(wad)
 end function
 
 /*
+* Function: _D_AutoHDWADShouldRun
+* Purpose: Checks whether OpenGL should automatically use a generated HDWAD.
+*/
+function _D_AutoHDWADShouldRun()
+  if M_CheckParm("-nohdwad") != 0 or M_CheckParm("--nohdwad") != 0 then return false end if
+  if M_CheckParm("-hdwad") != 0 or M_CheckParm("--hdwad") != 0 then return false end if
+  if typeof(IGL_WantsOpenGL) == "function" and not IGL_WantsOpenGL() then return false end if
+  return true
+end function
+
+/*
+* Function: _D_AttachExistingAutoHDWAD
+* Purpose: Adds an existing automatic HDWAD to the WAD list before the WAD system starts.
+*/
+function _D_AttachExistingAutoHDWAD()
+  global wadfiles
+
+  if not _D_AutoHDWADShouldRun() then return false end if
+  if typeof(wadfiles) != "array" or len(wadfiles) == 0 then return false end if
+  wad = wadfiles[0]
+  if typeof(wad) != "string" or not _D_IsWadPath(wad) then return false end if
+  hd = _D_HDWADPathForWad(wad)
+  if fs.exists(hd) and fs.isFile(hd) and _D_HDWADLooksComplete(hd) then
+    D_AddFile(hd)
+    return true
+  end if
+  return false
+end function
+
+/*
 * Function: _D_DigitAt
 * Purpose: Provides at helper behavior for the Doom core.
 */
@@ -1245,9 +1275,7 @@ function _D_GenerateHDWADCacheAfterInit()
   global gamestate
   global precache
 
-  if M_CheckParm("-nohdwad") != 0 or M_CheckParm("--nohdwad") != 0 then return end if
-  if M_CheckParm("-hdwad") != 0 or M_CheckParm("--hdwad") != 0 then return end if
-  if typeof(IGL_WantsOpenGL) == "function" and not IGL_WantsOpenGL() then return end if
+  if not _D_AutoHDWADShouldRun() then return false end if
   if typeof(wadfiles) != "array" or len(wadfiles) == 0 then return end if
 
   wad = wadfiles[0]
@@ -1331,7 +1359,7 @@ function _D_GenerateHDWADCacheAfterInit()
   _D_HDWADFinishProgressPhase()
 
   _D_HDWADSetProgressPhase("Loading HDWAD...", 95, 5, 1)
-  wadfiles =[wad]
+  wadfiles =[wad, hd]
   W_InitMultipleFiles(wadfiles)
   if typeof(RU_Init) == "function" then RU_Init(hd) end if
   if typeof(RH_Init) == "function" then RH_Init() end if
@@ -1634,6 +1662,7 @@ function D_DoomMain()
   _D_ParseWadFilesFromArgs()
   _D_AddDemoLmpFromArgs("-playdemo")
   _D_AddDemoLmpFromArgs("-timedemo")
+  _D_AttachExistingAutoHDWAD()
 
   if typeof(V_Init) == "function" then V_Init() end if
   if devparm then print "D_DoomMain: V_Init done" end if
