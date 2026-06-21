@@ -55,6 +55,7 @@ end function
 */
 function EV_Teleport(line, side, thing)
   if line is void or thing is void then return 0 end if
+  if typeof(thing.flags) != "int" then return 0 end if
 
   if (thing.flags & mobjflag_t.MF_MISSILE) != 0 then return 0 end if
 
@@ -70,7 +71,13 @@ function EV_Teleport(line, side, thing)
       thinker = thinkercap.next
       while thinker is not void and thinker != thinkercap
         m = _PTP_ResolveThinkerMobj(thinker)
-        if m is not void and m.type == mobjtype_t.MT_TELEPORTMAN and m.subsector is not void and m.subsector.sector == sec then
+        isTeleportMan = false
+        if m is not void then
+          if typeof(m.type) == "int" and m.type == mobjtype_t.MT_TELEPORTMAN then
+            if m.subsector is not void and m.subsector.sector == sec then isTeleportMan = true end if
+          end if
+        end if
+        if isTeleportMan then
           oldx = thing.x
           oldy = thing.y
           oldz = thing.z
