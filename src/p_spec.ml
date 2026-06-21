@@ -37,6 +37,7 @@ import std.math
 
 levelTimer = false
 levelTimeCount = 0
+p_picanim_revision = 0
 
 const MO_TELEPORTMAN = 14
 
@@ -599,6 +600,7 @@ end function
 function P_UpdateSpecials()
   global levelTimer
   global levelTimeCount
+  global p_picanim_revision
 
   if levelTimer then
     levelTimeCount = levelTimeCount - 1
@@ -607,6 +609,7 @@ function P_UpdateSpecials()
     end if
   end if
 
+  picAnimChanged = false
   if _PS_IsSeq(anims) then
     ai = 0
     while ai < len(anims)
@@ -623,10 +626,12 @@ function P_UpdateSpecials()
         end if
         if anim.istexture then
           if _PS_IsSeq(texturetranslation) and p >= 0 and p < len(texturetranslation) then
+            if texturetranslation[p] != pic then picAnimChanged = true end if
             texturetranslation[p] = pic
           end if
         else
           if _PS_IsSeq(flattranslation) and p >= 0 and p < len(flattranslation) then
+            if flattranslation[p] != pic then picAnimChanged = true end if
             flattranslation[p] = pic
           end if
         end if
@@ -635,6 +640,7 @@ function P_UpdateSpecials()
       ai = ai + 1
     end while
   end if
+  if picAnimChanged then p_picanim_revision = p_picanim_revision + 1 end if
 
   if _PS_IsSeq(linespeciallist) then
     i = 0

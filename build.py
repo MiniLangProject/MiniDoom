@@ -21,6 +21,7 @@ PROJECT_ROOT = Path(__file__).resolve().parent
 DEFAULT_GAME_ENTRY = PROJECT_ROOT / "src" / "i_main.ml"
 DEFAULT_ICON_TOOL_SRC = PROJECT_ROOT / "tools" / "exe_icon_injector.ml"
 DEFAULT_ICON = PROJECT_ROOT / "icons" / "MiniDoom.ico"
+DEFAULT_GL_HELPER_SRC = PROJECT_ROOT / "tools" / "minidoom_gl_helper.c"
 
 
 def _resolve_std_import_root(std_path: Path) -> Path:
@@ -68,6 +69,90 @@ def _compiler_cmd(
 def _run(cmd: list[str], cwd: Path) -> None:
     print(">", " ".join(cmd))
     subprocess.run(cmd, cwd=str(cwd), check=True)
+
+
+def _find_first_existing(paths: list[Path]) -> Path | None:
+    for path in paths:
+        if path.exists():
+            return path
+    return None
+
+
+def _latest_child_dir(path: Path) -> Path | None:
+    if not path.is_dir():
+        return None
+    dirs = [p for p in path.iterdir() if p.is_dir()]
+    if not dirs:
+        return None
+    return sorted(dirs, key=lambda p: p.name, reverse=True)[0]
+
+
+def _find_cl_exe() -> Path | None:
+    found = shutil.which("cl")
+    if found:
+        return Path(found)
+    roots = [
+        Path(r"C:\Program Files\Microsoft Visual Studio"),
+        Path(r"C:\Program Files (x86)\Microsoft Visual Studio"),
+    ]
+    candidates: list[Path] = []
+    for root in roots:
+        if root.is_dir():
+            candidates.extend(root.glob(r"*\*\VC\Tools\MSVC\*\bin\Hostx64\x64\cl.exe"))
+    if not candidates:
+        return None
+    return sorted(candidates, key=lambda p: str(p), reverse=True)[0]
+
+
+def _build_gl_helper(gl_helper_src: Path, out_dll: Path) -> bool:
+    cl = _find_cl_exe()
+    if cl is None:
+        print("Skipping MiniDoomGL.dll: cl.exe not found.")
+        return False
+
+    msvc_root = cl.parents[3]
+    vc_include = msvc_root / "include"
+    vc_lib = msvc_root / "lib" / "x64"
+    kit_root = Path(r"C:\Program Files (x86)\Windows Kits\10")
+    kit_ver_dir = _latest_child_dir(kit_root / "Include")
+    kit_lib_ver_dir = _latest_child_dir(kit_root / "Lib")
+    if kit_ver_dir is None or kit_lib_ver_dir is None:
+        print("Skipping MiniDoomGL.dll: Windows SDK not found.")
+        return False
+
+    includes = [
+        vc_include,
+        kit_ver_dir / "um",
+        kit_ver_dir / "shared",
+        kit_ver_dir / "ucrt",
+    ]
+    libpaths = [
+        vc_lib,
+        kit_lib_ver_dir / "um" / "x64",
+        kit_lib_ver_dir / "ucrt" / "x64",
+    ]
+    if any(not p.exists() for p in includes + libpaths):
+        print("Skipping MiniDoomGL.dll: incomplete MSVC/SDK include or lib paths.")
+        return False
+
+    out_dll.parent.mkdir(parents=True, exist_ok=True)
+    cmd = [
+        str(cl),
+        "/nologo",
+        "/LD",
+        "/O2",
+        "/EHsc",
+        str(gl_helper_src.resolve()),
+        "/Fe:" + str(out_dll.resolve()),
+    ]
+    for inc in includes:
+        cmd.append("/I" + str(inc.resolve()))
+    cmd.extend(["/link", "/NOLOGO"])
+    for lib in libpaths:
+        cmd.append("/LIBPATH:" + str(lib.resolve()))
+    cmd.extend(["opengl32.lib", "gdi32.lib", "user32.lib"])
+    _run(cmd, PROJECT_ROOT)
+    return True
 
 
 def _build_icon_tool(
@@ -180,6 +265,11 @@ def main() -> int:
         help="Build MiniDoom.exe without icon injection.",
     )
     parser.add_argument(
+        "--skip-gl-helper",
+        action="store_true",
+        help="Build MiniDoom.exe without the optional OpenGL VBO helper DLL.",
+    )
+    parser.add_argument(
         "--clean",
         action="store_true",
         help="Delete output directory before building.",
@@ -216,6 +306,17 @@ def main() -> int:
 
     icon_tool_exe = output_dir / "tools" / "exe_icon_injector.exe"
     game_exe = output_dir / "MiniDoom.exe"
+    gl_helper_dll = output_dir / "MiniDoomGL.dll"
+
+    if args.skip_gl_helper:
+        print("Skipping MiniDoomGL.dll (--skip-gl-helper).")
+    else:
+        gl_helper_src = DEFAULT_GL_HELPER_SRC.resolve()
+        if gl_helper_src.is_file():
+            print("Building MiniDoomGL.dll...")
+            _build_gl_helper(gl_helper_src, gl_helper_dll)
+        else:
+            print(f"Skipping MiniDoomGL.dll: source not found: {gl_helper_src}")
 
     print("Building icon tool...")
     _build_icon_tool(

@@ -116,6 +116,12 @@ _d_prof_gl_walls_ms = 0
 _d_prof_gl_sprites_ms = 0
 _d_prof_gl_masked_ms = 0
 _d_prof_gl_weapon_ms = 0
+_d_prof_gl_flat_batches = 0
+_d_prof_gl_flat_drawn = 0
+_d_prof_gl_flat_vertices = 0
+_d_prof_gl_wall_batches = 0
+_d_prof_gl_wall_drawn = 0
+_d_prof_gl_wall_vertices = 0
 const D_PROFILE_LOG_PATH = "minidoom_profile.log"
 d_force_wipe = false
 _d_hdwad_status_text = ""
@@ -261,6 +267,34 @@ function _D_ProfileGLAdd(slot, delta)
 end function
 
 /*
+* Function: _D_ProfileGLBatches
+* Purpose: Accumulates OpenGL batch visibility counts for renderer profiling.
+*/
+function _D_ProfileGLBatches(kind, total, drawn, vertices)
+  return
+  global _d_prof_gl_flat_batches
+  global _d_prof_gl_flat_drawn
+  global _d_prof_gl_flat_vertices
+  global _d_prof_gl_wall_batches
+  global _d_prof_gl_wall_drawn
+  global _d_prof_gl_wall_vertices
+
+  if not _d_profile_render then return end if
+  if typeof(total) != "int" then total = 0 end if
+  if typeof(drawn) != "int" then drawn = 0 end if
+  if typeof(vertices) != "int" then vertices = 0 end if
+  if kind == 0 then
+    _d_prof_gl_flat_batches = _d_prof_gl_flat_batches + total
+    _d_prof_gl_flat_drawn = _d_prof_gl_flat_drawn + drawn
+    _d_prof_gl_flat_vertices = _d_prof_gl_flat_vertices + vertices
+  else
+    _d_prof_gl_wall_batches = _d_prof_gl_wall_batches + total
+    _d_prof_gl_wall_drawn = _d_prof_gl_wall_drawn + drawn
+    _d_prof_gl_wall_vertices = _d_prof_gl_wall_vertices + vertices
+  end if
+end function
+
+/*
 * Function: _D_DrawMPDebugOverlay
 * Purpose: Renders multiplayer debug telemetry text overlay when MP runtime is active.
 */
@@ -324,6 +358,12 @@ function _D_ProfileFlushMaybe()
   global _d_prof_gl_sprites_ms
   global _d_prof_gl_masked_ms
   global _d_prof_gl_weapon_ms
+  global _d_prof_gl_flat_batches
+  global _d_prof_gl_flat_drawn
+  global _d_prof_gl_flat_vertices
+  global _d_prof_gl_wall_batches
+  global _d_prof_gl_wall_drawn
+  global _d_prof_gl_wall_vertices
 
   if not _d_profile_render then return end if
 
@@ -343,6 +383,7 @@ function _D_ProfileFlushMaybe()
   _D_ProfileLog("PROFILE frame: fps=" + fps + " tics=" + _d_prof_tics + " tps=" + tps + " tick=" + _d_prof_tick_ms + "ms render=" + _d_prof_r_ms + "ms st=" + _d_prof_st_ms + "ms hu=" + _d_prof_hu_ms + "ms am=" + _d_prof_am_ms + "ms other=" + _d_prof_other_ms + "ms vid=" + _d_prof_vid_ms + "ms")
   _D_ProfileLog("PROFILE game: player=" + _d_prof_player_ms + "ms thinkers=" + _d_prof_thinker_ms + "ms specials=" + _d_prof_special_ms + "ms thinker_calls=" + _d_prof_thinkers + " mobj_calls=" + _d_prof_mobj_thinkers)
   _D_ProfileLog("PROFILE gl: dyn=" + _d_prof_gl_dyn_ms + "ms cache=" + _d_prof_gl_cache_ms + "ms sky=" + _d_prof_gl_sky_ms + "ms boundary=" + _d_prof_gl_boundary_ms + "ms depth=" + _d_prof_gl_depth_ms + "ms flats=" + _d_prof_gl_flats_ms + "ms walls=" + _d_prof_gl_walls_ms + "ms sprites=" + _d_prof_gl_sprites_ms + "ms masked=" + _d_prof_gl_masked_ms + "ms weapon=" + _d_prof_gl_weapon_ms + "ms")
+  _D_ProfileLog("PROFILE glbatches: flats=" + _d_prof_gl_flat_drawn + "/" + _d_prof_gl_flat_batches + " flat_vertices=" + _d_prof_gl_flat_vertices + " walls=" + _d_prof_gl_wall_drawn + "/" + _d_prof_gl_wall_batches + " wall_vertices=" + _d_prof_gl_wall_vertices)
 
   _d_prof_t0 = now
   _d_prof_frames = 0
@@ -369,6 +410,12 @@ function _D_ProfileFlushMaybe()
   _d_prof_gl_sprites_ms = 0
   _d_prof_gl_masked_ms = 0
   _d_prof_gl_weapon_ms = 0
+  _d_prof_gl_flat_batches = 0
+  _d_prof_gl_flat_drawn = 0
+  _d_prof_gl_flat_vertices = 0
+  _d_prof_gl_wall_batches = 0
+  _d_prof_gl_wall_drawn = 0
+  _d_prof_gl_wall_vertices = 0
 end function
 
 /*
@@ -2100,7 +2147,8 @@ function D_DoomLoop()
     end if
   end if
 
-  debugTicks = 0
+debugTicks = 0
+  lastDisplayMs = 0
   while true
     if typeof(I_StartFrame) == "function" then I_StartFrame() end if
 
@@ -2142,8 +2190,9 @@ function D_DoomLoop()
       render_lerp_frac = 1.0
     end if
 
+    nowDisplayMs = _D_TimeMs()
     D_Display()
-
+    lastDisplayMs = nowDisplayMs
     if typeof(I_UpdateSound) == "function" then I_UpdateSound() end if
     if typeof(I_SubmitSound) == "function" then I_SubmitSound() end if
 

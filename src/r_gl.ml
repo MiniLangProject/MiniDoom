@@ -37,7 +37,7 @@ const RGL_WORLD_SPRITE_FOOT_LIFT = 4.0
 const RGL_BASEYCENTER = 100
 const RGL_DYNAMIC_SETTLE_FRAMES = 3
 const RGL_GEOM_FIX_SCALE = 65536.0
-const RGL_GEOM_VERSION = 5
+const RGL_GEOM_VERSION = 6
 const RGL_CAMERA_BACK_OFFSET = 0.0
 
 rgl_tex_keys =[]
@@ -78,6 +78,25 @@ rgl_masked_quads =[]
 rgl_flat_tris =[]
 rgl_depth_tris =[]
 rgl_depth_quads =[]
+rgl_wall_display_list_texnums =[]
+rgl_wall_display_list_transparents =[]
+rgl_wall_display_list_ids =[]
+rgl_flat_display_list_flatnums =[]
+rgl_flat_display_list_ids =[]
+rgl_boundary_display_list_id = 0
+rgl_masked_display_list_id = 0
+rgl_static_world_display_list_id = 0
+rgl_static_display_lists_ready = false
+rgl_wall_array_batches =[]
+rgl_flat_array_batches =[]
+rgl_static_array_batches_ready = false
+rgl_wall_native_records = bytes(0, 0)
+rgl_flat_native_records = bytes(0, 0)
+rgl_wall_native_record_count = 0
+rgl_flat_native_record_count = 0
+rgl_wall_native_texture_revision = -1
+rgl_flat_native_texture_revision = -1
+rgl_light_geom_blob = bytes(0, 0)
 rgl_dyn_light_x =[]
 rgl_dyn_light_y =[]
 rgl_dyn_light_z =[]
@@ -91,6 +110,14 @@ const RGL_MAX_DYNAMIC_LIGHTS = 48
 const RGL_CACHE_BOUNDARY = 1
 const RGL_CACHE_WALL = 2
 const RGL_CACHE_MASKED = 3
+const RGL_WALL_ARRAY_BATCH_QUADS = 4096
+const RGL_FLAT_ARRAY_BATCH_TRIS = 8192
+const RGL_SPATIAL_BATCH_CELL = 24576.0
+const RGL_SPATIAL_BATCH_ORIGIN = 32768.0
+const RGL_SPATIAL_BATCH_STRIDE = 128
+const RGL_NATIVE_BATCH_RECORD_SIZE = 28
+const RGL_LIGHT_RECORD_SIZE = 32
+const RGL_MAX_SURFACE_LIGHTS = 24
 
 /*
 * Struct: rgl_quad_t
@@ -144,6 +171,27 @@ struct rgl_flat_tri_t
   z2
   s2
   t2
+end struct
+
+/*
+* Struct: rgl_array_batch_t
+* Purpose: Stores prepacked OpenGL client-array data for one static texture batch.
+*/
+struct rgl_array_batch_t
+  texnum
+  transparent
+  vertex_count
+  vertices
+  texcoords
+  colors
+  cx
+  cz
+  radius
+  vertex_vbo
+  texcoord_vbo
+  color_vbo
+  interleaved
+  interleaved_vbo
 end struct
 
 /*
@@ -207,6 +255,726 @@ end function
 function inline RGL_SeqLen(v)
   if RGL_IsSeq(v) then return len(v) end if
   return -1
+end function
+
+/*
+* Function: RGL_SpatialBatchCellKey
+* Purpose: Maps a world-space point to a coarse static-geometry batch cell.
+*/
+function RGL_SpatialBatchCellKey(x, z)
+  cx = std.math.floor((x + RGL_SPATIAL_BATCH_ORIGIN) / RGL_SPATIAL_BATCH_CELL)
+  cz = std.math.floor((z + RGL_SPATIAL_BATCH_ORIGIN) / RGL_SPATIAL_BATCH_CELL)
+  if cx < 0 then cx = 0 end if
+  if cz < 0 then cz = 0 end if
+  if cx >= RGL_SPATIAL_BATCH_STRIDE then cx = RGL_SPATIAL_BATCH_STRIDE - 1 end if
+  if cz >= RGL_SPATIAL_BATCH_STRIDE then cz = RGL_SPATIAL_BATCH_STRIDE - 1 end if
+  return cz * RGL_SPATIAL_BATCH_STRIDE + cx
+end function
+
+/*
+* Function: RGL_WallArrayBatchKey
+* Purpose: Builds a combined texture and spatial key for static wall batching.
+*/
+function RGL_WallArrayBatchKey(q)
+  cx = (q.x0 + q.x1 + q.x2 + q.x3) * 0.25
+  cz = (q.z0 + q.z1 + q.z2 + q.z3) * 0.25
+  texKey = q.texnum
+  if q.transparent then texKey = texKey + 16384 end if
+  return texKey * 20000 + RGL_SpatialBatchCellKey(cx, cz)
+end function
+
+/*
+* Function: RGL_FlatArrayBatchKey
+* Purpose: Builds a combined texture and spatial key for static flat batching.
+*/
+function RGL_FlatArrayBatchKey(t)
+  cx = (t.x0 + t.x1 + t.x2) / 3.0
+  cz = (t.z0 + t.z1 + t.z2) / 3.0
+  return t.flatnum * 20000 + RGL_SpatialBatchCellKey(cx, cz)
+end function
+
+/*
+* Function: RGL_SortBatchGroupsByKey
+* Purpose: Orders static batch groups by numeric key so texture binds stay clustered.
+*/
+function RGL_SortBatchGroupsByKey(keys, groups)
+  if not RGL_IsSeq(keys) or not RGL_IsSeq(groups) then return groups end if
+  if len(keys) != len(groups) then return groups end if
+  used = []
+  i = 0
+  while i < len(keys)
+    used = used + [false]
+    i = i + 1
+  end while
+  sorted = []
+  outCount = 0
+  while outCount < len(keys)
+    best = -1
+    bestKey = 2147483647
+    i = 0
+    while i < len(keys)
+      if not used[i] and keys[i] < bestKey then
+        best = i
+        bestKey = keys[i]
+      end if
+      i = i + 1
+    end while
+    if best < 0 then break end if
+    used[best] = true
+    sorted = sorted + [groups[best]]
+    outCount = outCount + 1
+  end while
+  return sorted
+end function
+
+/*
+* Function: RGL_GroupWallQuadsForArrayBatches
+* Purpose: Groups cached wall quads by texture and coarse spatial cell for fewer visible draw calls.
+*/
+function RGL_GroupWallQuadsForArrayBatches(quads)
+  if not RGL_IsSeq(quads) then return [] end if
+  keys = []
+  groups = []
+  i = 0
+  while i < len(quads)
+    q = quads[i]
+    if q is not void then
+      key = RGL_WallArrayBatchKey(q)
+      idx = -1
+      j = 0
+      while j < len(keys) and idx < 0
+        if keys[j] == key then idx = j end if
+        j = j + 1
+      end while
+      if idx < 0 then
+        keys = keys + [key]
+        groups = groups + [[q]]
+      else
+        groups[idx] = groups[idx] + [q]
+      end if
+    end if
+    i = i + 1
+  end while
+  return RGL_SortBatchGroupsByKey(keys, groups)
+end function
+
+/*
+* Function: RGL_GroupFlatTrisForArrayBatches
+* Purpose: Groups cached flat triangles by texture and coarse spatial cell for fewer visible draw calls.
+*/
+function RGL_GroupFlatTrisForArrayBatches(tris)
+  if not RGL_IsSeq(tris) then return [] end if
+  keys = []
+  groups = []
+  i = 0
+  while i < len(tris)
+    t = tris[i]
+    if t is not void then
+      key = RGL_FlatArrayBatchKey(t)
+      idx = -1
+      j = 0
+      while j < len(keys) and idx < 0
+        if keys[j] == key then idx = j end if
+        j = j + 1
+      end while
+      if idx < 0 then
+        keys = keys + [key]
+        groups = groups + [[t]]
+      else
+        groups[idx] = groups[idx] + [t]
+      end if
+    end if
+    i = i + 1
+  end while
+  return RGL_SortBatchGroupsByKey(keys, groups)
+end function
+
+/*
+* Function: RGL_GroupCachedQuadsByTexture
+* Purpose: Groups opaque cached quads by texture once so immediate-mode batches are larger.
+*/
+function RGL_GroupCachedQuadsByTexture(quads)
+  if not RGL_IsSeq(quads) or len(quads) < 2 then return quads end if
+  keys =[]
+  groups =[]
+  i = 0
+  while i < len(quads)
+    q = quads[i]
+    if q is not void then
+      key = q.texnum
+      if q.transparent then key = key + 1000000 end if
+      idx = -1
+      j = 0
+      while j < len(keys) and idx < 0
+        if keys[j] == key then idx = j end if
+        j = j + 1
+      end while
+      if idx < 0 then
+        keys = keys +[key]
+        groups = groups +[[q]]
+      else
+        groups[idx] = groups[idx] +[q]
+      end if
+    end if
+    i = i + 1
+  end while
+
+  grouped =[]
+  i = 0
+  while i < len(groups)
+    g = groups[i]
+    j = 0
+    while j < len(g)
+      grouped = grouped +[g[j]]
+      j = j + 1
+    end while
+    i = i + 1
+  end while
+  return grouped
+end function
+
+/*
+* Function: RGL_GroupCachedFlatTrisByTexture
+* Purpose: Groups cached flat triangles by flat texture once so immediate-mode batches are larger.
+*/
+function RGL_GroupCachedFlatTrisByTexture(tris)
+  if not RGL_IsSeq(tris) or len(tris) < 2 then return tris end if
+  keys =[]
+  groups =[]
+  i = 0
+  while i < len(tris)
+    t = tris[i]
+    if t is not void then
+      key = t.flatnum
+      idx = -1
+      j = 0
+      while j < len(keys) and idx < 0
+        if keys[j] == key then idx = j end if
+        j = j + 1
+      end while
+      if idx < 0 then
+        keys = keys +[key]
+        groups = groups +[[t]]
+      else
+        groups[idx] = groups[idx] +[t]
+      end if
+    end if
+    i = i + 1
+  end while
+
+  grouped =[]
+  i = 0
+  while i < len(groups)
+    g = groups[i]
+    j = 0
+    while j < len(g)
+      grouped = grouped +[g[j]]
+      j = j + 1
+    end while
+    i = i + 1
+  end while
+  return grouped
+end function
+
+/*
+* Function: RGL_GroupOpaqueGeometryForBatches
+* Purpose: Prepares static opaque world lists for larger OpenGL immediate-mode batches.
+*/
+function RGL_GroupOpaqueGeometryForBatches()
+  global rgl_wall_quads
+  global rgl_flat_tris
+
+  rgl_wall_quads = RGL_GroupCachedQuadsByTexture(rgl_wall_quads)
+  rgl_flat_tris = RGL_GroupCachedFlatTrisByTexture(rgl_flat_tris)
+end function
+
+/*
+* Function: RGL_DeleteStaticDisplayLists
+* Purpose: Releases compiled OpenGL display lists for static wall and flat batches.
+*/
+function RGL_DeleteStaticDisplayLists()
+  global rgl_wall_display_list_texnums
+  global rgl_wall_display_list_transparents
+  global rgl_wall_display_list_ids
+  global rgl_flat_display_list_flatnums
+  global rgl_flat_display_list_ids
+  global rgl_boundary_display_list_id
+  global rgl_masked_display_list_id
+  global rgl_static_world_display_list_id
+  global rgl_static_display_lists_ready
+
+  i = 0
+  while i < len(rgl_wall_display_list_ids)
+    id = rgl_wall_display_list_ids[i]
+    if id != 0 then glDeleteLists(id, 1) end if
+    i = i + 1
+  end while
+  i = 0
+  while i < len(rgl_flat_display_list_ids)
+    id = rgl_flat_display_list_ids[i]
+    if id != 0 then glDeleteLists(id, 1) end if
+    i = i + 1
+  end while
+  if rgl_boundary_display_list_id != 0 then glDeleteLists(rgl_boundary_display_list_id, 1) end if
+  if rgl_masked_display_list_id != 0 then glDeleteLists(rgl_masked_display_list_id, 1) end if
+  if rgl_static_world_display_list_id != 0 then glDeleteLists(rgl_static_world_display_list_id, 1) end if
+
+  rgl_wall_display_list_texnums =[]
+  rgl_wall_display_list_transparents =[]
+  rgl_wall_display_list_ids =[]
+  rgl_flat_display_list_flatnums =[]
+  rgl_flat_display_list_ids =[]
+  rgl_boundary_display_list_id = 0
+  rgl_masked_display_list_id = 0
+  rgl_static_world_display_list_id = 0
+  rgl_static_display_lists_ready = false
+end function
+
+/*
+* Function: RGL_ResetStaticDisplayLists
+* Purpose: Invalidates compiled static geometry after map geometry changes.
+*/
+function RGL_ResetStaticDisplayLists()
+  RGL_DeleteStaticDisplayLists()
+end function
+
+/*
+* Function: RGL_ResetStaticArrayBatches
+* Purpose: Invalidates prepacked OpenGL client-array batches after geometry changes.
+*/
+function RGL_ResetStaticArrayBatches()
+  global rgl_wall_array_batches
+  global rgl_flat_array_batches
+  global rgl_static_array_batches_ready
+  global rgl_wall_native_records
+  global rgl_flat_native_records
+  global rgl_wall_native_record_count
+  global rgl_flat_native_record_count
+  global rgl_wall_native_texture_revision
+  global rgl_flat_native_texture_revision
+
+  if RGL_IsSeq(rgl_wall_array_batches) then
+    i = 0
+    while i < len(rgl_wall_array_batches)
+      b = rgl_wall_array_batches[i]
+      if b is not void then
+        if b.vertex_vbo != 0 then MGL_DeleteArrayBuffer(b.vertex_vbo) end if
+        if b.texcoord_vbo != 0 then MGL_DeleteArrayBuffer(b.texcoord_vbo) end if
+        if b.color_vbo != 0 then MGL_DeleteArrayBuffer(b.color_vbo) end if
+        if b.interleaved_vbo != 0 then MGL_DeleteArrayBuffer(b.interleaved_vbo) end if
+      end if
+      i = i + 1
+    end while
+  end if
+  if RGL_IsSeq(rgl_flat_array_batches) then
+    i = 0
+    while i < len(rgl_flat_array_batches)
+      b = rgl_flat_array_batches[i]
+      if b is not void then
+        if b.vertex_vbo != 0 then MGL_DeleteArrayBuffer(b.vertex_vbo) end if
+        if b.texcoord_vbo != 0 then MGL_DeleteArrayBuffer(b.texcoord_vbo) end if
+        if b.color_vbo != 0 then MGL_DeleteArrayBuffer(b.color_vbo) end if
+        if b.interleaved_vbo != 0 then MGL_DeleteArrayBuffer(b.interleaved_vbo) end if
+      end if
+      i = i + 1
+    end while
+  end if
+
+  rgl_wall_array_batches =[]
+  rgl_flat_array_batches =[]
+  rgl_wall_native_records = bytes(0, 0)
+  rgl_flat_native_records = bytes(0, 0)
+  rgl_wall_native_record_count = 0
+  rgl_flat_native_record_count = 0
+  rgl_wall_native_texture_revision = -1
+  rgl_flat_native_texture_revision = -1
+  rgl_static_array_batches_ready = false
+end function
+
+/*
+* Function: RGL_CreateArrayBufferOrZero
+* Purpose: Uploads static geometry bytes to a VBO when the helper and driver support it.
+*/
+function RGL_CreateArrayBufferOrZero(data)
+  if typeof(data) != "bytes" or len(data) <= 0 then return 0 end if
+  if not MGL_InitVBO() then return 0 end if
+  return MGL_CreateArrayBuffer(data, len(data))
+end function
+
+/*
+* Function: RGL_CreateInterleavedGeomBufferOrZero
+* Purpose: Uploads fixed-point interleaved geometry as a float VBO through the GL helper.
+*/
+function RGL_CreateInterleavedGeomBufferOrZero(data)
+  if typeof(data) != "bytes" or len(data) <= 0 then return 0 end if
+  if not MGL_InitVBO() then return 0 end if
+  return MGL_CreateInterleavedGeomBuffer(data, len(data))
+end function
+
+/*
+* Function: RGL_WriteNativeBatchRecord
+* Purpose: Writes one native helper draw record for a prepacked static geometry batch.
+*/
+function RGL_WriteNativeBatchRecord(records, index, texid, batch, flags)
+  off = index * RGL_NATIVE_BATCH_RECORD_SIZE
+  RGL_WriteU32(records, off, texid)
+  RGL_WriteU32(records, off + 4, batch.interleaved_vbo)
+  RGL_WriteS32(records, off + 8, batch.vertex_count)
+  RGL_WriteS32(records, off + 12, flags)
+  RGL_WriteS32(records, off + 16, RGL_FloatToGeom(batch.cx))
+  RGL_WriteS32(records, off + 20, RGL_FloatToGeom(batch.cz))
+  RGL_WriteS32(records, off + 24, RGL_FloatToGeom(batch.radius))
+end function
+
+/*
+* Function: RGL_UpdateWallNativeRecordTextures
+* Purpose: Refreshes wall native draw-record texture ids for animated texture translation.
+*/
+function RGL_UpdateWallNativeRecordTextures()
+  global rgl_wall_native_records
+  global rgl_wall_native_texture_revision
+
+  if typeof(rgl_wall_native_records) != "bytes" then return false end if
+  if rgl_wall_native_record_count != len(rgl_wall_array_batches) then return false end if
+  if len(rgl_wall_native_records) < len(rgl_wall_array_batches) * RGL_NATIVE_BATCH_RECORD_SIZE then return false end if
+  revision = 0
+  if typeof(p_picanim_revision) == "int" then revision = p_picanim_revision end if
+  if rgl_wall_native_texture_revision == revision then return true end if
+  i = 0
+  while i < len(rgl_wall_array_batches)
+    batch = rgl_wall_array_batches[i]
+    texid = RGL_TextureIdForTexnum(batch.texnum)
+    if batch.transparent then texid = RGL_TextureIdForTexnumTransparent(batch.texnum) end if
+    RGL_WriteU32(rgl_wall_native_records, i * RGL_NATIVE_BATCH_RECORD_SIZE, texid)
+    i = i + 1
+  end while
+  rgl_wall_native_texture_revision = revision
+  return true
+end function
+
+/*
+* Function: RGL_UpdateFlatNativeRecordTextures
+* Purpose: Refreshes flat native draw-record texture ids for animated flat translation.
+*/
+function RGL_UpdateFlatNativeRecordTextures()
+  global rgl_flat_native_records
+  global rgl_flat_native_texture_revision
+
+  if typeof(rgl_flat_native_records) != "bytes" then return false end if
+  if rgl_flat_native_record_count != len(rgl_flat_array_batches) then return false end if
+  if len(rgl_flat_native_records) < len(rgl_flat_array_batches) * RGL_NATIVE_BATCH_RECORD_SIZE then return false end if
+  revision = 0
+  if typeof(p_picanim_revision) == "int" then revision = p_picanim_revision end if
+  if rgl_flat_native_texture_revision == revision then return true end if
+  i = 0
+  while i < len(rgl_flat_array_batches)
+    batch = rgl_flat_array_batches[i]
+    texid = RGL_TextureIdForFlatnum(batch.texnum)
+    RGL_WriteU32(rgl_flat_native_records, i * RGL_NATIVE_BATCH_RECORD_SIZE, texid)
+    i = i + 1
+  end while
+  rgl_flat_native_texture_revision = revision
+  return true
+end function
+
+/*
+* Function: RGL_RebuildNativeArrayBatchRecords
+* Purpose: Builds native helper draw-record buffers for VBO-backed static geometry batches.
+*/
+function RGL_RebuildNativeArrayBatchRecords()
+  global rgl_wall_native_records
+  global rgl_flat_native_records
+  global rgl_wall_native_record_count
+  global rgl_flat_native_record_count
+  global rgl_wall_native_texture_revision
+  global rgl_flat_native_texture_revision
+
+  wallCount = 0
+  i = 0
+  while i < len(rgl_wall_array_batches)
+    batch = rgl_wall_array_batches[i]
+    if batch is not void and batch.interleaved_vbo != 0 then wallCount = wallCount + 1 end if
+    i = i + 1
+  end while
+  rgl_wall_native_record_count = wallCount
+  rgl_wall_native_records = bytes(wallCount * RGL_NATIVE_BATCH_RECORD_SIZE, 0)
+  outIndex = 0
+  i = 0
+  while i < len(rgl_wall_array_batches)
+    batch = rgl_wall_array_batches[i]
+    if batch is not void and batch.interleaved_vbo != 0 then
+      flags = 0
+      if batch.transparent then flags = 1 end if
+      texid = RGL_TextureIdForTexnum(batch.texnum)
+      if batch.transparent then texid = RGL_TextureIdForTexnumTransparent(batch.texnum) end if
+      RGL_WriteNativeBatchRecord(rgl_wall_native_records, outIndex, texid, batch, flags)
+      outIndex = outIndex + 1
+    end if
+    i = i + 1
+  end while
+
+  flatCount = 0
+  i = 0
+  while i < len(rgl_flat_array_batches)
+    batch = rgl_flat_array_batches[i]
+    if batch is not void and batch.interleaved_vbo != 0 then flatCount = flatCount + 1 end if
+    i = i + 1
+  end while
+  rgl_flat_native_record_count = flatCount
+  rgl_flat_native_records = bytes(flatCount * RGL_NATIVE_BATCH_RECORD_SIZE, 0)
+  outIndex = 0
+  i = 0
+  while i < len(rgl_flat_array_batches)
+    batch = rgl_flat_array_batches[i]
+    if batch is not void and batch.interleaved_vbo != 0 then
+      RGL_WriteNativeBatchRecord(rgl_flat_native_records, outIndex, RGL_TextureIdForFlatnum(batch.texnum), batch, 0)
+      outIndex = outIndex + 1
+    end if
+    i = i + 1
+  end while
+  rgl_wall_native_texture_revision = -1
+  rgl_flat_native_texture_revision = -1
+end function
+
+/*
+* Function: RGL_WriteGeomArrayVertex
+* Purpose: Appends one scaled vertex, texture coordinate, and static color to client-array buffers.
+*/
+function RGL_WriteGeomArrayVertex(vertices, voff, texcoords, toff, colors, coff, x, y, z, s, t, light)
+  RGL_WriteS32(vertices, voff, RGL_FloatToGeom(x))
+  RGL_WriteS32(vertices, voff + 4, RGL_FloatToGeom(y))
+  RGL_WriteS32(vertices, voff + 8, RGL_FloatToGeom(z))
+  RGL_WriteS32(texcoords, toff, RGL_FloatToGeom(s))
+  RGL_WriteS32(texcoords, toff + 4, RGL_FloatToGeom(t))
+  c = RGL_ClampByte(light)
+  colors[coff] = c
+  colors[coff + 1] = c
+  colors[coff + 2] = c
+  colors[coff + 3] = 255
+end function
+
+/*
+* Function: RGL_WriteGeomInterleavedVertex
+* Purpose: Appends one scaled vertex, texture coordinate, and static color to an interleaved VBO buffer.
+*/
+function RGL_WriteGeomInterleavedVertex(buf, off, x, y, z, s, t, light)
+  RGL_WriteS32(buf, off, RGL_FloatToGeom(x))
+  RGL_WriteS32(buf, off + 4, RGL_FloatToGeom(y))
+  RGL_WriteS32(buf, off + 8, RGL_FloatToGeom(z))
+  RGL_WriteS32(buf, off + 12, RGL_FloatToGeom(s))
+  RGL_WriteS32(buf, off + 16, RGL_FloatToGeom(t))
+  c = RGL_ClampByte(light)
+  buf[off + 20] = c
+  buf[off + 21] = c
+  buf[off + 22] = c
+  buf[off + 23] = 255
+end function
+
+/*
+* Function: RGL_BuildWallArrayBatchRange
+* Purpose: Packs one contiguous cached wall quad range into OpenGL client arrays.
+*/
+function RGL_BuildWallArrayBatchRange(startIndex, endIndex)
+  qcount = endIndex - startIndex
+  if qcount <= 0 then return end if
+  vertexCount = qcount * 4
+  vertices = bytes(vertexCount * 12, 0)
+  texcoords = bytes(vertexCount * 8, 0)
+  colors = bytes(vertexCount * 4, 0)
+  interleaved = bytes(vertexCount * 24, 0)
+  minx = 99999999.0
+  maxx = -99999999.0
+  minz = 99999999.0
+  maxz = -99999999.0
+  voff = 0
+  toff = 0
+  coff = 0
+  ioff = 0
+  i = startIndex
+  while i < endIndex
+    q = rgl_wall_quads[i]
+    if q is not void then
+      if q.x0 < minx then minx = q.x0 end if
+      if q.x1 < minx then minx = q.x1 end if
+      if q.x2 < minx then minx = q.x2 end if
+      if q.x3 < minx then minx = q.x3 end if
+      if q.x0 > maxx then maxx = q.x0 end if
+      if q.x1 > maxx then maxx = q.x1 end if
+      if q.x2 > maxx then maxx = q.x2 end if
+      if q.x3 > maxx then maxx = q.x3 end if
+      if q.z0 < minz then minz = q.z0 end if
+      if q.z1 < minz then minz = q.z1 end if
+      if q.z2 < minz then minz = q.z2 end if
+      if q.z3 < minz then minz = q.z3 end if
+      if q.z0 > maxz then maxz = q.z0 end if
+      if q.z1 > maxz then maxz = q.z1 end if
+      if q.z2 > maxz then maxz = q.z2 end if
+      if q.z3 > maxz then maxz = q.z3 end if
+      RGL_WriteGeomArrayVertex(vertices, voff, texcoords, toff, colors, coff, q.x0, q.y0, q.z0, q.s0, q.t0, q.light)
+      RGL_WriteGeomInterleavedVertex(interleaved, ioff, q.x0, q.y0, q.z0, q.s0, q.t0, q.light)
+      voff = voff + 12
+      toff = toff + 8
+      coff = coff + 4
+      ioff = ioff + 24
+      RGL_WriteGeomArrayVertex(vertices, voff, texcoords, toff, colors, coff, q.x1, q.y1, q.z1, q.s1, q.t1, q.light)
+      RGL_WriteGeomInterleavedVertex(interleaved, ioff, q.x1, q.y1, q.z1, q.s1, q.t1, q.light)
+      voff = voff + 12
+      toff = toff + 8
+      coff = coff + 4
+      ioff = ioff + 24
+      RGL_WriteGeomArrayVertex(vertices, voff, texcoords, toff, colors, coff, q.x2, q.y2, q.z2, q.s2, q.t2, q.light)
+      RGL_WriteGeomInterleavedVertex(interleaved, ioff, q.x2, q.y2, q.z2, q.s2, q.t2, q.light)
+      voff = voff + 12
+      toff = toff + 8
+      coff = coff + 4
+      ioff = ioff + 24
+      RGL_WriteGeomArrayVertex(vertices, voff, texcoords, toff, colors, coff, q.x3, q.y3, q.z3, q.s3, q.t3, q.light)
+      RGL_WriteGeomInterleavedVertex(interleaved, ioff, q.x3, q.y3, q.z3, q.s3, q.t3, q.light)
+      voff = voff + 12
+      toff = toff + 8
+      coff = coff + 4
+      ioff = ioff + 24
+    end if
+    i = i + 1
+  end while
+  q = rgl_wall_quads[startIndex]
+  cx = (minx + maxx) * 0.5
+  cz = (minz + maxz) * 0.5
+  dx = maxx - cx
+  dz = maxz - cz
+  radius = std.math.sqrt(dx * dx + dz * dz) + 128.0
+  vertexVbo = RGL_CreateArrayBufferOrZero(vertices)
+  texcoordVbo = RGL_CreateArrayBufferOrZero(texcoords)
+  colorVbo = RGL_CreateArrayBufferOrZero(colors)
+  interleavedVbo = RGL_CreateInterleavedGeomBufferOrZero(interleaved)
+  return rgl_array_batch_t(q.texnum, q.transparent, vertexCount, vertices, texcoords, colors, cx, cz, radius, vertexVbo, texcoordVbo, colorVbo, interleaved, interleavedVbo)
+end function
+
+/*
+* Function: RGL_BuildFlatArrayBatchRange
+* Purpose: Packs one contiguous cached flat triangle range into OpenGL client arrays.
+*/
+function RGL_BuildFlatArrayBatchRange(startIndex, endIndex)
+  tcount = endIndex - startIndex
+  if tcount <= 0 then return end if
+  vertexCount = tcount * 3
+  vertices = bytes(vertexCount * 12, 0)
+  texcoords = bytes(vertexCount * 8, 0)
+  colors = bytes(vertexCount * 4, 0)
+  interleaved = bytes(vertexCount * 24, 0)
+  minx = 99999999.0
+  maxx = -99999999.0
+  minz = 99999999.0
+  maxz = -99999999.0
+  voff = 0
+  toff = 0
+  coff = 0
+  ioff = 0
+  i = startIndex
+  while i < endIndex
+    t = rgl_flat_tris[i]
+    if t is not void then
+      if t.x0 < minx then minx = t.x0 end if
+      if t.x1 < minx then minx = t.x1 end if
+      if t.x2 < minx then minx = t.x2 end if
+      if t.x0 > maxx then maxx = t.x0 end if
+      if t.x1 > maxx then maxx = t.x1 end if
+      if t.x2 > maxx then maxx = t.x2 end if
+      if t.z0 < minz then minz = t.z0 end if
+      if t.z1 < minz then minz = t.z1 end if
+      if t.z2 < minz then minz = t.z2 end if
+      if t.z0 > maxz then maxz = t.z0 end if
+      if t.z1 > maxz then maxz = t.z1 end if
+      if t.z2 > maxz then maxz = t.z2 end if
+      RGL_WriteGeomArrayVertex(vertices, voff, texcoords, toff, colors, coff, t.x0, t.y0, t.z0, t.s0, t.t0, t.light)
+      RGL_WriteGeomInterleavedVertex(interleaved, ioff, t.x0, t.y0, t.z0, t.s0, t.t0, t.light)
+      voff = voff + 12
+      toff = toff + 8
+      coff = coff + 4
+      ioff = ioff + 24
+      RGL_WriteGeomArrayVertex(vertices, voff, texcoords, toff, colors, coff, t.x1, t.y1, t.z1, t.s1, t.t1, t.light)
+      RGL_WriteGeomInterleavedVertex(interleaved, ioff, t.x1, t.y1, t.z1, t.s1, t.t1, t.light)
+      voff = voff + 12
+      toff = toff + 8
+      coff = coff + 4
+      ioff = ioff + 24
+      RGL_WriteGeomArrayVertex(vertices, voff, texcoords, toff, colors, coff, t.x2, t.y2, t.z2, t.s2, t.t2, t.light)
+      RGL_WriteGeomInterleavedVertex(interleaved, ioff, t.x2, t.y2, t.z2, t.s2, t.t2, t.light)
+      voff = voff + 12
+      toff = toff + 8
+      coff = coff + 4
+      ioff = ioff + 24
+    end if
+    i = i + 1
+  end while
+  t = rgl_flat_tris[startIndex]
+  cx = (minx + maxx) * 0.5
+  cz = (minz + maxz) * 0.5
+  dx = maxx - cx
+  dz = maxz - cz
+  radius = std.math.sqrt(dx * dx + dz * dz) + 192.0
+  vertexVbo = RGL_CreateArrayBufferOrZero(vertices)
+  texcoordVbo = RGL_CreateArrayBufferOrZero(texcoords)
+  colorVbo = RGL_CreateArrayBufferOrZero(colors)
+  interleavedVbo = RGL_CreateInterleavedGeomBufferOrZero(interleaved)
+  return rgl_array_batch_t(t.flatnum, false, vertexCount, vertices, texcoords, colors, cx, cz, radius, vertexVbo, texcoordVbo, colorVbo, interleaved, interleavedVbo)
+end function
+
+/*
+* Function: RGL_BuildStaticArrayBatches
+* Purpose: Creates prepacked OpenGL client-array batches for static opaque world geometry.
+*/
+function RGL_BuildStaticArrayBatches()
+  global rgl_wall_quads
+  global rgl_flat_tris
+  global rgl_wall_array_batches
+  global rgl_flat_array_batches
+  global rgl_static_array_batches_ready
+
+  if rgl_static_array_batches_ready then return true end if
+  RGL_ResetStaticArrayBatches()
+
+  if RGL_IsSeq(rgl_wall_quads) then
+    savedWallQuads = rgl_wall_quads
+    wallGroups = RGL_GroupWallQuadsForArrayBatches(savedWallQuads)
+    gi = 0
+    while gi < len(wallGroups)
+      rgl_wall_quads = wallGroups[gi]
+      chunkStart = 0
+      while chunkStart < len(rgl_wall_quads)
+        chunkEnd = chunkStart + RGL_WALL_ARRAY_BATCH_QUADS
+        if chunkEnd > len(rgl_wall_quads) then chunkEnd = len(rgl_wall_quads) end if
+        batch = RGL_BuildWallArrayBatchRange(chunkStart, chunkEnd)
+        if batch is not void then rgl_wall_array_batches = rgl_wall_array_batches + [batch] end if
+        chunkStart = chunkEnd
+      end while
+      gi = gi + 1
+    end while
+    rgl_wall_quads = savedWallQuads
+  end if
+
+  if RGL_IsSeq(rgl_flat_tris) then
+    savedFlatTris = rgl_flat_tris
+    flatGroups = RGL_GroupFlatTrisForArrayBatches(savedFlatTris)
+    gi = 0
+    while gi < len(flatGroups)
+      rgl_flat_tris = flatGroups[gi]
+      chunkStart = 0
+      while chunkStart < len(rgl_flat_tris)
+        chunkEnd = chunkStart + RGL_FLAT_ARRAY_BATCH_TRIS
+        if chunkEnd > len(rgl_flat_tris) then chunkEnd = len(rgl_flat_tris) end if
+        batch = RGL_BuildFlatArrayBatchRange(chunkStart, chunkEnd)
+        if batch is not void then rgl_flat_array_batches = rgl_flat_array_batches + [batch] end if
+        chunkStart = chunkEnd
+      end while
+      gi = gi + 1
+    end while
+    rgl_flat_tris = savedFlatTris
+  end if
+
+  RGL_RebuildNativeArrayBatchRecords()
+  rgl_static_array_batches_ready = true
+  return true
 end function
 
 /*
@@ -436,7 +1204,6 @@ function RGL_BuildVolatileSectorMap(sigMap)
     sec = sectors[i]
     if sec is not void then
       if sec.specialdata is not void then rgl_volatile_sectors[i] = true end if
-      if typeof(sec.special) == "int" and sec.special != 0 then rgl_volatile_sectors[i] = true end if
     end if
     i = i + 1
   end while
@@ -447,7 +1214,6 @@ function RGL_BuildVolatileSectorMap(sigMap)
       li = lines[i]
       if li is not void then
         activeLine = false
-        if typeof(li.special) == "int" and li.special != 0 then activeLine = true end if
         if li.specialdata is not void then activeLine = true end if
         if activeLine then
           RGL_MarkVolatileSector(li.frontsector)
@@ -797,6 +1563,7 @@ end function
 * Purpose: Manages cached serialize Geometry Cache data for the OpenGL renderer system.
 */
 function RGL_SerializeGeometryCache(sigMap, sigSegs, sigLines, sigNodes, sigSubsectors, sigSectorMotion, sigSides)
+  global rgl_light_geom_blob
   bc = RGL_SeqLen(rgl_boundary_quads)
   wc = RGL_SeqLen(rgl_wall_quads)
   mc = RGL_SeqLen(rgl_masked_quads)
@@ -862,6 +1629,7 @@ function RGL_SerializeGeometryCache(sigMap, sigSegs, sigLines, sigNodes, sigSubs
     i = i + 1
   end while
 
+  rgl_light_geom_blob = buf
   return buf
 end function
 
@@ -887,6 +1655,7 @@ function RGL_TryLoadGeometryCache(sigMap, sigSegs, sigLines, sigNodes, sigSubsec
   global rgl_flat_tris
   global rgl_depth_tris
   global rgl_depth_quads
+  global rgl_light_geom_blob
 
   lump = W_CheckNumForName(RGL_MapGeomLumpName())
   if lump < 0 then return false end if
@@ -968,6 +1737,7 @@ function RGL_TryLoadGeometryCache(sigMap, sigSegs, sigLines, sigNodes, sigSubsec
   rgl_flat_tris = newFlats
   rgl_depth_tris = newDepthTris
   rgl_depth_quads = newDepthQuads
+  rgl_light_geom_blob = data
   rgl_geom_sig_map = sigMap
   rgl_geom_sig_segs = sigSegs
   rgl_geom_sig_lines = sigLines
@@ -979,6 +1749,8 @@ function RGL_TryLoadGeometryCache(sigMap, sigSegs, sigLines, sigNodes, sigSubsec
   rgl_pending_sig_sides = sigSides
   rgl_pending_stable_frames = 0
   rgl_geom_ready = true
+  RGL_ResetStaticDisplayLists()
+  RGL_ResetStaticArrayBatches()
   print "RGL: loaded cached map geometry " + RGL_MapGeomLumpName()
   return true
 end function
@@ -1519,10 +2291,16 @@ function RGL_BuildDynamicLights(player)
   rgl_dyn_light_radius =[]
   rgl_dyn_light_strength =[]
 
+  lightCullReady = false
+  lightCullX = 0.0
+  lightCullZ = 0.0
   if player is not void and player.mo is not void then
     px = RGL_FixedToFloat(player.mo.x)
     py = -RGL_FixedToFloat(player.mo.y)
     pz = RGL_FixedToFloat(player.viewz)
+    lightCullReady = true
+    lightCullX = px
+    lightCullZ = py
     if typeof(player.extralight) == "int" and player.extralight > 0 then
       yaw = RGL_AngleToDegrees(player.mo.angle)
       rad = (yaw / 360.0) * 6.283185314
@@ -1552,7 +2330,13 @@ function RGL_BuildDynamicLights(player)
     mo = sectors[si].thinglist
     guard = 0
     while mo is not void and guard < 4096
-      RGL_MobjLight(mo)
+      nearEnough = true
+      if lightCullReady and typeof(mo.x) == "int" and typeof(mo.y) == "int" then
+        mdx = RGL_FixedToFloat(mo.x) - lightCullX
+        mdz = -RGL_FixedToFloat(mo.y) - lightCullZ
+        nearEnough = (mdx * mdx + mdz * mdz) < 9437184.0
+      end if
+      if nearEnough then RGL_MobjLight(mo) end if
       mo = mo.snext
       guard = guard + 1
     end while
@@ -1626,6 +2410,58 @@ end function
 */
 function RGL_VertexLit(base, x, y, z)
   RGL_SetVertexLight(base, x, y, z)
+  glVertex3d(x, y, z)
+end function
+
+/*
+* Function: RGL_BuildDynamicLightSurfaceRecords
+* Purpose: Packs dynamic lights for the native additive surface-light pass.
+*/
+function RGL_BuildDynamicLightSurfaceRecords()
+  if len(rgl_dyn_light_x) <= 0 then return [bytes(0, 0), 0] end if
+  count = len(rgl_dyn_light_x)
+  if count > RGL_MAX_SURFACE_LIGHTS then count = RGL_MAX_SURFACE_LIGHTS end if
+  buf = bytes(count * RGL_LIGHT_RECORD_SIZE, 0)
+  i = 0
+  while i < count
+    off = i * RGL_LIGHT_RECORD_SIZE
+    surfaceRadius = rgl_dyn_light_radius[i] * 0.42
+    if surfaceRadius > 280.0 then surfaceRadius = 280.0 end if
+    if surfaceRadius < 72.0 then surfaceRadius = 72.0 end if
+    surfaceStrength = rgl_dyn_light_strength[i] * 0.62
+    if surfaceStrength > 92.0 then surfaceStrength = 92.0 end if
+    RGL_WriteS32(buf, off, RGL_FloatToGeom(rgl_dyn_light_x[i]))
+    RGL_WriteS32(buf, off + 4, RGL_FloatToGeom(rgl_dyn_light_y[i]))
+    RGL_WriteS32(buf, off + 8, RGL_FloatToGeom(rgl_dyn_light_z[i]))
+    RGL_WriteS32(buf, off + 12, RGL_FloatToGeom(surfaceRadius))
+    RGL_WriteS32(buf, off + 16, RGL_FloatToGeom(surfaceStrength))
+    RGL_WriteS32(buf, off + 20, rgl_dyn_light_r[i])
+    RGL_WriteS32(buf, off + 24, rgl_dyn_light_g[i])
+    RGL_WriteS32(buf, off + 28, rgl_dyn_light_b[i])
+    i = i + 1
+  end while
+  return [buf, count]
+end function
+
+/*
+* Function: RGL_DrawDynamicLightGlows
+* Purpose: Adds dynamic light back onto real floor, ceiling, and wall geometry.
+*/
+function RGL_DrawDynamicLightGlows(yaw)
+  if len(rgl_dyn_light_x) <= 0 then return end if
+  if typeof(rgl_light_geom_blob) != "bytes" or len(rgl_light_geom_blob) < 60 then return end if
+  rec = RGL_BuildDynamicLightSurfaceRecords()
+  if rec[1] <= 0 then return end if
+  MGL_DrawDynamicLightSurfaces(rgl_light_geom_blob, len(rgl_light_geom_blob), rec[0], rec[1])
+end function
+
+/*
+* Function: RGL_StaticVertexLit
+* Purpose: Emits static sector lighting for compiled OpenGL geometry batches.
+*/
+function RGL_StaticVertexLit(base, x, y, z)
+  b = RGL_ClampByte(base)
+  glColor4ub(b, b, b, 255)
   glVertex3d(x, y, z)
 end function
 
@@ -1708,6 +2544,8 @@ function RGL_SyncPaletteRevision()
   rgl_sprite_fuzz_tex_ids =[]
   rgl_palette_revision_seen = rev
   rgl_geom_ready = false
+  RGL_ResetStaticDisplayLists()
+  RGL_ResetStaticArrayBatches()
 end function
 
 /*
@@ -2070,32 +2908,90 @@ end function
 */
 function RGL_DrawCachedTexturedQuads(quads)
   if not RGL_IsSeq(quads) then return end if
+  active = false
+  lastTex = -2147483648
+  lastTransparent = false
+  textured = false
   i = 0
   while i < len(quads)
     q = quads[i]
     if q is not void then
-      texid = RGL_TextureIdForTexnum(q.texnum)
-      if q.transparent then texid = RGL_TextureIdForTexnumTransparent(q.texnum) end if
-      textured = RGL_BindOrColor(texid)
-      if q.transparent then
-        RGL_EnableCutoutAlpha()
-      else
-        RGL_DisableCutoutAlpha()
+      if (not active) or q.texnum != lastTex or q.transparent != lastTransparent then
+        if active then glEnd() end if
+        texid = RGL_TextureIdForTexnum(q.texnum)
+        if q.transparent then texid = RGL_TextureIdForTexnumTransparent(q.texnum) end if
+        textured = RGL_BindOrColor(texid)
+        if q.transparent then
+          RGL_EnableCutoutAlpha()
+        else
+          RGL_DisableCutoutAlpha()
+        end if
+        glBegin(GL_QUADS)
+        active = true
+        lastTex = q.texnum
+        lastTransparent = q.transparent
       end if
-      glBegin(GL_QUADS)
       if textured then glTexCoord2d(q.s0, q.t0) end if
-      RGL_VertexLit(q.light, q.x0, q.y0, q.z0)
+      RGL_StaticVertexLit(q.light, q.x0, q.y0, q.z0)
       if textured then glTexCoord2d(q.s1, q.t1) end if
-      RGL_VertexLit(q.light, q.x1, q.y1, q.z1)
+      RGL_StaticVertexLit(q.light, q.x1, q.y1, q.z1)
       if textured then glTexCoord2d(q.s2, q.t2) end if
-      RGL_VertexLit(q.light, q.x2, q.y2, q.z2)
+      RGL_StaticVertexLit(q.light, q.x2, q.y2, q.z2)
       if textured then glTexCoord2d(q.s3, q.t3) end if
-      RGL_VertexLit(q.light, q.x3, q.y3, q.z3)
-      glEnd()
+      RGL_StaticVertexLit(q.light, q.x3, q.y3, q.z3)
     end if
     i = i + 1
   end while
+  if active then glEnd() end if
   RGL_DisableCutoutAlpha()
+end function
+
+/*
+* Function: RGL_CompileTexturedQuadDisplayList
+* Purpose: Compiles static textured quad lists that still use the immediate-mode fallback path.
+*/
+function RGL_CompileTexturedQuadDisplayList(quads)
+  if not RGL_IsSeq(quads) or len(quads) <= 0 then return 0 end if
+  id = glGenLists(1)
+  if id == 0 then return 0 end if
+  glNewList(id, GL_COMPILE)
+  RGL_DrawCachedTexturedQuads(quads)
+  glEndList()
+  return id
+end function
+
+/*
+* Function: RGL_DrawBoundaryQuads
+* Purpose: Draws cached sky boundary quads through a compiled OpenGL display list.
+*/
+function RGL_DrawBoundaryQuads()
+  global rgl_boundary_display_list_id
+
+  if rgl_boundary_display_list_id == 0 then
+    rgl_boundary_display_list_id = RGL_CompileTexturedQuadDisplayList(rgl_boundary_quads)
+  end if
+  if rgl_boundary_display_list_id != 0 then
+    glCallList(rgl_boundary_display_list_id)
+  else
+    RGL_DrawCachedTexturedQuads(rgl_boundary_quads)
+  end if
+end function
+
+/*
+* Function: RGL_DrawMaskedQuads
+* Purpose: Draws cached masked midtexture quads through a compiled OpenGL display list.
+*/
+function RGL_DrawMaskedQuads()
+  global rgl_masked_display_list_id
+
+  if rgl_masked_display_list_id == 0 then
+    rgl_masked_display_list_id = RGL_CompileTexturedQuadDisplayList(rgl_masked_quads)
+  end if
+  if rgl_masked_display_list_id != 0 then
+    glCallList(rgl_masked_display_list_id)
+  else
+    RGL_DrawCachedTexturedQuads(rgl_masked_quads)
+  end if
 end function
 
 /*
@@ -2985,22 +3881,403 @@ end function
 */
 function RGL_DrawCachedFlatTris()
   if not RGL_IsSeq(rgl_flat_tris) then return end if
+  active = false
+  lastFlat = -2147483648
+  textured = false
   i = 0
   while i < len(rgl_flat_tris)
     t = rgl_flat_tris[i]
     if t is not void then
-      textured = RGL_BindOrColor(RGL_TextureIdForFlatnum(t.flatnum))
-      glBegin(GL_TRIANGLES)
+      if (not active) or t.flatnum != lastFlat then
+        if active then glEnd() end if
+        textured = RGL_BindOrColor(RGL_TextureIdForFlatnum(t.flatnum))
+        glBegin(GL_TRIANGLES)
+        active = true
+        lastFlat = t.flatnum
+      end if
       if textured then glTexCoord2d(t.s0, t.t0) end if
       RGL_VertexLit(t.light, t.x0, t.y0, t.z0)
       if textured then glTexCoord2d(t.s1, t.t1) end if
       RGL_VertexLit(t.light, t.x1, t.y1, t.z1)
       if textured then glTexCoord2d(t.s2, t.t2) end if
       RGL_VertexLit(t.light, t.x2, t.y2, t.z2)
-      glEnd()
     end if
     i = i + 1
   end while
+  if active then glEnd() end if
+end function
+
+/*
+* Function: RGL_CompileWallDisplayListRange
+* Purpose: Compiles a contiguous wall-quad texture group into one OpenGL display list.
+*/
+function RGL_CompileWallDisplayListRange(startIndex, endIndex)
+  id = glGenLists(1)
+  if id == 0 then return 0 end if
+  glNewList(id, GL_COMPILE)
+  glBegin(GL_QUADS)
+  i = startIndex
+  while i < endIndex
+    q = rgl_wall_quads[i]
+    if q is not void then
+      glTexCoord2d(q.s0, q.t0)
+      RGL_StaticVertexLit(q.light, q.x0, q.y0, q.z0)
+      glTexCoord2d(q.s1, q.t1)
+      RGL_StaticVertexLit(q.light, q.x1, q.y1, q.z1)
+      glTexCoord2d(q.s2, q.t2)
+      RGL_StaticVertexLit(q.light, q.x2, q.y2, q.z2)
+      glTexCoord2d(q.s3, q.t3)
+      RGL_StaticVertexLit(q.light, q.x3, q.y3, q.z3)
+    end if
+    i = i + 1
+  end while
+  glEnd()
+  glEndList()
+  return id
+end function
+
+/*
+* Function: RGL_CompileFlatDisplayListRange
+* Purpose: Compiles a contiguous flat-triangle texture group into one OpenGL display list.
+*/
+function RGL_CompileFlatDisplayListRange(startIndex, endIndex)
+  id = glGenLists(1)
+  if id == 0 then return 0 end if
+  glNewList(id, GL_COMPILE)
+  glBegin(GL_TRIANGLES)
+  i = startIndex
+  while i < endIndex
+    t = rgl_flat_tris[i]
+    if t is not void then
+      glTexCoord2d(t.s0, t.t0)
+      RGL_StaticVertexLit(t.light, t.x0, t.y0, t.z0)
+      glTexCoord2d(t.s1, t.t1)
+      RGL_StaticVertexLit(t.light, t.x1, t.y1, t.z1)
+      glTexCoord2d(t.s2, t.t2)
+      RGL_StaticVertexLit(t.light, t.x2, t.y2, t.z2)
+    end if
+    i = i + 1
+  end while
+  glEnd()
+  glEndList()
+  return id
+end function
+
+/*
+* Function: RGL_BuildStaticDisplayLists
+* Purpose: Builds per-texture OpenGL display lists for static opaque world geometry.
+*/
+function RGL_BuildStaticDisplayLists()
+  global rgl_wall_display_list_texnums
+  global rgl_wall_display_list_transparents
+  global rgl_wall_display_list_ids
+  global rgl_flat_display_list_flatnums
+  global rgl_flat_display_list_ids
+  global rgl_static_display_lists_ready
+
+  if rgl_static_display_lists_ready then return true end if
+  RGL_DeleteStaticDisplayLists()
+
+  if RGL_IsSeq(rgl_wall_quads) then
+    i = 0
+    while i < len(rgl_wall_quads)
+      q = rgl_wall_quads[i]
+      if q is void then
+        i = i + 1
+      else
+        texnum = q.texnum
+        transparent = q.transparent
+        startIndex = i
+        i = i + 1
+        while i < len(rgl_wall_quads)
+          n = rgl_wall_quads[i]
+          if n is void or n.texnum != texnum or n.transparent != transparent then
+            break
+          end if
+          i = i + 1
+        end while
+        id = RGL_CompileWallDisplayListRange(startIndex, i)
+        if id != 0 then
+          rgl_wall_display_list_texnums = rgl_wall_display_list_texnums +[texnum]
+          rgl_wall_display_list_transparents = rgl_wall_display_list_transparents +[transparent]
+          rgl_wall_display_list_ids = rgl_wall_display_list_ids +[id]
+        end if
+      end if
+    end while
+  end if
+
+  if RGL_IsSeq(rgl_flat_tris) then
+    i = 0
+    while i < len(rgl_flat_tris)
+      t = rgl_flat_tris[i]
+      if t is void then
+        i = i + 1
+      else
+        flatnum = t.flatnum
+        startIndex = i
+        i = i + 1
+        while i < len(rgl_flat_tris)
+          n = rgl_flat_tris[i]
+          if n is void or n.flatnum != flatnum then
+            break
+          end if
+          i = i + 1
+        end while
+        id = RGL_CompileFlatDisplayListRange(startIndex, i)
+        if id != 0 then
+          rgl_flat_display_list_flatnums = rgl_flat_display_list_flatnums +[flatnum]
+          rgl_flat_display_list_ids = rgl_flat_display_list_ids +[id]
+        end if
+      end if
+    end while
+  end if
+
+  rgl_static_display_lists_ready = true
+  return true
+end function
+
+/*
+* Function: RGL_DrawWallDisplayLists
+* Purpose: Draws static wall display-list batches with current animated texture bindings.
+*/
+function RGL_DrawWallDisplayLists()
+  if not RGL_BuildStaticDisplayLists() then
+    RGL_DrawCachedTexturedQuads(rgl_wall_quads)
+    return
+  end if
+
+  i = 0
+  while i < len(rgl_wall_display_list_ids)
+    texnum = rgl_wall_display_list_texnums[i]
+    transparent = rgl_wall_display_list_transparents[i]
+    texid = RGL_TextureIdForTexnum(texnum)
+    if transparent then texid = RGL_TextureIdForTexnumTransparent(texnum) end if
+    RGL_BindOrColor(texid)
+    if transparent then RGL_EnableCutoutAlpha() else RGL_DisableCutoutAlpha() end if
+    glCallList(rgl_wall_display_list_ids[i])
+    i = i + 1
+  end while
+  RGL_DisableCutoutAlpha()
+end function
+
+/*
+* Function: RGL_DrawFlatDisplayLists
+* Purpose: Draws static flat display-list batches with current animated flat bindings.
+*/
+function RGL_DrawFlatDisplayLists()
+  if not RGL_BuildStaticDisplayLists() then
+    RGL_DrawCachedFlatTris()
+    return
+  end if
+
+  i = 0
+  while i < len(rgl_flat_display_list_ids)
+    flatnum = rgl_flat_display_list_flatnums[i]
+    RGL_BindOrColor(RGL_TextureIdForFlatnum(flatnum))
+    glCallList(rgl_flat_display_list_ids[i])
+    i = i + 1
+  end while
+end function
+
+/*
+* Function: RGL_BeginArrayBatchDraw
+* Purpose: Enables OpenGL client-array state for prepacked world geometry batches.
+*/
+function RGL_BeginArrayBatchDraw()
+  glEnableClientState(GL_VERTEX_ARRAY)
+  glEnableClientState(GL_TEXTURE_COORD_ARRAY)
+  glEnableClientState(GL_COLOR_ARRAY)
+end function
+
+/*
+* Function: RGL_EndArrayBatchDraw
+* Purpose: Restores OpenGL client-array state after array batch rendering.
+*/
+function RGL_EndArrayBatchDraw()
+  glDisableClientState(GL_COLOR_ARRAY)
+  glDisableClientState(GL_TEXTURE_COORD_ARRAY)
+  glDisableClientState(GL_VERTEX_ARRAY)
+  glColor4ub(255, 255, 255, 255)
+end function
+
+/*
+* Function: RGL_BeginFixedArrayScale
+* Purpose: Applies fixed-point scaling for non-VBO client-array fallbacks.
+*/
+function RGL_BeginFixedArrayScale()
+  inv = 1.0 / RGL_GEOM_FIX_SCALE
+  glMatrixMode(GL_MODELVIEW)
+  glPushMatrix()
+  glScaled(inv, inv, inv)
+  glMatrixMode(GL_TEXTURE)
+  glPushMatrix()
+  glScaled(inv, inv, 1.0)
+  glMatrixMode(GL_MODELVIEW)
+end function
+
+/*
+* Function: RGL_EndFixedArrayScale
+* Purpose: Restores matrices after non-VBO fixed-point fallback drawing.
+*/
+function RGL_EndFixedArrayScale()
+  glMatrixMode(GL_TEXTURE)
+  glPopMatrix()
+  glMatrixMode(GL_MODELVIEW)
+  glPopMatrix()
+end function
+
+/*
+* Function: RGL_DrawStaticArrayBatch
+* Purpose: Draws one prepacked OpenGL client-array geometry batch.
+*/
+function RGL_DrawStaticArrayBatch(batch, mode)
+  if batch is void or batch.vertex_count <= 0 then return end if
+  if batch.interleaved_vbo != 0 then
+    MGL_DrawInterleavedBatch(mode, batch.interleaved_vbo, batch.vertex_count)
+    return
+  end if
+  if batch.vertex_vbo != 0 and batch.texcoord_vbo != 0 and batch.color_vbo != 0 then
+    RGL_BeginFixedArrayScale()
+    MGL_DrawArrayBatch(mode, batch.vertex_vbo, batch.texcoord_vbo, batch.color_vbo, batch.vertex_count)
+    RGL_EndFixedArrayScale()
+    return
+  end if
+  RGL_BeginFixedArrayScale()
+  glVertexPointer(3, GL_INT, 0, batch.vertices)
+  glTexCoordPointer(2, GL_INT, 0, batch.texcoords)
+  glColorPointer(4, GL_UNSIGNED_BYTE, 0, batch.colors)
+  glDrawArrays(mode, 0, batch.vertex_count)
+  RGL_EndFixedArrayScale()
+end function
+
+/*
+* Function: RGL_ArrayBatchVisible
+* Purpose: Conservatively rejects static geometry chunks outside the player view cone.
+*/
+function RGL_ArrayBatchVisible(batch)
+  if batch is void then return false end if
+  yawRad = (rgl_view_yaw / 360.0) * 6.283185314
+  fwdX = std.math.cos(yawRad)
+  fwdY = std.math.sin(yawRad)
+  dx = batch.cx - rgl_view_x
+  dy = -batch.cz - rgl_view_y
+  forward = dx * fwdX + dy * fwdY
+  side = dx *(-fwdY) + dy * fwdX
+  if side < 0.0 then side = -side end if
+  r = batch.radius
+  if forward + r < -192.0 then return false end if
+  if forward > 64.0 then
+    if side - r > forward * 2.4 + 768.0 then return false end if
+  else
+    if side - r > 1024.0 then return false end if
+  end if
+  return true
+end function
+
+/*
+* Function: RGL_DrawWallArrayBatches
+* Purpose: Draws static wall geometry using OpenGL client arrays.
+*/
+function RGL_DrawWallArrayBatches()
+  if not RGL_BuildStaticArrayBatches() or len(rgl_wall_array_batches) == 0 then
+    RGL_DrawWallDisplayLists()
+    return
+  end if
+
+  total = len(rgl_wall_array_batches)
+  if rgl_wall_native_record_count == total and RGL_UpdateWallNativeRecordTextures() then
+    RGL_BeginArrayBatchDraw()
+    if MGL_DrawVisibleGeomBatches(GL_QUADS, rgl_wall_native_records, rgl_wall_native_record_count, rgl_view_x, rgl_view_y, rgl_view_yaw) then
+      RGL_EndArrayBatchDraw()
+      RGL_DisableCutoutAlpha()
+      if typeof(_D_ProfileGLBatches) == "function" then _D_ProfileGLBatches(1, total, MGL_GetLastDrawnBatches(), MGL_GetLastDrawnVertices()) end if
+      return
+    end if
+    RGL_EndArrayBatchDraw()
+    RGL_DisableCutoutAlpha()
+  end if
+
+  RGL_BeginArrayBatchDraw()
+  drawn = 0
+  vertices = 0
+  i = 0
+  while i < len(rgl_wall_array_batches)
+    batch = rgl_wall_array_batches[i]
+    if RGL_ArrayBatchVisible(batch) then
+      drawn = drawn + 1
+      vertices = vertices + batch.vertex_count
+      texid = RGL_TextureIdForTexnum(batch.texnum)
+      if batch.transparent then texid = RGL_TextureIdForTexnumTransparent(batch.texnum) end if
+      RGL_BindOrColor(texid)
+      if batch.transparent then RGL_EnableCutoutAlpha() else RGL_DisableCutoutAlpha() end if
+      RGL_DrawStaticArrayBatch(batch, GL_QUADS)
+    end if
+    i = i + 1
+  end while
+  RGL_EndArrayBatchDraw()
+  RGL_DisableCutoutAlpha()
+  if typeof(_D_ProfileGLBatches) == "function" then _D_ProfileGLBatches(1, total, drawn, vertices) end if
+end function
+
+/*
+* Function: RGL_DrawFlatArrayBatches
+* Purpose: Draws static floor and ceiling geometry using OpenGL client arrays.
+*/
+function RGL_DrawFlatArrayBatches()
+  if not RGL_BuildStaticArrayBatches() or len(rgl_flat_array_batches) == 0 then
+    RGL_DrawFlatDisplayLists()
+    return
+  end if
+
+  total = len(rgl_flat_array_batches)
+  if rgl_flat_native_record_count == total and RGL_UpdateFlatNativeRecordTextures() then
+    RGL_BeginArrayBatchDraw()
+    if MGL_DrawVisibleGeomBatches(GL_TRIANGLES, rgl_flat_native_records, rgl_flat_native_record_count, rgl_view_x, rgl_view_y, rgl_view_yaw) then
+      RGL_EndArrayBatchDraw()
+      if typeof(_D_ProfileGLBatches) == "function" then _D_ProfileGLBatches(0, total, MGL_GetLastDrawnBatches(), MGL_GetLastDrawnVertices()) end if
+      return
+    end if
+    RGL_EndArrayBatchDraw()
+  end if
+
+  RGL_BeginArrayBatchDraw()
+  drawn = 0
+  vertices = 0
+  i = 0
+  while i < len(rgl_flat_array_batches)
+    batch = rgl_flat_array_batches[i]
+    if RGL_ArrayBatchVisible(batch) then
+      drawn = drawn + 1
+      vertices = vertices + batch.vertex_count
+      RGL_BindOrColor(RGL_TextureIdForFlatnum(batch.texnum))
+      RGL_DisableCutoutAlpha()
+      RGL_DrawStaticArrayBatch(batch, GL_TRIANGLES)
+    end if
+    i = i + 1
+  end while
+  RGL_EndArrayBatchDraw()
+  if typeof(_D_ProfileGLBatches) == "function" then _D_ProfileGLBatches(0, total, drawn, vertices) end if
+end function
+
+/*
+* Function: RGL_DrawStaticWorldDisplayList
+* Purpose: Draws all static opaque wall and flat geometry through one parent OpenGL display list.
+*/
+function RGL_DrawStaticWorldDisplayList()
+  global rgl_static_world_display_list_id
+
+  if rgl_static_world_display_list_id == 0 then
+    if not RGL_BuildStaticDisplayLists() then return false end if
+    id = glGenLists(1)
+    if id == 0 then return false end if
+    glNewList(id, GL_COMPILE)
+    RGL_DrawFlatDisplayLists()
+    RGL_DrawWallDisplayLists()
+    glEndList()
+    rgl_static_world_display_list_id = id
+  end if
+  glCallList(rgl_static_world_display_list_id)
+  return true
 end function
 
 /*
@@ -3127,34 +4404,42 @@ function RGL_DrawCachedDepthGeometry()
   glDepthMask(true)
 
   if RGL_IsSeq(rgl_depth_tris) then
+    active = false
     i = 0
     while i < len(rgl_depth_tris)
       t = rgl_depth_tris[i]
       if t is not void then
-        glBegin(GL_TRIANGLES)
+        if not active then
+          glBegin(GL_TRIANGLES)
+          active = true
+        end if
         glVertex3d(t.x0, t.y0, t.z0)
         glVertex3d(t.x1, t.y1, t.z1)
         glVertex3d(t.x2, t.y2, t.z2)
-        glEnd()
       end if
       i = i + 1
     end while
+    if active then glEnd() end if
   end if
 
   if RGL_IsSeq(rgl_depth_quads) then
+    active = false
     i = 0
     while i < len(rgl_depth_quads)
       q = rgl_depth_quads[i]
       if q is not void then
-        glBegin(GL_QUADS)
+        if not active then
+          glBegin(GL_QUADS)
+          active = true
+        end if
         glVertex3d(q.x0, q.y0, q.z0)
         glVertex3d(q.x1, q.y1, q.z1)
         glVertex3d(q.x2, q.y2, q.z2)
         glVertex3d(q.x3, q.y3, q.z3)
-        glEnd()
       end if
       i = i + 1
     end while
+    if active then glEnd() end if
   end if
 
   glColorMask(true, true, true, true)
@@ -3835,7 +5120,7 @@ function RGL_BuildGeometryCache(sigMap, sigSegs, sigLines, sigNodes, sigSubsecto
   global rgl_depth_tris
   global rgl_depth_quads
 
-  RGL_EnsureVolatileSectorMap(sigMap)
+  RGL_BuildVolatileSectorMap(sigMap)
 
   rgl_boundary_quads =[]
   rgl_wall_quads =[]
@@ -3874,6 +5159,8 @@ function RGL_BuildGeometryCache(sigMap, sigSegs, sigLines, sigNodes, sigSubsecto
   rgl_pending_sig_sides = sigSides
   rgl_pending_stable_frames = 0
   rgl_geom_ready = true
+  RGL_ResetStaticDisplayLists()
+  RGL_ResetStaticArrayBatches()
 end function
 
 /*
@@ -3896,13 +5183,13 @@ function RGL_EnsureGeometryCache()
   sigSides = RGL_SideTextureSignature()
   if topologySame then
     if rgl_geom_sig_sector_motion == sigSectorMotion and rgl_geom_sig_sides == sigSides then return true end if
-    if RGL_HasActiveSectorMotion() then return true end if
   end if
 
   if not rgl_geom_ready then
     if RGL_TryLoadGeometryCache(sigMap, sigSegs, sigLines, sigNodes, sigSubsectors, sigSectorMotion, sigSides) then return true end if
   end if
   RGL_BuildGeometryCache(sigMap, sigSegs, sigLines, sigNodes, sigSubsectors, sigSectorMotion, sigSides)
+  RGL_SerializeGeometryCache(sigMap, sigSegs, sigLines, sigNodes, sigSubsectors, sigSectorMotion, sigSides)
   return true
 end function
 
@@ -3911,12 +5198,12 @@ end function
 * Purpose: Draws cached world output for the OpenGL renderer.
 */
 function RGL_DrawCachedWorld(player, yaw)
-  RGL_DrawCachedTexturedQuads(rgl_boundary_quads)
+  RGL_DrawBoundaryQuads()
   RGL_DrawCachedDepthGeometry()
-  RGL_DrawCachedFlatTris()
-  RGL_DrawCachedTexturedQuads(rgl_wall_quads)
+  RGL_DrawFlatArrayBatches()
+  RGL_DrawWallArrayBatches()
   RGL_DrawSpriteBillboards(player, yaw)
-  RGL_DrawCachedTexturedQuads(rgl_masked_quads)
+  RGL_DrawMaskedQuads()
 end function
 
 /*
@@ -4043,7 +5330,6 @@ end function
 * Purpose: Returns a timestamp for fine-grained renderer profiling.
 */
 function inline RGL_ProfileStart()
-  if typeof(_D_TimeMs) == "function" then return _D_TimeMs() end if
   return 0
 end function
 
@@ -4052,9 +5338,7 @@ end function
 * Purpose: Adds elapsed time to one fine-grained renderer profiling slot.
 */
 function inline RGL_ProfileEnd(slot, start)
-  if typeof(_D_ProfileGLAdd) == "function" and typeof(_D_TimeMs) == "function" then
-    _D_ProfileGLAdd(slot, _D_TimeMs() - start)
-  end if
+  return
 end function
 
 /*
@@ -4111,24 +5395,25 @@ function RGL_RenderPlayerView(player)
 
   if useCache then
     pt = RGL_ProfileStart()
-    RGL_DrawCachedTexturedQuads(rgl_boundary_quads)
+    RGL_DrawBoundaryQuads()
     RGL_ProfileEnd(3, pt)
     pt = RGL_ProfileStart()
     RGL_DrawCachedDepthGeometry()
     RGL_ProfileEnd(4, pt)
     pt = RGL_ProfileStart()
-    RGL_DrawCachedFlatTris()
+    RGL_DrawFlatArrayBatches()
     RGL_DrawVolatileFlats()
     RGL_ProfileEnd(5, pt)
     pt = RGL_ProfileStart()
-    RGL_DrawCachedTexturedQuads(rgl_wall_quads)
+    RGL_DrawWallArrayBatches()
     RGL_DrawVolatileWalls()
     RGL_ProfileEnd(6, pt)
+    RGL_DrawDynamicLightGlows(yaw)
     pt = RGL_ProfileStart()
     RGL_DrawSpriteBillboards(player, yaw)
     RGL_ProfileEnd(7, pt)
     pt = RGL_ProfileStart()
-    RGL_DrawCachedTexturedQuads(rgl_masked_quads)
+    RGL_DrawMaskedQuads()
     RGL_DrawVolatileMaskedWorld()
     RGL_ProfileEnd(8, pt)
   else
@@ -4143,6 +5428,7 @@ function RGL_RenderPlayerView(player)
     pt = RGL_ProfileStart()
     RGL_DrawAllWalls()
     RGL_ProfileEnd(6, pt)
+    RGL_DrawDynamicLightGlows(yaw)
     pt = RGL_ProfileStart()
     RGL_DrawSpriteBillboards(player, yaw)
     RGL_ProfileEnd(7, pt)

@@ -39,14 +39,23 @@ const GL_CULL_FACE = 0x0B44
 const GL_TEXTURE_2D = 0x0DE1
 const GL_BLEND = 0x0BE2
 const GL_ALPHA_TEST = 0x0BC0
+const GL_ONE = 0x0001
+const GL_LESS = 0x0201
+const GL_LEQUAL = 0x0203
 const GL_SRC_ALPHA = 0x0302
 const GL_ONE_MINUS_SRC_ALPHA = 0x0303
 const GL_GREATER = 0x0204
 const GL_PROJECTION = 0x1701
 const GL_MODELVIEW = 0x1700
+const GL_TEXTURE = 0x1702
+const GL_COMPILE = 0x1300
 const GL_RGBA = 0x1908
 const GL_RGB = 0x1907
+const GL_INT = 0x1404
 const GL_UNSIGNED_BYTE = 0x1401
+const GL_VERTEX_ARRAY = 0x8074
+const GL_COLOR_ARRAY = 0x8076
+const GL_TEXTURE_COORD_ARRAY = 0x8078
 const GL_TEXTURE_MAG_FILTER = 0x2800
 const GL_TEXTURE_MIN_FILTER = 0x2801
 const GL_TEXTURE_WRAP_S = 0x2802
@@ -152,6 +161,13 @@ extern function glDepthMask(flag as bool) from "opengl32.dll" symbol "glDepthMas
 
 extern function glColorMask(red as bool, green as bool, blue as bool, alpha as bool) from "opengl32.dll" symbol "glColorMask" returns void
 /*
+ * Function: glDepthFunc
+ *
+ * Purpose: Maps the external glDepthFunc binding used for OpenGL rendering.
+ */
+
+extern function glDepthFunc(func as u32) from "opengl32.dll" symbol "glDepthFunc" returns void
+/*
  * Function: glMatrixMode
  *
  * Purpose: Maps the external glMatrixMode binding used for OpenGL rendering.
@@ -187,6 +203,27 @@ extern function glRotated(angle as double, x as double, y as double, z as double
 
 extern function glTranslated(x as double, y as double, z as double) from "opengl32.dll" symbol "glTranslated" returns void
 /*
+ * Function: glScaled
+ *
+ * Purpose: Maps the external glScaled binding used for scaled OpenGL client-array rendering.
+ */
+
+extern function glScaled(x as double, y as double, z as double) from "opengl32.dll" symbol "glScaled" returns void
+/*
+ * Function: glPushMatrix
+ *
+ * Purpose: Maps the external glPushMatrix binding used for temporary OpenGL matrix transforms.
+ */
+
+extern function glPushMatrix() from "opengl32.dll" symbol "glPushMatrix" returns void
+/*
+ * Function: glPopMatrix
+ *
+ * Purpose: Maps the external glPopMatrix binding used for temporary OpenGL matrix transforms.
+ */
+
+extern function glPopMatrix() from "opengl32.dll" symbol "glPopMatrix" returns void
+/*
  * Function: glBegin
  *
  * Purpose: Maps the external glBegin binding used for OpenGL rendering.
@@ -200,6 +237,167 @@ extern function glBegin(mode as u32) from "opengl32.dll" symbol "glBegin" return
  */
 
 extern function glEnd() from "opengl32.dll" symbol "glEnd" returns void
+/*
+ * Function: glGenLists
+ *
+ * Purpose: Maps the external glGenLists binding used for OpenGL display-list rendering.
+ */
+
+extern function glGenLists(range as int) from "opengl32.dll" symbol "glGenLists" returns u32
+/*
+ * Function: glNewList
+ *
+ * Purpose: Maps the external glNewList binding used for OpenGL display-list rendering.
+ */
+
+extern function glNewList(list as u32, mode as u32) from "opengl32.dll" symbol "glNewList" returns void
+/*
+ * Function: glEndList
+ *
+ * Purpose: Maps the external glEndList binding used for OpenGL display-list rendering.
+ */
+
+extern function glEndList() from "opengl32.dll" symbol "glEndList" returns void
+/*
+ * Function: glCallList
+ *
+ * Purpose: Maps the external glCallList binding used for OpenGL display-list rendering.
+ */
+
+extern function glCallList(list as u32) from "opengl32.dll" symbol "glCallList" returns void
+/*
+ * Function: glDeleteLists
+ *
+ * Purpose: Maps the external glDeleteLists binding used for OpenGL display-list rendering.
+ */
+
+extern function glDeleteLists(list as u32, range as int) from "opengl32.dll" symbol "glDeleteLists" returns void
+/*
+ * Function: glEnableClientState
+ *
+ * Purpose: Maps the external glEnableClientState binding used for OpenGL client-array rendering.
+ */
+
+extern function glEnableClientState(array as u32) from "opengl32.dll" symbol "glEnableClientState" returns void
+/*
+ * Function: glDisableClientState
+ *
+ * Purpose: Maps the external glDisableClientState binding used for OpenGL client-array rendering.
+ */
+
+extern function glDisableClientState(array as u32) from "opengl32.dll" symbol "glDisableClientState" returns void
+/*
+ * Function: glVertexPointer
+ *
+ * Purpose: Maps the external glVertexPointer binding used for OpenGL client-array rendering.
+ */
+
+extern function glVertexPointer(size as int, typ as u32, stride as int, pointer as bytes) from "opengl32.dll" symbol "glVertexPointer" returns void
+/*
+ * Function: glTexCoordPointer
+ *
+ * Purpose: Maps the external glTexCoordPointer binding used for OpenGL client-array rendering.
+ */
+
+extern function glTexCoordPointer(size as int, typ as u32, stride as int, pointer as bytes) from "opengl32.dll" symbol "glTexCoordPointer" returns void
+/*
+ * Function: glColorPointer
+ *
+ * Purpose: Maps the external glColorPointer binding used for OpenGL client-array rendering.
+ */
+
+extern function glColorPointer(size as int, typ as u32, stride as int, pointer as bytes) from "opengl32.dll" symbol "glColorPointer" returns void
+/*
+ * Function: glDrawArrays
+ *
+ * Purpose: Maps the external glDrawArrays binding used for OpenGL client-array rendering.
+ */
+
+extern function glDrawArrays(mode as u32, first as int, count as int) from "opengl32.dll" symbol "glDrawArrays" returns void
+/*
+ * Function: MGL_InitVBO
+ *
+ * Purpose: Initializes optional MiniDoom OpenGL VBO helper functions for static geometry batches.
+ */
+
+extern function MGL_InitVBO() from "MiniDoomGL.dll" symbol "MGL_InitVBO" returns bool
+/*
+ * Function: MGL_SetSwapInterval
+ *
+ * Purpose: Sets the WGL swap interval when the driver exposes wglSwapIntervalEXT.
+ */
+
+extern function MGL_SetSwapInterval(interval as int) from "MiniDoomGL.dll" symbol "MGL_SetSwapInterval" returns bool
+/*
+ * Function: MGL_CreateArrayBuffer
+ *
+ * Purpose: Uploads raw bytes to an OpenGL array buffer through the MiniDoom GL helper.
+ */
+
+extern function MGL_CreateArrayBuffer(data as bytes, size as int) from "MiniDoomGL.dll" symbol "MGL_CreateArrayBuffer" returns u32
+/*
+ * Function: MGL_CreateInterleavedGeomBuffer
+ *
+ * Purpose: Uploads MiniDoom fixed-point interleaved geometry as a float OpenGL VBO.
+ */
+
+extern function MGL_CreateInterleavedGeomBuffer(data as bytes, size as int) from "MiniDoomGL.dll" symbol "MGL_CreateInterleavedGeomBuffer" returns u32
+/*
+ * Function: MGL_DeleteArrayBuffer
+ *
+ * Purpose: Deletes one OpenGL array buffer created through the MiniDoom GL helper.
+ */
+
+extern function MGL_DeleteArrayBuffer(id as u32) from "MiniDoomGL.dll" symbol "MGL_DeleteArrayBuffer" returns void
+/*
+ * Function: MGL_DrawArrayBatch
+ *
+ * Purpose: Draws one VBO-backed vertex/texture/color array batch through the MiniDoom GL helper.
+ */
+
+extern function MGL_DrawArrayBatch(mode as u32, vertexBuffer as u32, texcoordBuffer as u32, colorBuffer as u32, count as int) from "MiniDoomGL.dll" symbol "MGL_DrawArrayBatch" returns void
+/*
+ * Function: MGL_DrawInterleavedBatch
+ *
+ * Purpose: Draws one VBO-backed interleaved vertex/texture/color batch through the MiniDoom GL helper.
+ */
+
+extern function MGL_DrawInterleavedBatch(mode as u32, buffer as u32, count as int) from "MiniDoomGL.dll" symbol "MGL_DrawInterleavedBatch" returns void
+/*
+ * Function: MGL_DrawVisibleGeomBatches
+ *
+ * Purpose: Draws and culls a native batch-record buffer in the MiniDoom GL helper.
+ */
+
+extern function MGL_DrawVisibleGeomBatches(mode as u32, records as bytes, recordCount as int, viewX as double, viewY as double, viewYaw as double) from "MiniDoomGL.dll" symbol "MGL_DrawVisibleGeomBatches" returns bool
+/*
+ * Function: MGL_DrawDynamicLightSurfaces
+ *
+ * Purpose: Draws additive dynamic light contribution on cached map geometry.
+ */
+
+extern function MGL_DrawDynamicLightSurfaces(geomData as bytes, geomSize as int, lightData as bytes, lightCount as int) from "MiniDoomGL.dll" symbol "MGL_DrawDynamicLightSurfaces" returns bool
+/*
+ * Function: MGL_GetLastDrawnBatches
+ *
+ * Purpose: Returns the number of batches drawn by the last native batch-record draw.
+ */
+
+extern function MGL_GetLastDrawnBatches() from "MiniDoomGL.dll" symbol "MGL_GetLastDrawnBatches" returns int
+/*
+ * Function: MGL_GetLastDrawnVertices
+ *
+ * Purpose: Returns the number of vertices drawn by the last native batch-record draw.
+ */
+
+extern function MGL_GetLastDrawnVertices() from "MiniDoomGL.dll" symbol "MGL_GetLastDrawnVertices" returns int
+/*
+ * Function: MGL_DrawIndexedOverlay
+ *
+ * Purpose: Converts and draws an indexed overlay with transparency mask in native code.
+ */
+
+extern function MGL_DrawIndexedOverlay(texid as u32, data as bytes, mask as bytes, palette as bytes, width as int, height as int) from "MiniDoomGL.dll" symbol "MGL_DrawIndexedOverlay" returns bool
 /*
  * Function: glVertex3d
  *
@@ -478,6 +676,7 @@ function IGL_Init(hwnd, hdc, width, height)
   glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
   glDisable(GL_CULL_FACE)
   glPixelStorei(GL_UNPACK_ALIGNMENT, 1)
+  MGL_SetSwapInterval(0)
   print "OpenGL: WGL backend enabled (" + igl_width + "x" + igl_height + ")"
   return true
 end function
@@ -1076,8 +1275,6 @@ end function
 * Purpose: Draws indexed overlay output for the OpenGL backend.
 */
 function IGL_DrawIndexedOverlay(data, mask, width, height)
-  global igl_overlay_rgba
-
   if not igl_active then return false end if
   if typeof(data) != "bytes" or typeof(mask) != "bytes" then return false end if
   overlaypal = igl_texture_palette
@@ -1088,46 +1285,9 @@ function IGL_DrawIndexedOverlay(data, mask, width, height)
   if len(data) < pixels or len(mask) < pixels then return false end if
   texid = IGL_EnsureOverlayTexture()
   if texid <= 0 then return false end if
-  if typeof(igl_overlay_rgba) != "bytes" or len(igl_overlay_rgba) < pixels * 4 then
-    igl_overlay_rgba = bytes(pixels * 4, 0)
-  end if
-
-  any = false
-  i = 0
-  while i < pixels
-    ro = i * 4
-    if mask[i] != 0 then
-      any = true
-      c = data[i]
-      po = c * 3
-      igl_overlay_rgba[ro] = overlaypal[po]
-      igl_overlay_rgba[ro + 1] = overlaypal[po + 1]
-      igl_overlay_rgba[ro + 2] = overlaypal[po + 2]
-      igl_overlay_rgba[ro + 3] = 255
-    else
-      igl_overlay_rgba[ro] = 0
-      igl_overlay_rgba[ro + 1] = 0
-      igl_overlay_rgba[ro + 2] = 0
-      igl_overlay_rgba[ro + 3] = 0
-    end if
-    i = i + 1
-  end while
-  if not any then return false end if
 
   IGL_Begin2D()
-  glBindTexture(GL_TEXTURE_2D, texid)
-  glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, igl_overlay_rgba)
-  glBegin(GL_QUADS)
-  glTexCoord2d(0.0, 0.0)
-  glVertex3d(-1.0, 1.0, 0.0)
-  glTexCoord2d(1.0, 0.0)
-  glVertex3d(1.0, 1.0, 0.0)
-  glTexCoord2d(1.0, 1.0)
-  glVertex3d(1.0, -1.0, 0.0)
-  glTexCoord2d(0.0, 1.0)
-  glVertex3d(-1.0, -1.0, 0.0)
-  glEnd()
-  return true
+  return MGL_DrawIndexedOverlay(texid, data, mask, overlaypal, width, height)
 end function
 
 /*

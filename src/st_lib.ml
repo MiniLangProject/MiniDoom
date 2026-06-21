@@ -327,6 +327,7 @@ function STlib_drawNum(n, refresh)
 
   numdigits = n.width
   rawnum = _STL_RefInt(n.num, 0)
+  if not refresh and n.oldnum == rawnum then return end if
   num = rawnum
 
   p0 = _STL_GetPatch(n.p, 0)
