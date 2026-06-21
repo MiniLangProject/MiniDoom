@@ -584,7 +584,7 @@ function ST_updateFaceWidget()
   end if
 
   if st_facepriority < 8 then
-    if _ST_ToInt(st_plyr.damagecount, 0) > 0 and st_plyr.attacker is not void and st_plyr.attacker != st_plyr.mo then
+    if _ST_ToInt(st_plyr.damagecount, 0) > 0 and st_plyr.mo is not void and st_plyr.attacker is not void and st_plyr.attacker != st_plyr.mo and typeof(st_plyr.attacker.x) == "int" and typeof(st_plyr.attacker.y) == "int" then
       st_facepriority = 7
 
       if _ST_ToInt(st_plyr.health, 0) - st_oldhealth > ST_MUCHPAIN then
