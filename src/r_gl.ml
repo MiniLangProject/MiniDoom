@@ -264,6 +264,31 @@ function inline RGL_IsSeq(v)
 end function
 
 /*
+* Function: RGL_IsNumber
+* Purpose: Checks numeric values before packing cached OpenGL geometry.
+*/
+function inline RGL_IsNumber(v)
+  return typeof(v) == "int" or typeof(v) == "float"
+end function
+
+/*
+* Function: RGL_IsValidFlatTri
+* Purpose: Rejects malformed cached flat triangles before array batching.
+*/
+function inline RGL_IsValidFlatTri(t)
+  if t is void then return false end if
+  if typeof(t.flatnum) != "int" then return false end if
+  if not RGL_IsNumber(t.light) then return false end if
+  if not RGL_IsNumber(t.x0) or not RGL_IsNumber(t.y0) or not RGL_IsNumber(t.z0) then return false end if
+  if not RGL_IsNumber(t.s0) or not RGL_IsNumber(t.t0) then return false end if
+  if not RGL_IsNumber(t.x1) or not RGL_IsNumber(t.y1) or not RGL_IsNumber(t.z1) then return false end if
+  if not RGL_IsNumber(t.s1) or not RGL_IsNumber(t.t1) then return false end if
+  if not RGL_IsNumber(t.x2) or not RGL_IsNumber(t.y2) or not RGL_IsNumber(t.z2) then return false end if
+  if not RGL_IsNumber(t.s2) or not RGL_IsNumber(t.t2) then return false end if
+  return true
+end function
+
+/*
 * Function: RGL_SeqLen
 * Purpose: Provides len helper behavior for the OpenGL renderer.
 */
@@ -884,7 +909,14 @@ end function
 function RGL_BuildFlatArrayBatchRange(startIndex, endIndex)
   tcount = endIndex - startIndex
   if tcount <= 0 then return end if
-  vertexCount = tcount * 3
+  validCount = 0
+  i = startIndex
+  while i < endIndex
+    if RGL_IsValidFlatTri(rgl_flat_tris[i]) then validCount = validCount + 1 end if
+    i = i + 1
+  end while
+  if validCount <= 0 then return end if
+  vertexCount = validCount * 3
   vertices = bytes(vertexCount * 12, 0)
   texcoords = bytes(vertexCount * 8, 0)
   colors = bytes(vertexCount * 4, 0)
@@ -900,7 +932,7 @@ function RGL_BuildFlatArrayBatchRange(startIndex, endIndex)
   i = startIndex
   while i < endIndex
     t = rgl_flat_tris[i]
-    if t is not void then
+    if RGL_IsValidFlatTri(t) then
       if t.x0 < minx then minx = t.x0 end if
       if t.x1 < minx then minx = t.x1 end if
       if t.x2 < minx then minx = t.x2 end if
@@ -934,7 +966,13 @@ function RGL_BuildFlatArrayBatchRange(startIndex, endIndex)
     end if
     i = i + 1
   end while
-  t = rgl_flat_tris[startIndex]
+  t = void
+  i = startIndex
+  while i < endIndex and t is void
+    if RGL_IsValidFlatTri(rgl_flat_tris[i]) then t = rgl_flat_tris[i] end if
+    i = i + 1
+  end while
+  if t is void then return end if
   cx = (minx + maxx) * 0.5
   cz = (minz + maxz) * 0.5
   dx = maxx - cx
@@ -3907,19 +3945,26 @@ end function
 function RGL_AddCachedFlatConvexFloat(xs, ys, count, z, flatnum)
   global rgl_flat_tris
 
+  if typeof(flatnum) != "int" then return end if
+  if not RGL_IsNumber(z) then return end if
+  if not RGL_IsSeq(xs) or not RGL_IsSeq(ys) then return end if
+  if count < 3 or len(xs) < count or len(ys) < count then return end if
   zz = RGL_FixedToFloat(z)
   baseX = xs[0]
   baseY = ys[0]
+  if not RGL_IsNumber(baseX) or not RGL_IsNumber(baseY) then return end if
   i = 1
   while i < count - 1
     x1 = xs[i]
     y1 = ys[i]
     x2 = xs[i + 1]
     y2 = ys[i + 1]
-    rgl_flat_tris = rgl_flat_tris +[rgl_flat_tri_t(flatnum, rgl_current_light,
-      baseX, zz, -baseY, baseX / 64.0, baseY / 64.0,
-      x1, zz, -y1, x1 / 64.0, y1 / 64.0,
-      x2, zz, -y2, x2 / 64.0, y2 / 64.0)]
+    if RGL_IsNumber(x1) and RGL_IsNumber(y1) and RGL_IsNumber(x2) and RGL_IsNumber(y2) then
+      rgl_flat_tris = rgl_flat_tris +[rgl_flat_tri_t(flatnum, rgl_current_light,
+        baseX, zz, -baseY, baseX / 64.0, baseY / 64.0,
+        x1, zz, -y1, x1 / 64.0, y1 / 64.0,
+        x2, zz, -y2, x2 / 64.0, y2 / 64.0)]
+    end if
     i = i + 1
   end while
 end function

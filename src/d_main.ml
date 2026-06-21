@@ -1771,11 +1771,7 @@ function D_DoomMain()
     if typeof(slot) == "int" then
       if slot < 0 then slot = 0 end if
       if slot > 9 then slot = 9 end if
-      if M_CheckParm("-cdrom") != 0 then
-        G_LoadGame("c:\\doomdata\\" + SAVEGAMENAME + slot + ".dsg")
-      else
-        G_LoadGame(SAVEGAMENAME + slot + ".dsg")
-      end if
+      G_LoadGame(_G_SaveFileName(slot))
     end if
   end if
 

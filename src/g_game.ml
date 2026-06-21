@@ -47,7 +47,20 @@ import sounds
 import r_data
 import r_sky
 import g_game
+import std.fs as fs
 import std.math
+
+/*
+* Function: G_CreateDirectoryW
+* Purpose: Creates a directory for per-WAD savegame storage.
+*/
+extern function G_CreateDirectoryW(path as wstr, security as ptr) from "kernel32.dll" symbol "CreateDirectoryW" returns bool
+
+/*
+* Function: G_GetEnvironmentVariableW
+* Purpose: Reads Windows environment variables for user-specific savegame storage.
+*/
+extern function G_GetEnvironmentVariableW(name as wstr, buffer as bytes, size as int) from "kernel32.dll" symbol "GetEnvironmentVariableW" returns int
 
 /*
 * Function: G_DeathMatchSpawnPlayer
@@ -260,16 +273,95 @@ function _G_CopyFrags(fr)
 end function
 
 /*
-* Function: _G_SaveFileName
-* Purpose: Writes file name data for the gameplay.
+* Function: _G_EnvString
+* Purpose: Reads a Windows environment variable as a MiniLang string.
 */
-function inline _G_SaveFileName(slot)
+function _G_EnvString(name)
+  if typeof(name) != "string" or name == "" then return "" end if
+  buf = bytes(32768, 0)
+  n = G_GetEnvironmentVariableW(name, buf, 16384)
+  if typeof(n) != "int" or n <= 0 or n >= 16384 then return "" end if
+  return decode16Z(buf)
+end function
+
+/*
+* Function: _G_PathBaseName
+* Purpose: Extracts the final filename component from a WAD path.
+*/
+function _G_PathBaseName(path)
+  if typeof(path) != "string" or path == "" then return "unknown.wad" end if
+  b = bytes(path)
+  last = -1
+  i = 0
+  while i < len(b)
+    if b[i] == 92 or b[i] == 47 then last = i end if
+    i = i + 1
+  end while
+  if last >= 0 and last < len(b) - 1 then return decode(slice(b, last + 1, len(b) - last - 1)) end if
+  return path
+end function
+
+/*
+* Function: _G_SanitizeSaveDirName
+* Purpose: Converts a WAD filename into a safe directory name.
+*/
+function _G_SanitizeSaveDirName(name)
+  if typeof(name) != "string" or name == "" then return "unknown.wad" end if
+  b = bytes(name)
+  clean = bytes(len(b), 0)
+  i = 0
+  while i < len(b)
+    c = b[i]
+    if c == 34 or c == 42 or c == 47 or c == 58 or c == 60 or c == 62 or c == 63 or c == 92 or c == 124 then
+      c = 95
+    end if
+    clean[i] = c
+    i = i + 1
+  end while
+  return decode(clean)
+end function
+
+/*
+* Function: _G_EnsureDir
+* Purpose: Creates a directory if it is missing.
+*/
+function _G_EnsureDir(path)
+  if typeof(path) != "string" or path == "" then return false end if
+  if fs.isDir(path) then return true end if
+  if fs.exists(path) then return false end if
+  ok = G_CreateDirectoryW(path, void)
+  return ok or fs.isDir(path)
+end function
+
+/*
+* Function: _G_SaveDir
+* Purpose: Resolves and creates the per-WAD savegame directory.
+*/
+function _G_SaveDir()
+  appdata = _G_EnvString("APPDATA")
+  if appdata == "" then return "" end if
+  root = fs.joinPath(appdata, "MiniDoom")
+  if not _G_EnsureDir(root) then return "" end if
+
+  wad = ""
+  if typeof(wadfiles) == "array" and len(wadfiles) > 0 and typeof(wadfiles[0]) == "string" then wad = wadfiles[0] end if
+  wadname = _G_SanitizeSaveDirName(_G_PathBaseName(wad))
+  dir = fs.joinPath(root, wadname)
+  if not _G_EnsureDir(dir) then return "" end if
+  return dir
+end function
+
+/*
+* Function: _G_SaveFileName
+* Purpose: Builds the per-WAD savegame path under %APPDATA%\MiniDoom.
+*/
+function _G_SaveFileName(slot)
   s = slot
   if typeof(s) != "int" then s = 0 end if
-  if M_CheckParm("-cdrom") != 0 then
-    return "c:\\doomdata\\" + SAVEGAMENAME + s + ".dsg"
-  end if
-  return SAVEGAMENAME + s + ".dsg"
+  name = SAVEGAMENAME + s + ".dsg"
+  dir = _G_SaveDir()
+  if dir != "" then return fs.joinPath(dir, name) end if
+  return name
 end function
 
 /*

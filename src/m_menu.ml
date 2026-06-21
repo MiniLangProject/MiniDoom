@@ -697,12 +697,7 @@ function M_ReadSaveStrings()
   end if
 
   for i = 0 to load_end - 1
-    name = ""
-    if M_CheckParm("-cdrom") != 0 then
-      name = "c:\\doomdata\\" + SAVEGAMENAME + i + ".dsg"
-    else
-      name = SAVEGAMENAME + i + ".dsg"
-    end if
+    name = _G_SaveFileName(i)
 
     data = void
     if fs.exists(name) and fs.isFile(name) then
@@ -757,12 +752,7 @@ end function
 * Purpose: Reads select data for the utility.
 */
 function M_LoadSelect(choice)
-  name = ""
-  if M_CheckParm("-cdrom") != 0 then
-    name = "c:\\doomdata\\" + SAVEGAMENAME + choice + ".dsg"
-  else
-    name = SAVEGAMENAME + choice + ".dsg"
-  end if
+  name = _G_SaveFileName(choice)
   G_LoadGame(name)
   M_ClearMenus()
 end function

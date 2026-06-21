@@ -81,11 +81,25 @@ function _PSV_Ensure(extra)
 end function
 
 /*
+* Function: _PSV_ToS32
+* Purpose: Normalizes nullable savegame values to a stable signed 32-bit integer.
+*/
+function inline _PSV_ToS32(v)
+  if typeof(v) == "int" then return v end if
+  if typeof(v) == "bool" then
+    if v then return 1 end if
+    return 0
+  end if
+  return 0
+end function
+
+/*
 * Function: _PSV_WriteU8
 * Purpose: Writes U8 data for the savegame serializer.
 */
 function inline _PSV_WriteU8(v)
   global save_p
+  v = _PSV_ToS32(v)
   _PSV_Ensure(1)
   savebuffer[save_p] = v & 255
   save_p = save_p + 1
@@ -96,7 +110,7 @@ end function
 * Purpose: Writes boolean data for the savegame serializer.
 */
 function inline _PSV_WriteBool(v)
-  if v then _PSV_WriteU8(1) else _PSV_WriteU8(0) end if
+  if v == true then _PSV_WriteU8(1) else _PSV_WriteU8(0) end if
 end function
 
 /*
@@ -104,6 +118,7 @@ end function
 * Purpose: Writes S32 data for the savegame serializer.
 */
 function inline _PSV_WriteS32(v)
+  v = _PSV_ToS32(v)
   _PSV_WriteU8(v & 255)
   _PSV_WriteU8((v >> 8) & 255)
   _PSV_WriteU8((v >> 16) & 255)
@@ -1145,7 +1160,9 @@ function P_ArchiveSpecials()
     fn = void
     if cur.func is not void then fn = cur.func.acp1 end if
     if fn == T_MoveCeiling or fn == T_VerticalDoor or fn == T_MoveFloor or fn == T_PlatRaise or fn == T_LightFlash or fn == T_StrobeFlash or fn == T_Glow then
-      count = count + 1
+      o = void
+      if typeof(P_ResolveThinkerOwner) == "function" then o = P_ResolveThinkerOwner(cur) end if
+      if o is not void then count = count + 1 end if
     end if
     cur = cur.next
   end while
