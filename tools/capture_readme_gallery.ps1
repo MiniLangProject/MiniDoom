@@ -7,7 +7,7 @@ param(
     [ValidateSet('All', 'Doom1', 'Doom2')][string]$Game = 'All',
     [string[]]$Map = @(),
     [int]$TimeoutSeconds = 600,
-    [int]$SettleMilliseconds = 2000,
+    [int]$SettleMilliseconds = 5000,
     [ValidateRange(1, 4)][int]$RenderScale = 3,
     [switch]$Force
 )
