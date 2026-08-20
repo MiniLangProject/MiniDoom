@@ -674,17 +674,13 @@ __declspec(dllexport) void __stdcall MGL_SubmitSprite(
   }
 
   if (texid != g_mgl_sprite_batch.boundTex) {
-    if (g_mgl_sprite_batch.quadOpen) {
-      glEnd();
-      g_mgl_sprite_batch.quadOpen = 0;
-    }
     glBindTexture(GL_TEXTURE_2D, texid);
     g_mgl_sprite_batch.boundTex = texid;
   }
-  if (!g_mgl_sprite_batch.quadOpen) {
-    glBegin(GL_QUADS);
-    g_mgl_sprite_batch.quadOpen = 1;
-  }
+  /* Never carry glBegin/glEnd state across the DLL ABI boundary.  MiniLang
+     may resolve and upload the next sprite texture between submit calls;
+     texture creation is illegal while an immediate-mode primitive is open. */
+  glBegin(GL_QUADS);
   mgl_sprite_color(
       base,
       x,
@@ -695,6 +691,7 @@ __declspec(dllexport) void __stdcall MGL_SubmitSprite(
       g_mgl_sprite_batch.viewX,
       g_mgl_sprite_batch.viewY);
   mgl_emit_sprite_quad(x0, y0, x1, y1, z0, z1, flip);
+  glEnd();
 }
 
 __declspec(dllexport) void __stdcall MGL_EndSpriteBatch(void) {
