@@ -115,6 +115,23 @@ Example run:
 
 If no `-iwad` is provided, the engine uses its internal IWAD search order and loads the first matching file it finds.
 
+### OpenGL Renderer and Frame Pacing
+
+The classic renderer remains the default. Start the accelerated 3D renderer with:
+
+```powershell
+.\build\MiniDoom.exe -iwad "C:\Games\DOOM\DOOM2.WAD" -opengl
+```
+
+OpenGL uses VSync by default to avoid tearing and uneven presentation. Runtime options:
+
+- `-novsync`: disable VSync (useful for profiling)
+- `-vsync`: explicitly enable VSync
+- `-maxfps <0..1000>`: apply an additional frame-rate cap; `0` disables that cap
+- `-profile-render`: write per-second frame percentiles and renderer-stage timings to `minidoom_profile.log`
+
+If the graphics driver does not expose swap-interval control, MiniDoom falls back to a 60 FPS high-resolution limiter.
+
 ## Optional Upscaled Graphics
 
 MiniDoom can load an optional sidecar graphics package next to the original WAD:

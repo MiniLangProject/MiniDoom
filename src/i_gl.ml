@@ -330,6 +330,21 @@ extern function MGL_InitVBO() from "MiniDoomGL.dll" symbol "MGL_InitVBO" returns
 
 extern function MGL_SetSwapInterval(interval as int) from "MiniDoomGL.dll" symbol "MGL_SetSwapInterval" returns bool
 /*
+ * Function: MGL_TimeMicroseconds
+ *
+ * Purpose: Reads the native high-resolution monotonic timer used by profiling and frame pacing.
+ */
+
+extern function MGL_TimeMicroseconds() from "MiniDoomGL.dll" symbol "MGL_TimeMicroseconds" returns i64
+/*
+ * Function: MGL_FramePace
+ *
+ * Purpose: Applies a native high-resolution fallback frame limit when VSync is unavailable or disabled.
+ */
+
+extern function MGL_FramePace(targetFps as int, leadUs as int) from "MiniDoomGL.dll" symbol "MGL_FramePace" returns void
+extern function MGL_FramePaceMark() from "MiniDoomGL.dll" symbol "MGL_FramePaceMark" returns void
+/*
  * Function: MGL_CreateArrayBuffer
  *
  * Purpose: Uploads raw bytes to an OpenGL array buffer through the MiniDoom GL helper.
@@ -378,6 +393,15 @@ extern function MGL_DrawVisibleGeomBatches(mode as u32, records as bytes, record
  */
 
 extern function MGL_DrawDynamicLightSurfaces(geomData as bytes, geomSize as int, lightData as bytes, lightCount as int) from "MiniDoomGL.dll" symbol "MGL_DrawDynamicLightSurfaces" returns bool
+/*
+ * Function: MGL_BeginSpriteBatch
+ *
+ * Purpose: Opens a native world-sprite stream and copies its frame-local lighting state.
+ */
+
+extern function MGL_BeginSpriteBatch(lightData as bytes, lightCount as int, viewX as double, viewY as double, rightX as double, rightZ as double, worldScale as double, footLift as double) from "MiniDoomGL.dll" symbol "MGL_BeginSpriteBatch" returns bool
+extern function MGL_SubmitSprite(texid as u32, flags as int, baseLight as int, fixedX as int, fixedY as int, fixedZ as int, width as int, height as int, yOffset as int) from "MiniDoomGL.dll" symbol "MGL_SubmitSprite" returns void
+extern function MGL_EndSpriteBatch() from "MiniDoomGL.dll" symbol "MGL_EndSpriteBatch" returns void
 /*
  * Function: MGL_GetLastDrawnBatches
  *
@@ -513,6 +537,9 @@ igl_flash_b = 255
 igl_flash_a = 0
 igl_capture_rgba = void
 igl_nearest_cache =[]
+igl_vsync_requested = true
+igl_vsync_active = false
+igl_frame_limit = 0
 
 /*
 * Function: IGL_WriteU16
@@ -557,6 +584,40 @@ function IGL_WantsOpenGL()
     R_RendererRequest(RENDERER_CLASSIC)
   end if
   return want
+end function
+
+/*
+* Function: IGL_ConfigureFramePacing
+* Purpose: Enables VSync by default and installs a deterministic fallback limiter when needed.
+*/
+function IGL_ConfigureFramePacing()
+  global igl_vsync_requested
+  global igl_vsync_active
+  global igl_frame_limit
+
+  igl_vsync_requested = true
+  if M_CheckParm("-novsync") != 0 or M_CheckParm("--novsync") != 0 then igl_vsync_requested = false end if
+  if M_CheckParm("-vsync") != 0 or M_CheckParm("--vsync") != 0 then igl_vsync_requested = true end if
+
+  igl_frame_limit = 0
+  p = M_CheckParm("-maxfps")
+  if p == 0 then p = M_CheckParm("--maxfps") end if
+  if p != 0 and typeof(myargc) == "int" and p < myargc - 1 and typeof(myargv) == "array" then
+    v = toNumber(myargv[p + 1])
+    if typeof(v) == "int" then
+      if v < 0 then v = 0 end if
+      if v > 1000 then v = 1000 end if
+      igl_frame_limit = v
+    end if
+  end if
+
+  igl_vsync_active = false
+  if igl_vsync_requested then
+    igl_vsync_active = MGL_SetSwapInterval(1)
+    if not igl_vsync_active and igl_frame_limit <= 0 then igl_frame_limit = 60 end if
+  else
+    MGL_SetSwapInterval(0)
+  end if
 end function
 
 /*
@@ -691,7 +752,7 @@ function IGL_Init(hwnd, hdc, width, height)
   glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
   glDisable(GL_CULL_FACE)
   glPixelStorei(GL_UNPACK_ALIGNMENT, 1)
-  MGL_SetSwapInterval(0)
+  IGL_ConfigureFramePacing()
   print "OpenGL: WGL backend enabled (" + igl_width + "x" + igl_height + ")"
   return true
 end function
@@ -767,8 +828,16 @@ function IGL_Swap()
   if not igl_active then return false end if
   if not igl_frame_ready then return false end if
   if not IGL_MakeCurrent() then return false end if
+  if igl_frame_limit > 0 then
+    leadUs = 0
+    if igl_vsync_active then leadUs = 1000 end if
+    MGL_FramePace(igl_frame_limit, leadUs)
+  end if
   ok = SwapBuffers(igl_hdc)
-  if ok then igl_frame_ready = false end if
+  if ok then
+    if igl_frame_limit > 0 then MGL_FramePaceMark() end if
+    igl_frame_ready = false
+  end if
   return ok
 end function
 

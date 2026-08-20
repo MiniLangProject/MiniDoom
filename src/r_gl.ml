@@ -38,7 +38,7 @@ const RGL_WORLD_SPRITE_FOOT_LIFT = 4.0
 const RGL_BASEYCENTER = 100
 const RGL_DYNAMIC_SETTLE_FRAMES = 3
 const RGL_GEOM_FIX_SCALE = 65536.0
-const RGL_GEOM_VERSION = 7
+const RGL_GEOM_VERSION = 8
 const RGL_CAMERA_BACK_OFFSET = 0.0
 
 rgl_tex_keys =[]
@@ -53,6 +53,7 @@ rgl_view_x = 0.0
 rgl_view_y = 0.0
 rgl_view_yaw = 0.0
 rgl_building_cache = false
+rgl_collecting_volatile_geometry = false
 rgl_flat_volatile_only = false
 rgl_cache_target = 0
 rgl_current_light = 255
@@ -68,11 +69,18 @@ rgl_geom_sig_sides = -1
 rgl_pending_sig_sector_motion = -1
 rgl_pending_sig_sides = -1
 rgl_pending_stable_frames = 0
+rgl_side_sig_map = -1
+rgl_side_sig_gametic = -1
+rgl_side_sig_leveltime = -1
+rgl_side_sig_value = -1
 rgl_volatile_sig_map = -1
 rgl_volatile_sectors =[]
 rgl_volatile_subsectors =[]
 rgl_volatile_segs =[]
 rgl_volatile_lines =[]
+rgl_scrolling_segs =[]
+rgl_scrolling_lines =[]
+rgl_scrolling_sides =[]
 rgl_volatile_flat_templates =[]
 rgl_collecting_volatile_flats = false
 rgl_boundary_quads =[]
@@ -93,6 +101,21 @@ rgl_static_display_lists_ready = false
 rgl_wall_array_batches =[]
 rgl_flat_array_batches =[]
 rgl_static_array_batches_ready = false
+rgl_volatile_wall_array_batches =[]
+rgl_volatile_flat_array_batches =[]
+rgl_volatile_wall_native_records = bytes(0, 0)
+rgl_volatile_flat_native_records = bytes(0, 0)
+rgl_volatile_wall_native_record_count = 0
+rgl_volatile_flat_native_record_count = 0
+rgl_volatile_wall_texture_revision = -1
+rgl_volatile_flat_texture_revision = -1
+rgl_volatile_array_batches_ready = false
+rgl_volatile_geometry_signature = -1
+rgl_volatile_geometry_last_gametic = -1
+rgl_volatile_geometry_last_leveltime = -1
+rgl_volatile_pending_signature = -1
+rgl_volatile_pending_stable_tics = 0
+rgl_volatile_immediate_active = false
 rgl_wall_native_records = bytes(0, 0)
 rgl_flat_native_records = bytes(0, 0)
 rgl_wall_native_record_count = 0
@@ -108,6 +131,18 @@ rgl_dyn_light_g =[]
 rgl_dyn_light_b =[]
 rgl_dyn_light_radius =[]
 rgl_dyn_light_strength =[]
+rgl_dyn_light_count = 0
+rgl_dyn_light_last_gametic = -1
+rgl_dyn_light_last_map = -1
+rgl_dyn_light_last_leveltime = -1
+rgl_dyn_light_revision = 0
+rgl_frame_mobjs =[]
+rgl_frame_mobj_count = 0
+rgl_sprite_light_records = bytes(0, 0)
+rgl_sprite_light_revision = -1
+rgl_sprite_width_cache =[]
+rgl_sprite_height_cache =[]
+rgl_sprite_yoffset_cache =[]
 const RGL_MAX_DYNAMIC_LIGHTS = 48
 
 const RGL_CACHE_BOUNDARY = 1
@@ -116,7 +151,7 @@ const RGL_CACHE_MASKED = 3
 const RGL_WALL_ARRAY_BATCH_QUADS = 4096
 const RGL_FLAT_ARRAY_BATCH_TRIS = 8192
 const RGL_SPATIAL_BATCH_CELL = 4096.0
-const RGL_FLAT_SPATIAL_BATCH_CELL = 32768.0
+const RGL_FLAT_SPATIAL_BATCH_CELL = 4096.0
 const RGL_SPATIAL_BATCH_ORIGIN = 32768.0
 const RGL_SPATIAL_BATCH_STRIDE = 128
 const RGL_NATIVE_BATCH_RECORD_SIZE = 28
@@ -342,7 +377,9 @@ end function
 * Purpose: Builds a combined texture and spatial key for static flat batching.
 */
 function RGL_FlatArrayBatchKey(t)
-  return t.flatnum
+  cx = (t.x0 + t.x1 + t.x2) / 3.0
+  cz = (t.z0 + t.z1 + t.z2) / 3.0
+  return t.flatnum * 20000 + RGL_FlatSpatialBatchCellKey(cx, cz)
 end function
 
 /*
@@ -588,6 +625,65 @@ end function
 */
 function RGL_ResetStaticDisplayLists()
   RGL_DeleteStaticDisplayLists()
+end function
+
+/*
+* Function: RGL_DeleteArrayBatchBuffers
+* Purpose: Releases every VBO owned by an array-batch collection.
+*/
+function RGL_DeleteArrayBatchBuffers(batches)
+  if not RGL_IsSeq(batches) then return end if
+  i = 0
+  while i < len(batches)
+    b = batches[i]
+    if b is not void then
+      if b.vertex_vbo != 0 then MGL_DeleteArrayBuffer(b.vertex_vbo) end if
+      if b.texcoord_vbo != 0 then MGL_DeleteArrayBuffer(b.texcoord_vbo) end if
+      if b.color_vbo != 0 then MGL_DeleteArrayBuffer(b.color_vbo) end if
+      if b.interleaved_vbo != 0 then MGL_DeleteArrayBuffer(b.interleaved_vbo) end if
+    end if
+    i = i + 1
+  end while
+end function
+
+/*
+* Function: RGL_ResetVolatileArrayBatches
+* Purpose: Invalidates VBO batches generated from potentially moving sector geometry.
+*/
+function RGL_ResetVolatileArrayBatches()
+  global rgl_volatile_wall_array_batches
+  global rgl_volatile_flat_array_batches
+  global rgl_volatile_wall_native_records
+  global rgl_volatile_flat_native_records
+  global rgl_volatile_wall_native_record_count
+  global rgl_volatile_flat_native_record_count
+  global rgl_volatile_wall_texture_revision
+  global rgl_volatile_flat_texture_revision
+  global rgl_volatile_array_batches_ready
+  global rgl_volatile_geometry_signature
+  global rgl_volatile_geometry_last_gametic
+  global rgl_volatile_geometry_last_leveltime
+  global rgl_volatile_pending_signature
+  global rgl_volatile_pending_stable_tics
+  global rgl_volatile_immediate_active
+
+  RGL_DeleteArrayBatchBuffers(rgl_volatile_wall_array_batches)
+  RGL_DeleteArrayBatchBuffers(rgl_volatile_flat_array_batches)
+  rgl_volatile_wall_array_batches =[]
+  rgl_volatile_flat_array_batches =[]
+  rgl_volatile_wall_native_records = bytes(0, 0)
+  rgl_volatile_flat_native_records = bytes(0, 0)
+  rgl_volatile_wall_native_record_count = 0
+  rgl_volatile_flat_native_record_count = 0
+  rgl_volatile_wall_texture_revision = -1
+  rgl_volatile_flat_texture_revision = -1
+  rgl_volatile_array_batches_ready = false
+  rgl_volatile_geometry_signature = -1
+  rgl_volatile_geometry_last_gametic = -1
+  rgl_volatile_geometry_last_leveltime = -1
+  rgl_volatile_pending_signature = -1
+  rgl_volatile_pending_stable_tics = 0
+  rgl_volatile_immediate_active = false
 end function
 
 /*
@@ -895,9 +991,9 @@ function RGL_BuildWallArrayBatchRange(startIndex, endIndex)
   dx = maxx - cx
   dz = maxz - cz
   radius = std.math.sqrt(dx * dx + dz * dz) + 128.0
-  vertexVbo = RGL_CreateArrayBufferOrZero(vertices)
-  texcoordVbo = RGL_CreateArrayBufferOrZero(texcoords)
-  colorVbo = RGL_CreateArrayBufferOrZero(colors)
+  vertexVbo = 0
+  texcoordVbo = 0
+  colorVbo = 0
   interleavedVbo = RGL_CreateInterleavedGeomBufferOrZero(interleaved)
   return rgl_array_batch_t(q.texnum, q.transparent, vertexCount, vertices, texcoords, colors, cx, cz, radius, vertexVbo, texcoordVbo, colorVbo, interleaved, interleavedVbo)
 end function
@@ -978,9 +1074,9 @@ function RGL_BuildFlatArrayBatchRange(startIndex, endIndex)
   dx = maxx - cx
   dz = maxz - cz
   radius = std.math.sqrt(dx * dx + dz * dz) + 192.0
-  vertexVbo = RGL_CreateArrayBufferOrZero(vertices)
-  texcoordVbo = RGL_CreateArrayBufferOrZero(texcoords)
-  colorVbo = RGL_CreateArrayBufferOrZero(colors)
+  vertexVbo = 0
+  texcoordVbo = 0
+  colorVbo = 0
   interleavedVbo = RGL_CreateInterleavedGeomBufferOrZero(interleaved)
   return rgl_array_batch_t(t.flatnum, false, vertexCount, vertices, texcoords, colors, cx, cz, radius, vertexVbo, texcoordVbo, colorVbo, interleaved, interleavedVbo)
 end function
@@ -1121,6 +1217,19 @@ function RGL_MapGeomLumpName()
 end function
 
 /*
+* Function: RGL_CurrentMapIdentity
+* Purpose: Distinguishes episode maps that share the same map number while preserving commercial map IDs.
+*/
+function inline RGL_CurrentMapIdentity()
+  m = -1
+  if typeof(gamemap) == "int" then m = gamemap end if
+  if gamemode == GameMode_t.commercial then return m end if
+  e = -1
+  if typeof(gameepisode) == "int" then e = gameepisode end if
+  return e * 100 + m
+end function
+
+/*
 * Function: RGL_SectorMotionSignature
 * Purpose: Provides motion signature helper behavior for the OpenGL renderer.
 */
@@ -1145,7 +1254,24 @@ end function
 * Purpose: Provides texture signature helper behavior for the OpenGL renderer.
 */
 function RGL_SideTextureSignature()
-  if not RGL_IsSeq(sides) then return -1 end if
+  global rgl_side_sig_map
+  global rgl_side_sig_gametic
+  global rgl_side_sig_leveltime
+  global rgl_side_sig_value
+
+  currentMap = RGL_CurrentMapIdentity()
+  currentTic = -1
+  if typeof(gametic) == "int" then currentTic = gametic end if
+  currentLevelTime = -1
+  if typeof(leveltime) == "int" then currentLevelTime = leveltime end if
+  if rgl_side_sig_map == currentMap and rgl_side_sig_gametic == currentTic and rgl_side_sig_leveltime == currentLevelTime then return rgl_side_sig_value end if
+  if not RGL_IsSeq(sides) then
+    rgl_side_sig_map = currentMap
+    rgl_side_sig_gametic = currentTic
+    rgl_side_sig_leveltime = currentLevelTime
+    rgl_side_sig_value = -1
+    return -1
+  end if
   h = len(sides) * 131071
   i = 0
   while i < len(sides)
@@ -1154,11 +1280,20 @@ function RGL_SideTextureSignature()
       if typeof(sd.toptexture) == "int" then h = h +(i + 1) * sd.toptexture end if
       if typeof(sd.midtexture) == "int" then h = h +(i + 3) * sd.midtexture end if
       if typeof(sd.bottomtexture) == "int" then h = h +(i + 5) * sd.bottomtexture end if
-      if typeof(sd.textureoffset) == "int" then h = h +(i + 7) * sd.textureoffset end if
-      if typeof(sd.rowoffset) == "int" then h = h +(i + 11) * sd.rowoffset end if
+      scrolling = i < len(rgl_scrolling_sides) and rgl_scrolling_sides[i]
+      // Special 48 changes its front-side offset every tic and is drawn outside the static cache.
+      // Other offsets must remain part of the signature because savegames restore them verbatim.
+      if not scrolling then
+        if typeof(sd.textureoffset) == "int" then h = h +(i + 7) * sd.textureoffset end if
+        if typeof(sd.rowoffset) == "int" then h = h +(i + 11) * sd.rowoffset end if
+      end if
     end if
     i = i + 1
   end while
+  rgl_side_sig_map = currentMap
+  rgl_side_sig_gametic = currentTic
+  rgl_side_sig_leveltime = currentLevelTime
+  rgl_side_sig_value = h
   return h
 end function
 
@@ -1214,6 +1349,14 @@ function RGL_LineMayMoveGeometry(li)
     end case
   end switch
   return false
+end function
+
+/*
+* Function: RGL_LineScrollsTexture
+* Purpose: Identifies Doom's continuously scrolling wall special so it can bypass static UV caches.
+*/
+function inline RGL_LineScrollsTexture(li)
+  return li is not void and typeof(li.special) == "int" and li.special == 48
 end function
 
 /*
@@ -1275,13 +1418,22 @@ function RGL_BuildVolatileSectorMap(sigMap)
   global rgl_volatile_subsectors
   global rgl_volatile_segs
   global rgl_volatile_lines
+  global rgl_scrolling_segs
+  global rgl_scrolling_lines
+  global rgl_scrolling_sides
 
+  RGL_ResetVolatileArrayBatches()
   rgl_volatile_sig_map = sigMap
   rgl_volatile_sectors =[]
   rgl_volatile_subsectors =[]
   rgl_volatile_segs =[]
   rgl_volatile_lines =[]
+  rgl_scrolling_segs =[]
+  rgl_scrolling_lines =[]
+  rgl_scrolling_sides =[]
   if not RGL_IsSeq(sectors) then return end if
+
+  if RGL_IsSeq(sides) then rgl_scrolling_sides = array(len(sides), false) end if
 
   rgl_volatile_sectors = array(len(sectors), false)
   i = 0
@@ -1289,6 +1441,8 @@ function RGL_BuildVolatileSectorMap(sigMap)
     sec = sectors[i]
     if sec is not void then
       if sec.specialdata is not void then rgl_volatile_sectors[i] = true end if
+      // Boss-death actions synthesize a tagged line at runtime, so no map linedef identifies these movers.
+      if typeof(sec.tag) == "int" and (sec.tag == 666 or sec.tag == 667) then rgl_volatile_sectors[i] = true end if
     end if
     i = i + 1
   end while
@@ -1298,6 +1452,12 @@ function RGL_BuildVolatileSectorMap(sigMap)
     while i < len(lines)
       li = lines[i]
       if li is not void then
+        if RGL_LineScrollsTexture(li) and RGL_IsSeq(li.sidenum) and len(li.sidenum) > 0 then
+          scrollingSide = li.sidenum[0]
+          if typeof(scrollingSide) == "int" and scrollingSide >= 0 and scrollingSide < len(rgl_scrolling_sides) then
+            rgl_scrolling_sides[scrollingSide] = true
+          end if
+        end if
         activeLine = false
         if li.specialdata is not void then activeLine = true end if
         if RGL_LineMayMoveGeometry(li) then activeLine = true end if
@@ -1331,7 +1491,12 @@ function RGL_BuildVolatileSectorMap(sigMap)
   if RGL_IsSeq(segs) then
     i = 0
     while i < len(segs)
-      if RGL_IsVolatileSegIndex(i) then rgl_volatile_segs = rgl_volatile_segs +[i] end if
+      sg = segs[i]
+      if sg is not void and RGL_LineScrollsTexture(sg.linedef) then
+        rgl_scrolling_segs = rgl_scrolling_segs +[i]
+      else if RGL_IsVolatileSegIndex(i) then
+        rgl_volatile_segs = rgl_volatile_segs +[i]
+      end if
       i = i + 1
     end while
   end if
@@ -1339,7 +1504,12 @@ function RGL_BuildVolatileSectorMap(sigMap)
   if RGL_IsSeq(lines) then
     i = 0
     while i < len(lines)
-      if RGL_IsVolatileLineIndex(i) then rgl_volatile_lines = rgl_volatile_lines +[i] end if
+      li = lines[i]
+      if RGL_LineScrollsTexture(li) then
+        rgl_scrolling_lines = rgl_scrolling_lines +[i]
+      else if RGL_IsVolatileLineIndex(i) then
+        rgl_volatile_lines = rgl_volatile_lines +[i]
+      end if
       i = i + 1
     end while
   end if
@@ -1847,8 +2017,8 @@ end function
 * Purpose: Builds current map geometry lump data for the OpenGL renderer.
 */
 function RGL_BuildCurrentMapGeometryLump()
-  sigMap = -1
-  if typeof(gamemap) == "int" then sigMap = gamemap end if
+  sigMap = RGL_CurrentMapIdentity()
+  RGL_EnsureVolatileSectorMap(sigMap)
   sigSegs = RGL_SeqLen(segs)
   sigLines = RGL_SeqLen(lines)
   sigNodes = RGL_SeqLen(nodes)
@@ -2009,6 +2179,7 @@ end function
 * Purpose: Adds dynamic light entries to the OpenGL renderer.
 */
 function RGL_AddDynamicLight(x, y, z, r, g, b, radius, strength)
+  global rgl_dyn_light_count
   global rgl_dyn_light_x
   global rgl_dyn_light_y
   global rgl_dyn_light_z
@@ -2018,7 +2189,7 @@ function RGL_AddDynamicLight(x, y, z, r, g, b, radius, strength)
   global rgl_dyn_light_radius
   global rgl_dyn_light_strength
 
-  if len(rgl_dyn_light_x) >= RGL_MAX_DYNAMIC_LIGHTS then return end if
+  if rgl_dyn_light_count >= RGL_MAX_DYNAMIC_LIGHTS then return end if
   if typeof(radius) != "float" and typeof(radius) != "int" then return end if
   if typeof(strength) != "float" and typeof(strength) != "int" then return end if
   if radius <= 0 or strength <= 0 then return end if
@@ -2026,14 +2197,16 @@ function RGL_AddDynamicLight(x, y, z, r, g, b, radius, strength)
   dzView = z + rgl_view_y
   maxDist = 2800.0 + radius
   if dxView * dxView + dzView * dzView > maxDist * maxDist then return end if
-  rgl_dyn_light_x = rgl_dyn_light_x +[x]
-  rgl_dyn_light_y = rgl_dyn_light_y +[y]
-  rgl_dyn_light_z = rgl_dyn_light_z +[z]
-  rgl_dyn_light_r = rgl_dyn_light_r +[r]
-  rgl_dyn_light_g = rgl_dyn_light_g +[g]
-  rgl_dyn_light_b = rgl_dyn_light_b +[b]
-  rgl_dyn_light_radius = rgl_dyn_light_radius +[radius]
-  rgl_dyn_light_strength = rgl_dyn_light_strength +[strength]
+  idx = rgl_dyn_light_count
+  rgl_dyn_light_x[idx] = x
+  rgl_dyn_light_y[idx] = y
+  rgl_dyn_light_z[idx] = z
+  rgl_dyn_light_r[idx] = r
+  rgl_dyn_light_g[idx] = g
+  rgl_dyn_light_b[idx] = b
+  rgl_dyn_light_radius[idx] = radius
+  rgl_dyn_light_strength[idx] = strength
+  rgl_dyn_light_count = idx + 1
 end function
 
 /*
@@ -2356,10 +2529,55 @@ function RGL_MobjLight(mo)
 end function
 
 /*
+* Function: RGL_CollectFrameMobjs
+* Purpose: Traverses sector thing lists once so lighting and sprite passes share the same frame-local object set.
+*/
+function RGL_CollectFrameMobjs()
+  global rgl_frame_mobjs
+  global rgl_frame_mobj_count
+
+  previousCount = rgl_frame_mobj_count
+  rgl_frame_mobj_count = 0
+  if not RGL_IsSeq(sectors) then
+    i = 0
+    while i < previousCount and i < len(rgl_frame_mobjs)
+      rgl_frame_mobjs[i] = 0
+      i = i + 1
+    end while
+    return
+  end if
+  if typeof(rgl_frame_mobjs) != "array" or len(rgl_frame_mobjs) < 1024 then
+    rgl_frame_mobjs = array(1024, 0)
+  end if
+
+  si = 0
+  while si < len(sectors)
+    mo = sectors[si].thinglist
+    guard = 0
+    while mo is not void and guard < 4096
+      if rgl_frame_mobj_count >= len(rgl_frame_mobjs) then
+        rgl_frame_mobjs = rgl_frame_mobjs + array(len(rgl_frame_mobjs), 0)
+      end if
+      rgl_frame_mobjs[rgl_frame_mobj_count] = mo
+      rgl_frame_mobj_count = rgl_frame_mobj_count + 1
+      mo = mo.snext
+      guard = guard + 1
+    end while
+    si = si + 1
+  end while
+  i = rgl_frame_mobj_count
+  while i < previousCount and i < len(rgl_frame_mobjs)
+    rgl_frame_mobjs[i] = 0
+    i = i + 1
+  end while
+end function
+
+/*
 * Function: RGL_BuildDynamicLights
 * Purpose: Builds dynamic lights data for the OpenGL renderer.
 */
 function RGL_BuildDynamicLights(player)
+  global rgl_dyn_light_count
   global rgl_dyn_light_x
   global rgl_dyn_light_y
   global rgl_dyn_light_z
@@ -2368,15 +2586,30 @@ function RGL_BuildDynamicLights(player)
   global rgl_dyn_light_b
   global rgl_dyn_light_radius
   global rgl_dyn_light_strength
+  global rgl_dyn_light_last_gametic
+  global rgl_dyn_light_last_map
+  global rgl_dyn_light_last_leveltime
+  global rgl_dyn_light_revision
 
-  rgl_dyn_light_x =[]
-  rgl_dyn_light_y =[]
-  rgl_dyn_light_z =[]
-  rgl_dyn_light_r =[]
-  rgl_dyn_light_g =[]
-  rgl_dyn_light_b =[]
-  rgl_dyn_light_radius =[]
-  rgl_dyn_light_strength =[]
+  currentTic = -1
+  if typeof(gametic) == "int" then currentTic = gametic end if
+  currentMap = RGL_CurrentMapIdentity()
+  currentLevelTime = -1
+  if typeof(leveltime) == "int" then currentLevelTime = leveltime end if
+  if currentTic >= 0 and currentTic == rgl_dyn_light_last_gametic and currentMap == rgl_dyn_light_last_map and currentLevelTime == rgl_dyn_light_last_leveltime then return end if
+
+  if len(rgl_dyn_light_x) != RGL_MAX_DYNAMIC_LIGHTS then
+    rgl_dyn_light_x = array(RGL_MAX_DYNAMIC_LIGHTS, 0.0)
+    rgl_dyn_light_y = array(RGL_MAX_DYNAMIC_LIGHTS, 0.0)
+    rgl_dyn_light_z = array(RGL_MAX_DYNAMIC_LIGHTS, 0.0)
+    rgl_dyn_light_r = array(RGL_MAX_DYNAMIC_LIGHTS, 0)
+    rgl_dyn_light_g = array(RGL_MAX_DYNAMIC_LIGHTS, 0)
+    rgl_dyn_light_b = array(RGL_MAX_DYNAMIC_LIGHTS, 0)
+    rgl_dyn_light_radius = array(RGL_MAX_DYNAMIC_LIGHTS, 0.0)
+    rgl_dyn_light_strength = array(RGL_MAX_DYNAMIC_LIGHTS, 0.0)
+  end if
+  rgl_dyn_light_count = 0
+  RGL_CollectFrameMobjs()
 
   lightCullReady = false
   lightCullX = 0.0
@@ -2411,24 +2644,22 @@ function RGL_BuildDynamicLights(player)
 
   RGL_AddLiquidSectorLights(player)
 
-  if not RGL_IsSeq(sectors) then return end if
-  si = 0
-  while si < len(sectors)
-    mo = sectors[si].thinglist
-    guard = 0
-    while mo is not void and guard < 4096
-      nearEnough = true
-      if lightCullReady and typeof(mo.x) == "int" and typeof(mo.y) == "int" then
-        mdx = RGL_FixedToFloat(mo.x) - lightCullX
-        mdz = -RGL_FixedToFloat(mo.y) - lightCullZ
-        nearEnough = (mdx * mdx + mdz * mdz) < 9437184.0
-      end if
-      if nearEnough then RGL_MobjLight(mo) end if
-      mo = mo.snext
-      guard = guard + 1
-    end while
-    si = si + 1
+  i = 0
+  while i < rgl_frame_mobj_count
+    mo = rgl_frame_mobjs[i]
+    nearEnough = true
+    if lightCullReady and typeof(mo.x) == "int" and typeof(mo.y) == "int" then
+      mdx = RGL_FixedToFloat(mo.x) - lightCullX
+      mdz = -RGL_FixedToFloat(mo.y) - lightCullZ
+      nearEnough = (mdx * mdx + mdz * mdz) < 9437184.0
+    end if
+    if nearEnough then RGL_MobjLight(mo) end if
+    i = i + 1
   end while
+  rgl_dyn_light_last_gametic = currentTic
+  rgl_dyn_light_last_map = currentMap
+  rgl_dyn_light_last_leveltime = currentLevelTime
+  rgl_dyn_light_revision = rgl_dyn_light_revision + 1
 end function
 
 /*
@@ -2472,7 +2703,7 @@ function RGL_SetVertexLightAlpha(base, x, y, z, alpha)
   end if
 
   i = 0
-  while i < len(rgl_dyn_light_x)
+  while i < rgl_dyn_light_count
     ldx = x - rgl_dyn_light_x[i]
     ldy = y - rgl_dyn_light_y[i]
     ldz = z - rgl_dyn_light_z[i]
@@ -2505,8 +2736,8 @@ end function
 * Purpose: Packs dynamic lights for the native additive surface-light pass.
 */
 function RGL_BuildDynamicLightSurfaceRecords()
-  if len(rgl_dyn_light_x) <= 0 then return [bytes(0, 0), 0] end if
-  count = len(rgl_dyn_light_x)
+  if rgl_dyn_light_count <= 0 then return [bytes(0, 0), 0] end if
+  count = rgl_dyn_light_count
   if count > RGL_MAX_SURFACE_LIGHTS then count = RGL_MAX_SURFACE_LIGHTS end if
   buf = bytes(count * RGL_LIGHT_RECORD_SIZE, 0)
   i = 0
@@ -2535,7 +2766,7 @@ end function
 * Purpose: Adds dynamic light back onto real floor, ceiling, and wall geometry.
 */
 function RGL_DrawDynamicLightGlows(yaw)
-  if len(rgl_dyn_light_x) <= 0 then return end if
+  if rgl_dyn_light_count <= 0 then return end if
   if typeof(rgl_light_geom_blob) != "bytes" or len(rgl_light_geom_blob) < 60 then return end if
   rec = RGL_BuildDynamicLightSurfaceRecords()
   if rec[1] <= 0 then return end if
@@ -2633,6 +2864,7 @@ function RGL_SyncPaletteRevision()
   rgl_geom_ready = false
   RGL_ResetStaticDisplayLists()
   RGL_ResetStaticArrayBatches()
+  RGL_ResetVolatileArrayBatches()
 end function
 
 /*
@@ -3266,7 +3498,8 @@ end function
 */
 function RGL_DrawLine(li)
   if li is void then return end if
-  if rgl_building_cache then
+  if rgl_building_cache and RGL_LineScrollsTexture(li) then return end if
+  if rgl_building_cache and not rgl_collecting_volatile_geometry then
     if RGL_IsVolatileSector(li.frontsector) or RGL_IsVolatileSector(li.backsector) then return end if
   end if
   side = void
@@ -3283,7 +3516,8 @@ end function
 */
 function RGL_DrawSeg(sg)
   if sg is void then return end if
-  if rgl_building_cache then
+  if rgl_building_cache and RGL_LineScrollsTexture(sg.linedef) then return end if
+  if rgl_building_cache and not rgl_collecting_volatile_geometry then
     if RGL_IsVolatileSector(sg.frontsector) or RGL_IsVolatileSector(sg.backsector) then return end if
   end if
   RGL_DrawWallPiece(sg.v1, sg.v2, sg.linedef, sg.sidedef, sg.frontsector, sg.backsector)
@@ -3318,6 +3552,7 @@ function RGL_DrawMaskedSeg(sg)
   global rgl_current_light
 
   if sg is void then return end if
+  if rgl_building_cache and RGL_LineScrollsTexture(sg.linedef) then return end if
   if rgl_building_cache then
     if RGL_IsVolatileSector(sg.frontsector) or RGL_IsVolatileSector(sg.backsector) then return end if
   end if
@@ -3366,6 +3601,7 @@ function RGL_DrawLineSideMidtexture(li, sideIndex)
   global rgl_current_light
 
   if li is void or li.v1 is void or li.v2 is void then return end if
+  if rgl_building_cache and RGL_LineScrollsTexture(li) then return end if
   if li.frontsector is void or li.backsector is void then return end if
   if not RGL_IsSeq(li.sidenum) or not RGL_IsSeq(sides) then return end if
   if sideIndex < 0 or sideIndex >= len(li.sidenum) then return end if
@@ -4807,7 +5043,7 @@ function RGL_DrawBspLeafFlat(sidx, xs, ys, count)
   if sidx < 0 or not RGL_IsSeq(subsectors) or sidx >= len(subsectors) then return end if
   if rgl_collecting_volatile_flats and not RGL_IsVolatileSubsectorIndex(sidx) then return end if
   if rgl_flat_volatile_only and not RGL_IsVolatileSubsectorIndex(sidx) then return end if
-  if rgl_building_cache and RGL_IsVolatileSubsectorIndex(sidx) then return end if
+  if rgl_building_cache and not rgl_collecting_volatile_geometry and RGL_IsVolatileSubsectorIndex(sidx) then return end if
   ss = subsectors[sidx]
   if ss is void or ss.sector is void then return end if
   sec = ss.sector
@@ -5111,11 +5347,133 @@ function RGL_DrawOneSpriteBillboard(mo, lump, flip, rx, rz)
 end function
 
 /*
-* Function: RGL_DrawSpriteBillboards
-* Purpose: Draws sprite billboards output for the OpenGL renderer.
+* Function: RGL_BuildSpriteLightRecords
+* Purpose: Packs the full dynamic-light list once for native sprite color evaluation.
 */
-function RGL_DrawSpriteBillboards(player, yaw)
-  if not RGL_IsSeq(sectors) then return end if
+function RGL_BuildSpriteLightRecords()
+  global rgl_sprite_light_records
+  global rgl_sprite_light_revision
+  requiredBytes = RGL_MAX_DYNAMIC_LIGHTS * RGL_LIGHT_RECORD_SIZE
+  if typeof(rgl_sprite_light_records) != "bytes" or len(rgl_sprite_light_records) != requiredBytes then
+    rgl_sprite_light_records = bytes(requiredBytes, 0)
+  end if
+  if rgl_sprite_light_revision == rgl_dyn_light_revision then return rgl_sprite_light_records end if
+  i = 0
+  while i < rgl_dyn_light_count
+    off = i * RGL_LIGHT_RECORD_SIZE
+    RGL_WriteS32(rgl_sprite_light_records, off, RGL_FloatToGeom(rgl_dyn_light_x[i]))
+    RGL_WriteS32(rgl_sprite_light_records, off + 4, RGL_FloatToGeom(rgl_dyn_light_y[i]))
+    RGL_WriteS32(rgl_sprite_light_records, off + 8, RGL_FloatToGeom(rgl_dyn_light_z[i]))
+    RGL_WriteS32(rgl_sprite_light_records, off + 12, RGL_FloatToGeom(rgl_dyn_light_radius[i]))
+    RGL_WriteS32(rgl_sprite_light_records, off + 16, RGL_FloatToGeom(rgl_dyn_light_strength[i]))
+    RGL_WriteS32(rgl_sprite_light_records, off + 20, rgl_dyn_light_r[i])
+    RGL_WriteS32(rgl_sprite_light_records, off + 24, rgl_dyn_light_g[i])
+    RGL_WriteS32(rgl_sprite_light_records, off + 28, rgl_dyn_light_b[i])
+    i = i + 1
+  end while
+  rgl_sprite_light_revision = rgl_dyn_light_revision
+  return rgl_sprite_light_records
+end function
+
+/*
+ * Function: RGL_SubmitNativeSprite
+ * Purpose: Resolves and submits one visible mobj while caching immutable patch metrics.
+*/
+function inline RGL_SubmitNativeSprite(mo, lump, flip)
+  global rgl_sprite_width_cache
+  global rgl_sprite_height_cache
+  global rgl_sprite_yoffset_cache
+
+  while len(rgl_sprite_width_cache) <= lump
+    rgl_sprite_width_cache = rgl_sprite_width_cache +[-1]
+    rgl_sprite_height_cache = rgl_sprite_height_cache +[0]
+    rgl_sprite_yoffset_cache = rgl_sprite_yoffset_cache +[0]
+  end while
+  width = rgl_sprite_width_cache[lump]
+  if width < 0 then
+    entry = RGL_SpriteEntryForLump(lump)
+    if entry is void then
+      rgl_sprite_width_cache[lump] = 0
+      return false
+    end if
+    width = entry.width
+    rgl_sprite_width_cache[lump] = width
+    rgl_sprite_height_cache[lump] = entry.height
+    rgl_sprite_yoffset_cache[lump] = entry.yoffset
+  end if
+  if width <= 0 then return false end if
+
+  shadow = false
+  if mo is not void and typeof(mo.flags) == "int" and (mo.flags & mobjflag_t.MF_SHADOW) != 0 then shadow = true end if
+  texid = RGL_TextureIdForSpriteLump(lump)
+  if shadow then texid = RGL_TextureIdForSpriteFuzzLump(lump) end if
+  if texid <= 0 then return false end if
+
+  c = 192
+  if mo.subsector is not void and mo.subsector.sector is not void then c = RGL_LightByte(mo.subsector.sector) end if
+  flags = 0
+  if flip != 0 then flags = flags | 1 end if
+  if shadow then flags = flags | 2 end if
+  MGL_SubmitSprite(texid, flags, c, mo.x, mo.y, mo.z, width, rgl_sprite_height_cache[lump], rgl_sprite_yoffset_cache[lump])
+  return true
+end function
+
+/*
+* Function: RGL_DrawSpriteBillboardsNative
+* Purpose: Culls and packs visible sprites before handing the complete frame list to the native GL helper.
+*/
+function RGL_DrawSpriteBillboardsNative(player, yaw)
+  if typeof(rgl_frame_mobjs) != "array" or rgl_frame_mobj_count <= 0 then return true end if
+
+  yawRad = (yaw / 360.0) * 6.283185314
+  fwdX = std.math.cos(yawRad)
+  fwdY = std.math.sin(yawRad)
+  rad =((90.0 - yaw) / 360.0) * 6.283185314
+  rx = std.math.cos(rad)
+  rz = std.math.sin(rad)
+  farDist = 4096.0 * 4096.0
+  scale = 1
+  if typeof(ru_scale) == "int" and ru_scale > 0 then scale = ru_scale end if
+  lightRecords = RGL_BuildSpriteLightRecords()
+  if not MGL_BeginSpriteBatch(lightRecords, rgl_dyn_light_count, rgl_view_x, rgl_view_y, rx, rz, scale, RGL_WORLD_SPRITE_FOOT_LIFT) then return false end if
+
+  i = 0
+  while i < rgl_frame_mobj_count
+    mo = rgl_frame_mobjs[i]
+    dx = RGL_FixedToFloat(mo.x - player.mo.x)
+    dy = RGL_FixedToFloat(mo.y - player.mo.y)
+    dist = dx * dx + dy * dy
+    forward = dx * fwdX + dy * fwdY
+    side = dx *(-fwdY) + dy * fwdX
+    if side < 0.0 then side = -side end if
+    visibleEnough = false
+    if dist <= farDist and forward > -64.0 then
+      if forward < 1.0 then
+        if side < 128.0 then visibleEnough = true end if
+      else if side <= forward * 1.8 + 160.0 then
+        visibleEnough = true
+      end if
+    end if
+    if visibleEnough then
+      sel = RGL_SelectSpriteLump(mo, player)
+      lump = sel[0]
+      flip = sel[1]
+      if typeof(lump) == "int" and lump >= 0 then
+        RGL_SubmitNativeSprite(mo, lump, flip)
+      end if
+    end if
+    i = i + 1
+  end while
+  MGL_EndSpriteBatch()
+  return true
+end function
+
+/*
+* Function: RGL_DrawSpriteBillboardsImmediate
+* Purpose: Preserves the original per-sprite immediate renderer as a compatibility fallback.
+*/
+function RGL_DrawSpriteBillboardsImmediate(player, yaw)
+  if typeof(rgl_frame_mobjs) != "array" or rgl_frame_mobj_count <= 0 then return end if
   glEnable(GL_TEXTURE_2D)
   RGL_EnableCutoutAlpha()
   glColor4ub(255, 255, 255, 255)
@@ -5127,39 +5485,43 @@ function RGL_DrawSpriteBillboards(player, yaw)
   rx = std.math.cos(rad)
   rz = std.math.sin(rad)
   farDist = 4096.0 * 4096.0
-  si = 0
-  while si < len(sectors)
-    mo = sectors[si].thinglist
-    guard = 0
-    while mo is not void and guard < 512
-      dx = RGL_FixedToFloat(mo.x - player.mo.x)
-      dy = RGL_FixedToFloat(mo.y - player.mo.y)
-      dist = dx * dx + dy * dy
-      forward = dx * fwdX + dy * fwdY
-      side = dx *(-fwdY) + dy * fwdX
-      if side < 0.0 then side = -side end if
-      visibleEnough = false
-      if dist <= farDist and forward > -64.0 then
-        if forward < 1.0 then
-          if side < 128.0 then visibleEnough = true end if
-        else if side <= forward * 1.8 + 160.0 then
-          visibleEnough = true
-        end if
+  i = 0
+  while i < rgl_frame_mobj_count
+    mo = rgl_frame_mobjs[i]
+    dx = RGL_FixedToFloat(mo.x - player.mo.x)
+    dy = RGL_FixedToFloat(mo.y - player.mo.y)
+    dist = dx * dx + dy * dy
+    forward = dx * fwdX + dy * fwdY
+    side = dx *(-fwdY) + dy * fwdX
+    if side < 0.0 then side = -side end if
+    visibleEnough = false
+    if dist <= farDist and forward > -64.0 then
+      if forward < 1.0 then
+        if side < 128.0 then visibleEnough = true end if
+      else if side <= forward * 1.8 + 160.0 then
+        visibleEnough = true
       end if
-      if visibleEnough then
-        sel = RGL_SelectSpriteLump(mo, player)
-        lump = sel[0]
-        flip = sel[1]
-        if typeof(lump) == "int" and lump >= 0 then
-          RGL_DrawOneSpriteBillboard(mo, lump, flip, rx, rz)
-        end if
+    end if
+    if visibleEnough then
+      sel = RGL_SelectSpriteLump(mo, player)
+      lump = sel[0]
+      flip = sel[1]
+      if typeof(lump) == "int" and lump >= 0 then
+        RGL_DrawOneSpriteBillboard(mo, lump, flip, rx, rz)
       end if
-      mo = mo.snext
-      guard = guard + 1
-    end while
-    si = si + 1
+    end if
+    i = i + 1
   end while
   RGL_DisableCutoutAlpha()
+end function
+
+/*
+* Function: RGL_DrawSpriteBillboards
+* Purpose: Draws world sprites through the native batch path with an immediate-mode fallback.
+*/
+function RGL_DrawSpriteBillboards(player, yaw)
+  if RGL_DrawSpriteBillboardsNative(player, yaw) then return end if
+  RGL_DrawSpriteBillboardsImmediate(player, yaw)
 end function
 
 /*
@@ -5292,8 +5654,8 @@ function RGL_EnsureGeometryCache()
   global rgl_pending_sig_sides
   global rgl_pending_stable_frames
 
-  sigMap = -1
-  if typeof(gamemap) == "int" then sigMap = gamemap end if
+  sigMap = RGL_CurrentMapIdentity()
+  RGL_EnsureVolatileSectorMap(sigMap)
   sigSegs = RGL_SeqLen(segs)
   sigLines = RGL_SeqLen(lines)
   sigNodes = RGL_SeqLen(nodes)
@@ -5511,6 +5873,57 @@ function RGL_DrawVolatileLineMidtextures()
 end function
 
 /*
+* Function: RGL_DrawScrollingWalls
+* Purpose: Draws only continuously scrolling wall pieces with their current texture offsets.
+*/
+function RGL_DrawScrollingWalls()
+  if RGL_IsSeq(segs) and len(segs) > 0 then
+    i = 0
+    while i < len(rgl_scrolling_segs)
+      idx = rgl_scrolling_segs[i]
+      if idx >= 0 and idx < len(segs) then RGL_DrawSeg(segs[idx]) end if
+      i = i + 1
+    end while
+    return
+  end if
+  if not RGL_IsSeq(lines) then return end if
+  i = 0
+  while i < len(rgl_scrolling_lines)
+    idx = rgl_scrolling_lines[i]
+    if idx >= 0 and idx < len(lines) then RGL_DrawLine(lines[idx]) end if
+    i = i + 1
+  end while
+end function
+
+/*
+* Function: RGL_DrawScrollingMaskedWalls
+* Purpose: Draws masked portions of continuously scrolling walls outside the static cache.
+*/
+function RGL_DrawScrollingMaskedWalls()
+  glEnable(GL_TEXTURE_2D)
+  glColor4ub(255, 255, 255, 255)
+  if RGL_IsSeq(segs) and len(segs) > 0 then
+    i = 0
+    while i < len(rgl_scrolling_segs)
+      idx = rgl_scrolling_segs[i]
+      if idx >= 0 and idx < len(segs) then RGL_DrawMaskedSeg(segs[idx]) end if
+      i = i + 1
+    end while
+    return
+  end if
+  if not RGL_IsSeq(lines) then return end if
+  i = 0
+  while i < len(rgl_scrolling_lines)
+    idx = rgl_scrolling_lines[i]
+    if idx >= 0 and idx < len(lines) then
+      RGL_DrawLineSideMidtexture(lines[idx], 0)
+      RGL_DrawLineSideMidtexture(lines[idx], 1)
+    end if
+    i = i + 1
+  end while
+end function
+
+/*
 * Function: RGL_DrawVolatileOpaqueWorld
 * Purpose: Updates dynamic sector flats and opaque walls on top of the static cache.
 */
@@ -5529,12 +5942,323 @@ function RGL_DrawVolatileMaskedWorld()
 end function
 
 /*
+* Function: RGL_VolatileGeometrySignature
+* Purpose: Tracks only state that can change the precomputed volatile-sector meshes.
+*/
+function RGL_VolatileGeometrySignature()
+  h = len(rgl_volatile_sectors) * 65537 + len(rgl_volatile_segs) * 131071
+  i = 0
+  while i < len(rgl_volatile_sectors)
+    if rgl_volatile_sectors[i] and i < len(sectors) then
+      sec = sectors[i]
+      if sec is not void then
+        h = h +(i + 1) * sec.floorheight
+        h = h +(i + 3) * sec.ceilingheight
+      end if
+    end if
+    i = i + 1
+  end while
+  i = 0
+  while i < len(rgl_volatile_segs)
+    idx = rgl_volatile_segs[i]
+    if idx >= 0 and idx < len(segs) then
+      sg = segs[idx]
+      if sg is not void and sg.sidedef is not void then
+        sd = sg.sidedef
+        h = h +(i + 13) * sd.toptexture
+        h = h +(i + 17) * sd.midtexture
+        h = h +(i + 19) * sd.bottomtexture
+      end if
+    end if
+    i = i + 1
+  end while
+  return h
+end function
+
+/*
+* Function: RGL_CollectVolatileGeometry
+* Purpose: Resolves current volatile sector heights into cached quad and triangle records without drawing them.
+*/
+function RGL_CollectVolatileGeometry()
+  global rgl_building_cache
+  global rgl_collecting_volatile_geometry
+  global rgl_cache_target
+  global rgl_wall_quads
+  global rgl_flat_tris
+
+  savedBuilding = rgl_building_cache
+  savedCollecting = rgl_collecting_volatile_geometry
+  savedTarget = rgl_cache_target
+  savedWalls = rgl_wall_quads
+  savedFlats = rgl_flat_tris
+
+  rgl_wall_quads =[]
+  rgl_flat_tris =[]
+  rgl_building_cache = true
+  rgl_collecting_volatile_geometry = true
+  rgl_cache_target = RGL_CACHE_WALL
+  RGL_DrawVolatileFlats()
+  RGL_DrawVolatileWalls()
+  collectedWalls = rgl_wall_quads
+  collectedFlats = rgl_flat_tris
+
+  rgl_wall_quads = savedWalls
+  rgl_flat_tris = savedFlats
+  rgl_cache_target = savedTarget
+  rgl_collecting_volatile_geometry = savedCollecting
+  rgl_building_cache = savedBuilding
+  return [collectedWalls, collectedFlats]
+end function
+
+/*
+* Function: RGL_RebuildVolatileArrayBatches
+* Purpose: Uploads the current volatile meshes to VBOs while preserving the static cache state.
+*/
+function RGL_RebuildVolatileArrayBatches(signature)
+  global rgl_wall_quads
+  global rgl_flat_tris
+  global rgl_wall_array_batches
+  global rgl_flat_array_batches
+  global rgl_static_array_batches_ready
+  global rgl_wall_native_records
+  global rgl_flat_native_records
+  global rgl_wall_native_record_count
+  global rgl_flat_native_record_count
+  global rgl_wall_native_texture_revision
+  global rgl_flat_native_texture_revision
+  global rgl_volatile_wall_array_batches
+  global rgl_volatile_flat_array_batches
+  global rgl_volatile_wall_native_records
+  global rgl_volatile_flat_native_records
+  global rgl_volatile_wall_native_record_count
+  global rgl_volatile_flat_native_record_count
+  global rgl_volatile_wall_texture_revision
+  global rgl_volatile_flat_texture_revision
+  global rgl_volatile_array_batches_ready
+  global rgl_volatile_geometry_signature
+  global rgl_volatile_geometry_last_gametic
+  global rgl_volatile_geometry_last_leveltime
+
+  RGL_ResetVolatileArrayBatches()
+  collected = RGL_CollectVolatileGeometry()
+
+  savedWalls = rgl_wall_quads
+  savedFlats = rgl_flat_tris
+  savedWallBatches = rgl_wall_array_batches
+  savedFlatBatches = rgl_flat_array_batches
+  savedReady = rgl_static_array_batches_ready
+  savedWallRecords = rgl_wall_native_records
+  savedFlatRecords = rgl_flat_native_records
+  savedWallRecordCount = rgl_wall_native_record_count
+  savedFlatRecordCount = rgl_flat_native_record_count
+  savedWallTextureRevision = rgl_wall_native_texture_revision
+  savedFlatTextureRevision = rgl_flat_native_texture_revision
+
+  rgl_wall_quads = collected[0]
+  rgl_flat_tris = collected[1]
+  rgl_wall_array_batches =[]
+  rgl_flat_array_batches =[]
+  rgl_static_array_batches_ready = false
+  rgl_wall_native_records = bytes(0, 0)
+  rgl_flat_native_records = bytes(0, 0)
+  rgl_wall_native_record_count = 0
+  rgl_flat_native_record_count = 0
+  rgl_wall_native_texture_revision = -1
+  rgl_flat_native_texture_revision = -1
+  RGL_BuildStaticArrayBatches()
+
+  rgl_volatile_wall_array_batches = rgl_wall_array_batches
+  rgl_volatile_flat_array_batches = rgl_flat_array_batches
+  rgl_volatile_wall_native_records = rgl_wall_native_records
+  rgl_volatile_flat_native_records = rgl_flat_native_records
+  rgl_volatile_wall_native_record_count = rgl_wall_native_record_count
+  rgl_volatile_flat_native_record_count = rgl_flat_native_record_count
+  rgl_volatile_wall_texture_revision = rgl_wall_native_texture_revision
+  rgl_volatile_flat_texture_revision = rgl_flat_native_texture_revision
+
+  rgl_wall_quads = savedWalls
+  rgl_flat_tris = savedFlats
+  rgl_wall_array_batches = savedWallBatches
+  rgl_flat_array_batches = savedFlatBatches
+  rgl_static_array_batches_ready = savedReady
+  rgl_wall_native_records = savedWallRecords
+  rgl_flat_native_records = savedFlatRecords
+  rgl_wall_native_record_count = savedWallRecordCount
+  rgl_flat_native_record_count = savedFlatRecordCount
+  rgl_wall_native_texture_revision = savedWallTextureRevision
+  rgl_flat_native_texture_revision = savedFlatTextureRevision
+
+  rgl_volatile_geometry_signature = signature
+  rgl_volatile_geometry_last_gametic = -1
+  if typeof(gametic) == "int" then rgl_volatile_geometry_last_gametic = gametic end if
+  rgl_volatile_geometry_last_leveltime = -1
+  if typeof(leveltime) == "int" then rgl_volatile_geometry_last_leveltime = leveltime end if
+  rgl_volatile_array_batches_ready = true
+  return true
+end function
+
+/*
+* Function: RGL_EnsureVolatileArrayBatches
+* Purpose: Rebuilds volatile meshes at most once per game tic and only when their state changed.
+*/
+function RGL_EnsureVolatileArrayBatches()
+  global rgl_volatile_geometry_last_gametic
+  global rgl_volatile_geometry_last_leveltime
+  global rgl_volatile_pending_signature
+  global rgl_volatile_pending_stable_tics
+  global rgl_volatile_immediate_active
+  currentTic = gametic
+  if typeof(currentTic) != "int" then currentTic = 0 end if
+  currentLevelTime = -1
+  if typeof(leveltime) == "int" then currentLevelTime = leveltime end if
+  if rgl_volatile_array_batches_ready and rgl_volatile_geometry_last_gametic == currentTic and rgl_volatile_geometry_last_leveltime == currentLevelTime then return true end if
+  rgl_volatile_geometry_last_gametic = currentTic
+  rgl_volatile_geometry_last_leveltime = currentLevelTime
+  signature = RGL_VolatileGeometrySignature()
+  if not rgl_volatile_array_batches_ready then
+    rgl_volatile_immediate_active = false
+    return RGL_RebuildVolatileArrayBatches(signature)
+  end if
+  if signature == rgl_volatile_geometry_signature then
+    rgl_volatile_pending_signature = -1
+    rgl_volatile_pending_stable_tics = 0
+    rgl_volatile_immediate_active = false
+    return true
+  end if
+
+  // Moving geometry is cheaper and smoother through the direct path. Upload it once it has settled.
+  rgl_volatile_immediate_active = true
+  if signature == rgl_volatile_pending_signature then
+    rgl_volatile_pending_stable_tics = rgl_volatile_pending_stable_tics + 1
+  else
+    rgl_volatile_pending_signature = signature
+    rgl_volatile_pending_stable_tics = 1
+  end if
+  if rgl_volatile_pending_stable_tics < RGL_DYNAMIC_SETTLE_FRAMES then return false end if
+  rgl_volatile_immediate_active = false
+  return RGL_RebuildVolatileArrayBatches(signature)
+end function
+
+function RGL_UpdateVolatileWallRecordTextures()
+  global rgl_volatile_wall_native_records
+  global rgl_volatile_wall_texture_revision
+  if typeof(rgl_volatile_wall_native_records) != "bytes" then return false end if
+  if rgl_volatile_wall_native_record_count != len(rgl_volatile_wall_array_batches) then return false end if
+  revision = 0
+  if typeof(p_picanim_revision) == "int" then revision = p_picanim_revision end if
+  if rgl_volatile_wall_texture_revision == revision then return true end if
+  i = 0
+  while i < len(rgl_volatile_wall_array_batches)
+    batch = rgl_volatile_wall_array_batches[i]
+    texid = RGL_TextureIdForTexnum(batch.texnum)
+    RGL_WriteU32(rgl_volatile_wall_native_records, i * RGL_NATIVE_BATCH_RECORD_SIZE, texid)
+    i = i + 1
+  end while
+  rgl_volatile_wall_texture_revision = revision
+  return true
+end function
+
+function RGL_UpdateVolatileFlatRecordTextures()
+  global rgl_volatile_flat_native_records
+  global rgl_volatile_flat_texture_revision
+  if typeof(rgl_volatile_flat_native_records) != "bytes" then return false end if
+  if rgl_volatile_flat_native_record_count != len(rgl_volatile_flat_array_batches) then return false end if
+  revision = 0
+  if typeof(p_picanim_revision) == "int" then revision = p_picanim_revision end if
+  if rgl_volatile_flat_texture_revision == revision then return true end if
+  i = 0
+  while i < len(rgl_volatile_flat_array_batches)
+    batch = rgl_volatile_flat_array_batches[i]
+    RGL_WriteU32(rgl_volatile_flat_native_records, i * RGL_NATIVE_BATCH_RECORD_SIZE, RGL_TextureIdForFlatnum(batch.texnum))
+    i = i + 1
+  end while
+  rgl_volatile_flat_texture_revision = revision
+  return true
+end function
+
+/*
+* Function: RGL_DrawVolatileWallArrayBatches
+* Purpose: Draws moving-sector walls through native culled VBO batches.
+*/
+function RGL_DrawVolatileWallArrayBatches()
+  if rgl_volatile_immediate_active then return false end if
+  if not rgl_volatile_array_batches_ready then return false end if
+  total = len(rgl_volatile_wall_array_batches)
+  if total <= 0 then return true end if
+  if rgl_volatile_wall_native_record_count == total and RGL_UpdateVolatileWallRecordTextures() then
+    RGL_BeginArrayBatchDraw()
+    ok = MGL_DrawVisibleGeomBatches(GL_QUADS, rgl_volatile_wall_native_records, rgl_volatile_wall_native_record_count, rgl_view_x, rgl_view_y, rgl_view_yaw)
+    RGL_EndArrayBatchDraw()
+    RGL_DisableCutoutAlpha()
+    if ok then
+      if typeof(_D_ProfileGLBatches) == "function" then _D_ProfileGLBatches(1, total, MGL_GetLastDrawnBatches(), MGL_GetLastDrawnVertices()) end if
+      return true
+    end if
+  end if
+  RGL_BeginArrayBatchDraw()
+  drawn = 0
+  vertices = 0
+  i = 0
+  while i < total
+    batch = rgl_volatile_wall_array_batches[i]
+    if RGL_ArrayBatchVisible(batch) then
+      drawn = drawn + 1
+      vertices = vertices + batch.vertex_count
+      RGL_BindOrColor(RGL_TextureIdForTexnum(batch.texnum))
+      RGL_DrawStaticArrayBatch(batch, GL_QUADS)
+    end if
+    i = i + 1
+  end while
+  RGL_EndArrayBatchDraw()
+  if typeof(_D_ProfileGLBatches) == "function" then _D_ProfileGLBatches(1, total, drawn, vertices) end if
+  return true
+end function
+
+/*
+* Function: RGL_DrawVolatileFlatArrayBatches
+* Purpose: Draws moving-sector floors and ceilings through native culled VBO batches.
+*/
+function RGL_DrawVolatileFlatArrayBatches()
+  if rgl_volatile_immediate_active then return false end if
+  if not rgl_volatile_array_batches_ready then return false end if
+  total = len(rgl_volatile_flat_array_batches)
+  if total <= 0 then return true end if
+  if rgl_volatile_flat_native_record_count == total and RGL_UpdateVolatileFlatRecordTextures() then
+    RGL_BeginArrayBatchDraw()
+    ok = MGL_DrawVisibleGeomBatches(GL_TRIANGLES, rgl_volatile_flat_native_records, rgl_volatile_flat_native_record_count, rgl_view_x, rgl_view_y, rgl_view_yaw)
+    RGL_EndArrayBatchDraw()
+    if ok then
+      if typeof(_D_ProfileGLBatches) == "function" then _D_ProfileGLBatches(0, total, MGL_GetLastDrawnBatches(), MGL_GetLastDrawnVertices()) end if
+      return true
+    end if
+  end if
+  RGL_BeginArrayBatchDraw()
+  drawn = 0
+  vertices = 0
+  i = 0
+  while i < total
+    batch = rgl_volatile_flat_array_batches[i]
+    if RGL_ArrayBatchVisible(batch) then
+      drawn = drawn + 1
+      vertices = vertices + batch.vertex_count
+      RGL_BindOrColor(RGL_TextureIdForFlatnum(batch.texnum))
+      RGL_DrawStaticArrayBatch(batch, GL_TRIANGLES)
+    end if
+    i = i + 1
+  end while
+  RGL_EndArrayBatchDraw()
+  if typeof(_D_ProfileGLBatches) == "function" then _D_ProfileGLBatches(0, total, drawn, vertices) end if
+  return true
+end function
+
+/*
 * Function: RGL_ProfileStart
 * Purpose: Returns a timestamp for fine-grained renderer profiling.
 */
 function inline RGL_ProfileStart()
   if typeof(_d_profile_render) != "bool" or not _d_profile_render then return 0 end if
-  t = std.time.ticks()
+  if typeof(_D_ProfileTimeUs) == "function" then return _D_ProfileTimeUs() end if
+  t = std.time.ticks() * 1000
   if typeof(t) != "int" then return 0 end if
   return t
 end function
@@ -5546,7 +6270,8 @@ end function
 function inline RGL_ProfileEnd(slot, start)
   if typeof(_d_profile_render) != "bool" or not _d_profile_render then return end if
   if typeof(start) != "int" or start <= 0 then return end if
-  t = std.time.ticks()
+  t = std.time.ticks() * 1000
+  if typeof(_D_ProfileTimeUs) == "function" then t = _D_ProfileTimeUs() end if
   if typeof(t) != "int" then return end if
   if typeof(_D_ProfileGLAdd) == "function" then _D_ProfileGLAdd(slot, t - start) end if
 end function
@@ -5592,6 +6317,7 @@ function RGL_RenderPlayerView(player)
 
   pt = RGL_ProfileStart()
   useCache = RGL_EnsureGeometryCache()
+  if useCache then RGL_EnsureVolatileArrayBatches() end if
   RGL_ProfileEnd(1, pt)
   pt = RGL_ProfileStart()
   RGL_DrawSky(yaw)
@@ -5612,19 +6338,23 @@ function RGL_RenderPlayerView(player)
     RGL_ProfileEnd(4, pt)
     pt = RGL_ProfileStart()
     RGL_DrawFlatArrayBatches()
-    RGL_DrawVolatileFlats()
+    if not RGL_DrawVolatileFlatArrayBatches() then RGL_DrawVolatileFlats() end if
     RGL_ProfileEnd(5, pt)
     pt = RGL_ProfileStart()
     RGL_DrawWallArrayBatches()
-    RGL_DrawVolatileWalls()
+    if not RGL_DrawVolatileWallArrayBatches() then RGL_DrawVolatileWalls() end if
+    RGL_DrawScrollingWalls()
     RGL_ProfileEnd(6, pt)
+    pt = RGL_ProfileStart()
     RGL_DrawDynamicLightGlows(yaw)
+    RGL_ProfileEnd(10, pt)
     pt = RGL_ProfileStart()
     RGL_DrawSpriteBillboards(player, yaw)
     RGL_ProfileEnd(7, pt)
     pt = RGL_ProfileStart()
     RGL_DrawMaskedQuads()
     RGL_DrawVolatileMaskedWorld()
+    RGL_DrawScrollingMaskedWalls()
     RGL_ProfileEnd(8, pt)
   else
     pt = RGL_ProfileStart()
@@ -5638,7 +6368,9 @@ function RGL_RenderPlayerView(player)
     pt = RGL_ProfileStart()
     RGL_DrawAllWalls()
     RGL_ProfileEnd(6, pt)
+    pt = RGL_ProfileStart()
     RGL_DrawDynamicLightGlows(yaw)
+    RGL_ProfileEnd(10, pt)
     pt = RGL_ProfileStart()
     RGL_DrawSpriteBillboards(player, yaw)
     RGL_ProfileEnd(7, pt)

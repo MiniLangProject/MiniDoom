@@ -20,9 +20,11 @@
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 #include <GL/gl.h>
+#include <limits.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <stdlib.h>
+#include <string.h>
 #include <math.h>
 
 #ifndef GL_ARRAY_BUFFER
@@ -45,6 +47,12 @@
 #define GL_TEXTURE_2D 0x0DE1
 #endif
 
+#ifndef CREATE_WAITABLE_TIMER_HIGH_RESOLUTION
+#define CREATE_WAITABLE_TIMER_HIGH_RESOLUTION 0x00000002
+#endif
+
+#define MGL_MAX_DYNAMIC_LIGHTS 48
+
 typedef ptrdiff_t GLsizeiptr;
 typedef void (APIENTRY *PFNGLGENBUFFERSPROC)(GLsizei n, GLuint *buffers);
 typedef void (APIENTRY *PFNGLBINDBUFFERPROC)(GLenum target, GLuint buffer);
@@ -62,6 +70,90 @@ static int g_lastDrawnBatches = 0;
 static int g_lastDrawnVertices = 0;
 static unsigned char *g_overlayRgba = NULL;
 static int g_overlayRgbaBytes = 0;
+static LARGE_INTEGER g_qpcFrequency;
+static int g_qpcReady = 0;
+static int64_t g_framePaceLastUs = 0;
+/* Kept for the DLL lifetime to avoid creating a kernel object every frame. */
+static HANDLE g_framePaceTimer = NULL;
+
+static int64_t mgl_time_microseconds(void) {
+  LARGE_INTEGER now;
+  if (!g_qpcReady) {
+    if (!QueryPerformanceFrequency(&g_qpcFrequency) || g_qpcFrequency.QuadPart <= 0) {
+      return (int64_t)GetTickCount64() * 1000;
+    }
+    g_qpcReady = 1;
+  }
+  QueryPerformanceCounter(&now);
+  /* Split the conversion so long system uptimes cannot overflow int64_t. */
+  return (int64_t)((now.QuadPart / g_qpcFrequency.QuadPart) * 1000000 +
+                   ((now.QuadPart % g_qpcFrequency.QuadPart) * 1000000) /
+                       g_qpcFrequency.QuadPart);
+}
+
+__declspec(dllexport) int64_t __stdcall MGL_TimeMicroseconds(void) {
+  return mgl_time_microseconds();
+}
+
+__declspec(dllexport) void __stdcall MGL_FramePace(int targetFps, int leadUs) {
+  int64_t frameUs;
+  int64_t now;
+  int64_t due;
+  int64_t remaining;
+
+  if (targetFps <= 0 || targetFps > 1000) {
+    g_framePaceLastUs = 0;
+    return;
+  }
+  frameUs = 1000000 / targetFps;
+  if (leadUs < 0) {
+    leadUs = 0;
+  }
+  if (leadUs > frameUs / 2) {
+    leadUs = (int)(frameUs / 2);
+  }
+  now = mgl_time_microseconds();
+  if (g_framePaceLastUs <= 0 || now < g_framePaceLastUs ||
+      now - g_framePaceLastUs > frameUs * 4) {
+    return;
+  }
+
+  /* When VSync is active the caller supplies a small lead so SwapBuffers can
+     enter the driver before the target VBlank instead of just after it. */
+  due = g_framePaceLastUs + frameUs - leadUs;
+  remaining = due - now;
+  if (remaining > 2000) {
+    LARGE_INTEGER waitDue;
+    int64_t waitUs = remaining - 500;
+    if (g_framePaceTimer == NULL) {
+      g_framePaceTimer = CreateWaitableTimerExW(
+          NULL, NULL, CREATE_WAITABLE_TIMER_HIGH_RESOLUTION, TIMER_ALL_ACCESS);
+      if (g_framePaceTimer == NULL) {
+        g_framePaceTimer = CreateWaitableTimerW(NULL, FALSE, NULL);
+      }
+    }
+    waitDue.QuadPart = -waitUs * 10;
+    if (g_framePaceTimer == NULL ||
+        !SetWaitableTimer(g_framePaceTimer, &waitDue, 0, NULL, NULL, FALSE) ||
+        WaitForSingleObject(g_framePaceTimer, INFINITE) != WAIT_OBJECT_0) {
+      /* Last-resort path for systems without a usable waitable timer. */
+      Sleep((DWORD)((remaining - 1000) / 1000));
+    }
+  }
+  do {
+    now = mgl_time_microseconds();
+    if (now < due) {
+      SwitchToThread();
+    }
+  } while (now < due);
+
+}
+
+__declspec(dllexport) void __stdcall MGL_FramePaceMark(void) {
+  /* Called immediately after a successful presentation.  Anchoring at the
+     real completion time prevents late frames from shortening the next one. */
+  g_framePaceLastUs = mgl_time_microseconds();
+}
 
 static PROC mgl_load_proc(const char *name) {
   PROC p = wglGetProcAddress(name);
@@ -323,6 +415,292 @@ static double mgl_read_geom(const unsigned char *p) {
   return (double)mgl_read_i32(p) / 65536.0;
 }
 
+static GLubyte mgl_clamp_color(double value) {
+  if (value <= 0.0) {
+    return 0;
+  }
+  if (value >= 255.0) {
+    return 255;
+  }
+  return (GLubyte)value;
+}
+
+static void mgl_emit_sprite_quad(
+    double x0,
+    double y0,
+    double x1,
+    double y1,
+    double z0,
+    double z1,
+    int flip) {
+  if (flip) {
+    glTexCoord2d(1.0, 1.0);
+    glVertex3d(x0, z0, y0);
+    glTexCoord2d(0.0, 1.0);
+    glVertex3d(x1, z0, y1);
+    glTexCoord2d(0.0, 0.0);
+    glVertex3d(x1, z1, y1);
+    glTexCoord2d(1.0, 0.0);
+    glVertex3d(x0, z1, y0);
+  } else {
+    glTexCoord2d(0.0, 1.0);
+    glVertex3d(x0, z0, y0);
+    glTexCoord2d(1.0, 1.0);
+    glVertex3d(x1, z0, y1);
+    glTexCoord2d(1.0, 0.0);
+    glVertex3d(x1, z1, y1);
+    glTexCoord2d(0.0, 0.0);
+    glVertex3d(x0, z1, y0);
+  }
+}
+
+static void mgl_sprite_color(
+    int base,
+    double x,
+    double y,
+    double z,
+    const unsigned char *lightData,
+    int lightCount,
+    double viewX,
+    double viewY) {
+  double r = (double)base;
+  double g = (double)base;
+  double b = (double)base;
+  double dx = x - viewX;
+  double dz = z + viewY;
+  double d2 = dx * dx + dz * dz;
+  const double nearRadius2 = 640.0 * 640.0;
+  const double fadeStart = 280.0 * 280.0;
+  const double fadeEnd = 1650.0 * 1650.0;
+  int i;
+
+  if (d2 < nearRadius2) {
+    double boost = (1.0 - d2 / nearRadius2) * 54.0;
+    r += boost;
+    g += boost;
+    b += boost;
+  }
+  if (d2 > fadeStart) {
+    double fade = ((d2 - fadeStart) / (fadeEnd - fadeStart)) * 190.0;
+    if (fade > 190.0) {
+      fade = 190.0;
+    }
+    r -= fade;
+    g -= fade;
+    b -= fade;
+  }
+
+  for (i = 0; i < lightCount; ++i) {
+    const unsigned char *lp = lightData + i * 32;
+    double lx = mgl_read_geom(lp + 0);
+    double ly = mgl_read_geom(lp + 4);
+    double lz = mgl_read_geom(lp + 8);
+    double radius = mgl_read_geom(lp + 12);
+    double strength = mgl_read_geom(lp + 16);
+    double ldx = x - lx;
+    double ldy = y - ly;
+    double ldz = z - lz;
+    double ld2 = ldx * ldx + ldy * ldy + ldz * ldz;
+    double radius2 = radius * radius;
+    if (radius > 0.0 && ld2 < radius2) {
+      double amount = (1.0 - ld2 / radius2) * strength;
+      r += amount * ((double)mgl_read_i32(lp + 20) / 255.0);
+      g += amount * ((double)mgl_read_i32(lp + 24) / 255.0);
+      b += amount * ((double)mgl_read_i32(lp + 28) / 255.0);
+    }
+  }
+  glColor4ub(mgl_clamp_color(r), mgl_clamp_color(g), mgl_clamp_color(b), 255);
+}
+
+typedef struct mgl_sprite_batch_state_s {
+  int active;
+  int quadOpen;
+  GLuint boundTex;
+  int lightCount;
+  unsigned char lightData[MGL_MAX_DYNAMIC_LIGHTS * 32];
+  double viewX;
+  double viewY;
+  double rightX;
+  double rightZ;
+  double worldScale;
+  double footLift;
+} mgl_sprite_batch_state_t;
+
+static mgl_sprite_batch_state_t g_mgl_sprite_batch;
+
+static void mgl_finish_sprite_batch(void) {
+  if (!g_mgl_sprite_batch.active) {
+    return;
+  }
+  if (g_mgl_sprite_batch.quadOpen) {
+    glEnd();
+  }
+  glDepthMask(TRUE);
+  glDisable(GL_ALPHA_TEST);
+  glColor4ub(255, 255, 255, 255);
+  g_mgl_sprite_batch.active = 0;
+  g_mgl_sprite_batch.quadOpen = 0;
+}
+
+__declspec(dllexport) BOOL __stdcall MGL_BeginSpriteBatch(
+    const unsigned char *lightData,
+    int lightCount,
+    double viewX,
+    double viewY,
+    double rightX,
+    double rightZ,
+    double worldScale,
+    double footLift) {
+  if (g_mgl_sprite_batch.active || lightCount < 0 ||
+      lightCount > MGL_MAX_DYNAMIC_LIGHTS || worldScale <= 0.0) {
+    return FALSE;
+  }
+  if (lightCount > 0 && lightData == NULL) {
+    return FALSE;
+  }
+
+  g_mgl_sprite_batch.active = 1;
+  g_mgl_sprite_batch.quadOpen = 0;
+  g_mgl_sprite_batch.boundTex = 0xffffffffu;
+  g_mgl_sprite_batch.lightCount = lightCount;
+  if (lightCount > 0) {
+    memcpy(g_mgl_sprite_batch.lightData, lightData, (size_t)lightCount * 32u);
+  }
+  g_mgl_sprite_batch.viewX = viewX;
+  g_mgl_sprite_batch.viewY = viewY;
+  g_mgl_sprite_batch.rightX = rightX;
+  g_mgl_sprite_batch.rightZ = rightZ;
+  g_mgl_sprite_batch.worldScale = worldScale;
+  g_mgl_sprite_batch.footLift = footLift;
+
+  glEnable(GL_TEXTURE_2D);
+  glEnable(GL_ALPHA_TEST);
+  glAlphaFunc(GL_GREATER, 0.5f);
+  glDepthMask(TRUE);
+  return TRUE;
+}
+
+__declspec(dllexport) void __stdcall MGL_SubmitSprite(
+    GLuint texid,
+    int flags,
+    int base,
+    int fixedX,
+    int fixedY,
+    int fixedZ,
+    int width,
+    int height,
+    int yOffset) {
+  const double fix = 1.0 / 65536.0;
+  double x;
+  double y;
+  double z1;
+  double z0;
+  double halfw;
+  double x0;
+  double y0;
+  double x1;
+  double y1;
+  int flip;
+  int shadow;
+
+  if (!g_mgl_sprite_batch.active || texid == 0 || width <= 0 || height <= 0) {
+    return;
+  }
+
+  x = (double)fixedX * fix;
+  y = -(double)fixedY * fix;
+  z1 = (double)fixedZ * fix + (double)yOffset / g_mgl_sprite_batch.worldScale + g_mgl_sprite_batch.footLift;
+  z0 = z1 - (double)height / g_mgl_sprite_batch.worldScale;
+  halfw = ((double)width / g_mgl_sprite_batch.worldScale) * 0.5;
+  if (halfw < 2.0) {
+    halfw = 2.0;
+  }
+  x0 = x - g_mgl_sprite_batch.rightX * halfw;
+  y0 = y - g_mgl_sprite_batch.rightZ * halfw;
+  x1 = x + g_mgl_sprite_batch.rightX * halfw;
+  y1 = y + g_mgl_sprite_batch.rightZ * halfw;
+  flip = flags & 1;
+  shadow = flags & 2;
+
+  if (shadow) {
+    int pass;
+    int shade;
+    if (g_mgl_sprite_batch.quadOpen) {
+      glEnd();
+      g_mgl_sprite_batch.quadOpen = 0;
+    }
+    if (texid != g_mgl_sprite_batch.boundTex) {
+      glBindTexture(GL_TEXTURE_2D, texid);
+      g_mgl_sprite_batch.boundTex = texid;
+    }
+    glDisable(GL_ALPHA_TEST);
+    glDepthMask(FALSE);
+    shade = base;
+    if (shade > 126) shade = 126;
+    if (shade < 58) shade = 58;
+    glBegin(GL_QUADS);
+    for (pass = 0; pass < 5; ++pass) {
+      double side = 0.0;
+      double lift = 0.0;
+      GLubyte alpha = 22;
+      if (pass == 0) {
+        side = -2.8;
+        alpha = 28;
+      } else if (pass == 1) {
+        side = 2.8;
+        alpha = 28;
+      } else if (pass == 2) {
+        lift = 2.0;
+      } else if (pass == 3) {
+        lift = -1.8;
+      } else {
+        alpha = 34;
+      }
+      glColor4ub((GLubyte)shade, (GLubyte)shade, (GLubyte)shade, alpha);
+      mgl_emit_sprite_quad(
+          x0 + g_mgl_sprite_batch.rightX * side,
+          y0 + g_mgl_sprite_batch.rightZ * side,
+          x1 + g_mgl_sprite_batch.rightX * side,
+          y1 + g_mgl_sprite_batch.rightZ * side,
+          z0 + lift,
+          z1 + lift,
+          flip);
+    }
+    glEnd();
+    glDepthMask(TRUE);
+    glEnable(GL_ALPHA_TEST);
+    glAlphaFunc(GL_GREATER, 0.5f);
+    return;
+  }
+
+  if (texid != g_mgl_sprite_batch.boundTex) {
+    if (g_mgl_sprite_batch.quadOpen) {
+      glEnd();
+      g_mgl_sprite_batch.quadOpen = 0;
+    }
+    glBindTexture(GL_TEXTURE_2D, texid);
+    g_mgl_sprite_batch.boundTex = texid;
+  }
+  if (!g_mgl_sprite_batch.quadOpen) {
+    glBegin(GL_QUADS);
+    g_mgl_sprite_batch.quadOpen = 1;
+  }
+  mgl_sprite_color(
+      base,
+      x,
+      (z0 + z1) * 0.5,
+      y,
+      g_mgl_sprite_batch.lightData,
+      g_mgl_sprite_batch.lightCount,
+      g_mgl_sprite_batch.viewX,
+      g_mgl_sprite_batch.viewY);
+  mgl_emit_sprite_quad(x0, y0, x1, y1, z0, z1, flip);
+}
+
+__declspec(dllexport) void __stdcall MGL_EndSpriteBatch(void) {
+  mgl_finish_sprite_batch();
+}
+
 static unsigned char mgl_light_alpha(
     const int32_t *light,
     double x,
@@ -360,8 +738,41 @@ static unsigned char mgl_light_alpha(
   return (unsigned char)alpha;
 }
 
-static void mgl_light_vertex(const int32_t *light, double x, double y, double z) {
-  unsigned char a = mgl_light_alpha(light, x, y, z);
+static int mgl_light_intersects_bounds(
+    const int32_t *light,
+    double minX,
+    double minY,
+    double minZ,
+    double maxX,
+    double maxY,
+    double maxZ) {
+  const double fix = 1.0 / 65536.0;
+  double lx = (double)light[0] * fix;
+  double ly = (double)light[1] * fix;
+  double lz = (double)light[2] * fix;
+  double radius = (double)light[3] * fix;
+  double dx = 0.0;
+  double dy = 0.0;
+  double dz = 0.0;
+
+  if (radius <= 0.0) {
+    return 0;
+  }
+  if (lx < minX) dx = minX - lx;
+  else if (lx > maxX) dx = lx - maxX;
+  if (ly < minY) dy = minY - ly;
+  else if (ly > maxY) dy = ly - maxY;
+  if (lz < minZ) dz = minZ - lz;
+  else if (lz > maxZ) dz = lz - maxZ;
+  return dx * dx + dy * dy + dz * dz < radius * radius;
+}
+
+static void mgl_light_vertex_alpha(
+    const int32_t *light,
+    double x,
+    double y,
+    double z,
+    unsigned char a) {
   glColor4ub(
       (GLubyte)(light[5] < 0 ? 0 : (light[5] > 255 ? 255 : light[5])),
       (GLubyte)(light[6] < 0 ? 0 : (light[6] > 255 ? 255 : light[6])),
@@ -382,11 +793,14 @@ __declspec(dllexport) BOOL __stdcall MGL_DrawDynamicLightSurfaces(
   int wc;
   int mc;
   int fc;
-  int wallOff;
-  int flatOff;
+  size_t geomBytes;
+  size_t wallOff;
+  size_t flatOff;
+  size_t offset;
   int li;
 
-  if (geomData == NULL || lightData == NULL || geomSize < headerSize || lightCount <= 0) {
+  if (geomData == NULL || lightData == NULL || geomSize < headerSize ||
+      lightCount <= 0 || lightCount > MGL_MAX_DYNAMIC_LIGHTS) {
     return FALSE;
   }
   if (geomData[0] != 77 || geomData[1] != 71 || geomData[2] != 76 || geomData[3] != 49) {
@@ -401,9 +815,25 @@ __declspec(dllexport) BOOL __stdcall MGL_DrawDynamicLightSurfaces(
     return FALSE;
   }
 
-  wallOff = headerSize + bc * quadSize;
-  flatOff = wallOff + wc * quadSize + mc * quadSize;
-  if (wallOff < headerSize || flatOff < wallOff || flatOff + fc * triSize > geomSize) {
+  /* Validate each section before doing offset arithmetic.  The counts live in
+     a cache blob and therefore must not be allowed to wrap signed int math. */
+  geomBytes = (size_t)geomSize;
+  offset = (size_t)headerSize;
+  if ((size_t)bc > (geomBytes - offset) / (size_t)quadSize) {
+    return FALSE;
+  }
+  offset += (size_t)bc * (size_t)quadSize;
+  wallOff = offset;
+  if ((size_t)wc > (geomBytes - offset) / (size_t)quadSize) {
+    return FALSE;
+  }
+  offset += (size_t)wc * (size_t)quadSize;
+  if ((size_t)mc > (geomBytes - offset) / (size_t)quadSize) {
+    return FALSE;
+  }
+  offset += (size_t)mc * (size_t)quadSize;
+  flatOff = offset;
+  if ((size_t)fc > (geomBytes - offset) / (size_t)triSize) {
     return FALSE;
   }
 
@@ -413,13 +843,14 @@ __declspec(dllexport) BOOL __stdcall MGL_DrawDynamicLightSurfaces(
   glDepthFunc(GL_LEQUAL);
   glBlendFunc(GL_SRC_ALPHA, GL_ONE);
 
-  for (li = 0; li < lightCount; ++li) {
-    const int32_t *light = (const int32_t *)(lightData + li * 32);
+  /* Geometry is the larger data set. Decode each primitive once, then test the
+     small light list, instead of reparsing the whole map for every light. */
+  glBegin(GL_QUADS);
+  {
     int i;
-
-    glBegin(GL_QUADS);
     for (i = 0; i < wc; ++i) {
-      const unsigned char *q = geomData + wallOff + i * quadSize;
+      const unsigned char *q =
+          geomData + wallOff + (size_t)i * (size_t)quadSize;
       int transparent = mgl_read_i32(q + 4) != 0;
       double x0;
       double y0;
@@ -433,6 +864,12 @@ __declspec(dllexport) BOOL __stdcall MGL_DrawDynamicLightSurfaces(
       double x3;
       double y3;
       double z3;
+      double minX;
+      double minY;
+      double minZ;
+      double maxX;
+      double maxY;
+      double maxZ;
       if (transparent) {
         continue;
       }
@@ -448,22 +885,43 @@ __declspec(dllexport) BOOL __stdcall MGL_DrawDynamicLightSurfaces(
       x3 = mgl_read_geom(q + 72);
       y3 = mgl_read_geom(q + 76);
       z3 = mgl_read_geom(q + 80);
-      if (mgl_light_alpha(light, x0, y0, z0) == 0 &&
-          mgl_light_alpha(light, x1, y1, z1) == 0 &&
-          mgl_light_alpha(light, x2, y2, z2) == 0 &&
-          mgl_light_alpha(light, x3, y3, z3) == 0) {
-        continue;
+      minX = fmin(fmin(x0, x1), fmin(x2, x3));
+      minY = fmin(fmin(y0, y1), fmin(y2, y3));
+      minZ = fmin(fmin(z0, z1), fmin(z2, z3));
+      maxX = fmax(fmax(x0, x1), fmax(x2, x3));
+      maxY = fmax(fmax(y0, y1), fmax(y2, y3));
+      maxZ = fmax(fmax(z0, z1), fmax(z2, z3));
+      for (li = 0; li < lightCount; ++li) {
+        const int32_t *light = (const int32_t *)(lightData + li * 32);
+        unsigned char a0;
+        unsigned char a1;
+        unsigned char a2;
+        unsigned char a3;
+        if (!mgl_light_intersects_bounds(light, minX, minY, minZ, maxX, maxY, maxZ)) {
+          continue;
+        }
+        a0 = mgl_light_alpha(light, x0, y0, z0);
+        a1 = mgl_light_alpha(light, x1, y1, z1);
+        a2 = mgl_light_alpha(light, x2, y2, z2);
+        a3 = mgl_light_alpha(light, x3, y3, z3);
+        if (a0 == 0 && a1 == 0 && a2 == 0 && a3 == 0) {
+          continue;
+        }
+        mgl_light_vertex_alpha(light, x0, y0, z0, a0);
+        mgl_light_vertex_alpha(light, x1, y1, z1, a1);
+        mgl_light_vertex_alpha(light, x2, y2, z2, a2);
+        mgl_light_vertex_alpha(light, x3, y3, z3, a3);
       }
-      mgl_light_vertex(light, x0, y0, z0);
-      mgl_light_vertex(light, x1, y1, z1);
-      mgl_light_vertex(light, x2, y2, z2);
-      mgl_light_vertex(light, x3, y3, z3);
     }
-    glEnd();
+  }
+  glEnd();
 
-    glBegin(GL_TRIANGLES);
+  glBegin(GL_TRIANGLES);
+  {
+    int i;
     for (i = 0; i < fc; ++i) {
-      const unsigned char *t = geomData + flatOff + i * triSize;
+      const unsigned char *t =
+          geomData + flatOff + (size_t)i * (size_t)triSize;
       double x0 = mgl_read_geom(t + 8);
       double y0 = mgl_read_geom(t + 12);
       double z0 = mgl_read_geom(t + 16);
@@ -473,17 +931,33 @@ __declspec(dllexport) BOOL __stdcall MGL_DrawDynamicLightSurfaces(
       double x2 = mgl_read_geom(t + 48);
       double y2 = mgl_read_geom(t + 52);
       double z2 = mgl_read_geom(t + 56);
-      if (mgl_light_alpha(light, x0, y0, z0) == 0 &&
-          mgl_light_alpha(light, x1, y1, z1) == 0 &&
-          mgl_light_alpha(light, x2, y2, z2) == 0) {
-        continue;
+      double minX = fmin(x0, fmin(x1, x2));
+      double minY = fmin(y0, fmin(y1, y2));
+      double minZ = fmin(z0, fmin(z1, z2));
+      double maxX = fmax(x0, fmax(x1, x2));
+      double maxY = fmax(y0, fmax(y1, y2));
+      double maxZ = fmax(z0, fmax(z1, z2));
+      for (li = 0; li < lightCount; ++li) {
+        const int32_t *light = (const int32_t *)(lightData + li * 32);
+        unsigned char a0;
+        unsigned char a1;
+        unsigned char a2;
+        if (!mgl_light_intersects_bounds(light, minX, minY, minZ, maxX, maxY, maxZ)) {
+          continue;
+        }
+        a0 = mgl_light_alpha(light, x0, y0, z0);
+        a1 = mgl_light_alpha(light, x1, y1, z1);
+        a2 = mgl_light_alpha(light, x2, y2, z2);
+        if (a0 == 0 && a1 == 0 && a2 == 0) {
+          continue;
+        }
+        mgl_light_vertex_alpha(light, x0, y0, z0, a0);
+        mgl_light_vertex_alpha(light, x1, y1, z1, a1);
+        mgl_light_vertex_alpha(light, x2, y2, z2, a2);
       }
-      mgl_light_vertex(light, x0, y0, z0);
-      mgl_light_vertex(light, x1, y1, z1);
-      mgl_light_vertex(light, x2, y2, z2);
     }
-    glEnd();
   }
+  glEnd();
 
   glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
   glDepthFunc(GL_LESS);
@@ -515,6 +989,9 @@ __declspec(dllexport) BOOL __stdcall MGL_DrawIndexedOverlay(
     return FALSE;
   }
 
+  if (width > INT_MAX / height) {
+    return FALSE;
+  }
   pixels = width * height;
   minX = width;
   minY = height;
@@ -544,6 +1021,9 @@ __declspec(dllexport) BOOL __stdcall MGL_DrawIndexedOverlay(
 
   boxW = maxX - minX + 1;
   boxH = maxY - minY + 1;
+  if (boxW > INT_MAX / boxH || boxW * boxH > INT_MAX / 4) {
+    return FALSE;
+  }
   bytesNeeded = boxW * boxH * 4;
   if (g_overlayRgbaBytes < bytesNeeded) {
     unsigned char *newBuf = (unsigned char *)realloc(g_overlayRgba, (size_t)bytesNeeded);

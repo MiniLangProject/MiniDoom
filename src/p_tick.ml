@@ -135,6 +135,10 @@ end function
 * Purpose: Advances run Thinkers logic during the play simulation tick.
 */
 function P_RunThinkers()
+  profileThinkers = false
+  if typeof(_d_profile_render) == "bool" and _d_profile_render and typeof(_D_ProfileThinker) == "function" then
+    profileThinkers = true
+  end if
   cur = thinkercap.next
   while cur != thinkercap
     next = cur.next
@@ -158,9 +162,11 @@ function P_RunThinkers()
           o = P_ResolveThinkerOwner(cur)
           if o is not void then owner = o end if
         end if
-        isMobj = false
-        if typeof(P_MobjThinker) == "function" and cur.func.acp1 == P_MobjThinker then isMobj = true end if
-        if typeof(_D_ProfileThinker) == "function" then _D_ProfileThinker(isMobj) end if
+        if profileThinkers then
+          isMobj = false
+          if typeof(P_MobjThinker) == "function" and cur.func.acp1 == P_MobjThinker then isMobj = true end if
+          _D_ProfileThinker(isMobj)
+        end if
         cur.func.acp1(owner)
       end if
     end if
@@ -185,9 +191,13 @@ function P_Ticker()
   end if
 
   i = 0
-  if typeof(_D_ProfileGameTick) == "function" then _D_ProfileGameTick() end if
+  profiling = false
+  if typeof(_d_profile_render) == "bool" and _d_profile_render and typeof(_D_ProfileTimeUs) == "function" and typeof(_D_ProfileAdd) == "function" then
+    profiling = true
+  end if
+  if profiling and typeof(_D_ProfileGameTick) == "function" then _D_ProfileGameTick() end if
   t0 = 0
-  if typeof(_D_TimeMs) == "function" then t0 = _D_TimeMs() end if
+  if profiling then t0 = _D_ProfileTimeUs() end if
   while i < MAXPLAYERS
     if i < len(playeringame) and playeringame[i] then
       if typeof(P_PlayerThink) == "function" and i < len(players) and typeof(players[i]) == "struct" then
@@ -196,16 +206,16 @@ function P_Ticker()
     end if
     i = i + 1
   end while
-  if typeof(_D_ProfileAdd) == "function" and typeof(_D_TimeMs) == "function" then _D_ProfileAdd(7, _D_TimeMs() - t0) end if
+  if profiling then _D_ProfileAdd(7, _D_ProfileTimeUs() - t0) end if
 
-  if typeof(_D_TimeMs) == "function" then t0 = _D_TimeMs() end if
+  if profiling then t0 = _D_ProfileTimeUs() end if
   P_RunThinkers()
-  if typeof(_D_ProfileAdd) == "function" and typeof(_D_TimeMs) == "function" then _D_ProfileAdd(8, _D_TimeMs() - t0) end if
+  if profiling then _D_ProfileAdd(8, _D_ProfileTimeUs() - t0) end if
 
-  if typeof(_D_TimeMs) == "function" then t0 = _D_TimeMs() end if
+  if profiling then t0 = _D_ProfileTimeUs() end if
   if typeof(P_UpdateSpecials) == "function" then P_UpdateSpecials() end if
   if typeof(P_RespawnSpecials) == "function" then P_RespawnSpecials() end if
-  if typeof(_D_ProfileAdd) == "function" and typeof(_D_TimeMs) == "function" then _D_ProfileAdd(9, _D_TimeMs() - t0) end if
+  if profiling then _D_ProfileAdd(9, _D_ProfileTimeUs() - t0) end if
 
   leveltime = leveltime + 1
 end function

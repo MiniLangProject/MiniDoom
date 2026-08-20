@@ -117,12 +117,17 @@ _d_prof_gl_walls_ms = 0
 _d_prof_gl_sprites_ms = 0
 _d_prof_gl_masked_ms = 0
 _d_prof_gl_weapon_ms = 0
+_d_prof_gl_light_ms = 0
 _d_prof_gl_flat_batches = 0
 _d_prof_gl_flat_drawn = 0
 _d_prof_gl_flat_vertices = 0
 _d_prof_gl_wall_batches = 0
 _d_prof_gl_wall_drawn = 0
 _d_prof_gl_wall_vertices = 0
+_d_prof_frame_hist =[]
+_d_prof_frame_samples = 0
+_d_prof_frame_max_us = 0
+_d_prof_last_frame_us = 0
 const D_PROFILE_LOG_PATH = "minidoom_profile.log"
 d_force_wipe = false
 _d_hdwad_status_text = ""
@@ -170,6 +175,7 @@ function _D_ProfileAdd(slot, delta)
   global _d_prof_thinker_ms
   global _d_prof_special_ms
 
+  if not _d_profile_render then return end if
   if slot == 0 then
     _d_prof_r_ms = _d_prof_r_ms + delta
   else if slot == 1 then
@@ -231,6 +237,7 @@ end function
 * Purpose: Accumulates fine-grained OpenGL renderer timings for the profile log.
 */
 function _D_ProfileGLAdd(slot, delta)
+  global _d_prof_gl_light_ms
   global _d_prof_gl_dyn_ms
   global _d_prof_gl_cache_ms
   global _d_prof_gl_sky_ms
@@ -263,8 +270,66 @@ function _D_ProfileGLAdd(slot, delta)
   else if slot == 8 then
     _d_prof_gl_masked_ms = _d_prof_gl_masked_ms + delta
   else
-    _d_prof_gl_weapon_ms = _d_prof_gl_weapon_ms + delta
+    if slot == 9 then
+      _d_prof_gl_weapon_ms = _d_prof_gl_weapon_ms + delta
+    else
+      _d_prof_gl_light_ms = _d_prof_gl_light_ms + delta
+    end if
   end if
+end function
+
+/*
+* Function: _D_ProfileTimeUs
+* Purpose: Reads a high-resolution monotonic timestamp without changing game timing.
+*/
+function inline _D_ProfileTimeUs()
+  if typeof(MGL_TimeMicroseconds) == "function" then
+    t = MGL_TimeMicroseconds()
+    if typeof(t) == "int" then return t end if
+  end if
+  return _D_TimeMs() * 1000
+end function
+
+/*
+* Function: _D_ProfileFrameSample
+* Purpose: Adds one complete frame duration to a compact millisecond histogram.
+*/
+function _D_ProfileFrameSample(deltaUs)
+  global _d_prof_frame_hist
+  global _d_prof_frame_samples
+  global _d_prof_frame_max_us
+  if not _d_profile_render or typeof(deltaUs) != "int" or deltaUs <= 0 then return end if
+  if typeof(_d_prof_frame_hist) != "array" or len(_d_prof_frame_hist) != 251 then
+    _d_prof_frame_hist = array(251, 0)
+  end if
+  bucket = _D_IDiv(deltaUs, 1000)
+  if bucket < 0 then bucket = 0 end if
+  if bucket > 250 then bucket = 250 end if
+  _d_prof_frame_hist[bucket] = _d_prof_frame_hist[bucket] + 1
+  _d_prof_frame_samples = _d_prof_frame_samples + 1
+  if deltaUs > _d_prof_frame_max_us then _d_prof_frame_max_us = deltaUs end if
+end function
+
+/*
+* Function: _D_ProfilePercentileMs
+* Purpose: Reads a percentile from the current frame histogram.
+*/
+function _D_ProfilePercentileMs(percent)
+  if typeof(_d_prof_frame_hist) != "array" or _d_prof_frame_samples <= 0 then return 0 end if
+  target = _D_IDiv(_d_prof_frame_samples * percent + 99, 100)
+  if target < 1 then target = 1 end if
+  seen = 0
+  i = 0
+  while i < len(_d_prof_frame_hist)
+    seen = seen + _d_prof_frame_hist[i]
+    if seen >= target then return i end if
+    i = i + 1
+  end while
+  return 250
+end function
+
+function inline _D_ProfileMs(us)
+  return _D_IDiv(us, 1000)
 end function
 
 /*
@@ -333,6 +398,11 @@ end function
 * Purpose: Provides flush maybe helper behavior for the Doom core.
 */
 function _D_ProfileFlushMaybe()
+  global _d_prof_gl_light_ms
+  global _d_prof_frame_hist
+  global _d_prof_frame_samples
+  global _d_prof_frame_max_us
+  global _d_prof_last_frame_us
   global _d_prof_t0
   global _d_prof_frames
   global _d_prof_r_ms
@@ -380,10 +450,15 @@ function _D_ProfileFlushMaybe()
   if elapsed > 0 then fps = _D_IDiv(_d_prof_frames * 1000, elapsed) end if
   tps = 0
   if elapsed > 0 then tps = _D_IDiv(_d_prof_tics * 1000, elapsed) end if
-  _D_ProfileLog("PROFILE frame: fps=" + fps + " tics=" + _d_prof_tics + " tps=" + tps + " tick=" + _d_prof_tick_ms + "ms render=" + _d_prof_r_ms + "ms st=" + _d_prof_st_ms + "ms hu=" + _d_prof_hu_ms + "ms am=" + _d_prof_am_ms + "ms other=" + _d_prof_other_ms + "ms vid=" + _d_prof_vid_ms + "ms")
-  _D_ProfileLog("PROFILE game: player=" + _d_prof_player_ms + "ms thinkers=" + _d_prof_thinker_ms + "ms specials=" + _d_prof_special_ms + "ms thinker_calls=" + _d_prof_thinkers + " mobj_calls=" + _d_prof_mobj_thinkers)
-  _D_ProfileLog("PROFILE gl: dyn=" + _d_prof_gl_dyn_ms + "ms cache=" + _d_prof_gl_cache_ms + "ms sky=" + _d_prof_gl_sky_ms + "ms boundary=" + _d_prof_gl_boundary_ms + "ms depth=" + _d_prof_gl_depth_ms + "ms flats=" + _d_prof_gl_flats_ms + "ms walls=" + _d_prof_gl_walls_ms + "ms sprites=" + _d_prof_gl_sprites_ms + "ms masked=" + _d_prof_gl_masked_ms + "ms weapon=" + _d_prof_gl_weapon_ms + "ms")
-  _D_ProfileLog("PROFILE glbatches: flats=" + _d_prof_gl_flat_drawn + "/" + _d_prof_gl_flat_batches + " flat_vertices=" + _d_prof_gl_flat_vertices + " walls=" + _d_prof_gl_wall_drawn + "/" + _d_prof_gl_wall_batches + " wall_vertices=" + _d_prof_gl_wall_vertices)
+  logBlock = "PROFILE frame: fps=" + fps + " tics=" + _d_prof_tics + " tps=" + tps + " tick=" + _D_ProfileMs(_d_prof_tick_ms) + "ms render=" + _D_ProfileMs(_d_prof_r_ms) + "ms st=" + _D_ProfileMs(_d_prof_st_ms) + "ms hu=" + _D_ProfileMs(_d_prof_hu_ms) + "ms am=" + _D_ProfileMs(_d_prof_am_ms) + "ms other=" + _D_ProfileMs(_d_prof_other_ms) + "ms vid=" + _D_ProfileMs(_d_prof_vid_ms) + "ms"
+  logBlock = logBlock + "\nPROFILE pacing: samples=" + _d_prof_frame_samples + " p50=" + _D_ProfilePercentileMs(50) + "ms p95=" + _D_ProfilePercentileMs(95) + "ms p99=" + _D_ProfilePercentileMs(99) + "ms max_us=" + _d_prof_frame_max_us
+  logBlock = logBlock + "\nPROFILE game: player=" + _D_ProfileMs(_d_prof_player_ms) + "ms thinkers=" + _D_ProfileMs(_d_prof_thinker_ms) + "ms specials=" + _D_ProfileMs(_d_prof_special_ms) + "ms thinker_calls=" + _d_prof_thinkers + " mobj_calls=" + _d_prof_mobj_thinkers
+  logBlock = logBlock + "\nPROFILE gl: dyn=" + _D_ProfileMs(_d_prof_gl_dyn_ms) + "ms cache=" + _D_ProfileMs(_d_prof_gl_cache_ms) + "ms sky=" + _D_ProfileMs(_d_prof_gl_sky_ms) + "ms boundary=" + _D_ProfileMs(_d_prof_gl_boundary_ms) + "ms depth=" + _D_ProfileMs(_d_prof_gl_depth_ms) + "ms flats=" + _D_ProfileMs(_d_prof_gl_flats_ms) + "ms walls=" + _D_ProfileMs(_d_prof_gl_walls_ms) + "ms sprites=" + _D_ProfileMs(_d_prof_gl_sprites_ms) + "ms masked=" + _D_ProfileMs(_d_prof_gl_masked_ms) + "ms weapon=" + _D_ProfileMs(_d_prof_gl_weapon_ms) + "ms light=" + _D_ProfileMs(_d_prof_gl_light_ms) + "ms"
+  logBlock = logBlock + "\nPROFILE glbatches: flats=" + _d_prof_gl_flat_drawn + "/" + _d_prof_gl_flat_batches + " flat_vertices=" + _d_prof_gl_flat_vertices + " walls=" + _d_prof_gl_wall_drawn + "/" + _d_prof_gl_wall_batches + " wall_vertices=" + _d_prof_gl_wall_vertices
+  logStartUs = _D_ProfileTimeUs()
+  _D_ProfileLog(logBlock)
+  logEndUs = _D_ProfileTimeUs()
+  if _d_prof_last_frame_us > 0 and logEndUs > logStartUs then _d_prof_last_frame_us = _d_prof_last_frame_us +(logEndUs - logStartUs) end if
 
   _d_prof_t0 = now
   _d_prof_frames = 0
@@ -410,12 +485,16 @@ function _D_ProfileFlushMaybe()
   _d_prof_gl_sprites_ms = 0
   _d_prof_gl_masked_ms = 0
   _d_prof_gl_weapon_ms = 0
+  _d_prof_gl_light_ms = 0
   _d_prof_gl_flat_batches = 0
   _d_prof_gl_flat_drawn = 0
   _d_prof_gl_flat_vertices = 0
   _d_prof_gl_wall_batches = 0
   _d_prof_gl_wall_drawn = 0
   _d_prof_gl_wall_vertices = 0
+  _d_prof_frame_hist = array(251, 0)
+  _d_prof_frame_samples = 0
+  _d_prof_frame_max_us = 0
 end function
 
 /*
@@ -1883,13 +1962,13 @@ function D_Display()
 
     if typeof(R_RenderPlayerView) == "function" then
       if profiling then
-        t0 = _D_TimeMs()
+        t0 = _D_ProfileTimeUs()
         if typeof(players) == "array" and displayplayer < len(players) then
           R_RenderPlayerView(players[displayplayer])
         else
           R_RenderPlayerView(void)
         end if
-        _D_ProfileAdd(0, _D_TimeMs() - t0)
+        _D_ProfileAdd(0, _D_ProfileTimeUs() - t0)
       else
         if typeof(players) == "array" and displayplayer < len(players) then
           R_RenderPlayerView(players[displayplayer])
@@ -1911,27 +1990,27 @@ function D_Display()
         st_fullscreen =(viewheight == SCREENHEIGHT)
       end if
       if profiling then
-        t0 = _D_TimeMs()
+        t0 = _D_ProfileTimeUs()
         ST_Drawer(st_fullscreen, levelRefresh)
-        _D_ProfileAdd(1, _D_TimeMs() - t0)
+        _D_ProfileAdd(1, _D_ProfileTimeUs() - t0)
       else
         ST_Drawer(st_fullscreen, levelRefresh)
       end if
     end if
     if typeof(HU_Drawer) == "function" then
       if profiling then
-        t0 = _D_TimeMs()
+        t0 = _D_ProfileTimeUs()
         HU_Drawer()
-        _D_ProfileAdd(2, _D_TimeMs() - t0)
+        _D_ProfileAdd(2, _D_ProfileTimeUs() - t0)
       else
         HU_Drawer()
       end if
     end if
     if typeof(AM_Drawer) == "function" then
       if profiling then
-        t0 = _D_TimeMs()
+        t0 = _D_ProfileTimeUs()
         AM_Drawer()
-        _D_ProfileAdd(3, _D_TimeMs() - t0)
+        _D_ProfileAdd(3, _D_ProfileTimeUs() - t0)
       else
         AM_Drawer()
       end if
@@ -1940,9 +2019,9 @@ function D_Display()
   else if gamestate == gamestate_t.GS_INTERMISSION then
     if typeof(WI_Drawer) == "function" then
       if profiling then
-        t0 = _D_TimeMs()
+        t0 = _D_ProfileTimeUs()
         WI_Drawer()
-        _D_ProfileAdd(4, _D_TimeMs() - t0)
+        _D_ProfileAdd(4, _D_ProfileTimeUs() - t0)
       else
         WI_Drawer()
       end if
@@ -1950,9 +2029,9 @@ function D_Display()
   else if gamestate == gamestate_t.GS_FINALE then
     if typeof(F_Drawer) == "function" then
       if profiling then
-        t0 = _D_TimeMs()
+        t0 = _D_ProfileTimeUs()
         F_Drawer()
-        _D_ProfileAdd(4, _D_TimeMs() - t0)
+        _D_ProfileAdd(4, _D_ProfileTimeUs() - t0)
       else
         F_Drawer()
       end if
@@ -1960,9 +2039,9 @@ function D_Display()
   else
 
     if profiling then
-      t0 = _D_TimeMs()
+      t0 = _D_ProfileTimeUs()
       D_PageDrawer()
-      _D_ProfileAdd(4, _D_TimeMs() - t0)
+      _D_ProfileAdd(4, _D_ProfileTimeUs() - t0)
     else
       D_PageDrawer()
     end if
@@ -1990,9 +2069,9 @@ function D_Display()
     end if
     if typeof(I_FinishUpdate) == "function" then
       if profiling then
-        t0 = _D_TimeMs()
+        t0 = _D_ProfileTimeUs()
         I_FinishUpdate()
-        _D_ProfileAdd(5, _D_TimeMs() - t0)
+        _D_ProfileAdd(5, _D_ProfileTimeUs() - t0)
       else
         I_FinishUpdate()
       end if
@@ -2008,9 +2087,9 @@ function D_Display()
   if typeof(wipe_EndScreen) != "function" or typeof(wipe_ScreenWipe) != "function" or typeof(I_GetTime) != "function" then
     if typeof(I_FinishUpdate) == "function" then
       if profiling then
-        t0 = _D_TimeMs()
+        t0 = _D_ProfileTimeUs()
         I_FinishUpdate()
-        _D_ProfileAdd(5, _D_TimeMs() - t0)
+        _D_ProfileAdd(5, _D_ProfileTimeUs() - t0)
       else
         I_FinishUpdate()
       end if
@@ -2128,9 +2207,9 @@ function D_Display()
     if (not forceSoftwareWipe) and (not glWipeToLevel) and typeof(M_Drawer) == "function" then M_Drawer() end if
     if typeof(I_FinishUpdate) == "function" then
       if profiling then
-        t0 = _D_TimeMs()
+        t0 = _D_ProfileTimeUs()
         I_FinishUpdate()
-        _D_ProfileAdd(5, _D_TimeMs() - t0)
+        _D_ProfileAdd(5, _D_ProfileTimeUs() - t0)
       else
         I_FinishUpdate()
       end if
@@ -2157,6 +2236,8 @@ end function
 function D_DoomLoop()
 
   global render_lerp_frac
+  global _d_prof_last_frame_us
+  global _d_prof_t0
 
   if typeof(demorecording) != "void" and demorecording and typeof(G_BeginRecording) == "function" then
     G_BeginRecording()
@@ -2174,14 +2255,23 @@ function D_DoomLoop()
 
 debugTicks = 0
   lastDisplayMs = 0
+  if _d_profile_render then
+    _d_prof_t0 = _D_TimeMs()
+    _d_prof_last_frame_us = 0
+  end if
   while true
+    if _d_profile_render then
+      frameNowUs = _D_ProfileTimeUs()
+      if _d_prof_last_frame_us > 0 then _D_ProfileFrameSample(frameNowUs - _d_prof_last_frame_us) end if
+      _d_prof_last_frame_us = frameNowUs
+    end if
     if typeof(I_StartFrame) == "function" then I_StartFrame() end if
 
     if typeof(TryRunTics) == "function" then
       if _d_profile_render then
-        t0 = _D_TimeMs()
+        t0 = _D_ProfileTimeUs()
         TryRunTics()
-        _D_ProfileAdd(6, _D_TimeMs() - t0)
+        _D_ProfileAdd(6, _D_ProfileTimeUs() - t0)
       else
         TryRunTics()
       end if
@@ -2190,9 +2280,9 @@ debugTicks = 0
       D_ProcessEvents()
       if typeof(G_Ticker) == "function" then
         if _d_profile_render then
-          t0 = _D_TimeMs()
+          t0 = _D_ProfileTimeUs()
           G_Ticker()
-          _D_ProfileAdd(6, _D_TimeMs() - t0)
+          _D_ProfileAdd(6, _D_ProfileTimeUs() - t0)
         else
           G_Ticker()
         end if
