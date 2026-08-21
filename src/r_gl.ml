@@ -81,6 +81,19 @@ rgl_volatile_lines =[]
 rgl_scrolling_segs =[]
 rgl_scrolling_lines =[]
 rgl_scrolling_sides =[]
+rgl_collecting_scrolling_geometry = false
+rgl_scrolling_wall_array_batches =[]
+rgl_scrolling_masked_array_batches =[]
+rgl_scrolling_wall_native_records = bytes(0, 0)
+rgl_scrolling_masked_native_records = bytes(0, 0)
+rgl_scrolling_wall_native_record_count = 0
+rgl_scrolling_masked_native_record_count = 0
+rgl_scrolling_wall_texture_revision = -1
+rgl_scrolling_masked_texture_revision = -1
+rgl_scrolling_geometry_last_gametic = -1
+rgl_scrolling_geometry_last_map = -1
+rgl_scrolling_geometry_last_leveltime = -1
+rgl_scrolling_array_batches_ready = false
 rgl_volatile_flat_templates =[]
 rgl_collecting_volatile_flats = false
 rgl_boundary_quads =[]
@@ -100,15 +113,20 @@ rgl_static_world_display_list_id = 0
 rgl_static_display_lists_ready = false
 rgl_wall_array_batches =[]
 rgl_flat_array_batches =[]
+rgl_masked_array_batches =[]
 rgl_static_array_batches_ready = false
 rgl_volatile_wall_array_batches =[]
 rgl_volatile_flat_array_batches =[]
+rgl_volatile_masked_array_batches =[]
 rgl_volatile_wall_native_records = bytes(0, 0)
 rgl_volatile_flat_native_records = bytes(0, 0)
+rgl_volatile_masked_native_records = bytes(0, 0)
 rgl_volatile_wall_native_record_count = 0
 rgl_volatile_flat_native_record_count = 0
+rgl_volatile_masked_native_record_count = 0
 rgl_volatile_wall_texture_revision = -1
 rgl_volatile_flat_texture_revision = -1
+rgl_volatile_masked_texture_revision = -1
 rgl_volatile_array_batches_ready = false
 rgl_volatile_geometry_signature = -1
 rgl_volatile_geometry_last_gametic = -1
@@ -118,10 +136,13 @@ rgl_volatile_pending_stable_tics = 0
 rgl_volatile_immediate_active = false
 rgl_wall_native_records = bytes(0, 0)
 rgl_flat_native_records = bytes(0, 0)
+rgl_masked_native_records = bytes(0, 0)
 rgl_wall_native_record_count = 0
 rgl_flat_native_record_count = 0
+rgl_masked_native_record_count = 0
 rgl_wall_native_texture_revision = -1
 rgl_flat_native_texture_revision = -1
+rgl_masked_native_texture_revision = -1
 rgl_light_geom_blob = bytes(0, 0)
 rgl_dyn_light_x =[]
 rgl_dyn_light_y =[]
@@ -143,6 +164,7 @@ rgl_sprite_light_revision = -1
 rgl_sprite_width_cache =[]
 rgl_sprite_height_cache =[]
 rgl_sprite_yoffset_cache =[]
+rgl_sprite_native_records = bytes(0, 0)
 const RGL_MAX_DYNAMIC_LIGHTS = 48
 
 const RGL_CACHE_BOUNDARY = 1
@@ -150,12 +172,13 @@ const RGL_CACHE_WALL = 2
 const RGL_CACHE_MASKED = 3
 const RGL_WALL_ARRAY_BATCH_QUADS = 4096
 const RGL_FLAT_ARRAY_BATCH_TRIS = 8192
-const RGL_SPATIAL_BATCH_CELL = 4096.0
+const RGL_SPATIAL_BATCH_CELL = 1024.0
 const RGL_FLAT_SPATIAL_BATCH_CELL = 4096.0
 const RGL_SPATIAL_BATCH_ORIGIN = 32768.0
 const RGL_SPATIAL_BATCH_STRIDE = 128
 const RGL_NATIVE_BATCH_RECORD_SIZE = 28
 const RGL_LIGHT_RECORD_SIZE = 32
+const RGL_SPRITE_RECORD_SIZE = 36
 const RGL_MAX_SURFACE_LIGHTS = 24
 
 /*
@@ -653,12 +676,16 @@ end function
 function RGL_ResetVolatileArrayBatches()
   global rgl_volatile_wall_array_batches
   global rgl_volatile_flat_array_batches
+  global rgl_volatile_masked_array_batches
   global rgl_volatile_wall_native_records
   global rgl_volatile_flat_native_records
+  global rgl_volatile_masked_native_records
   global rgl_volatile_wall_native_record_count
   global rgl_volatile_flat_native_record_count
+  global rgl_volatile_masked_native_record_count
   global rgl_volatile_wall_texture_revision
   global rgl_volatile_flat_texture_revision
+  global rgl_volatile_masked_texture_revision
   global rgl_volatile_array_batches_ready
   global rgl_volatile_geometry_signature
   global rgl_volatile_geometry_last_gametic
@@ -669,14 +696,19 @@ function RGL_ResetVolatileArrayBatches()
 
   RGL_DeleteArrayBatchBuffers(rgl_volatile_wall_array_batches)
   RGL_DeleteArrayBatchBuffers(rgl_volatile_flat_array_batches)
+  RGL_DeleteArrayBatchBuffers(rgl_volatile_masked_array_batches)
   rgl_volatile_wall_array_batches =[]
   rgl_volatile_flat_array_batches =[]
+  rgl_volatile_masked_array_batches =[]
   rgl_volatile_wall_native_records = bytes(0, 0)
   rgl_volatile_flat_native_records = bytes(0, 0)
+  rgl_volatile_masked_native_records = bytes(0, 0)
   rgl_volatile_wall_native_record_count = 0
   rgl_volatile_flat_native_record_count = 0
+  rgl_volatile_masked_native_record_count = 0
   rgl_volatile_wall_texture_revision = -1
   rgl_volatile_flat_texture_revision = -1
+  rgl_volatile_masked_texture_revision = -1
   rgl_volatile_array_batches_ready = false
   rgl_volatile_geometry_signature = -1
   rgl_volatile_geometry_last_gametic = -1
@@ -687,19 +719,57 @@ function RGL_ResetVolatileArrayBatches()
 end function
 
 /*
+* Function: RGL_ResetScrollingArrayBatches
+* Purpose: Releases cached geometry for continuously scrolling walls.
+*/
+function RGL_ResetScrollingArrayBatches()
+  global rgl_scrolling_wall_array_batches
+  global rgl_scrolling_masked_array_batches
+  global rgl_scrolling_wall_native_records
+  global rgl_scrolling_masked_native_records
+  global rgl_scrolling_wall_native_record_count
+  global rgl_scrolling_masked_native_record_count
+  global rgl_scrolling_wall_texture_revision
+  global rgl_scrolling_masked_texture_revision
+  global rgl_scrolling_geometry_last_gametic
+  global rgl_scrolling_geometry_last_map
+  global rgl_scrolling_geometry_last_leveltime
+  global rgl_scrolling_array_batches_ready
+
+  RGL_DeleteArrayBatchBuffers(rgl_scrolling_wall_array_batches)
+  RGL_DeleteArrayBatchBuffers(rgl_scrolling_masked_array_batches)
+  rgl_scrolling_wall_array_batches =[]
+  rgl_scrolling_masked_array_batches =[]
+  rgl_scrolling_wall_native_records = bytes(0, 0)
+  rgl_scrolling_masked_native_records = bytes(0, 0)
+  rgl_scrolling_wall_native_record_count = 0
+  rgl_scrolling_masked_native_record_count = 0
+  rgl_scrolling_wall_texture_revision = -1
+  rgl_scrolling_masked_texture_revision = -1
+  rgl_scrolling_geometry_last_gametic = -1
+  rgl_scrolling_geometry_last_map = -1
+  rgl_scrolling_geometry_last_leveltime = -1
+  rgl_scrolling_array_batches_ready = false
+end function
+
+/*
 * Function: RGL_ResetStaticArrayBatches
 * Purpose: Invalidates prepacked OpenGL client-array batches after geometry changes.
 */
 function RGL_ResetStaticArrayBatches()
   global rgl_wall_array_batches
   global rgl_flat_array_batches
+  global rgl_masked_array_batches
   global rgl_static_array_batches_ready
   global rgl_wall_native_records
   global rgl_flat_native_records
+  global rgl_masked_native_records
   global rgl_wall_native_record_count
   global rgl_flat_native_record_count
+  global rgl_masked_native_record_count
   global rgl_wall_native_texture_revision
   global rgl_flat_native_texture_revision
+  global rgl_masked_native_texture_revision
 
   if RGL_IsSeq(rgl_wall_array_batches) then
     i = 0
@@ -727,15 +797,22 @@ function RGL_ResetStaticArrayBatches()
       i = i + 1
     end while
   end if
+  if RGL_IsSeq(rgl_masked_array_batches) then
+    RGL_DeleteArrayBatchBuffers(rgl_masked_array_batches)
+  end if
 
   rgl_wall_array_batches =[]
   rgl_flat_array_batches =[]
+  rgl_masked_array_batches =[]
   rgl_wall_native_records = bytes(0, 0)
   rgl_flat_native_records = bytes(0, 0)
+  rgl_masked_native_records = bytes(0, 0)
   rgl_wall_native_record_count = 0
   rgl_flat_native_record_count = 0
+  rgl_masked_native_record_count = 0
   rgl_wall_native_texture_revision = -1
   rgl_flat_native_texture_revision = -1
+  rgl_masked_native_texture_revision = -1
   rgl_static_array_batches_ready = false
 end function
 
@@ -801,6 +878,30 @@ function RGL_UpdateWallNativeRecordTextures()
 end function
 
 /*
+* Function: RGL_UpdateMaskedNativeRecordTextures
+* Purpose: Refreshes masked-wall texture ids while retaining spatially culled VBO records.
+*/
+function RGL_UpdateMaskedNativeRecordTextures()
+  global rgl_masked_native_records
+  global rgl_masked_native_texture_revision
+
+  if typeof(rgl_masked_native_records) != "bytes" then return false end if
+  if rgl_masked_native_record_count != len(rgl_masked_array_batches) then return false end if
+  if len(rgl_masked_native_records) < len(rgl_masked_array_batches) * RGL_NATIVE_BATCH_RECORD_SIZE then return false end if
+  revision = 0
+  if typeof(p_picanim_revision) == "int" then revision = p_picanim_revision end if
+  if rgl_masked_native_texture_revision == revision then return true end if
+  i = 0
+  while i < len(rgl_masked_array_batches)
+    batch = rgl_masked_array_batches[i]
+    RGL_WriteU32(rgl_masked_native_records, i * RGL_NATIVE_BATCH_RECORD_SIZE, RGL_TextureIdForTexnumTransparent(batch.texnum))
+    i = i + 1
+  end while
+  rgl_masked_native_texture_revision = revision
+  return true
+end function
+
+/*
 * Function: RGL_UpdateFlatNativeRecordTextures
 * Purpose: Refreshes flat native draw-record texture ids for animated flat translation.
 */
@@ -832,10 +933,13 @@ end function
 function RGL_RebuildNativeArrayBatchRecords()
   global rgl_wall_native_records
   global rgl_flat_native_records
+  global rgl_masked_native_records
   global rgl_wall_native_record_count
   global rgl_flat_native_record_count
+  global rgl_masked_native_record_count
   global rgl_wall_native_texture_revision
   global rgl_flat_native_texture_revision
+  global rgl_masked_native_texture_revision
 
   wallCount = 0
   i = 0
@@ -880,8 +984,29 @@ function RGL_RebuildNativeArrayBatchRecords()
     end if
     i = i + 1
   end while
+
+  maskedCount = 0
+  i = 0
+  while i < len(rgl_masked_array_batches)
+    batch = rgl_masked_array_batches[i]
+    if batch is not void and batch.interleaved_vbo != 0 then maskedCount = maskedCount + 1 end if
+    i = i + 1
+  end while
+  rgl_masked_native_record_count = maskedCount
+  rgl_masked_native_records = bytes(maskedCount * RGL_NATIVE_BATCH_RECORD_SIZE, 0)
+  outIndex = 0
+  i = 0
+  while i < len(rgl_masked_array_batches)
+    batch = rgl_masked_array_batches[i]
+    if batch is not void and batch.interleaved_vbo != 0 then
+      RGL_WriteNativeBatchRecord(rgl_masked_native_records, outIndex, RGL_TextureIdForTexnumTransparent(batch.texnum), batch, 1)
+      outIndex = outIndex + 1
+    end if
+    i = i + 1
+  end while
   rgl_wall_native_texture_revision = -1
   rgl_flat_native_texture_revision = -1
+  rgl_masked_native_texture_revision = -1
 end function
 
 /*
@@ -1090,6 +1215,7 @@ function RGL_BuildStaticArrayBatches()
   global rgl_flat_tris
   global rgl_wall_array_batches
   global rgl_flat_array_batches
+  global rgl_masked_array_batches
   global rgl_static_array_batches_ready
 
   if rgl_static_array_batches_ready then return true end if
@@ -1131,6 +1257,25 @@ function RGL_BuildStaticArrayBatches()
       gi = gi + 1
     end while
     rgl_flat_tris = savedFlatTris
+  end if
+
+  if RGL_IsSeq(rgl_masked_quads) then
+    savedWallQuads = rgl_wall_quads
+    wallGroups = RGL_GroupWallQuadsForArrayBatches(rgl_masked_quads)
+    gi = 0
+    while gi < len(wallGroups)
+      rgl_wall_quads = wallGroups[gi]
+      chunkStart = 0
+      while chunkStart < len(rgl_wall_quads)
+        chunkEnd = chunkStart + RGL_WALL_ARRAY_BATCH_QUADS
+        if chunkEnd > len(rgl_wall_quads) then chunkEnd = len(rgl_wall_quads) end if
+        batch = RGL_BuildWallArrayBatchRange(chunkStart, chunkEnd)
+        if batch is not void then rgl_masked_array_batches = rgl_masked_array_batches + [batch] end if
+        chunkStart = chunkEnd
+      end while
+      gi = gi + 1
+    end while
+    rgl_wall_quads = savedWallQuads
   end if
 
   RGL_RebuildNativeArrayBatchRecords()
@@ -1423,6 +1568,7 @@ function RGL_BuildVolatileSectorMap(sigMap)
   global rgl_scrolling_sides
 
   RGL_ResetVolatileArrayBatches()
+  RGL_ResetScrollingArrayBatches()
   rgl_volatile_sig_map = sigMap
   rgl_volatile_sectors =[]
   rgl_volatile_subsectors =[]
@@ -2865,6 +3011,7 @@ function RGL_SyncPaletteRevision()
   RGL_ResetStaticDisplayLists()
   RGL_ResetStaticArrayBatches()
   RGL_ResetVolatileArrayBatches()
+  RGL_ResetScrollingArrayBatches()
 end function
 
 /*
@@ -3498,8 +3645,8 @@ end function
 */
 function RGL_DrawLine(li)
   if li is void then return end if
-  if rgl_building_cache and RGL_LineScrollsTexture(li) then return end if
-  if rgl_building_cache and not rgl_collecting_volatile_geometry then
+  if rgl_building_cache and not rgl_collecting_scrolling_geometry and RGL_LineScrollsTexture(li) then return end if
+  if rgl_building_cache and not rgl_collecting_volatile_geometry and not rgl_collecting_scrolling_geometry then
     if RGL_IsVolatileSector(li.frontsector) or RGL_IsVolatileSector(li.backsector) then return end if
   end if
   side = void
@@ -3516,8 +3663,8 @@ end function
 */
 function RGL_DrawSeg(sg)
   if sg is void then return end if
-  if rgl_building_cache and RGL_LineScrollsTexture(sg.linedef) then return end if
-  if rgl_building_cache and not rgl_collecting_volatile_geometry then
+  if rgl_building_cache and not rgl_collecting_scrolling_geometry and RGL_LineScrollsTexture(sg.linedef) then return end if
+  if rgl_building_cache and not rgl_collecting_volatile_geometry and not rgl_collecting_scrolling_geometry then
     if RGL_IsVolatileSector(sg.frontsector) or RGL_IsVolatileSector(sg.backsector) then return end if
   end if
   RGL_DrawWallPiece(sg.v1, sg.v2, sg.linedef, sg.sidedef, sg.frontsector, sg.backsector)
@@ -3552,8 +3699,8 @@ function RGL_DrawMaskedSeg(sg)
   global rgl_current_light
 
   if sg is void then return end if
-  if rgl_building_cache and RGL_LineScrollsTexture(sg.linedef) then return end if
-  if rgl_building_cache then
+  if rgl_building_cache and not rgl_collecting_scrolling_geometry and RGL_LineScrollsTexture(sg.linedef) then return end if
+  if rgl_building_cache and not rgl_collecting_volatile_geometry and not rgl_collecting_scrolling_geometry then
     if RGL_IsVolatileSector(sg.frontsector) or RGL_IsVolatileSector(sg.backsector) then return end if
   end if
   hasMid = false
@@ -3601,7 +3748,7 @@ function RGL_DrawLineSideMidtexture(li, sideIndex)
   global rgl_current_light
 
   if li is void or li.v1 is void or li.v2 is void then return end if
-  if rgl_building_cache and RGL_LineScrollsTexture(li) then return end if
+  if rgl_building_cache and not rgl_collecting_scrolling_geometry and RGL_LineScrollsTexture(li) then return end if
   if li.frontsector is void or li.backsector is void then return end if
   if not RGL_IsSeq(li.sidenum) or not RGL_IsSeq(sides) then return end if
   if sideIndex < 0 or sideIndex >= len(li.sidenum) then return end if
@@ -4590,6 +4737,43 @@ function RGL_DrawFlatArrayBatches()
 end function
 
 /*
+* Function: RGL_DrawMaskedArrayBatches
+* Purpose: Draws static cutout walls through spatially culled VBO batches.
+*/
+function RGL_DrawMaskedArrayBatches()
+  if not RGL_BuildStaticArrayBatches() or len(rgl_masked_array_batches) == 0 then
+    RGL_DrawMaskedQuads()
+    return
+  end if
+
+  total = len(rgl_masked_array_batches)
+  if rgl_masked_native_record_count == total and RGL_UpdateMaskedNativeRecordTextures() then
+    RGL_BeginArrayBatchDraw()
+    if MGL_DrawVisibleGeomBatches(GL_QUADS, rgl_masked_native_records, rgl_masked_native_record_count, rgl_view_x, rgl_view_y, rgl_view_yaw) then
+      RGL_EndArrayBatchDraw()
+      RGL_DisableCutoutAlpha()
+      return
+    end if
+    RGL_EndArrayBatchDraw()
+    RGL_DisableCutoutAlpha()
+  end if
+
+  RGL_BeginArrayBatchDraw()
+  i = 0
+  while i < total
+    batch = rgl_masked_array_batches[i]
+    if RGL_ArrayBatchVisible(batch) then
+      RGL_BindOrColor(RGL_TextureIdForTexnumTransparent(batch.texnum))
+      RGL_EnableCutoutAlpha()
+      RGL_DrawStaticArrayBatch(batch, GL_QUADS)
+    end if
+    i = i + 1
+  end while
+  RGL_EndArrayBatchDraw()
+  RGL_DisableCutoutAlpha()
+end function
+
+/*
 * Function: RGL_DrawStaticWorldDisplayList
 * Purpose: Draws all static opaque wall and flat geometry through one parent OpenGL display list.
 */
@@ -5376,10 +5560,10 @@ function RGL_BuildSpriteLightRecords()
 end function
 
 /*
- * Function: RGL_SubmitNativeSprite
- * Purpose: Resolves and submits one visible mobj while caching immutable patch metrics.
+ * Function: RGL_PackNativeSprite
+ * Purpose: Resolves and packs one visible mobj while caching immutable patch metrics.
 */
-function inline RGL_SubmitNativeSprite(mo, lump, flip)
+function inline RGL_PackNativeSprite(mo, lump, flip, records, recordIndex)
   global rgl_sprite_width_cache
   global rgl_sprite_height_cache
   global rgl_sprite_yoffset_cache
@@ -5414,7 +5598,16 @@ function inline RGL_SubmitNativeSprite(mo, lump, flip)
   flags = 0
   if flip != 0 then flags = flags | 1 end if
   if shadow then flags = flags | 2 end if
-  MGL_SubmitSprite(texid, flags, c, mo.x, mo.y, mo.z, width, rgl_sprite_height_cache[lump], rgl_sprite_yoffset_cache[lump])
+  off = recordIndex * RGL_SPRITE_RECORD_SIZE
+  RGL_WriteS32(records, off, texid)
+  RGL_WriteS32(records, off + 4, flags)
+  RGL_WriteS32(records, off + 8, c)
+  RGL_WriteS32(records, off + 12, mo.x)
+  RGL_WriteS32(records, off + 16, mo.y)
+  RGL_WriteS32(records, off + 20, mo.z)
+  RGL_WriteS32(records, off + 24, width)
+  RGL_WriteS32(records, off + 28, rgl_sprite_height_cache[lump])
+  RGL_WriteS32(records, off + 32, rgl_sprite_yoffset_cache[lump])
   return true
 end function
 
@@ -5423,6 +5616,7 @@ end function
 * Purpose: Culls and packs visible sprites before handing the complete frame list to the native GL helper.
 */
 function RGL_DrawSpriteBillboardsNative(player, yaw)
+  global rgl_sprite_native_records
   if typeof(rgl_frame_mobjs) != "array" or rgl_frame_mobj_count <= 0 then return true end if
 
   yawRad = (yaw / 360.0) * 6.283185314
@@ -5434,9 +5628,12 @@ function RGL_DrawSpriteBillboardsNative(player, yaw)
   farDist = 4096.0 * 4096.0
   scale = 1
   if typeof(ru_scale) == "int" and ru_scale > 0 then scale = ru_scale end if
-  lightRecords = RGL_BuildSpriteLightRecords()
-  if not MGL_BeginSpriteBatch(lightRecords, rgl_dyn_light_count, rgl_view_x, rgl_view_y, rx, rz, scale, RGL_WORLD_SPRITE_FOOT_LIFT) then return false end if
+  requiredBytes = rgl_frame_mobj_count * RGL_SPRITE_RECORD_SIZE
+  if typeof(rgl_sprite_native_records) != "bytes" or len(rgl_sprite_native_records) < requiredBytes then
+    rgl_sprite_native_records = bytes(requiredBytes, 0)
+  end if
 
+  recordCount = 0
   i = 0
   while i < rgl_frame_mobj_count
     mo = rgl_frame_mobjs[i]
@@ -5459,13 +5656,18 @@ function RGL_DrawSpriteBillboardsNative(player, yaw)
       lump = sel[0]
       flip = sel[1]
       if typeof(lump) == "int" and lump >= 0 then
-        RGL_SubmitNativeSprite(mo, lump, flip)
+        if RGL_PackNativeSprite(mo, lump, flip, rgl_sprite_native_records, recordCount) then recordCount = recordCount + 1 end if
       end if
     end if
     i = i + 1
   end while
+
+  if recordCount <= 0 then return true end if
+  lightRecords = RGL_BuildSpriteLightRecords()
+  if not MGL_BeginSpriteBatch(lightRecords, rgl_dyn_light_count, rgl_view_x, rgl_view_y, rx, rz, scale, RGL_WORLD_SPRITE_FOOT_LIFT) then return false end if
+  ok = MGL_DrawSpriteRecords(rgl_sprite_native_records, len(rgl_sprite_native_records), recordCount)
   MGL_EndSpriteBatch()
-  return true
+  return ok
 end function
 
 /*
@@ -5685,7 +5887,7 @@ function RGL_DrawCachedWorld(player, yaw)
   RGL_DrawFlatArrayBatches()
   RGL_DrawWallArrayBatches()
   RGL_DrawSpriteBillboards(player, yaw)
-  RGL_DrawMaskedQuads()
+  RGL_DrawMaskedArrayBatches()
 end function
 
 /*
@@ -5924,6 +6126,166 @@ function RGL_DrawScrollingMaskedWalls()
 end function
 
 /*
+* Function: RGL_CollectScrollingGeometry
+* Purpose: Resolves the current scroller texture offsets into frame-reusable quad records.
+*/
+function RGL_CollectScrollingGeometry()
+  global rgl_building_cache
+  global rgl_collecting_scrolling_geometry
+  global rgl_cache_target
+  global rgl_wall_quads
+  global rgl_flat_tris
+  global rgl_masked_quads
+
+  savedBuilding = rgl_building_cache
+  savedCollecting = rgl_collecting_scrolling_geometry
+  savedTarget = rgl_cache_target
+  savedWalls = rgl_wall_quads
+  savedFlats = rgl_flat_tris
+  savedMasked = rgl_masked_quads
+
+  rgl_wall_quads =[]
+  rgl_flat_tris =[]
+  rgl_masked_quads =[]
+  rgl_building_cache = true
+  rgl_collecting_scrolling_geometry = true
+  rgl_cache_target = RGL_CACHE_WALL
+  RGL_DrawScrollingWalls()
+  rgl_cache_target = RGL_CACHE_MASKED
+  RGL_DrawScrollingMaskedWalls()
+  collectedWalls = rgl_wall_quads
+  collectedMasked = rgl_masked_quads
+
+  rgl_wall_quads = savedWalls
+  rgl_flat_tris = savedFlats
+  rgl_masked_quads = savedMasked
+  rgl_cache_target = savedTarget
+  rgl_collecting_scrolling_geometry = savedCollecting
+  rgl_building_cache = savedBuilding
+  return [collectedWalls, collectedMasked]
+end function
+
+/*
+* Function: RGL_RebuildScrollingArrayBatches
+* Purpose: Uploads one game tic's scrolling wall geometry while preserving static caches.
+*/
+function RGL_RebuildScrollingArrayBatches(currentTic, currentMap, currentLevelTime)
+  global rgl_wall_quads
+  global rgl_flat_tris
+  global rgl_masked_quads
+  global rgl_wall_array_batches
+  global rgl_flat_array_batches
+  global rgl_masked_array_batches
+  global rgl_static_array_batches_ready
+  global rgl_wall_native_records
+  global rgl_flat_native_records
+  global rgl_masked_native_records
+  global rgl_wall_native_record_count
+  global rgl_flat_native_record_count
+  global rgl_masked_native_record_count
+  global rgl_wall_native_texture_revision
+  global rgl_flat_native_texture_revision
+  global rgl_masked_native_texture_revision
+  global rgl_scrolling_wall_array_batches
+  global rgl_scrolling_masked_array_batches
+  global rgl_scrolling_wall_native_records
+  global rgl_scrolling_masked_native_records
+  global rgl_scrolling_wall_native_record_count
+  global rgl_scrolling_masked_native_record_count
+  global rgl_scrolling_wall_texture_revision
+  global rgl_scrolling_masked_texture_revision
+  global rgl_scrolling_geometry_last_gametic
+  global rgl_scrolling_geometry_last_map
+  global rgl_scrolling_geometry_last_leveltime
+  global rgl_scrolling_array_batches_ready
+
+  RGL_ResetScrollingArrayBatches()
+  collected = RGL_CollectScrollingGeometry()
+
+  savedWalls = rgl_wall_quads
+  savedFlats = rgl_flat_tris
+  savedMasked = rgl_masked_quads
+  savedWallBatches = rgl_wall_array_batches
+  savedFlatBatches = rgl_flat_array_batches
+  savedMaskedBatches = rgl_masked_array_batches
+  savedReady = rgl_static_array_batches_ready
+  savedWallRecords = rgl_wall_native_records
+  savedFlatRecords = rgl_flat_native_records
+  savedMaskedRecords = rgl_masked_native_records
+  savedWallRecordCount = rgl_wall_native_record_count
+  savedFlatRecordCount = rgl_flat_native_record_count
+  savedMaskedRecordCount = rgl_masked_native_record_count
+  savedWallTextureRevision = rgl_wall_native_texture_revision
+  savedFlatTextureRevision = rgl_flat_native_texture_revision
+  savedMaskedTextureRevision = rgl_masked_native_texture_revision
+
+  rgl_wall_quads = collected[0]
+  rgl_flat_tris =[]
+  rgl_masked_quads = collected[1]
+  rgl_wall_array_batches =[]
+  rgl_flat_array_batches =[]
+  rgl_masked_array_batches =[]
+  rgl_static_array_batches_ready = false
+  rgl_wall_native_records = bytes(0, 0)
+  rgl_flat_native_records = bytes(0, 0)
+  rgl_masked_native_records = bytes(0, 0)
+  rgl_wall_native_record_count = 0
+  rgl_flat_native_record_count = 0
+  rgl_masked_native_record_count = 0
+  rgl_wall_native_texture_revision = -1
+  rgl_flat_native_texture_revision = -1
+  rgl_masked_native_texture_revision = -1
+  RGL_BuildStaticArrayBatches()
+
+  rgl_scrolling_wall_array_batches = rgl_wall_array_batches
+  rgl_scrolling_masked_array_batches = rgl_masked_array_batches
+  rgl_scrolling_wall_native_records = rgl_wall_native_records
+  rgl_scrolling_masked_native_records = rgl_masked_native_records
+  rgl_scrolling_wall_native_record_count = rgl_wall_native_record_count
+  rgl_scrolling_masked_native_record_count = rgl_masked_native_record_count
+  rgl_scrolling_wall_texture_revision = rgl_wall_native_texture_revision
+  rgl_scrolling_masked_texture_revision = rgl_masked_native_texture_revision
+
+  rgl_wall_quads = savedWalls
+  rgl_flat_tris = savedFlats
+  rgl_masked_quads = savedMasked
+  rgl_wall_array_batches = savedWallBatches
+  rgl_flat_array_batches = savedFlatBatches
+  rgl_masked_array_batches = savedMaskedBatches
+  rgl_static_array_batches_ready = savedReady
+  rgl_wall_native_records = savedWallRecords
+  rgl_flat_native_records = savedFlatRecords
+  rgl_masked_native_records = savedMaskedRecords
+  rgl_wall_native_record_count = savedWallRecordCount
+  rgl_flat_native_record_count = savedFlatRecordCount
+  rgl_masked_native_record_count = savedMaskedRecordCount
+  rgl_wall_native_texture_revision = savedWallTextureRevision
+  rgl_flat_native_texture_revision = savedFlatTextureRevision
+  rgl_masked_native_texture_revision = savedMaskedTextureRevision
+
+  rgl_scrolling_geometry_last_gametic = currentTic
+  rgl_scrolling_geometry_last_map = currentMap
+  rgl_scrolling_geometry_last_leveltime = currentLevelTime
+  rgl_scrolling_array_batches_ready = true
+  return true
+end function
+
+/*
+* Function: RGL_EnsureScrollingArrayBatches
+* Purpose: Refreshes scrolling UV geometry once per game tic, not once per rendered frame.
+*/
+function RGL_EnsureScrollingArrayBatches()
+  if len(rgl_scrolling_segs) <= 0 and len(rgl_scrolling_lines) <= 0 then return true end if
+  currentTic = 0
+  if typeof(gametic) == "int" then currentTic = gametic end if
+  currentMap = RGL_CurrentMapIdentity()
+  currentLevelTime = -1
+  if typeof(leveltime) == "int" then currentLevelTime = leveltime end if
+  if rgl_scrolling_array_batches_ready and currentTic == rgl_scrolling_geometry_last_gametic and currentMap == rgl_scrolling_geometry_last_map and currentLevelTime == rgl_scrolling_geometry_last_leveltime then return true end if
+  return RGL_RebuildScrollingArrayBatches(currentTic, currentMap, currentLevelTime)
+end function
+
+/*
 * Function: RGL_DrawVolatileOpaqueWorld
 * Purpose: Updates dynamic sector flats and opaque walls on top of the static cache.
 */
@@ -5937,7 +6299,7 @@ end function
 * Purpose: Updates dynamic masked geometry on top of the static cache.
 */
 function RGL_DrawVolatileMaskedWorld()
-  RGL_DrawVolatileMaskedWalls()
+  if not RGL_DrawVolatileMaskedArrayBatches() then RGL_DrawVolatileMaskedWalls() end if
   RGL_DrawVolatileLineMidtextures()
 end function
 
@@ -5985,29 +6347,36 @@ function RGL_CollectVolatileGeometry()
   global rgl_cache_target
   global rgl_wall_quads
   global rgl_flat_tris
+  global rgl_masked_quads
 
   savedBuilding = rgl_building_cache
   savedCollecting = rgl_collecting_volatile_geometry
   savedTarget = rgl_cache_target
   savedWalls = rgl_wall_quads
   savedFlats = rgl_flat_tris
+  savedMasked = rgl_masked_quads
 
   rgl_wall_quads =[]
   rgl_flat_tris =[]
+  rgl_masked_quads =[]
   rgl_building_cache = true
   rgl_collecting_volatile_geometry = true
   rgl_cache_target = RGL_CACHE_WALL
   RGL_DrawVolatileFlats()
   RGL_DrawVolatileWalls()
+  rgl_cache_target = RGL_CACHE_MASKED
+  RGL_DrawVolatileMaskedWalls()
   collectedWalls = rgl_wall_quads
   collectedFlats = rgl_flat_tris
+  collectedMasked = rgl_masked_quads
 
   rgl_wall_quads = savedWalls
   rgl_flat_tris = savedFlats
+  rgl_masked_quads = savedMasked
   rgl_cache_target = savedTarget
   rgl_collecting_volatile_geometry = savedCollecting
   rgl_building_cache = savedBuilding
-  return [collectedWalls, collectedFlats]
+  return [collectedWalls, collectedFlats, collectedMasked]
 end function
 
 /*
@@ -6017,23 +6386,32 @@ end function
 function RGL_RebuildVolatileArrayBatches(signature)
   global rgl_wall_quads
   global rgl_flat_tris
+  global rgl_masked_quads
   global rgl_wall_array_batches
   global rgl_flat_array_batches
+  global rgl_masked_array_batches
   global rgl_static_array_batches_ready
   global rgl_wall_native_records
   global rgl_flat_native_records
+  global rgl_masked_native_records
   global rgl_wall_native_record_count
   global rgl_flat_native_record_count
+  global rgl_masked_native_record_count
   global rgl_wall_native_texture_revision
   global rgl_flat_native_texture_revision
+  global rgl_masked_native_texture_revision
   global rgl_volatile_wall_array_batches
   global rgl_volatile_flat_array_batches
+  global rgl_volatile_masked_array_batches
   global rgl_volatile_wall_native_records
   global rgl_volatile_flat_native_records
+  global rgl_volatile_masked_native_records
   global rgl_volatile_wall_native_record_count
   global rgl_volatile_flat_native_record_count
+  global rgl_volatile_masked_native_record_count
   global rgl_volatile_wall_texture_revision
   global rgl_volatile_flat_texture_revision
+  global rgl_volatile_masked_texture_revision
   global rgl_volatile_array_batches_ready
   global rgl_volatile_geometry_signature
   global rgl_volatile_geometry_last_gametic
@@ -6044,49 +6422,68 @@ function RGL_RebuildVolatileArrayBatches(signature)
 
   savedWalls = rgl_wall_quads
   savedFlats = rgl_flat_tris
+  savedMasked = rgl_masked_quads
   savedWallBatches = rgl_wall_array_batches
   savedFlatBatches = rgl_flat_array_batches
+  savedMaskedBatches = rgl_masked_array_batches
   savedReady = rgl_static_array_batches_ready
   savedWallRecords = rgl_wall_native_records
   savedFlatRecords = rgl_flat_native_records
+  savedMaskedRecords = rgl_masked_native_records
   savedWallRecordCount = rgl_wall_native_record_count
   savedFlatRecordCount = rgl_flat_native_record_count
+  savedMaskedRecordCount = rgl_masked_native_record_count
   savedWallTextureRevision = rgl_wall_native_texture_revision
   savedFlatTextureRevision = rgl_flat_native_texture_revision
+  savedMaskedTextureRevision = rgl_masked_native_texture_revision
 
   rgl_wall_quads = collected[0]
   rgl_flat_tris = collected[1]
+  rgl_masked_quads = collected[2]
   rgl_wall_array_batches =[]
   rgl_flat_array_batches =[]
+  rgl_masked_array_batches =[]
   rgl_static_array_batches_ready = false
   rgl_wall_native_records = bytes(0, 0)
   rgl_flat_native_records = bytes(0, 0)
+  rgl_masked_native_records = bytes(0, 0)
   rgl_wall_native_record_count = 0
   rgl_flat_native_record_count = 0
+  rgl_masked_native_record_count = 0
   rgl_wall_native_texture_revision = -1
   rgl_flat_native_texture_revision = -1
+  rgl_masked_native_texture_revision = -1
   RGL_BuildStaticArrayBatches()
 
   rgl_volatile_wall_array_batches = rgl_wall_array_batches
   rgl_volatile_flat_array_batches = rgl_flat_array_batches
+  rgl_volatile_masked_array_batches = rgl_masked_array_batches
   rgl_volatile_wall_native_records = rgl_wall_native_records
   rgl_volatile_flat_native_records = rgl_flat_native_records
+  rgl_volatile_masked_native_records = rgl_masked_native_records
   rgl_volatile_wall_native_record_count = rgl_wall_native_record_count
   rgl_volatile_flat_native_record_count = rgl_flat_native_record_count
+  rgl_volatile_masked_native_record_count = rgl_masked_native_record_count
   rgl_volatile_wall_texture_revision = rgl_wall_native_texture_revision
   rgl_volatile_flat_texture_revision = rgl_flat_native_texture_revision
+  rgl_volatile_masked_texture_revision = rgl_masked_native_texture_revision
 
   rgl_wall_quads = savedWalls
   rgl_flat_tris = savedFlats
+  rgl_masked_quads = savedMasked
   rgl_wall_array_batches = savedWallBatches
   rgl_flat_array_batches = savedFlatBatches
+  rgl_masked_array_batches = savedMaskedBatches
   rgl_static_array_batches_ready = savedReady
   rgl_wall_native_records = savedWallRecords
   rgl_flat_native_records = savedFlatRecords
+  rgl_masked_native_records = savedMaskedRecords
   rgl_wall_native_record_count = savedWallRecordCount
   rgl_flat_native_record_count = savedFlatRecordCount
+  rgl_masked_native_record_count = savedMaskedRecordCount
   rgl_wall_native_texture_revision = savedWallTextureRevision
   rgl_flat_native_texture_revision = savedFlatTextureRevision
+  rgl_masked_native_texture_revision = savedMaskedTextureRevision
 
   rgl_volatile_geometry_signature = signature
   rgl_volatile_geometry_last_gametic = -1
@@ -6176,6 +6573,24 @@ function RGL_UpdateVolatileFlatRecordTextures()
   return true
 end function
 
+function RGL_UpdateVolatileMaskedRecordTextures()
+  global rgl_volatile_masked_native_records
+  global rgl_volatile_masked_texture_revision
+  if typeof(rgl_volatile_masked_native_records) != "bytes" then return false end if
+  if rgl_volatile_masked_native_record_count != len(rgl_volatile_masked_array_batches) then return false end if
+  revision = 0
+  if typeof(p_picanim_revision) == "int" then revision = p_picanim_revision end if
+  if rgl_volatile_masked_texture_revision == revision then return true end if
+  i = 0
+  while i < len(rgl_volatile_masked_array_batches)
+    batch = rgl_volatile_masked_array_batches[i]
+    RGL_WriteU32(rgl_volatile_masked_native_records, i * RGL_NATIVE_BATCH_RECORD_SIZE, RGL_TextureIdForTexnumTransparent(batch.texnum))
+    i = i + 1
+  end while
+  rgl_volatile_masked_texture_revision = revision
+  return true
+end function
+
 /*
 * Function: RGL_DrawVolatileWallArrayBatches
 * Purpose: Draws moving-sector walls through native culled VBO batches.
@@ -6252,6 +6667,128 @@ function RGL_DrawVolatileFlatArrayBatches()
 end function
 
 /*
+* Function: RGL_DrawVolatileMaskedArrayBatches
+* Purpose: Draws settled moving-sector cutout walls from their cached VBOs.
+*/
+function RGL_DrawVolatileMaskedArrayBatches()
+  if rgl_volatile_immediate_active then return false end if
+  if not rgl_volatile_array_batches_ready then return false end if
+  total = len(rgl_volatile_masked_array_batches)
+  if total <= 0 then return true end if
+  if rgl_volatile_masked_native_record_count == total and RGL_UpdateVolatileMaskedRecordTextures() then
+    RGL_BeginArrayBatchDraw()
+    ok = MGL_DrawVisibleGeomBatches(GL_QUADS, rgl_volatile_masked_native_records, rgl_volatile_masked_native_record_count, rgl_view_x, rgl_view_y, rgl_view_yaw)
+    RGL_EndArrayBatchDraw()
+    RGL_DisableCutoutAlpha()
+    if ok then return true end if
+  end if
+  RGL_BeginArrayBatchDraw()
+  i = 0
+  while i < total
+    batch = rgl_volatile_masked_array_batches[i]
+    if RGL_ArrayBatchVisible(batch) then
+      RGL_BindOrColor(RGL_TextureIdForTexnumTransparent(batch.texnum))
+      RGL_EnableCutoutAlpha()
+      RGL_DrawStaticArrayBatch(batch, GL_QUADS)
+    end if
+    i = i + 1
+  end while
+  RGL_EndArrayBatchDraw()
+  RGL_DisableCutoutAlpha()
+  return true
+end function
+
+function RGL_UpdateScrollingWallRecordTextures()
+  global rgl_scrolling_wall_native_records
+  global rgl_scrolling_wall_texture_revision
+  if typeof(rgl_scrolling_wall_native_records) != "bytes" then return false end if
+  if rgl_scrolling_wall_native_record_count != len(rgl_scrolling_wall_array_batches) then return false end if
+  revision = 0
+  if typeof(p_picanim_revision) == "int" then revision = p_picanim_revision end if
+  if rgl_scrolling_wall_texture_revision == revision then return true end if
+  i = 0
+  while i < len(rgl_scrolling_wall_array_batches)
+    batch = rgl_scrolling_wall_array_batches[i]
+    RGL_WriteU32(rgl_scrolling_wall_native_records, i * RGL_NATIVE_BATCH_RECORD_SIZE, RGL_TextureIdForTexnum(batch.texnum))
+    i = i + 1
+  end while
+  rgl_scrolling_wall_texture_revision = revision
+  return true
+end function
+
+function RGL_UpdateScrollingMaskedRecordTextures()
+  global rgl_scrolling_masked_native_records
+  global rgl_scrolling_masked_texture_revision
+  if typeof(rgl_scrolling_masked_native_records) != "bytes" then return false end if
+  if rgl_scrolling_masked_native_record_count != len(rgl_scrolling_masked_array_batches) then return false end if
+  revision = 0
+  if typeof(p_picanim_revision) == "int" then revision = p_picanim_revision end if
+  if rgl_scrolling_masked_texture_revision == revision then return true end if
+  i = 0
+  while i < len(rgl_scrolling_masked_array_batches)
+    batch = rgl_scrolling_masked_array_batches[i]
+    RGL_WriteU32(rgl_scrolling_masked_native_records, i * RGL_NATIVE_BATCH_RECORD_SIZE, RGL_TextureIdForTexnumTransparent(batch.texnum))
+    i = i + 1
+  end while
+  rgl_scrolling_masked_texture_revision = revision
+  return true
+end function
+
+function RGL_DrawScrollingWallArrayBatches()
+  if not rgl_scrolling_array_batches_ready then return false end if
+  total = len(rgl_scrolling_wall_array_batches)
+  if total <= 0 then return true end if
+  if rgl_scrolling_wall_native_record_count == total and RGL_UpdateScrollingWallRecordTextures() then
+    RGL_BeginArrayBatchDraw()
+    ok = MGL_DrawVisibleGeomBatches(GL_QUADS, rgl_scrolling_wall_native_records, rgl_scrolling_wall_native_record_count, rgl_view_x, rgl_view_y, rgl_view_yaw)
+    RGL_EndArrayBatchDraw()
+    RGL_DisableCutoutAlpha()
+    if ok then return true end if
+  end if
+  RGL_BeginArrayBatchDraw()
+  i = 0
+  while i < total
+    batch = rgl_scrolling_wall_array_batches[i]
+    if RGL_ArrayBatchVisible(batch) then
+      RGL_BindOrColor(RGL_TextureIdForTexnum(batch.texnum))
+      RGL_DisableCutoutAlpha()
+      RGL_DrawStaticArrayBatch(batch, GL_QUADS)
+    end if
+    i = i + 1
+  end while
+  RGL_EndArrayBatchDraw()
+  RGL_DisableCutoutAlpha()
+  return true
+end function
+
+function RGL_DrawScrollingMaskedArrayBatches()
+  if not rgl_scrolling_array_batches_ready then return false end if
+  total = len(rgl_scrolling_masked_array_batches)
+  if total <= 0 then return true end if
+  if rgl_scrolling_masked_native_record_count == total and RGL_UpdateScrollingMaskedRecordTextures() then
+    RGL_BeginArrayBatchDraw()
+    ok = MGL_DrawVisibleGeomBatches(GL_QUADS, rgl_scrolling_masked_native_records, rgl_scrolling_masked_native_record_count, rgl_view_x, rgl_view_y, rgl_view_yaw)
+    RGL_EndArrayBatchDraw()
+    RGL_DisableCutoutAlpha()
+    if ok then return true end if
+  end if
+  RGL_BeginArrayBatchDraw()
+  i = 0
+  while i < total
+    batch = rgl_scrolling_masked_array_batches[i]
+    if RGL_ArrayBatchVisible(batch) then
+      RGL_BindOrColor(RGL_TextureIdForTexnumTransparent(batch.texnum))
+      RGL_EnableCutoutAlpha()
+      RGL_DrawStaticArrayBatch(batch, GL_QUADS)
+    end if
+    i = i + 1
+  end while
+  RGL_EndArrayBatchDraw()
+  RGL_DisableCutoutAlpha()
+  return true
+end function
+
+/*
 * Function: RGL_ProfileStart
 * Purpose: Returns a timestamp for fine-grained renderer profiling.
 */
@@ -6317,7 +6854,10 @@ function RGL_RenderPlayerView(player)
 
   pt = RGL_ProfileStart()
   useCache = RGL_EnsureGeometryCache()
-  if useCache then RGL_EnsureVolatileArrayBatches() end if
+  if useCache then
+    RGL_EnsureVolatileArrayBatches()
+    RGL_EnsureScrollingArrayBatches()
+  end if
   RGL_ProfileEnd(1, pt)
   pt = RGL_ProfileStart()
   RGL_DrawSky(yaw)
@@ -6343,7 +6883,7 @@ function RGL_RenderPlayerView(player)
     pt = RGL_ProfileStart()
     RGL_DrawWallArrayBatches()
     if not RGL_DrawVolatileWallArrayBatches() then RGL_DrawVolatileWalls() end if
-    RGL_DrawScrollingWalls()
+    if not RGL_DrawScrollingWallArrayBatches() then RGL_DrawScrollingWalls() end if
     RGL_ProfileEnd(6, pt)
     pt = RGL_ProfileStart()
     RGL_DrawDynamicLightGlows(yaw)
@@ -6352,9 +6892,9 @@ function RGL_RenderPlayerView(player)
     RGL_DrawSpriteBillboards(player, yaw)
     RGL_ProfileEnd(7, pt)
     pt = RGL_ProfileStart()
-    RGL_DrawMaskedQuads()
+    RGL_DrawMaskedArrayBatches()
     RGL_DrawVolatileMaskedWorld()
-    RGL_DrawScrollingMaskedWalls()
+    if not RGL_DrawScrollingMaskedArrayBatches() then RGL_DrawScrollingMaskedWalls() end if
     RGL_ProfileEnd(8, pt)
   else
     pt = RGL_ProfileStart()

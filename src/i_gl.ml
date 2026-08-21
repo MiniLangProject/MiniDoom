@@ -401,6 +401,7 @@ extern function MGL_DrawDynamicLightSurfaces(geomData as bytes, geomSize as int,
 
 extern function MGL_BeginSpriteBatch(lightData as bytes, lightCount as int, viewX as double, viewY as double, rightX as double, rightZ as double, worldScale as double, footLift as double) from "MiniDoomGL.dll" symbol "MGL_BeginSpriteBatch" returns bool
 extern function MGL_SubmitSprite(texid as u32, flags as int, baseLight as int, fixedX as int, fixedY as int, fixedZ as int, width as int, height as int, yOffset as int) from "MiniDoomGL.dll" symbol "MGL_SubmitSprite" returns void
+extern function MGL_DrawSpriteRecords(records as bytes, recordsSize as int, recordCount as int) from "MiniDoomGL.dll" symbol "MGL_DrawSpriteRecords" returns bool
 extern function MGL_EndSpriteBatch() from "MiniDoomGL.dll" symbol "MGL_EndSpriteBatch" returns void
 /*
  * Function: MGL_GetLastDrawnBatches
@@ -423,6 +424,8 @@ extern function MGL_GetLastDrawnVertices() from "MiniDoomGL.dll" symbol "MGL_Get
  */
 
 extern function MGL_DrawIndexedOverlay(texid as u32, data as bytes, mask as bytes, palette as bytes, width as int, height as int) from "MiniDoomGL.dll" symbol "MGL_DrawIndexedOverlay" returns bool
+extern function MGL_DrawIndexedLogicalOverlay(texid as u32, data as bytes, dataSize as int, mask as bytes, maskSize as int, palette as bytes, logicalW as int, logicalH as int, scale as int, statusY as int, minX as int, minY as int, maxX as int, maxY as int) from "MiniDoomGL.dll" symbol "MGL_DrawIndexedLogicalOverlay" returns bool
+extern function MGL_DrawIndexedOverlayRect(texid as u32, data as bytes, dataSize as int, mask as bytes, maskSize as int, palette as bytes, width as int, height as int, minX as int, minY as int, maxX as int, maxY as int) from "MiniDoomGL.dll" symbol "MGL_DrawIndexedOverlayRect" returns bool
 /*
  * Function: glVertex3d
  *
@@ -1372,6 +1375,34 @@ function IGL_DrawIndexedOverlay(data, mask, width, height)
 
   IGL_Begin2D()
   return MGL_DrawIndexedOverlay(texid, data, mask, overlaypal, width, height)
+end function
+
+/*
+* Function: IGL_DrawIndexedOverlayLayers
+* Purpose: Converts logical HUD pixels and prepared high-resolution patches in native code.
+*/
+function IGL_DrawIndexedOverlayLayers(logical, logicalMask, logicalMinX, logicalMinY, logicalMaxX, logicalMaxY, highres, highresMask, highresMinX, highresMinY, highresMaxX, highresMaxY, width, height, statusY)
+  if not igl_active then return false end if
+  if typeof(logical) != "bytes" or typeof(logicalMask) != "bytes" then return false end if
+  if len(logical) < SCREENWIDTH * SCREENHEIGHT or len(logicalMask) < SCREENWIDTH * SCREENHEIGHT then return false end if
+  overlaypal = igl_texture_palette
+  if typeof(overlaypal) != "bytes" or len(overlaypal) < 768 then overlaypal = igl_palette end if
+  if typeof(overlaypal) != "bytes" or len(overlaypal) < 768 then return false end if
+  scale = 1
+  if width == SCREENWIDTH * 2 then scale = 2 end if
+  if width == SCREENWIDTH * 3 then scale = 3 end if
+  if width == SCREENWIDTH * 4 then scale = 4 end if
+  texid = IGL_EnsureOverlayTexture()
+  if texid <= 0 then return false end if
+  if not IGL_Begin2D() then return false end if
+
+  drawn = MGL_DrawIndexedLogicalOverlay(texid, logical, len(logical), logicalMask, len(logicalMask), overlaypal, SCREENWIDTH, SCREENHEIGHT, scale, statusY, logicalMinX, logicalMinY, logicalMaxX, logicalMaxY)
+  if typeof(highres) == "bytes" and typeof(highresMask) == "bytes" and highresMaxX >= highresMinX and highresMaxY >= highresMinY then
+    if len(highres) >= width * height and len(highresMask) >= width * height then
+      if MGL_DrawIndexedOverlayRect(texid, highres, len(highres), highresMask, len(highresMask), overlaypal, width, height, highresMinX, highresMinY, highresMaxX, highresMaxY) then drawn = true end if
+    end if
+  end if
+  return drawn
 end function
 
 /*

@@ -1674,13 +1674,42 @@ end function
 * Purpose: Draws OpenGL overlay frame output for the windowing and video backend.
 */
 function _I_DrawGLOverlayFrame()
-  if not _I_EnsureGLOOverlay() then return false end if
   if typeof(screens) != "array" or len(screens) == 0 or typeof(screens[0]) != "bytes" then return false end if
 
-  any = false
   logical = screens[0]
   statusY = SCREENHEIGHT - _I_STATUSBAR_HEIGHT
   if statusY < 0 then statusY = 0 end if
+
+  if typeof(IGL_DrawIndexedOverlayLayers) == "function" and typeof(v_overlaymask) == "bytes" then
+    logicalMinX = SCREENWIDTH
+    logicalMinY = SCREENHEIGHT
+    logicalMaxX = -1
+    logicalMaxY = -1
+    if typeof(v_overlay_minx) == "int" then logicalMinX = v_overlay_minx end if
+    if typeof(v_overlay_miny) == "int" then logicalMinY = v_overlay_miny end if
+    if typeof(v_overlay_maxx) == "int" then logicalMaxX = v_overlay_maxx end if
+    if typeof(v_overlay_maxy) == "int" then logicalMaxY = v_overlay_maxy end if
+
+    highres = void
+    highresMask = void
+    highresMinX = _i_presentWidth
+    highresMinY = _i_presentHeight
+    highresMaxX = -1
+    highresMaxY = -1
+    if typeof(v_hioverlay) == "bytes" and typeof(v_hioverlaymask) == "bytes" then
+      highres = v_hioverlay
+      highresMask = v_hioverlaymask
+      if typeof(v_hioverlay_minx) == "int" then highresMinX = v_hioverlay_minx end if
+      if typeof(v_hioverlay_miny) == "int" then highresMinY = v_hioverlay_miny end if
+      if typeof(v_hioverlay_maxx) == "int" then highresMaxX = v_hioverlay_maxx end if
+      if typeof(v_hioverlay_maxy) == "int" then highresMaxY = v_hioverlay_maxy end if
+    end if
+
+    if IGL_DrawIndexedOverlayLayers(logical, v_overlaymask, logicalMinX, logicalMinY, logicalMaxX, logicalMaxY, highres, highresMask, highresMinX, highresMinY, highresMaxX, highresMaxY, _i_presentWidth, _i_presentHeight, statusY) then return true end if
+  end if
+
+  if not _I_EnsureGLOOverlay() then return false end if
+  any = false
   if _I_GLOverlayLogicalRect(logical, 0, statusY, SCREENWIDTH, SCREENHEIGHT - statusY) then any = true end if
   if typeof(v_overlaymask) == "bytes" then
     if _I_GLOverlayLogicalMask(logical, v_overlaymask) then

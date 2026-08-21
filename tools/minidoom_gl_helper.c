@@ -694,6 +694,102 @@ __declspec(dllexport) void __stdcall MGL_SubmitSprite(
   glEnd();
 }
 
+__declspec(dllexport) BOOL __stdcall MGL_DrawSpriteRecords(
+    const unsigned char *records,
+    int recordsSize,
+    int recordCount) {
+  const int recordSize = 36;
+  const double fix = 1.0 / 65536.0;
+  int i;
+
+  if (!g_mgl_sprite_batch.active || recordCount < 0 ||
+      recordCount > INT_MAX / recordSize ||
+      recordsSize < recordCount * recordSize ||
+      (recordCount > 0 && records == NULL)) {
+    return FALSE;
+  }
+
+  for (i = 0; i < recordCount; ++i) {
+    const unsigned char *record = records + i * recordSize;
+    GLuint texid = (GLuint)mgl_read_i32(record + 0);
+    int flags = mgl_read_i32(record + 4);
+    int base = mgl_read_i32(record + 8);
+    int fixedX = mgl_read_i32(record + 12);
+    int fixedY = mgl_read_i32(record + 16);
+    int fixedZ = mgl_read_i32(record + 20);
+    int width = mgl_read_i32(record + 24);
+    int height = mgl_read_i32(record + 28);
+    int yOffset = mgl_read_i32(record + 32);
+    double x;
+    double y;
+    double z1;
+    double z0;
+    double halfw;
+    double x0;
+    double y0;
+    double x1;
+    double y1;
+    int flip;
+
+    if (texid == 0 || width <= 0 || height <= 0) {
+      continue;
+    }
+    if ((flags & 2) != 0) {
+      MGL_SubmitSprite(
+          texid,
+          flags,
+          base,
+          fixedX,
+          fixedY,
+          fixedZ,
+          width,
+          height,
+          yOffset);
+      continue;
+    }
+
+    x = (double)fixedX * fix;
+    y = -(double)fixedY * fix;
+    z1 = (double)fixedZ * fix +
+         (double)yOffset / g_mgl_sprite_batch.worldScale +
+         g_mgl_sprite_batch.footLift;
+    z0 = z1 - (double)height / g_mgl_sprite_batch.worldScale;
+    halfw = ((double)width / g_mgl_sprite_batch.worldScale) * 0.5;
+    if (halfw < 2.0) {
+      halfw = 2.0;
+    }
+    x0 = x - g_mgl_sprite_batch.rightX * halfw;
+    y0 = y - g_mgl_sprite_batch.rightZ * halfw;
+    x1 = x + g_mgl_sprite_batch.rightX * halfw;
+    y1 = y + g_mgl_sprite_batch.rightZ * halfw;
+    flip = flags & 1;
+
+    if (texid != g_mgl_sprite_batch.boundTex) {
+      if (g_mgl_sprite_batch.quadOpen) {
+        glEnd();
+        g_mgl_sprite_batch.quadOpen = 0;
+      }
+      glBindTexture(GL_TEXTURE_2D, texid);
+      g_mgl_sprite_batch.boundTex = texid;
+    }
+    if (!g_mgl_sprite_batch.quadOpen) {
+      glBegin(GL_QUADS);
+      g_mgl_sprite_batch.quadOpen = 1;
+    }
+    mgl_sprite_color(
+        base,
+        x,
+        (z0 + z1) * 0.5,
+        y,
+        g_mgl_sprite_batch.lightData,
+        g_mgl_sprite_batch.lightCount,
+        g_mgl_sprite_batch.viewX,
+        g_mgl_sprite_batch.viewY);
+    mgl_emit_sprite_quad(x0, y0, x1, y1, z0, z1, flip);
+  }
+  return TRUE;
+}
+
 __declspec(dllexport) void __stdcall MGL_EndSpriteBatch(void) {
   mgl_finish_sprite_batch();
 }
@@ -962,6 +1058,276 @@ __declspec(dllexport) BOOL __stdcall MGL_DrawDynamicLightSurfaces(
   glEnable(GL_TEXTURE_2D);
   glColor4ub(255, 255, 255, 255);
   return TRUE;
+}
+
+static BOOL mgl_ensure_overlay_rgba(int boxW, int boxH) {
+  int bytesNeeded;
+  unsigned char *newBuf;
+
+  if (boxW <= 0 || boxH <= 0 || boxW > INT_MAX / boxH ||
+      boxW * boxH > INT_MAX / 4) {
+    return FALSE;
+  }
+  bytesNeeded = boxW * boxH * 4;
+  if (g_overlayRgbaBytes >= bytesNeeded) {
+    return TRUE;
+  }
+  newBuf = (unsigned char *)realloc(g_overlayRgba, (size_t)bytesNeeded);
+  if (newBuf == NULL) {
+    return FALSE;
+  }
+  g_overlayRgba = newBuf;
+  g_overlayRgbaBytes = bytesNeeded;
+  return TRUE;
+}
+
+static BOOL mgl_draw_overlay_box(
+    GLuint texid,
+    int outputW,
+    int outputH,
+    int minX,
+    int minY,
+    int maxX,
+    int maxY) {
+  int boxW = maxX - minX + 1;
+  int boxH = maxY - minY + 1;
+
+  if (texid == 0 || outputW <= 0 || outputH <= 0 || boxW <= 0 || boxH <= 0) {
+    return FALSE;
+  }
+  glBindTexture(GL_TEXTURE_2D, texid);
+  glTexImage2D(
+      GL_TEXTURE_2D,
+      0,
+      GL_RGBA,
+      boxW,
+      boxH,
+      0,
+      GL_RGBA,
+      GL_UNSIGNED_BYTE,
+      g_overlayRgba);
+  glBegin(GL_QUADS);
+  glTexCoord2d(0.0, 0.0);
+  glVertex3d(
+      ((double)minX / (double)outputW) * 2.0 - 1.0,
+      1.0 - ((double)minY / (double)outputH) * 2.0,
+      0.0);
+  glTexCoord2d(1.0, 0.0);
+  glVertex3d(
+      ((double)(maxX + 1) / (double)outputW) * 2.0 - 1.0,
+      1.0 - ((double)minY / (double)outputH) * 2.0,
+      0.0);
+  glTexCoord2d(1.0, 1.0);
+  glVertex3d(
+      ((double)(maxX + 1) / (double)outputW) * 2.0 - 1.0,
+      1.0 - ((double)(maxY + 1) / (double)outputH) * 2.0,
+      0.0);
+  glTexCoord2d(0.0, 1.0);
+  glVertex3d(
+      ((double)minX / (double)outputW) * 2.0 - 1.0,
+      1.0 - ((double)(maxY + 1) / (double)outputH) * 2.0,
+      0.0);
+  glEnd();
+  return TRUE;
+}
+
+static __inline void mgl_write_scaled_overlay_pixel(
+    const unsigned char *palette,
+    unsigned char color,
+    int sx,
+    int sy,
+    int scale,
+    int minX,
+    int minY,
+    int boxW) {
+  int baseX = sx * scale - minX;
+  int baseY = sy * scale - minY;
+  int c = (int)color * 3;
+  int yy;
+
+  for (yy = 0; yy < scale; ++yy) {
+    int row = (baseY + yy) * boxW + baseX;
+    int xx;
+    for (xx = 0; xx < scale; ++xx) {
+      int ro = (row + xx) * 4;
+      g_overlayRgba[ro + 0] = palette[c + 0];
+      g_overlayRgba[ro + 1] = palette[c + 1];
+      g_overlayRgba[ro + 2] = palette[c + 2];
+      g_overlayRgba[ro + 3] = 255;
+    }
+  }
+}
+
+__declspec(dllexport) BOOL __stdcall MGL_DrawIndexedLogicalOverlay(
+    GLuint texid,
+    const unsigned char *data,
+    int dataSize,
+    const unsigned char *mask,
+    int maskSize,
+    const unsigned char *palette,
+    int logicalW,
+    int logicalH,
+    int scale,
+    int statusY,
+    int maskMinX,
+    int maskMinY,
+    int maskMaxX,
+    int maskMaxY) {
+  int logicalPixels;
+  int outputW;
+  int outputH;
+  int minX;
+  int minY;
+  int maxX;
+  int maxY;
+  int boxW;
+  int boxH;
+  int sx;
+  int sy;
+  int hasMaskBounds;
+
+  if (texid == 0 || data == NULL || mask == NULL || palette == NULL ||
+      logicalW <= 0 || logicalH <= 0 || scale <= 0 ||
+      logicalW > INT_MAX / logicalH || logicalW > INT_MAX / scale ||
+      logicalH > INT_MAX / scale) {
+    return FALSE;
+  }
+  logicalPixels = logicalW * logicalH;
+  if (dataSize < logicalPixels || maskSize < logicalPixels) {
+    return FALSE;
+  }
+  outputW = logicalW * scale;
+  outputH = logicalH * scale;
+  if (statusY < 0) {
+    statusY = 0;
+  }
+  if (statusY > logicalH) {
+    statusY = logicalH;
+  }
+
+  hasMaskBounds = maskMaxX >= maskMinX && maskMaxY >= maskMinY;
+  if (hasMaskBounds) {
+    if (maskMinX < 0) maskMinX = 0;
+    if (maskMinY < 0) maskMinY = 0;
+    if (maskMaxX >= logicalW) maskMaxX = logicalW - 1;
+    if (maskMaxY >= logicalH) maskMaxY = logicalH - 1;
+    hasMaskBounds = maskMaxX >= maskMinX && maskMaxY >= maskMinY;
+  }
+
+  if (statusY < logicalH) {
+    minX = 0;
+    minY = statusY * scale;
+    maxX = outputW - 1;
+    maxY = outputH - 1;
+  } else if (hasMaskBounds) {
+    minX = maskMinX * scale;
+    minY = maskMinY * scale;
+    maxX = (maskMaxX + 1) * scale - 1;
+    maxY = (maskMaxY + 1) * scale - 1;
+  } else {
+    return FALSE;
+  }
+  if (hasMaskBounds) {
+    int scaledMinX = maskMinX * scale;
+    int scaledMinY = maskMinY * scale;
+    int scaledMaxX = (maskMaxX + 1) * scale - 1;
+    int scaledMaxY = (maskMaxY + 1) * scale - 1;
+    if (scaledMinX < minX) minX = scaledMinX;
+    if (scaledMinY < minY) minY = scaledMinY;
+    if (scaledMaxX > maxX) maxX = scaledMaxX;
+    if (scaledMaxY > maxY) maxY = scaledMaxY;
+  }
+
+  boxW = maxX - minX + 1;
+  boxH = maxY - minY + 1;
+  if (!mgl_ensure_overlay_rgba(boxW, boxH)) {
+    return FALSE;
+  }
+  memset(g_overlayRgba, 0, (size_t)boxW * (size_t)boxH * 4u);
+
+  for (sy = statusY; sy < logicalH; ++sy) {
+    int row = sy * logicalW;
+    for (sx = 0; sx < logicalW; ++sx) {
+      mgl_write_scaled_overlay_pixel(
+          palette, data[row + sx], sx, sy, scale, minX, minY, boxW);
+    }
+  }
+  if (hasMaskBounds) {
+    for (sy = maskMinY; sy <= maskMaxY; ++sy) {
+      int row = sy * logicalW;
+      for (sx = maskMinX; sx <= maskMaxX; ++sx) {
+        int index = row + sx;
+        if (mask[index] != 0) {
+          mgl_write_scaled_overlay_pixel(
+              palette, data[index], sx, sy, scale, minX, minY, boxW);
+        }
+      }
+    }
+  }
+  return mgl_draw_overlay_box(texid, outputW, outputH, minX, minY, maxX, maxY);
+}
+
+__declspec(dllexport) BOOL __stdcall MGL_DrawIndexedOverlayRect(
+    GLuint texid,
+    const unsigned char *data,
+    int dataSize,
+    const unsigned char *mask,
+    int maskSize,
+    const unsigned char *palette,
+    int width,
+    int height,
+    int minX,
+    int minY,
+    int maxX,
+    int maxY) {
+  int pixels;
+  int boxW;
+  int boxH;
+  int x;
+  int y;
+
+  if (texid == 0 || data == NULL || mask == NULL || palette == NULL ||
+      width <= 0 || height <= 0 || width > INT_MAX / height) {
+    return FALSE;
+  }
+  pixels = width * height;
+  if (dataSize < pixels || maskSize < pixels) {
+    return FALSE;
+  }
+  if (minX < 0) minX = 0;
+  if (minY < 0) minY = 0;
+  if (maxX >= width) maxX = width - 1;
+  if (maxY >= height) maxY = height - 1;
+  if (maxX < minX || maxY < minY) {
+    return FALSE;
+  }
+  boxW = maxX - minX + 1;
+  boxH = maxY - minY + 1;
+  if (!mgl_ensure_overlay_rgba(boxW, boxH)) {
+    return FALSE;
+  }
+
+  for (y = 0; y < boxH; ++y) {
+    int srcRow = (minY + y) * width + minX;
+    int dstRow = y * boxW;
+    for (x = 0; x < boxW; ++x) {
+      int src = srcRow + x;
+      int ro = (dstRow + x) * 4;
+      if (mask[src] != 0) {
+        int c = (int)data[src] * 3;
+        g_overlayRgba[ro + 0] = palette[c + 0];
+        g_overlayRgba[ro + 1] = palette[c + 1];
+        g_overlayRgba[ro + 2] = palette[c + 2];
+        g_overlayRgba[ro + 3] = 255;
+      } else {
+        g_overlayRgba[ro + 0] = 0;
+        g_overlayRgba[ro + 1] = 0;
+        g_overlayRgba[ro + 2] = 0;
+        g_overlayRgba[ro + 3] = 0;
+      }
+    }
+  }
+  return mgl_draw_overlay_box(texid, width, height, minX, minY, maxX, maxY);
 }
 
 __declspec(dllexport) BOOL __stdcall MGL_DrawIndexedOverlay(
