@@ -14,7 +14,7 @@
   limitations under the License.
 
   Script: i_main.ml
-  Purpose: Implements platform integration for input, timing, video, audio, and OS services.
+  Purpose: Normalizes process arguments and working directory, starts Doom, and reports uncaught startup failures through Win32.
 */
 import doomdef
 import m_argv
@@ -25,7 +25,7 @@ import std.math
 /*
  * Function: MessageBoxW
  *
- * Purpose: Maps the external MessageBoxW binding used for platform integration.
+ * Purpose: Displays the UTF-16 fatal-error dialog used when startup cannot reach the in-game console.
  */
 
 extern function MessageBoxW(hwnd as ptr, text as wstr, caption as wstr, flags as u32) from "user32.dll" symbol "MessageBoxW" returns int
@@ -35,7 +35,7 @@ const _IMAIN_MB_ICONERROR = 0x00000010
 
 /*
 * Function: _IMain_IntToString
-* Purpose: Runs the main platform entry point.
+* Purpose: Formats a signed integer without relying on runtime-specific numeric string conversion.
 */
 function _IMain_IntToString(v)
   n = 0
@@ -86,7 +86,7 @@ end function
 
 /*
 * Function: main
-* Purpose: Runs the main platform entry point.
+* Purpose: Converts process arguments into Doom's argv representation, enters D_DoomMain, and reports an uncaught startup failure through the platform error path.
 */
 function main(args)
 

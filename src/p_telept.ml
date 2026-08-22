@@ -14,7 +14,7 @@
   limitations under the License.
 
   Script: p_telept.ml
-  Purpose: Implements core gameplay simulation: map logic, physics, AI, and world interaction.
+  Purpose: Executes tagged line teleports, destination lookup, fog effects, and player view/momentum reset.
 */
 import doomdef
 import tables
@@ -27,7 +27,7 @@ import r_state
 
 /*
 * Function: _PTP_ResolveThinkerMobj
-* Purpose: Advances resolve Thinker Mobj logic during the play simulation tick.
+* Purpose: Resolves a thinker node to its owning mobj across direct-owner and legacy thinker layouts.
 */
 function _PTP_ResolveThinkerMobj(th)
   if th is void then return void end if
@@ -48,7 +48,7 @@ end function
 
 /*
 * Function: EV_Teleport
-* Purpose: Provides teleport helper behavior for the play simulation.
+* Purpose: Finds a destination marker with the trigger tag, relocates the activator, spawns fog effects, and resets player view and momentum.
 */
 function EV_Teleport(line, side, thing)
   if line is void or thing is void then return 0 end if

@@ -47,7 +47,7 @@ bunny_laststage = -1
 
 /*
 * Function: _F_Substr
-* Purpose: Provides substr helper behavior for the finale and screen-wipe.
+* Purpose: Returns at most the first n encoded bytes of a string, clamping n to the available data.
 */
 function inline _F_Substr(s, n)
   if typeof(s) != "string" then return "" end if
@@ -59,7 +59,7 @@ end function
 
 /*
 * Function: _F_IDiv
-* Purpose: Performs integer division with finale and wipe rounding and guard rules.
+* Purpose: Returns a signed quotient truncated toward zero, or zero for invalid operands and a zero divisor.
 */
 function inline _F_IDiv(a, b)
   if typeof(a) != "int" or typeof(b) != "int" or b == 0 then return 0 end if
@@ -70,7 +70,7 @@ end function
 
 /*
 * Function: _F_u16le
-* Purpose: Provides u16le helper behavior for the finale and screen-wipe.
+* Purpose: Decodes an unsigned 16-bit little-endian value from a patch header.
 */
 function inline _F_u16le(b, off)
   return b[off] +(b[off + 1] << 8)
@@ -78,7 +78,7 @@ end function
 
 /*
 * Function: _F_u32le
-* Purpose: Provides u32le helper behavior for the finale and screen-wipe.
+* Purpose: Decodes an unsigned 32-bit little-endian value from a patch column table.
 */
 function inline _F_u32le(b, off)
   return b[off] +(b[off + 1] << 8) +(b[off + 2] << 16) +(b[off + 3] << 24)
@@ -86,7 +86,7 @@ end function
 
 /*
 * Function: _F_PatchWidth
-* Purpose: Provides width helper behavior for the finale and screen-wipe.
+* Purpose: Reads a Doom patch width, returning zero for missing or truncated patch data.
 */
 function inline _F_PatchWidth(patch)
   if typeof(patch) != "bytes" or len(patch) < 8 then return 0 end if
@@ -95,7 +95,7 @@ end function
 
 /*
 * Function: _F_UpperAscii
-* Purpose: Converts ascii values for the finale and screen-wipe.
+* Purpose: Normalizes lowercase ASCII character codes before indexing the uppercase HUD font.
 */
 function inline _F_UpperAscii(c)
   if c >= 97 and c <= 122 then return c - 32 end if
@@ -104,7 +104,7 @@ end function
 
 /*
 * Function: _F_AnyPlayerButtons
-* Purpose: Provides player buttons helper behavior for the finale and screen-wipe.
+* Purpose: Reports whether any valid player command currently carries a button press used to skip a commercial finale.
 */
 function _F_AnyPlayerButtons()
   i = 0
@@ -121,7 +121,7 @@ end function
 
 /*
 * Function: _F_DrawTiledFlat
-* Purpose: Draws tiled flat output for the finale and screen-wipe.
+* Purpose: Fills the logical screen with a repeating 64x64 flat, marks it dirty, and submits the matching HD overlay when available.
 */
 function _F_DrawTiledFlat(name)
   if typeof(screens) != "array" or len(screens) == 0 then return end if
@@ -165,7 +165,7 @@ end function
 
 /*
 * Function: _F_EndPatchName
-* Purpose: Controls end Patch Name transitions in the finale and wipe system.
+* Purpose: Maps a clamped bunny-ending animation stage to its END0-through-END6 patch name.
 */
 function inline _F_EndPatchName(stage)
   if stage <= 0 then return "END0" end if
@@ -179,7 +179,7 @@ end function
 
 /*
 * Function: F_StartFinale
-* Purpose: Starts runtime behavior in the finale subsystem.
+* Purpose: Enters GS_FINALE, selects the episode/map text and background, and starts the appropriate finale music.
 */
 function F_StartFinale()
   global finale_started
@@ -261,7 +261,7 @@ end function
 
 /*
 * Function: F_Responder
-* Purpose: Handles responder events for the finale and wipe system.
+* Purpose: Routes input only to the cast stage; text and art stages deliberately leave events unconsumed.
 */
 function F_Responder(ev)
   if ev == 0 then return false end if
@@ -273,7 +273,7 @@ end function
 
 /*
 * Function: F_TextWrite
-* Purpose: Writes text Write data for the finale and wipe data stream.
+* Purpose: Draws the tiled finale background and reveals the selected story text at TEXTSPEED using the HUD font.
 */
 function F_TextWrite()
   if not finale_started then return end if
@@ -319,7 +319,7 @@ end function
 
 /*
 * Function: F_StartCast
-* Purpose: Starts runtime behavior in the finale subsystem.
+* Purpose: Switches the finale into its cast stage, initializes its placeholder actor state, and starts the evil music track.
 */
 function F_StartCast()
   global cast_active
@@ -336,7 +336,7 @@ end function
 
 /*
 * Function: F_CastTicker
-* Purpose: Advances cast Ticker logic during the finale and wipe tick.
+* Purpose: Advances the cast-stage elapsed-tic counter while that stage is active.
 */
 function F_CastTicker()
   global cast_tics
@@ -346,7 +346,7 @@ end function
 
 /*
 * Function: F_CastResponder
-* Purpose: Handles cast Responder events for the finale and wipe system.
+* Purpose: Consumes key-down events during the cast stage and advances its input-driven counter.
 */
 function F_CastResponder(ev)
   if ev == 0 then return false end if
@@ -360,7 +360,7 @@ end function
 
 /*
 * Function: F_CastPrint
-* Purpose: Provides print helper behavior for the finale and screen-wipe.
+* Purpose: Measures and renders a cast name centered at y=180, falling back to the menu text renderer when the HUD font is unavailable.
 */
 function F_CastPrint(text)
   if typeof(hu_font) != "array" then
@@ -407,7 +407,7 @@ end function
 
 /*
 * Function: F_DrawPatchCol
-* Purpose: Draws patch column output for the finale and screen-wipe.
+* Purpose: Decodes one post-compressed Doom patch column into the logical framebuffer with horizontal and vertical bounds checks.
 */
 function F_DrawPatchCol(x, patch, col)
   if typeof(screens) != "array" or len(screens) == 0 then return end if
@@ -442,7 +442,7 @@ end function
 
 /*
 * Function: F_BunnyScroll
-* Purpose: Provides scroll helper behavior for the finale and screen-wipe.
+* Purpose: Composes the episode-three PFUB panorama, then advances and sounds the centered END0-through-END6 animation.
 */
 function F_BunnyScroll()
   if W_CheckNumForName("PFUB1") < 0 or W_CheckNumForName("PFUB2") < 0 then
@@ -498,7 +498,7 @@ end function
 
 /*
 * Function: F_CastDrawer
-* Purpose: Draws cast Drawer output for the finale and wipe renderer.
+* Purpose: Draws the cast-stage backdrop and centered actor name while cast presentation is active.
 */
 function F_CastDrawer()
   if not cast_active then return end if
@@ -510,7 +510,7 @@ end function
 
 /*
 * Function: F_Ticker
-* Purpose: Advances ticker logic during the finale and wipe tick.
+* Purpose: Advances finale time, handles commercial skip/world completion, and transitions non-commercial text into its art stage.
 */
 function F_Ticker()
   global finale_count
@@ -549,7 +549,7 @@ end function
 
 /*
 * Function: F_Drawer
-* Purpose: Provides drawer helper behavior for the finale and screen-wipe.
+* Purpose: Dispatches finale rendering between story text, cast presentation, and the episode-specific ending artwork.
 */
 function F_Drawer()
   if not finale_started then return end if

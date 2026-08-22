@@ -14,7 +14,7 @@
   limitations under the License.
 
   Script: m_bbox.ml
-  Purpose: Provides shared math, utility, and low-level helper routines.
+  Purpose: Maintains fixed-point top, bottom, left, and right bounds for renderer and map geometry.
 */
 import m_fixed
 import m_bbox
@@ -29,7 +29,7 @@ const BOXRIGHT = 3
 
 /*
 * Function: M_ClearBox
-* Purpose: Updates box state for the utility.
+* Purpose: Resets a four-entry bounding box to inverted extremes so the next point establishes every edge.
 */
 function M_ClearBox(box)
 
@@ -44,7 +44,7 @@ end function
 
 /*
 * Function: M_AddToBox
-* Purpose: Adds to box entries to the utility.
+* Purpose: Expands a four-entry bounding box in place to include one fixed-point coordinate.
 */
 function M_AddToBox(box, x, y)
   if box is void then return end if

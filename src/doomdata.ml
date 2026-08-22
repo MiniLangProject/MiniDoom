@@ -14,7 +14,7 @@
   limitations under the License.
 
   Script: doomdata.ml
-  Purpose: Contains Doom engine module logic for this subsystem.
+  Purpose: Defines on-disk WAD map record layouts and lump-order constants used while decoding Doom levels.
 */
 import doomtype
 import doomdef
@@ -130,7 +130,7 @@ end struct
 
 /*
 * Struct: mapthing_t
-* Purpose: Stores map thing fields used by the engine.
+* Purpose: Mirrors one THINGS lump record: map position, facing angle, type number, and spawn-option flags.
 */
 struct mapthing_t
   x

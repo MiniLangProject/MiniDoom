@@ -7,6 +7,7 @@ param(
 $ErrorActionPreference = 'Stop'
 Import-Module (Join-Path (Split-Path -Parent $PSScriptRoot) 'lib\MiniDoomTest.psm1') -Force
 
+# Purpose: Captures MAP01 with a controlled monster toggle for sprite-presence image comparison.
 function Capture-Map01([bool]$NoMonsters, [string]$Path) {
     $p = $null
     $argsList = @('-iwad', $Iwad, '-windowed', '-opengl', '-warp', '1')

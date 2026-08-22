@@ -14,14 +14,14 @@
   limitations under the License.
 
   Script: doomdef.ml
-  Purpose: Contains Doom engine module logic for this subsystem.
+  Purpose: Defines engine-wide version, game-mode, skill, state, input, and fixed-point constants shared across subsystems.
 */
 
 const VERSION = 110
 
 /*
 * Enum: GameMode_t
-* Purpose: Defines named constants for Game Mode type.
+* Purpose: Classifies IWAD licensing/content layouts that control episode availability and map naming.
 */
 enum GameMode_t
   shareware
@@ -33,7 +33,7 @@ end enum
 
 /*
 * Enum: GameMission_t
-* Purpose: Defines named constants for Game Mission type.
+* Purpose: Identifies the Doom, Doom II, TNT, or Plutonia mission whose rules and finale text are active.
 */
 enum GameMission_t
   doom
@@ -45,7 +45,7 @@ end enum
 
 /*
 * Enum: Language_t
-* Purpose: Defines named constants for Language type.
+* Purpose: Selects the localized string table used for messages, menus, and pickup text.
 */
 enum Language_t
   english
@@ -71,7 +71,7 @@ const TICRATE = 35
 
 /*
 * Enum: gamestate_t
-* Purpose: Defines named constants for gamestate type.
+* Purpose: Selects the top-level level, intermission, finale, or demo-screen ticker and renderer.
 */
 enum gamestate_t
   GS_LEVEL
@@ -87,7 +87,7 @@ const MTF_AMBUSH = 8
 
 /*
 * Enum: skill_t
-* Purpose: Defines named constants for skill type.
+* Purpose: Indexes the five gameplay difficulty tiers used for thing filtering and combat rule scaling.
 */
 enum skill_t
   sk_baby
@@ -99,7 +99,7 @@ end enum
 
 /*
 * Enum: card_t
-* Purpose: Defines named constants for card type.
+* Purpose: Indexes the six key-card/skull inventory flags and exposes their array bound sentinel.
 */
 enum card_t
   it_bluecard
@@ -114,7 +114,7 @@ end enum
 
 /*
 * Enum: weapontype_t
-* Purpose: Defines named constants for weapontype type.
+* Purpose: Indexes player weapon ownership/ammo metadata and includes count and no-change sentinels.
 */
 enum weapontype_t
   wp_fist
@@ -133,7 +133,7 @@ end enum
 
 /*
 * Enum: ammotype_t
-* Purpose: Defines named constants for ammotype type.
+* Purpose: Indexes the four ammunition pools and includes count and weapon-without-ammo sentinels.
 */
 enum ammotype_t
   am_clip
@@ -147,7 +147,7 @@ end enum
 
 /*
 * Enum: powertype_t
-* Purpose: Defines named constants for powertype type.
+* Purpose: Indexes timed and persistent power-up slots in each player's powers array.
 */
 enum powertype_t
   pw_invulnerability
@@ -162,7 +162,7 @@ end enum
 
 /*
 * Enum: powerduration_t
-* Purpose: Defines named constants for powerduration type.
+* Purpose: Defines canonical 35-Hz durations for invulnerability, invisibility, infrared, and radiation protection.
 */
 enum powerduration_t
   INVULNTICS = 30 * TICRATE

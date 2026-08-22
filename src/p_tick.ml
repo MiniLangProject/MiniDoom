@@ -14,7 +14,7 @@
   limitations under the License.
 
   Script: p_tick.ml
-  Purpose: Implements core gameplay simulation: map logic, physics, AI, and world interaction.
+  Purpose: Owns the intrusive thinker list and advances all world thinkers once per unpaused game tic.
 */
 import z_zone
 import p_local
@@ -30,7 +30,7 @@ _PTK_owner_vals =[]
 
 /*
 * Function: P_InitThinkers
-* Purpose: Initializes state and dependencies for the gameplay and world simulation.
+* Purpose: Resets the thinker sentinel into an empty circular doubly linked list and clears owner bookkeeping.
 */
 function P_InitThinkers()
   global _PTK_owner_nodes
@@ -43,7 +43,7 @@ end function
 
 /*
 * Function: P_RegisterThinkerOwner
-* Purpose: Advances register Thinker Owner logic during the play simulation tick.
+* Purpose: Associates a thinker node with its owning gameplay object in the fallback owner registry.
 */
 function P_RegisterThinkerOwner(node, owner)
   global _PTK_owner_nodes
@@ -56,7 +56,7 @@ end function
 
 /*
 * Function: P_ResolveThinkerOwner
-* Purpose: Advances resolve Thinker Owner logic during the play simulation tick.
+* Purpose: Returns a thinker's direct owner or resolves it from the fallback registry used by legacy nodes.
 */
 function P_ResolveThinkerOwner(node)
   if node is void then return void end if
@@ -73,7 +73,7 @@ end function
 
 /*
 * Function: P_UnregisterThinkerOwner
-* Purpose: Advances unregister Thinker Owner logic during the play simulation tick.
+* Purpose: Removes a thinker-to-owner association when the node leaves the active thinker list.
 */
 function P_UnregisterThinkerOwner(node)
   global _PTK_owner_nodes
@@ -123,7 +123,7 @@ end function
 
 /*
 * Function: P_AllocateThinker
-* Purpose: Advances allocate Thinker logic during the play simulation tick.
+* Purpose: Constructs an unlinked thinker node with an empty callback and owner slot.
 */
 function P_AllocateThinker(thinker)
 
@@ -132,7 +132,7 @@ end function
 
 /*
 * Function: P_RunThinkers
-* Purpose: Advances run Thinkers logic during the play simulation tick.
+* Purpose: Walks the thinker list safely across removals and invokes each active callback with its resolved owner.
 */
 function P_RunThinkers()
   profileThinkers = false
@@ -177,7 +177,7 @@ end function
 
 /*
 * Function: P_Ticker
-* Purpose: Advances ticker logic during the play simulation tick.
+* Purpose: Advances players, thinkers, and sector specials once per unpaused game tic, then increments level time.
 */
 function P_Ticker()
   global leveltime

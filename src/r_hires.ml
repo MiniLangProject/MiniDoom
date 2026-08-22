@@ -67,7 +67,7 @@ end function
 
 /*
 * Function: RH_SetForceLogical
-* Purpose: Updates force logical state for the high-resolution renderer.
+* Purpose: Applies a validated override that keeps world rendering on the logical-resolution target even when HD assets are available.
 */
 function RH_SetForceLogical(v)
   global rh_force_logical

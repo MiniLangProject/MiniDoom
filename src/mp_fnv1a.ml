@@ -45,8 +45,9 @@ function _MP_HASH_ToHex8(v)
 end function
 
 /*
- * Function: MP_FNV1A_Hex
-* Purpose: Returns a fast non-cryptographic fingerprint string for input bytes.
+* Function: MP_FNV1A_Hex
+* Purpose: Returns `<fnv32><length32>` as 16 lowercase hex digits for deterministic IWAD compatibility checks.
+* Security: This detects accidental content mismatches; it is not an authentication or tamper-proof hash.
 */
 function MP_FNV1A_Hex(data)
   if typeof(data) != "bytes" then return "" end if

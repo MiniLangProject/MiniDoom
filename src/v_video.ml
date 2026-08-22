@@ -149,7 +149,7 @@ usegamma = 0
 
 /*
 * Function: _u16le
-* Purpose: Provides u16le helper behavior for the video buffer.
+* Purpose: Decodes an unsigned 16-bit little-endian field from Doom patch bytes.
 */
 function inline _u16le(b, off)
   return b[off] +(b[off + 1] << 8)
@@ -157,7 +157,7 @@ end function
 
 /*
 * Function: _s16le
-* Purpose: Provides s16le helper behavior for the video buffer.
+* Purpose: Decodes a two-byte little-endian patch field with signed 16-bit interpretation.
 */
 function inline _s16le(b, off)
   v = _u16le(b, off)
@@ -167,7 +167,7 @@ end function
 
 /*
 * Function: _u32le
-* Purpose: Provides u32le helper behavior for the video buffer.
+* Purpose: Decodes an unsigned 32-bit little-endian patch-column offset.
 */
 function inline _u32le(b, off)
   return b[off] +(b[off + 1] << 8) +(b[off + 2] << 16) +(b[off + 3] << 24)
@@ -175,7 +175,7 @@ end function
 
 /*
 * Function: _clampInt
-* Purpose: Clamps clamp Int values to the supported video buffer range.
+* Purpose: Restricts a pixel coordinate or extent to caller-supplied inclusive bounds.
 */
 function inline _clampInt(x, lo, hi)
   if x < lo then return lo end if
@@ -185,7 +185,7 @@ end function
 
 /*
 * Function: V_Init
-* Purpose: Initializes state and dependencies for the engine module behavior.
+* Purpose: Allocates five logical indexed screens and resets dirty-rectangle plus late-overlay tracking for a fresh video session.
 */
 function V_Init()
   global screens
@@ -578,7 +578,7 @@ end function
 
 /*
 * Function: V_DrawUpscaledPatchOverlay
-* Purpose: Draws upscaled patch overlay output for the video buffer.
+* Purpose: Resolves a cached patch's lump name and delegates its optional HD replacement into the late UI overlay.
 */
 function V_DrawUpscaledPatchOverlay(x, y, patch, flipped)
   if typeof(patch) != "bytes" or not V_EnsureHighresOverlay() then return false end if
@@ -609,7 +609,7 @@ end function
 
 /*
 * Function: V_MarkRect
-* Purpose: Provides rect helper behavior for the video buffer.
+* Purpose: Expands the global dirty bounds to cover both corners of a modified logical-screen rectangle.
 */
 function V_MarkRect(x, y, width, height)
 
@@ -629,7 +629,7 @@ end function
 
 /*
 * Function: V_CopyRect
-* Purpose: Updates rect state for the video buffer.
+* Purpose: Copies an indexed rectangle between logical screens and invalidates overlapping HD overlay content on the visible screen.
 */
 function V_CopyRect(srcx, srcy, srcscrn, width, height, destx, desty, destscrn)
   src = screens[srcscrn]
@@ -650,7 +650,7 @@ end function
 
 /*
 * Function: V_DrawPatch
-* Purpose: Draws patch output for the video buffer.
+* Purpose: Decodes clipped Doom patch-column posts into an indexed screen while tracking visible dirty and HD-overlay regions.
 */
 function V_DrawPatch(x, y, scrn, patch)
   if typeof(patch) != "bytes" then
@@ -709,7 +709,7 @@ end function
 
 /*
 * Function: V_DrawPatchDirect
-* Purpose: Draws patch direct output for the video buffer.
+* Purpose: Preserves the legacy direct-patch entry point by forwarding to the normal clipped patch renderer.
 */
 function V_DrawPatchDirect(x, y, scrn, patch)
   V_DrawPatch(x, y, scrn, patch)
@@ -717,7 +717,7 @@ end function
 
 /*
 * Function: V_DrawBlock
-* Purpose: Draws block output for the video buffer.
+* Purpose: Copies a tightly packed indexed block into a logical screen and marks visible pixels for dirty and late-overlay composition.
 */
 function V_DrawBlock(x, y, scrn, width, height, src)
   if typeof(src) != "bytes" then return end if
@@ -745,7 +745,7 @@ end function
 
 /*
 * Function: V_GetBlock
-* Purpose: Reads block data for the video buffer.
+* Purpose: Copies a logical-screen rectangle into a tightly packed caller-provided byte buffer.
 */
 function V_GetBlock(x, y, scrn, width, height, destBuf)
   if typeof(destBuf) != "bytes" then return end if
@@ -761,7 +761,7 @@ end function
 
 /*
 * Function: V_DrawPatchFlipped
-* Purpose: Draws patch flipped output for the video buffer.
+* Purpose: Decodes a Doom patch with reversed source-column order while retaining normal placement, clipping, and overlay tracking.
 */
 function V_DrawPatchFlipped(x, y, scrn, patch)
   if typeof(patch) != "bytes" then return end if

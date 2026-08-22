@@ -14,7 +14,7 @@
   limitations under the License.
 
   Script: p_setup.ml
-  Purpose: Implements core gameplay simulation: map logic, physics, AI, and world interaction.
+  Purpose: Decodes map lumps into runtime geometry, links sector topology, spawns things/specials, and prepares a playable level.
 */
 import z_zone
 import m_swap
@@ -41,7 +41,7 @@ import r_things
 
 /*
 * Function: _PS_U16LE
-* Purpose: Provides U16 little-endian helper behavior for the play simulation.
+* Purpose: Decodes an unsigned 16-bit little-endian field from a map lump.
 */
 function inline _PS_U16LE(b, off)
   return b[off] +(b[off + 1] << 8)
@@ -49,7 +49,7 @@ end function
 
 /*
 * Function: _PS_I16LE
-* Purpose: Provides i16 little-endian helper behavior for the play simulation.
+* Purpose: Decodes a two-byte map-lump field with signed 16-bit interpretation.
 */
 function inline _PS_I16LE(b, off)
   x = _PS_U16LE(b, off)
@@ -59,7 +59,7 @@ end function
 
 /*
 * Function: _PS_ReadLumpBytes
-* Purpose: Reads lump bytes data for the play simulation.
+* Purpose: Allocates an exact-size buffer and copies a map lump into it, returning an empty buffer for zero-length lumps.
 */
 function inline _PS_ReadLumpBytes(lump)
   n = W_LumpLength(lump)
@@ -73,7 +73,7 @@ end function
 
 /*
 * Function: _PS_Name8
-* Purpose: Provides name8 helper behavior for the play simulation.
+* Purpose: Extracts an eight-byte texture or flat name field from a map record without decoding it prematurely.
 */
 function inline _PS_Name8(data, off)
   return slice(data, off, 8)
@@ -81,7 +81,7 @@ end function
 
 /*
 * Function: _PSET_IDiv
-* Purpose: Performs integer division with level setup rounding and guard rules.
+* Purpose: Returns a signed quotient truncated toward zero, or zero for invalid operands and a zero divisor.
 */
 function inline _PSET_IDiv(a, b)
   if typeof(a) != "int" or typeof(b) != "int" or b == 0 then return 0 end if
@@ -92,7 +92,7 @@ end function
 
 /*
 * Function: _PSET_IsSeq
-* Purpose: Provides is sequence helper behavior for the play simulation.
+* Purpose: Recognizes both array and list containers accepted by map geometry and runtime tables.
 */
 function inline _PSET_IsSeq(v)
   t = typeof(v)
@@ -117,7 +117,7 @@ end function
 
 /*
 * Function: _PS_VertexOrZero
-* Purpose: Provides vertex or zero helper behavior for the play simulation.
+* Purpose: Resolves a map vertex index and substitutes an origin vertex for malformed references.
 */
 function inline _PS_VertexOrZero(idx)
   if idx < 0 or not _PSET_IsSeq(vertexes) or idx >= len(vertexes) then
@@ -128,7 +128,7 @@ end function
 
 /*
 * Function: _PS_MapName
-* Purpose: Provides map name helper behavior for the play simulation.
+* Purpose: Maps episode/map numbers to canonical ExMy or MAPnn lump names, with edition-appropriate first-map fallback.
 */
 function inline _PS_MapName(episode, map)
   if gamemode == GameMode_t.commercial then
@@ -207,7 +207,7 @@ end function
 
 /*
 * Function: _PS_EnsureRuntimeArrays
-* Purpose: Provides ensure runtime arrays helper behavior for the play simulation.
+* Purpose: Ensures player and spawn tables have canonical capacities and rewinds deathmatch-start insertion for the new level.
 */
 function _PS_EnsureRuntimeArrays()
   global players
@@ -241,7 +241,7 @@ end function
 
 /*
 * Function: P_LoadVertexes
-* Purpose: Reads vertices data for the play simulation.
+* Purpose: Decodes four-byte VERTEXES records and promotes map-unit coordinates to fixed-point runtime vertices.
 */
 function P_LoadVertexes(lump)
   global numvertexes
@@ -263,7 +263,7 @@ end function
 
 /*
 * Function: P_LoadSectors
-* Purpose: Reads sectors data for the play simulation.
+* Purpose: Decodes SECTORS records, resolves flat names, and initializes mutable sound, thing, line, and special ownership fields.
 */
 function P_LoadSectors(lump)
   global numsectors
@@ -310,7 +310,7 @@ end function
 
 /*
 * Function: P_LoadSideDefs
-* Purpose: Reads side defs data for the play simulation.
+* Purpose: Decodes SIDEDEFS offsets and texture names, then resolves each record's owning sector reference.
 */
 function P_LoadSideDefs(lump)
   global numsides
@@ -343,7 +343,7 @@ end function
 
 /*
 * Function: P_LoadLineDefs
-* Purpose: Reads line defs data for the play simulation.
+* Purpose: Decodes LINEDEFS, resolves vertices and sectors, and precomputes direction, slope class, and bounding boxes.
 */
 function P_LoadLineDefs(lump)
   global numlines
@@ -411,7 +411,7 @@ end function
 
 /*
 * Function: P_LoadSubsectors
-* Purpose: Reads subsectors data for the play simulation.
+* Purpose: Decodes SSECTORS seg ranges while leaving sector ownership for the later line-grouping pass.
 */
 function P_LoadSubsectors(lump)
   global numsubsectors
@@ -433,7 +433,7 @@ end function
 
 /*
 * Function: P_LoadNodes
-* Purpose: Reads nodes data for the play simulation.
+* Purpose: Decodes BSP partition origins, directions, child bounds, and node-or-subsector child identifiers.
 */
 function P_LoadNodes(lump)
   global numnodes
@@ -477,7 +477,7 @@ end function
 
 /*
 * Function: P_LoadSegs
-* Purpose: Reads segs data for the play simulation.
+* Purpose: Decodes SEGS geometry and resolves its linedef, sidedef, front sector, and optional opposite sector links.
 */
 function P_LoadSegs(lump)
   global numsegs
@@ -534,7 +534,7 @@ end function
 
 /*
 * Function: P_LoadBlockMap
-* Purpose: Reads block map data for the play simulation.
+* Purpose: Decodes BLOCKMAP words, promotes its origin, normalizes cell offsets, and allocates empty per-cell thing chains.
 */
 function P_LoadBlockMap(lump)
   global blockmaplump
@@ -596,7 +596,7 @@ end function
 
 /*
 * Function: P_LoadThings
-* Purpose: Reads things data for the play simulation.
+* Purpose: Decodes THINGS records and spawns edition-compatible map objects, stopping at unsupported commercial actors in noncommercial games.
 */
 function P_LoadThings(lump)
   data = _PS_ReadLumpBytes(lump)
@@ -638,7 +638,7 @@ end function
 
 /*
 * Function: P_GroupLines
-* Purpose: Provides lines helper behavior for the play simulation.
+* Purpose: Assigns subsector sectors and builds each sector's line list, fixed bounds, blockmap bounds, and centered sound origin.
 */
 function P_GroupLines()
 
@@ -741,7 +741,7 @@ end function
 
 /*
 * Function: P_Init
-* Purpose: Initializes state and dependencies for the gameplay and world simulation.
+* Purpose: Prepares switch pairs, animated flats/textures, and sprite definitions shared by all subsequently loaded levels.
 */
 function P_Init()
   if typeof(P_InitSwitchList) == "function" then P_InitSwitchList() end if
@@ -753,7 +753,7 @@ end function
 
 /*
 * Function: P_SetupLevel
-* Purpose: Runs level lifecycle logic for the play simulation.
+* Purpose: Tears down prior level state, loads map lumps in dependency order, links geometry, spawns actors/specials, precaches assets, and enters GS_LEVEL.
 */
 function P_SetupLevel(episode, map, playermask, skill)
   global gameepisode

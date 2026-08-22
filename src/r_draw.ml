@@ -14,7 +14,7 @@
   limitations under the License.
 
   Script: r_draw.ml
-  Purpose: Implements renderer data preparation and software rendering pipeline stages.
+  Purpose: Rasterizes software wall columns, spans, fuzz, translated sprites, and depth-tested pixels into the active view buffer.
 */
 import doomdef
 import i_system
@@ -95,7 +95,7 @@ end function
 
 /*
 * Function: R_DrawProfileSetEnabled
-* Purpose: Draws profile set enabled output for the software drawing.
+* Purpose: Enables or disables software column/span counters without changing the active draw-function bindings.
 */
 function R_DrawProfileSetEnabled(on)
   global _rd_prof_enabled
@@ -104,7 +104,7 @@ end function
 
 /*
 * Function: R_DepthClear
-* Purpose: Clears depth Clear state before the next software drawing update.
+* Purpose: Preserves the depth-buffer reset hook used by renderer callers; the current painter-ordered software path requires no separate buffer.
 */
 function R_DepthClear()
 
@@ -112,7 +112,7 @@ end function
 
 /*
 * Function: R_DepthBeginWall
-* Purpose: Provides begin wall helper behavior for the software drawing.
+* Purpose: Accepts the projected wall scale for depth-aware renderer compatibility; painter ordering makes it a no-op here.
 */
 function R_DepthBeginWall(scale)
   scale = scale
@@ -120,14 +120,14 @@ end function
 
 /*
 * Function: R_DepthEndWall
-* Purpose: Controls depth End Wall transitions in the software drawing system.
+* Purpose: Closes the compatibility scope opened for a wall column; no state is retained by the painter-ordered path.
 */
 function R_DepthEndWall()
 end function
 
 /*
 * Function: R_DepthBeginSprite
-* Purpose: Provides begin sprite helper behavior for the software drawing.
+* Purpose: Accepts the projected sprite scale for depth-aware renderer compatibility; painter ordering makes it a no-op here.
 */
 function R_DepthBeginSprite(scale)
   scale = scale
@@ -135,14 +135,14 @@ end function
 
 /*
 * Function: R_DepthEndSprite
-* Purpose: Controls depth End Sprite transitions in the software drawing system.
+* Purpose: Closes the compatibility scope opened for a sprite column without changing software draw state.
 */
 function R_DepthEndSprite()
 end function
 
 /*
 * Function: _RD_DepthPass
-* Purpose: Provides depth pass helper behavior for the software drawing.
+* Purpose: Always accepts a pixel because visibility is already resolved by BSP and sprite draw order in the software renderer.
 */
 function inline _RD_DepthPass(di)
   di = di
@@ -151,7 +151,7 @@ end function
 
 /*
 * Function: _RD_DepthStore
-* Purpose: Provides depth store helper behavior for the software drawing.
+* Purpose: Retains the depth-write call site for alternate backends while intentionally storing nothing in the painter-ordered path.
 */
 function inline _RD_DepthStore(di)
   di = di
@@ -159,7 +159,7 @@ end function
 
 /*
 * Function: _RD_IDiv
-* Purpose: Performs integer division with software drawing rounding and guard rules.
+* Purpose: Returns a signed quotient truncated toward zero, or zero for invalid operands and a zero divisor.
 */
 function inline _RD_IDiv(a, b)
   if typeof(a) != "int" or typeof(b) != "int" or b == 0 then return 0 end if
@@ -170,7 +170,7 @@ end function
 
 /*
 * Function: _RD_CenterY
-* Purpose: Provides center y helper behavior for the software drawing.
+* Purpose: Returns the configured projection center or the logical screen midpoint when view setup has not supplied one.
 */
 function inline _RD_CenterY()
   if typeof(centery) == "int" then return centery end if
@@ -207,7 +207,7 @@ end function
 
 /*
 * Function: _RD_WrapIndex
-* Purpose: Provides wrap index helper behavior for the software drawing.
+* Purpose: Wraps positive or negative texture indices into a validated source period.
 */
 function inline _RD_WrapIndex(i, n)
   if typeof(i) != "int" or typeof(n) != "int" or n <= 0 then return 0 end if
@@ -236,7 +236,7 @@ end function
 
 /*
 * Function: _RD_IsPow2
-* Purpose: Provides is pow2 helper behavior for the software drawing.
+* Purpose: Tests whether a positive texture dimension permits bit-mask wrapping.
 */
 function inline _RD_IsPow2(n)
   if typeof(n) != "int" or n <= 0 then return false end if
@@ -245,7 +245,7 @@ end function
 
 /*
 * Function: _RD_DrawPatchIfExists
-* Purpose: Draws patch if exists output for the software drawing.
+* Purpose: Resolves and draws an optional named border patch without failing when an IWAD omits it.
 */
 function inline _RD_DrawPatchIfExists(x, y, scrn, name)
   if typeof(W_CheckNumForName) != "function" then return end if
@@ -256,7 +256,7 @@ end function
 
 /*
 * Function: R_InitBuffer
-* Purpose: Initializes state and dependencies for the renderer.
+* Purpose: Recomputes view-window offsets plus per-row and per-column destination lookup tables for the active render target size.
 */
 function R_InitBuffer(width, height)
   global ylookup
@@ -292,7 +292,7 @@ end function
 
 /*
 * Function: R_VideoErase
-* Purpose: Provides erase helper behavior for the software drawing.
+* Purpose: Restores a clipped byte range in the foreground screen from the cached background screen.
 */
 function R_VideoErase(ofs, count)
 
@@ -316,7 +316,7 @@ end function
 
 /*
 * Function: R_DrawColumn
-* Purpose: Draws column output for the software drawing.
+* Purpose: Samples a vertically stepped texture column through the active colormap into one clipped high-detail screen column.
 */
 function R_DrawColumn()
   global _rd_prof_col_calls
@@ -414,7 +414,7 @@ end function
 
 /*
 * Function: R_DrawColumnLow
-* Purpose: Draws column low output for the software drawing.
+* Purpose: Draws a low-detail texture column by duplicating each logical sample across two horizontal target pixels.
 */
 function R_DrawColumnLow()
   global _rd_prof_col_calls
@@ -534,7 +534,7 @@ end function
 
 /*
 * Function: R_DrawFuzzColumn
-* Purpose: Draws fuzz column output for the software drawing.
+* Purpose: Produces the spectre effect by copying neighboring framebuffer samples through the fuzz colormap while advancing the cyclic fuzz offset.
 */
 function R_DrawFuzzColumn()
   global fuzzpos
@@ -567,7 +567,7 @@ end function
 
 /*
 * Function: R_DrawFuzzColumnLow
-* Purpose: Draws fuzz column low output for the software drawing.
+* Purpose: Applies the fuzz-neighbor effect to a doubled low-detail column.
 */
 function R_DrawFuzzColumnLow()
   R_DrawFuzzColumn()
@@ -575,7 +575,7 @@ end function
 
 /*
 * Function: R_DrawTranslatedColumn
-* Purpose: Draws translated column output for the software drawing.
+* Purpose: Remaps each texture texel through the active player-color translation before applying the lighting colormap.
 */
 function R_DrawTranslatedColumn()
   dest = _RD_TargetBuffer()
@@ -668,7 +668,7 @@ end function
 
 /*
 * Function: R_DrawTranslatedColumnLow
-* Purpose: Draws translated column low output for the software drawing.
+* Purpose: Draws a player-color-translated column with each result duplicated for low-detail mode.
 */
 function R_DrawTranslatedColumnLow()
   R_DrawTranslatedColumn()
@@ -676,7 +676,7 @@ end function
 
 /*
 * Function: R_DrawSpan
-* Purpose: Draws span output for the software drawing.
+* Purpose: Perspective-steps texture coordinates across one horizontal floor/ceiling span and writes colormapped samples to the active target.
 */
 function R_DrawSpan()
   global _rd_prof_span_calls
@@ -735,7 +735,7 @@ end function
 
 /*
 * Function: R_DrawSpanLow
-* Purpose: Draws span low output for the software drawing.
+* Purpose: Draws a perspective-correct flat span with horizontally doubled samples for low-detail mode.
 */
 function R_DrawSpanLow()
   global _rd_prof_span_calls
@@ -805,7 +805,7 @@ end function
 
 /*
 * Function: R_InitTranslationTables
-* Purpose: Initializes state and dependencies for the renderer.
+* Purpose: Precomputes the three Doom player-color remaps while leaving every non-green palette index unchanged.
 */
 function R_InitTranslationTables()
   global translationtables
@@ -831,7 +831,7 @@ end function
 
 /*
 * Function: R_FillBackScreen
-* Purpose: Draws back screen output for the software drawing.
+* Purpose: Tiles the game-mode border flat into the background screen and surrounds a reduced view with optional border patches.
 */
 function R_FillBackScreen()
   if typeof(scaledviewwidth) != "int" then return end if
@@ -891,7 +891,7 @@ end function
 
 /*
 * Function: R_DrawViewBorder
-* Purpose: Draws view border output for the software drawing.
+* Purpose: Copies only the cached top, bottom, and side border regions around a reduced view into the foreground screen.
 */
 function R_DrawViewBorder()
   if typeof(scaledviewwidth) != "int" then return end if

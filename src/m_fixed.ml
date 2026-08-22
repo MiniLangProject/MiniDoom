@@ -14,7 +14,7 @@
   limitations under the License.
 
   Script: m_fixed.ml
-  Purpose: Provides shared math, utility, and low-level helper routines.
+  Purpose: Implements Doom's signed 16.16 fixed-point multiply and divide with explicit 32-bit wrap, saturation, and zero handling.
 */
 import stdlib
 import doomtype
@@ -30,7 +30,7 @@ const _S32_MAX = 2147483647
 
 /*
 * Function: _u32
-* Purpose: Provides U32 helper behavior for the utility.
+* Purpose: Normalizes an integer to its unsigned 32-bit representation.
 */
 function inline _u32(x)
   if typeof(x) == "int" then
@@ -53,7 +53,7 @@ end function
 
 /*
 * Function: _s32
-* Purpose: Provides s32 helper behavior for the utility.
+* Purpose: Reinterprets the low 32 bits of an integer as a signed two's-complement value.
 */
 function _s32(x)
   xi = 0
@@ -88,7 +88,7 @@ end function
 
 /*
 * Function: _absS32
-* Purpose: Provides s32 helper behavior for the utility.
+* Purpose: Returns a signed 32-bit magnitude while saturating the unrepresentable INT32_MIN case.
 */
 function inline _absS32(x)
   x = _s32(x)
@@ -98,7 +98,7 @@ end function
 
 /*
 * Function: _idivS32
-* Purpose: Performs integer division with utility rounding and guard rules.
+* Purpose: Returns a signed integer quotient truncated toward zero, or zero for invalid operands and a zero divisor.
 */
 function inline _idivS32(a, b)
   if typeof(a) != "int" or typeof(b) != "int" or b == 0 then return 0 end if
@@ -109,7 +109,7 @@ end function
 
 /*
 * Function: FixedMul
-* Purpose: Provides mul helper behavior for the utility.
+* Purpose: Multiplies two 16.16 fixed-point operands with a 64-bit intermediate and returns a signed 32-bit fixed-point result.
 */
 function inline FixedMul(a, b)
 
@@ -120,7 +120,7 @@ end function
 
 /*
 * Function: FixedDiv
-* Purpose: Performs integer division with utility rounding and guard rules.
+* Purpose: Divides two signed 16.16 values, saturating results whose shifted numerator would overflow signed 32-bit range.
 */
 function FixedDiv(a, b)
   a = _s32(a)
@@ -138,7 +138,7 @@ end function
 
 /*
 * Function: FixedDiv2
-* Purpose: Performs integer division with utility rounding and guard rules.
+* Purpose: Scales a signed numerator by FRACUNIT, divides with truncation toward zero, and reports a zero divisor through I_Error.
 */
 function inline FixedDiv2(a, b)
   a = _s32(a)

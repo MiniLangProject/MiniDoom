@@ -14,7 +14,7 @@
   limitations under the License.
 
   Script: p_local.ml
-  Purpose: Implements core gameplay simulation: map logic, physics, AI, and world interaction.
+  Purpose: Defines shared play-simulation constants, traversal records, blockmap state, and collision result globals.
 */
 import r_local
 import p_spec
@@ -58,7 +58,7 @@ end struct
 
 /*
 * Struct: intercept_t
-* Purpose: Stores intercept data used by the play simulation system.
+* Purpose: Records the fractional position and line-or-thing payload of one path-traversal intersection.
 */
 struct intercept_t
   frac

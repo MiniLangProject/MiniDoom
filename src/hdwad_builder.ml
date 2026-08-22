@@ -688,7 +688,7 @@ end function
 
 /*
 * Function: UP_XbrzGetTopL
-* Purpose: Provides xBRZ get top left helper behavior for the HDWAD builder.
+* Purpose: Extracts the two-bit top-left corner blend classification from a packed xBRZ blend byte.
 */
 function inline UP_XbrzGetTopL(b)
   return b & 3
@@ -696,7 +696,7 @@ end function
 
 /*
 * Function: UP_XbrzGetTopR
-* Purpose: Provides xBRZ get top right helper behavior for the HDWAD builder.
+* Purpose: Extracts the two-bit top-right corner blend classification from a packed xBRZ blend byte.
 */
 function inline UP_XbrzGetTopR(b)
   return (b >> 2) & 3
@@ -704,7 +704,7 @@ end function
 
 /*
 * Function: UP_XbrzGetBottomR
-* Purpose: Provides xBRZ get bottom right helper behavior for the HDWAD builder.
+* Purpose: Extracts the two-bit bottom-right corner blend classification from a packed xBRZ blend byte.
 */
 function inline UP_XbrzGetBottomR(b)
   return (b >> 4) & 3
@@ -712,7 +712,7 @@ end function
 
 /*
 * Function: UP_XbrzGetBottomL
-* Purpose: Provides xBRZ get bottom left helper behavior for the HDWAD builder.
+* Purpose: Extracts the two-bit bottom-left corner blend classification from a packed xBRZ blend byte.
 */
 function inline UP_XbrzGetBottomL(b)
   return (b >> 6) & 3
@@ -720,7 +720,7 @@ end function
 
 /*
 * Function: UP_XbrzSetTopL
-* Purpose: Provides xBRZ set top left helper behavior for the HDWAD builder.
+* Purpose: Adds a top-left two-bit classification to a packed xBRZ blend byte.
 */
 function inline UP_XbrzSetTopL(b, bt)
   return b | bt
@@ -728,7 +728,7 @@ end function
 
 /*
 * Function: UP_XbrzSetTopR
-* Purpose: Provides xBRZ set top right helper behavior for the HDWAD builder.
+* Purpose: Adds a top-right two-bit classification to a packed xBRZ blend byte.
 */
 function inline UP_XbrzSetTopR(b, bt)
   return b |(bt << 2)
@@ -736,7 +736,7 @@ end function
 
 /*
 * Function: UP_XbrzSetBottomR
-* Purpose: Provides xBRZ set bottom right helper behavior for the HDWAD builder.
+* Purpose: Adds a bottom-right two-bit classification to a packed xBRZ blend byte.
 */
 function inline UP_XbrzSetBottomR(b, bt)
   return b |(bt << 4)
@@ -744,7 +744,7 @@ end function
 
 /*
 * Function: UP_XbrzSetBottomL
-* Purpose: Provides xBRZ set bottom left helper behavior for the HDWAD builder.
+* Purpose: Adds a bottom-left two-bit classification to a packed xBRZ blend byte.
 */
 function inline UP_XbrzSetBottomL(b, bt)
   return b |(bt << 6)
@@ -763,7 +763,7 @@ end function
 
 /*
 * Function: UP_XbrzPreProcessCorners
-* Purpose: Provides xBRZ pre process corners helper behavior for the HDWAD builder.
+* Purpose: Compares color-distance paths through a 4x4 neighborhood and classifies normal or dominant edge blends for the central corners.
 */
 function UP_XbrzPreProcessCorners(pal, cache, a, b, c, d, e, f, g, h, ii, j, k, l, m, n, o, p, hasAlpha)
   if (f == g and j == k) or(f == j and g == k) then return 0 end if
@@ -789,7 +789,7 @@ end function
 
 /*
 * Function: UP_XbrzRotGet
-* Purpose: Provides xBRZ rot get helper behavior for the HDWAD builder.
+* Purpose: Returns a 3x3 neighborhood sample through a requested quarter-turn so one blend kernel handles all four orientations.
 */
 function UP_XbrzRotGet(rot, pos, a, b, c, d, e, f, g, h, ii)
   if rot == 1 then
@@ -837,7 +837,7 @@ end function
 
 /*
 * Function: UP_XbrzRefIndex3
-* Purpose: Finds xbrz Ref Index3 information for HDWAD builder processing.
+* Purpose: Rotates a 3x3 xBRZ neighbor coordinate and returns its linear index in the source image.
 */
 function UP_XbrzRefIndex3(dw, blockX, blockY, rot, i, j)
   rr = i
@@ -866,7 +866,7 @@ end function
 
 /*
 * Function: UP_XbrzSetRef3
-* Purpose: Provides xBRZ set ref3 helper behavior for the HDWAD builder.
+* Purpose: Writes one output color to a rotation-relative cell of the current 3x3 destination block.
 */
 function inline UP_XbrzSetRef3(dst, dw, blockX, blockY, rot, i, j, col)
   dst[UP_XbrzRefIndex3(dw, blockX, blockY, rot, i, j)] = col
@@ -874,7 +874,7 @@ end function
 
 /*
 * Function: UP_XbrzBlendLineShallow3
-* Purpose: Provides xBRZ blend line shallow3 helper behavior for the HDWAD builder.
+* Purpose: Applies the xBRZ 3x shallow-edge coverage pattern with weighted blends and one fully replaced corner pixel.
 */
 function UP_XbrzBlendLineShallow3(dst, dw, blockX, blockY, rot, col, pal, blendCache, hasAlpha)
   UP_XbrzBlendRef3(dst, dw, blockX, blockY, rot, 2, 0, col, pal, blendCache, hasAlpha, 0)
@@ -885,7 +885,7 @@ end function
 
 /*
 * Function: UP_XbrzBlendLineSteep3
-* Purpose: Provides xBRZ blend line steep3 helper behavior for the HDWAD builder.
+* Purpose: Applies the rotated xBRZ 3x steep-edge coverage pattern to the current destination block.
 */
 function UP_XbrzBlendLineSteep3(dst, dw, blockX, blockY, rot, col, pal, blendCache, hasAlpha)
   UP_XbrzBlendRef3(dst, dw, blockX, blockY, rot, 0, 2, col, pal, blendCache, hasAlpha, 0)
@@ -896,7 +896,7 @@ end function
 
 /*
 * Function: UP_XbrzBlendLineSteepAndShallow3
-* Purpose: Provides xBRZ blend line steep and shallow3 helper behavior for the HDWAD builder.
+* Purpose: Applies the combined xBRZ 3x corner pattern when both steep and shallow edge tests succeed.
 */
 function UP_XbrzBlendLineSteepAndShallow3(dst, dw, blockX, blockY, rot, col, pal, blendCache, hasAlpha)
   UP_XbrzBlendRef3(dst, dw, blockX, blockY, rot, 2, 0, col, pal, blendCache, hasAlpha, 0)
@@ -908,7 +908,7 @@ end function
 
 /*
 * Function: UP_XbrzBlendLineDiagonal3
-* Purpose: Provides xBRZ blend line diagonal3 helper behavior for the HDWAD builder.
+* Purpose: Applies the xBRZ 3x diagonal-edge weights to the two adjacent cells and corner cell.
 */
 function UP_XbrzBlendLineDiagonal3(dst, dw, blockX, blockY, rot, col, pal, blendCache, hasAlpha)
   UP_XbrzBlendRef3(dst, dw, blockX, blockY, rot, 1, 2, col, pal, blendCache, hasAlpha, 2)
@@ -979,7 +979,7 @@ end function
 
 /*
 * Function: UP_XbrzScaleIndexed3
-* Purpose: Provides xBRZ scale indexed3 helper behavior for the HDWAD builder.
+* Purpose: Upscales one indexed image by exactly 3x using cached palette distances, preclassified corners, and rotation-invariant xBRZ edge blending.
 */
 function UP_XbrzScaleIndexed3(img, pal)
   if img is void then return void end if
@@ -1540,7 +1540,7 @@ end function
 
 /*
 * Function: UP_WriteHDWADPackage
-* Purpose: Writes HDWAD package data for the HDWAD builder.
+* Purpose: Emits a complete HDWAD containing original lumps and upscaled images by delegating with no synthetic lumps.
 */
 function UP_WriteHDWADPackage(path, wadData, lumps, images, scale)
   return UP_WriteHDWADPackageWithExtraLumps(path, wadData, lumps, images, [], [], scale)
@@ -1548,7 +1548,7 @@ end function
 
 /*
 * Function: UP_WriteHDWADPackageWithExtraLumps
-* Purpose: Writes HDWAD package with extra lumps data for the HDWAD builder.
+* Purpose: Lays out an HDWAD header, original and synthetic lump payloads, image payloads, and both directories before saving atomically.
 */
 function UP_WriteHDWADPackageWithExtraLumps(path, wadData, lumps, images, extraNames, extraDatas, scale)
   lumpCount = len(lumps)
@@ -1690,7 +1690,7 @@ end function
 
 /*
 * Function: HDB_BuildImages
-* Purpose: Provides build images helper behavior for the HDWAD builder.
+* Purpose: Loads the palette and patch namespace, then builds the complete HD image set from wall textures, flats, sprites, and remaining patch lumps.
 */
 function HDB_BuildImages(wadData, lumps, scale)
   UP_LoadingPulse()
@@ -1716,7 +1716,7 @@ end function
 
 /*
 * Function: HDB_LoadWadForBuild
-* Purpose: Provides load WAD for build helper behavior for the HDWAD builder.
+* Purpose: Loads and validates the source WAD bytes and directory through the builder's shared WAD parser.
 */
 function HDB_LoadWadForBuild(path)
   return UP_LoadWad(path)
@@ -1724,7 +1724,7 @@ end function
 
 /*
 * Function: HDB_WriteHDWAD
-* Purpose: Writes HDWAD data for the HDWAD builder.
+* Purpose: Exposes full HDWAD packaging, including synthetic lumps, through the builder module's stable public entry point.
 */
 function HDB_WriteHDWAD(path, wadData, lumps, images, extraNames, extraDatas, scale)
   return UP_WriteHDWADPackageWithExtraLumps(path, wadData, lumps, images, extraNames, extraDatas, scale)

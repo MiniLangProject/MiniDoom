@@ -44,7 +44,7 @@ const DBITS = 5
 
 /*
 * Function: SlopeDiv
-* Purpose: Performs integer division with lookup table rounding and guard rules.
+* Purpose: Maps an unsigned rise/run ratio into Doom's bounded slope-table index without overflowing the numerator shift.
 */
 function SlopeDiv(num, den)
 
@@ -76,7 +76,7 @@ end function
 
 /*
 * Function: _TB_Trunc
-* Purpose: Provides trunc helper behavior for the engine.
+* Purpose: Truncates a numeric value toward zero for deterministic lookup-table generation.
 */
 function inline _TB_Trunc(v)
   if v >= 0 then
@@ -87,7 +87,7 @@ end function
 
 /*
 * Function: Tables_Init
-* Purpose: Initializes state and dependencies for the engine module behavior.
+* Purpose: Lazily generates the fixed-point sine, cosine, tangent, and slope-to-angle lookup tables at their canonical Doom sizes.
 */
 function Tables_Init()
   global finesine

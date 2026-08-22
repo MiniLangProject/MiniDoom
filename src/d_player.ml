@@ -14,7 +14,7 @@
   limitations under the License.
 
   Script: d_player.ml
-  Purpose: Defines core Doom data types, shared state, and bootstrap flow.
+  Purpose: Defines player runtime state, cheats, intermission statistics, and constructors for correctly initialized player records.
 */
 import d_items
 import p_pspr
@@ -23,7 +23,7 @@ import d_ticcmd
 
 /*
 * Enum: playerstate_t
-* Purpose: Defines named constants for playerstate type.
+* Purpose: Tracks whether a player is actively playing, awaiting rebirth, or has completed the current level.
 */
 enum playerstate_t
   PST_LIVE
@@ -33,7 +33,7 @@ end enum
 
 /*
 * Enum: cheat_t
-* Purpose: Defines named constants for cheat type.
+* Purpose: Assigns independent bit flags for player cheats such as god mode, noclip, and temporary power effects.
 */
 enum cheat_t
   CF_NOCLIP = 1
@@ -43,7 +43,7 @@ end enum
 
 /*
 * Struct: player_t
-* Purpose: Stores player data used by the Doom core system.
+* Purpose: Owns all persistent and per-tic state for one player, including its mobj link, controls, view, inventory, powers, weapons, and HUD counters.
 */
 struct player_t
   mo
@@ -99,7 +99,7 @@ end struct
 
 /*
 * Struct: wbplayerstruct_t
-* Purpose: Stores wbplayerstruct data used by the Doom core system.
+* Purpose: Captures one player's end-of-level kill, item, secret, frag, and completion-time statistics for the intermission.
 */
 struct wbplayerstruct_t
   inum
@@ -113,7 +113,7 @@ end struct
 
 /*
 * Struct: wbstartstruct_t
-* Purpose: Stores wbstartstruct data used by the Doom core system.
+* Purpose: Packages level identity, par time, aggregate totals, and all player results passed into the intermission state machine.
 */
 struct wbstartstruct_t
   epsd
@@ -131,7 +131,7 @@ end struct
 
 /*
 * Function: _DP_IntArray
-* Purpose: Provides int array helper behavior for the Doom core.
+* Purpose: Allocates a fixed-length integer array initialized to the supplied value.
 */
 function _DP_IntArray(n, v)
   if typeof(n) != "int" or n < 0 then
@@ -148,7 +148,7 @@ end function
 
 /*
 * Function: _DP_BoolArray
-* Purpose: Provides boolean array helper behavior for the Doom core.
+* Purpose: Allocates a fixed-length boolean array initialized from a strictly boolean input.
 */
 function _DP_BoolArray(n, v)
   if typeof(n) != "int" or n < 0 then
@@ -165,7 +165,7 @@ end function
 
 /*
 * Function: Player_MakeDefault
-* Purpose: Provides make default helper behavior for the Doom core.
+* Purpose: Constructs a player record with correctly sized inventory, weapon, power, frag, and psprite arrays and canonical spawn defaults.
 */
 function Player_MakeDefault()
 

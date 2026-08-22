@@ -14,7 +14,7 @@
   limitations under the License.
 
   Script: p_lights.ml
-  Purpose: Implements core gameplay simulation: map logic, physics, AI, and world interaction.
+  Purpose: Implements sector fire-flicker, flash, strobe, glow, and tagged lighting effects as thinkers.
 */
 import z_zone
 import m_random
@@ -24,7 +24,7 @@ import r_state
 
 /*
 * Function: _P_MakeThinker
-* Purpose: Builds thinker data for the play simulation.
+* Purpose: Constructs an unlinked thinker node whose primary callback drives a sector lighting effect.
 */
 function inline _P_MakeThinker(acp1)
 
@@ -33,7 +33,7 @@ end function
 
 /*
 * Function: _P_AddThinkerIfPossible
-* Purpose: Adds thinker if possible entries to the play simulation.
+* Purpose: Registers a lighting thinker when the full thinker list API is present, allowing reduced test harnesses to omit it.
 */
 function inline _P_AddThinkerIfPossible(th)
   if typeof(P_AddThinker) == "function" then
@@ -43,7 +43,7 @@ end function
 
 /*
 * Function: T_FireFlicker
-* Purpose: Runs flicker behavior for the lighting thinker.
+* Purpose: Every four tics chooses a randomized fire brightness no darker than the sector's neighboring minimum.
 */
 function T_FireFlicker(flick)
   if flick is void or flick.sector is void then return end if
@@ -67,7 +67,7 @@ end function
 
 /*
 * Function: P_SpawnFireFlicker
-* Purpose: Creates and initializes runtime objects for the gameplay and world simulation.
+* Purpose: Attaches a fire-flicker thinker using the sector's current light as maximum and its darkest neighbor as minimum.
 */
 function P_SpawnFireFlicker(sector)
   if sector is void then return end if
@@ -82,7 +82,7 @@ end function
 
 /*
 * Function: T_LightFlash
-* Purpose: Provides light flash helper behavior for the play simulation.
+* Purpose: Alternates a sector between its bright and dark levels using randomized flash durations.
 */
 function T_LightFlash(flash)
   if flash is void or flash.sector is void then return end if
@@ -106,7 +106,7 @@ end function
 
 /*
 * Function: P_SpawnLightFlash
-* Purpose: Creates and initializes runtime objects for the gameplay and world simulation.
+* Purpose: Attaches a randomized two-level flash thinker bounded by the sector's original and darkest neighboring light.
 */
 function P_SpawnLightFlash(sector)
   if sector is void then return end if
@@ -124,7 +124,7 @@ end function
 
 /*
 * Function: T_StrobeFlash
-* Purpose: Provides strobe flash helper behavior for the play simulation.
+* Purpose: Advances a sector strobe between minimum and maximum light levels with independent bright and dark intervals.
 */
 function T_StrobeFlash(flash)
   if flash is void or flash.sector is void then return end if
@@ -145,7 +145,7 @@ end function
 
 /*
 * Function: P_SpawnStrobeFlash
-* Purpose: Creates and initializes runtime objects for the gameplay and world simulation.
+* Purpose: Attaches a fast or slow strobe thinker, optionally synchronizing its initial countdown with peer sectors.
 */
 function P_SpawnStrobeFlash(sector, fastOrSlow, inSync)
   if sector is void then return end if
@@ -178,7 +178,7 @@ end function
 
 /*
 * Function: EV_StartLightStrobing
-* Purpose: Starts runtime behavior in the engine module behavior.
+* Purpose: Adds unsynchronized slow strobe thinkers to every sector carrying the trigger line's tag.
 */
 function EV_StartLightStrobing(line)
 
@@ -195,7 +195,7 @@ function EV_StartLightStrobing(line)
 
   /*
 * Function: EV_TurnTagLightsOff
-* Purpose: Provides turn tag lights off helper behavior for the play simulation.
+* Purpose: Sets every tagged sector to the darkest light level found in its neighboring sectors.
   */
   function EV_TurnTagLightsOff(line)
     if line is void then return end if
@@ -212,7 +212,7 @@ function EV_StartLightStrobing(line)
 
     /*
 * Function: EV_LightTurnOn
-* Purpose: Provides light turn on helper behavior for the play simulation.
+* Purpose: Sets tagged sectors to an explicit brightness or, when zero is requested, their brightest neighboring level.
     */
     function EV_LightTurnOn(line, bright)
       if line is void then return end if
@@ -234,7 +234,7 @@ function EV_StartLightStrobing(line)
 
       /*
 * Function: T_Glow
-* Purpose: Provides glow helper behavior for the play simulation.
+* Purpose: Smoothly oscillates a sector's light level between neighboring minimum and maximum bounds.
       */
       function T_Glow(g)
         if g is void or g.sector is void then return end if
@@ -256,7 +256,7 @@ function EV_StartLightStrobing(line)
 
       /*
       * Function: P_SpawnGlowingLight
-      * Purpose: Creates and initializes runtime objects for the gameplay and world simulation.
+      * Purpose: Attaches a glow thinker that begins dimming from the sector's current light toward its darkest neighbor.
       */
       function P_SpawnGlowingLight(sector)
         if sector is void then return end if

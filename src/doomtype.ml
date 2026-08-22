@@ -14,7 +14,7 @@
   limitations under the License.
 
   Script: doomtype.ml
-  Purpose: Contains Doom engine module logic for this subsystem.
+  Purpose: Defines primitive numeric limits, byte masks, booleans, and legacy aliases used by translated Doom code.
 */
 
 const BYTE_MAX = 0xFF

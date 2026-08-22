@@ -31,7 +31,7 @@ const PU_CACHE = 101
 
 /*
 * Struct: memblock_t
-* Purpose: Stores memblock data used by the zone memory system.
+* Purpose: Describes one contiguous zone range with owner reference, purge tag, integrity marker, and indices in the address-ordered block list.
 */
 struct memblock_t
   start
@@ -58,7 +58,7 @@ _Z_rover = 0
 
 /*
 * Function: _Z_Get
-* Purpose: Reads get data for the zone memory.
+* Purpose: Lazily initializes the zone and safely resolves an internal block-table index.
 */
 function inline _Z_Get(i)
   if typeof(_Z_blocks) != "array" then
@@ -82,7 +82,7 @@ end function
 
 /*
 * Function: _Z_IsFree
-* Purpose: Checks free conditions for the zone memory.
+* Purpose: Treats a block as free exactly when it has no owner marker.
 */
 function inline _Z_IsFree(i)
   b = _Z_Get(i)
@@ -91,7 +91,7 @@ end function
 
 /*
 * Function: _Z_NewBlock
-* Purpose: Builds block data for the zone memory.
+* Purpose: Constructs a block descriptor without linking it into the zone list.
 */
 function inline _Z_NewBlock(start, size, user, tag, id, next, prev)
   return memblock_t(start, size, user, tag, id, next, prev)
@@ -99,7 +99,7 @@ end function
 
 /*
 * Function: _Z_Align4
-* Purpose: Provides align4 helper behavior for the zone memory.
+* Purpose: Rounds an allocation size upward to the allocator's four-byte boundary.
 */
 function inline _Z_Align4(n)
   return (n + 3) &(~3)
@@ -107,7 +107,7 @@ end function
 
 /*
 * Function: _Z_LinkAfter
-* Purpose: Provides after helper behavior for the zone memory.
+* Purpose: Inserts one block after another and updates all four neighboring list links atomically.
 */
 function inline _Z_LinkAfter(aIdx, bIdx)
 
@@ -130,7 +130,7 @@ end function
 
 /*
 * Function: _Z_Unlink
-* Purpose: Provides unlink helper behavior for the zone memory.
+* Purpose: Removes a block descriptor from the doubly linked address list and clears its own links.
 */
 function inline _Z_Unlink(i)
   b = _Z_Get(i)
@@ -153,7 +153,7 @@ end function
 
 /*
 * Function: _Z_FindBlockByPtr
-* Purpose: Computes block by pointer values for the zone memory.
+* Purpose: Finds the allocated block whose payload begins at a zone-buffer offset, returning the sentinel index when absent.
 */
 function inline _Z_FindBlockByPtr(ptr)
 
@@ -170,7 +170,7 @@ end function
 
 /*
 * Function: _Z_AssignUser
-* Purpose: Provides user helper behavior for the zone memory.
+* Purpose: Writes an allocated payload offset through Doom's single-element owner-reference convention.
 */
 function inline _Z_AssignUser(user, ptr)
 
@@ -181,7 +181,7 @@ end function
 
 /*
 * Function: Z_ClearZone
-* Purpose: Updates zone state for the zone memory.
+* Purpose: Replaces all allocator metadata with a sentinel and one free block covering the complete zone buffer.
 */
 function Z_ClearZone(zone)
   global _Z_blocks
@@ -209,7 +209,7 @@ end function
 
 /*
 * Function: Z_Init
-* Purpose: Initializes state and dependencies for the zone memory system.
+* Purpose: Obtains the platform zone buffer and initializes allocator metadata over its reported capacity.
 */
 function Z_Init()
   global _Z_buf
@@ -226,7 +226,7 @@ end function
 
 /*
 * Function: Z_Free
-* Purpose: Provides free helper behavior for the zone memory.
+* Purpose: Validates and releases an allocation, invalidates its owner reference, and coalesces adjacent free blocks while repairing the rover.
 */
 function Z_Free(ptr)
   global _Z_rover
@@ -282,7 +282,7 @@ end function
 
 /*
 * Function: Z_Malloc
-* Purpose: Provides malloc helper behavior for the zone memory.
+* Purpose: Performs rover-based first-fit allocation, purges eligible tagged blocks, splits large remainders, and enforces owners for purgeable memory.
 */
 function Z_Malloc(size, tag, user)
   global _Z_blocks
@@ -369,7 +369,7 @@ function Z_Malloc(size, tag, user)
 
   /*
 * Function: Z_FreeTags
-* Purpose: Provides tags helper behavior for the zone memory.
+* Purpose: Frees every allocated block whose purge tag lies in the inclusive requested range while preserving traversal across coalescing.
   */
   function Z_FreeTags(lowtag, hightag)
     head = _Z_Get(_Z_blocklist)
@@ -397,7 +397,7 @@ function Z_Malloc(size, tag, user)
 
   /*
 * Function: Z_DumpHeap
-* Purpose: Provides heap helper behavior for the zone memory.
+* Purpose: Prints allocator size and metadata for blocks in a selected tag range for diagnostics.
   */
   function Z_DumpHeap(lowtag, hightag)
     print "zone size: " + _Z_size
@@ -415,7 +415,7 @@ function Z_Malloc(size, tag, user)
 
   /*
 * Function: Z_FileDumpHeap
-* Purpose: Provides dump heap helper behavior for the zone memory.
+* Purpose: Preserves the legacy file-dump entry point by emitting the complete heap through the active diagnostic output.
   */
   function Z_FileDumpHeap(f)
 
@@ -424,7 +424,7 @@ function Z_Malloc(size, tag, user)
 
   /*
 * Function: Z_CheckHeap
-* Purpose: Finds check Heap information for zone memory processing.
+* Purpose: Verifies bidirectional links, contiguous address coverage, absence of adjacent free blocks, and the final zone extent.
   */
   function Z_CheckHeap()
 
@@ -464,7 +464,7 @@ function Z_Malloc(size, tag, user)
 
   /*
 * Function: Z_ChangeTag2
-* Purpose: Runs tag2 behavior for the zone memory.
+* Purpose: Retags a validated allocation while forbidding purgeable tags on blocks without an owner reference.
   */
   function Z_ChangeTag2(ptr, tag)
     idx = _Z_FindBlockByPtr(ptr)
@@ -491,7 +491,7 @@ function Z_Malloc(size, tag, user)
 
   /*
 * Function: Z_ChangeTag
-* Purpose: Runs tag behavior for the zone memory.
+* Purpose: Exposes the validated retagging operation under the original zone API name.
   */
   function Z_ChangeTag(ptr, tag)
     Z_ChangeTag2(ptr, tag)
@@ -499,7 +499,7 @@ function Z_Malloc(size, tag, user)
 
   /*
 * Function: Z_FreeMemory
-* Purpose: Provides memory helper behavior for the zone memory.
+* Purpose: Totals immediately free and purgeable bytes to estimate memory available for a future allocation.
   */
   function Z_FreeMemory()
     free = 0
@@ -516,7 +516,7 @@ function Z_Malloc(size, tag, user)
 
   /*
 * Function: Z_GetZoneBuffer
-* Purpose: Reads zone buffer data for the zone memory.
+* Purpose: Returns the backing byte buffer addressed by all zone payload offsets.
   */
   function Z_GetZoneBuffer()
     return _Z_buf
@@ -524,7 +524,7 @@ function Z_Malloc(size, tag, user)
 
   /*
 * Function: Z_PeekByte
-* Purpose: Provides byte helper behavior for the zone memory.
+* Purpose: Reads one byte at an absolute zone-buffer offset.
   */
   function Z_PeekByte(ptr)
     return _Z_buf[ptr]
@@ -532,7 +532,7 @@ function Z_Malloc(size, tag, user)
 
   /*
 * Function: Z_PokeByte
-* Purpose: Provides byte helper behavior for the zone memory.
+* Purpose: Writes the low eight bits of a value at an absolute zone-buffer offset.
   */
   function Z_PokeByte(ptr, v)
     _Z_buf[ptr] = v & 255
@@ -540,7 +540,7 @@ function Z_Malloc(size, tag, user)
 
   /*
 * Function: Z_PokeBytes
-* Purpose: Provides bytes helper behavior for the zone memory.
+* Purpose: Copies a validated source byte range into the zone buffer at an absolute payload offset.
   */
   function Z_PokeBytes(dstPtr, srcBytes, srcOff, length)
     if typeof(dstPtr) != "int" then
@@ -562,7 +562,7 @@ function Z_Malloc(size, tag, user)
 
   /*
 * Function: Z_BytesAt
-* Purpose: Provides at helper behavior for the zone memory.
+* Purpose: Returns a byte slice copied from an absolute zone-buffer range.
   */
   function Z_BytesAt(ptr, length)
     return slice(_Z_buf, ptr, length)

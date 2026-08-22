@@ -328,17 +328,43 @@ Then select `Start Host`.
 
 In `Join Game`, set:
 
-- `Host` (IP address or hostname)
+- `Host` (numeric IPv4 address, for example `127.0.0.1`)
 - `Port` (must match host)
 
 Then select `Join`.
 
+### Start Multiplayer From the Command Line
+
+The command-line path uses the same host/join handshake and game bootstrap as the menus. Start a host with:
+
+```powershell
+.\build\MiniDoom.exe -iwad "C:\Games\DOOM\DOOM2.WAD" -mp-host 2342 -mp-mode coop -mp-map MAP01 -mp-skill 2 -mp-maxplayers 4 -mp-fraglimit 0 -mp-timelimit 0 -mp-name Host
+```
+
+Join it from another process or machine with:
+
+```powershell
+.\build\MiniDoom.exe -iwad "C:\Games\DOOM\DOOM2.WAD" -mp-join 127.0.0.1 2342 -mp-name Marine
+```
+
+Available options:
+
+- `-mp-host <port>`: host a session on UDP port `1..65535`.
+- `-mp-join <numeric-ipv4> <port>`: join a host; DNS hostnames are not currently accepted.
+- `-mp-mode <coop|deathmatch>`: select the host game mode.
+- `-mp-map <MAP01|E1M1>`: select a map present in the loaded WAD set.
+- `-mp-skill <0..4>`: select the host skill from baby through nightmare.
+- `-mp-maxplayers <2..4>`: cap total active slots, including the host.
+- `-mp-fraglimit <0..999>` and `-mp-timelimit <0..180>`: configure deathmatch limits; zero disables a limit.
+- `-mp-name <name>`: set the local sanitized player name (up to 25 characters).
+- `-mp-log <path>`: write machine-readable connection, slot, map, and disconnect status lines to a per-process log. Runtime continues on stdout if the file cannot be opened.
+
 ### WAD Compatibility Check
 
-On host and client startup for multiplayer, MiniDoom computes an IWAD fingerprint (`FNV-1a`).
+On host and client startup for multiplayer, MiniDoom computes a load-order-sensitive fingerprint (`FNV-1a`) over the IWAD and all gameplay PWADs. Optional generated `.hdwad` rendering caches are excluded.
 Join is rejected if fingerprints do not match.
 
-Practical recommendation: all players should use the same IWAD file/version.
+Practical recommendation: all players should use the same IWAD/PWAD files in the same load order.
 
 ### Chat
 

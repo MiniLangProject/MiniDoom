@@ -119,7 +119,7 @@ end struct
 
 /*
 * Struct: islope_t
-* Purpose: Stores islope data used by the automap system.
+* Purpose: Holds the per-edge slope steps used when clipping map lines to the automap window.
 */
 struct islope_t
   slp
@@ -128,7 +128,7 @@ end struct
 
 /*
 * Function: _AM_MPoint
-* Purpose: Provides point helper behavior for the automap.
+* Purpose: Constructs a point in map-space fixed-point coordinates.
 */
 function inline _AM_MPoint(x, y)
   return mpoint_t(x, y)
@@ -136,7 +136,7 @@ end function
 
 /*
 * Function: _AM_FPoint
-* Purpose: Provides point helper behavior for the automap.
+* Purpose: Constructs a point in automap framebuffer pixel coordinates.
 */
 function inline _AM_FPoint(x, y)
   return fpoint_t(x, y)
@@ -144,7 +144,7 @@ end function
 
 /*
 * Function: _AM_MLine
-* Purpose: Provides line helper behavior for the automap.
+* Purpose: Constructs a map-space line from two fixed-point endpoints.
 */
 function inline _AM_MLine(x1, y1, x2, y2)
   return mline_t(_AM_MPoint(x1, y1), _AM_MPoint(x2, y2))
@@ -152,7 +152,7 @@ end function
 
 /*
 * Function: _AM_FLine
-* Purpose: Provides line helper behavior for the automap.
+* Purpose: Constructs a framebuffer-space line used by the clipping and rasterization stages.
 */
 function inline _AM_FLine(x1, y1, x2, y2)
   return fline_t(_AM_FPoint(x1, y1), _AM_FPoint(x2, y2))
@@ -160,7 +160,7 @@ end function
 
 /*
 * Function: _AM_Abs
-* Purpose: Provides absolute-value helper behavior for the automap.
+* Purpose: Returns the magnitude of an integer without altering its fixed-point scale.
 */
 function inline _AM_Abs(v)
   if v < 0 then return - v end if
@@ -169,7 +169,7 @@ end function
 
 /*
 * Function: _AM_Clamp
-* Purpose: Clamps clamp values to the supported automap range.
+* Purpose: Restricts a zoom or coordinate value to the caller's inclusive lower and upper bounds.
 */
 function inline _AM_Clamp(v, lo, hi)
   if v < lo then return lo end if
@@ -179,7 +179,7 @@ end function
 
 /*
 * Function: _AM_Mod
-* Purpose: Provides mod helper behavior for the automap.
+* Purpose: Computes a non-negative remainder for grid alignment, returning zero for a zero divisor.
 */
 function inline _AM_Mod(n, d)
   if d == 0 then return 0 end if
@@ -190,7 +190,7 @@ end function
 
 /*
 * Function: _AM_IDiv
-* Purpose: Performs integer division with automap rounding and guard rules.
+* Purpose: Returns a signed quotient truncated toward zero, or zero for invalid operands and a zero divisor.
 */
 function inline _AM_IDiv(a, b)
   if typeof(a) != "int" or typeof(b) != "int" or b == 0 then return 0 end if
@@ -201,7 +201,7 @@ end function
 
 /*
 * Function: _AM_ToLowerAscii
-* Purpose: Converts lower ASCII values for the automap.
+* Purpose: Folds one uppercase ASCII byte to lowercase while leaving all other bytes unchanged.
 */
 function inline _AM_ToLowerAscii(c)
   if c >= 65 and c <= 90 then return c + 32 end if
@@ -210,7 +210,7 @@ end function
 
 /*
 * Function: _AM_CaseKey
-* Purpose: Provides key helper behavior for the automap.
+* Purpose: Normalizes an input key to lowercase ASCII for case-insensitive automap bindings.
 */
 function inline _AM_CaseKey(k)
   if typeof(k) != "int" then return -1 end if
@@ -219,7 +219,7 @@ end function
 
 /*
 * Function: _AM_CacheOrVoid
-* Purpose: Retrieves and caches data for the internal module support.
+* Purpose: Resolves an optional automap patch lump and returns its tagged cache entry, or void when the name is absent.
 */
 function inline _AM_CacheOrVoid(name, tag)
   if typeof(W_CheckNumForName) == "function" then
@@ -232,7 +232,7 @@ end function
 
 /*
 * Function: _AM_FTOM
-* Purpose: Provides ftom helper behavior for the automap.
+* Purpose: Converts a framebuffer pixel distance to map-space fixed-point units using the current zoom scale.
 */
 function inline _AM_FTOM(x)
   return FixedMul(x << 16, scale_ftom)
@@ -240,7 +240,7 @@ end function
 
 /*
 * Function: _AM_MTOF
-* Purpose: Provides mtof helper behavior for the automap.
+* Purpose: Converts a map-space fixed-point distance to framebuffer pixels using the current zoom scale.
 */
 function inline _AM_MTOF(x)
   return FixedMul(x, scale_mtof) >> 16
@@ -248,7 +248,7 @@ end function
 
 /*
 * Function: _AM_CXMTOF
-* Purpose: Provides cxmtof helper behavior for the automap.
+* Purpose: Projects a map-space x coordinate into the automap window relative to its current origin.
 */
 function inline _AM_CXMTOF(x)
   return f_x + _AM_MTOF(x - m_x)
@@ -256,7 +256,7 @@ end function
 
 /*
 * Function: _AM_CYMTOF
-* Purpose: Provides cymtof helper behavior for the automap.
+* Purpose: Projects a map-space y coordinate into the vertically inverted automap framebuffer.
 */
 function inline _AM_CYMTOF(y)
   return f_y +(f_h - _AM_MTOF(y - m_y))
@@ -325,7 +325,7 @@ stopped = true
 
 /*
 * Function: AM_getIslope
-* Purpose: Reads inverse slope data for the automap.
+* Purpose: Computes both dy/dx and dx/dy for a map line, using signed sentinels for vertical and horizontal cases.
 */
 function AM_getIslope(ml, sl)
   if ml is void or sl is void then return end if
@@ -345,7 +345,7 @@ end function
 
 /*
 * Function: AM_activateNewScale
-* Purpose: Runs new scale behavior for the automap.
+* Purpose: Recomputes the map-space viewport for the current zoom while preserving its center point.
 */
 function AM_activateNewScale()
   global m_x
@@ -366,7 +366,7 @@ end function
 
 /*
 * Function: AM_saveScaleAndLoc
-* Purpose: Writes scale and location data for the automap.
+* Purpose: Snapshots the current map viewport so big-map mode can later restore the prior zoom and location.
 */
 function AM_saveScaleAndLoc()
   global old_m_x
@@ -381,7 +381,7 @@ end function
 
 /*
 * Function: AM_restoreScaleAndLoc
-* Purpose: Updates scale and location state for the automap.
+* Purpose: Restores the saved viewport, repairs invalid dimensions from the active zoom, and refreshes its far edges.
 */
 function AM_restoreScaleAndLoc()
   global m_x
@@ -476,7 +476,7 @@ end function
 
 /*
 * Function: AM_changeWindowLoc
-* Purpose: Runs window location behavior for the automap.
+* Purpose: Applies manual pan increments when follow mode is off and clamps the viewport to level bounds.
 */
 function AM_changeWindowLoc()
   if followplayer != 0 and plr is not void and plr.mo is not void then
@@ -501,7 +501,7 @@ end function
 
 /*
 * Function: AM_initVariables
-* Purpose: Initializes state and dependencies for the automap subsystem.
+* Purpose: Activates the automap, resets frame-local counters and pan state, selects the console player, and centers the viewport.
 */
 function AM_initVariables()
   global automapactive
@@ -562,7 +562,7 @@ end function
 
 /*
 * Function: AM_loadPics
-* Purpose: Reads patches data for the automap.
+* Purpose: Resolves and pins the ten AMMNUM digit patches used to label player map marks.
 */
 function AM_loadPics()
   global marknums
@@ -580,7 +580,7 @@ end function
 
 /*
 * Function: AM_unloadPics
-* Purpose: Loads unload Pics resources used by the automap system.
+* Purpose: Drops automap mark-patch references when leaving the map display.
 */
 function AM_unloadPics()
   global marknums
@@ -589,7 +589,7 @@ end function
 
 /*
 * Function: AM_clearMarks
-* Purpose: Updates marks state for the automap.
+* Purpose: Replaces every mark slot with the unused sentinel and restarts insertion at slot zero.
 */
 function AM_clearMarks()
   global markpoints
@@ -605,7 +605,7 @@ end function
 
 /*
 * Function: AM_LevelInit
-* Purpose: Initializes state and dependencies for the automap subsystem.
+* Purpose: Resets the framebuffer viewport and initial zoom, derives level map bounds, and clears the level-start flag.
 */
 function AM_LevelInit()
   global f_x
@@ -629,7 +629,7 @@ end function
 
 /*
 * Function: AM_Start
-* Purpose: Starts runtime behavior in the automap subsystem.
+* Purpose: Activates the automap once, prepares level/view state and mark graphics, then notifies the status bar.
 */
 function AM_Start()
   if automapactive then return end if
@@ -649,7 +649,7 @@ end function
 
 /*
 * Function: AM_minOutWindowScale
-* Purpose: Provides out window scale helper behavior for the automap.
+* Purpose: Clamps zoom-out at the scale where the complete level bounding box fits in the automap window.
 */
 function AM_minOutWindowScale()
   global scale_mtof
@@ -662,7 +662,7 @@ end function
 
 /*
 * Function: AM_maxOutWindowScale
-* Purpose: Provides out window scale helper behavior for the automap.
+* Purpose: Clamps zoom-in to the configured maximum map-to-frame scale.
 */
 function AM_maxOutWindowScale()
   global scale_mtof
@@ -675,7 +675,7 @@ end function
 
 /*
 * Function: AM_changeWindowScale
-* Purpose: Runs window scale behavior for the automap.
+* Purpose: Applies the pending zoom multiplier, clamps it to level limits, derives its inverse, and recenters the viewport.
 */
 function AM_changeWindowScale()
   global scale_mtof
@@ -689,7 +689,7 @@ end function
 
 /*
 * Function: AM_doFollowPlayer
-* Purpose: Runs follow player behavior for the automap.
+* Purpose: Recenters the map only when the tracked player position changes and remembers that position for the next frame.
 */
 function AM_doFollowPlayer()
   if plr is void or plr.mo is void then return end if
@@ -709,7 +709,7 @@ end function
 
 /*
 * Function: AM_updateLightLev
-* Purpose: Updates light lev state for the automap.
+* Purpose: Increments the automap pulse counter used to vary wall brightness over successive frames.
 */
 function AM_updateLightLev()
   global lightlev
@@ -718,7 +718,7 @@ end function
 
 /*
 * Function: _AM_PutPixel
-* Purpose: Provides pixel helper behavior for the automap.
+* Purpose: Writes one clipped color index into the logical automap framebuffer.
 */
 function inline _AM_PutPixel(x, y, color)
   if x < f_x or x >= f_x + f_w or y < f_y or y >= f_y + f_h then return end if
@@ -733,7 +733,7 @@ end function
 
 /*
 * Function: AM_clearFB
-* Purpose: Updates fb state for the automap.
+* Purpose: Fills the clipped automap viewport in the logical framebuffer with its background palette index.
 */
 function AM_clearFB()
   if typeof(screens) != "array" or FB < 0 or FB >= len(screens) then return end if
@@ -777,7 +777,7 @@ end function
 
 /*
 * Function: AM_drawFline
-* Purpose: Draws frame line output for the automap.
+* Purpose: Clips and rasterizes a framebuffer-space line with integer stepping.
 */
 function AM_drawFline(fl, color)
   if fl is void then return end if
@@ -812,7 +812,7 @@ end function
 
 /*
 * Function: AM_drawMline
-* Purpose: Draws map line output for the automap.
+* Purpose: Projects a map-space line into the automap window and rasterizes the visible segment.
 */
 function AM_drawMline(ml, color)
   fl = _AM_FLine(0, 0, 0, 0)
@@ -823,7 +823,7 @@ end function
 
 /*
 * Function: AM_drawGrid
-* Purpose: Draws grid output for the automap.
+* Purpose: Draws map-aligned grid lines across the visible automap extent when the grid option is enabled.
 */
 function AM_drawGrid(color)
   if not grid then return end if
@@ -848,7 +848,7 @@ end function
 
 /*
 * Function: AM_drawWalls
-* Purpose: Draws walls output for the automap.
+* Purpose: Classifies discovered map lines by geometry and special type, then draws them with the corresponding automap colors.
 */
 function AM_drawWalls()
   if typeof(lines) != "array" then return end if
@@ -881,7 +881,7 @@ end function
 
 /*
 * Function: AM_rotate
-* Purpose: Provides rotate helper behavior for the automap.
+* Purpose: Rotates a map-space vector by a Doom binary angle using the fine sine/cosine tables.
 */
 function AM_rotate(x, y, a)
   if typeof(finecosine) != "array" or typeof(finesine) != "array" then
@@ -895,7 +895,7 @@ end function
 
 /*
 * Function: AM_drawLineCharacter
-* Purpose: Draws line character output for the automap.
+* Purpose: Transforms and draws a vector glyph at a map position, applying scale and rotation to each source segment.
 */
 function AM_drawLineCharacter(lineset, count, scale, angle, color, x, y)
   if typeof(lineset) != "array" then return end if
@@ -916,7 +916,7 @@ end function
 
 /*
 * Function: AM_drawPlayers
-* Purpose: Draws players output for the automap.
+* Purpose: Draws the local or network player arrow glyphs at their interpolated positions and facing angles.
 */
 function AM_drawPlayers()
   if plr is void or plr.mo is void then return end if
@@ -937,7 +937,7 @@ end function
 
 /*
 * Function: AM_drawThings
-* Purpose: Draws things output for the automap.
+* Purpose: Draws cheat-visible map objects as scaled vector triangles around their world positions.
 */
 function AM_drawThings(color, radius)
   color = color
@@ -947,7 +947,7 @@ end function
 
 /*
 * Function: AM_drawMarks
-* Purpose: Draws marks output for the automap.
+* Purpose: Projects user mark positions and labels them with numbered patch glyphs.
 */
 function AM_drawMarks()
   if len(markpoints) == 0 then return end if
@@ -965,7 +965,7 @@ end function
 
 /*
 * Function: AM_drawCrosshair
-* Purpose: Draws crosshair output for the automap.
+* Purpose: Draws the single-pixel cursor at the center of the automap window.
 */
 function AM_drawCrosshair(color)
   cx = f_x + _AM_IDiv(f_w, 2)
@@ -979,7 +979,7 @@ end function
 
 /*
 * Function: AM_Responder
-* Purpose: Handles responder events for the automap system.
+* Purpose: Consumes automap key events, toggling modes and updating pan, zoom, follow, grid, and mark state.
 */
 function AM_Responder(ev)
   if ev is void then return false end if
@@ -1066,7 +1066,7 @@ end function
 
 /*
 * Function: AM_Ticker
-* Purpose: Advances ticker logic during the automap tick.
+* Purpose: Applies held pan and zoom increments once per game tic while the automap is active.
 */
 function AM_Ticker()
   if not automapactive then return end if
@@ -1087,7 +1087,7 @@ end function
 
 /*
 * Function: AM_Drawer
-* Purpose: Provides drawer helper behavior for the automap.
+* Purpose: Renders one complete automap frame in layer order, including geometry, actors, marks, and cursor.
 */
 function AM_Drawer()
   if not automapactive then return end if
@@ -1104,7 +1104,7 @@ end function
 
 /*
 * Function: AM_Stop
-* Purpose: Stops or tears down runtime behavior in the automap subsystem.
+* Purpose: Releases mark graphics, restores normal view rendering, and notifies the status bar that the automap closed.
 */
 function AM_Stop()
   if not automapactive then return end if

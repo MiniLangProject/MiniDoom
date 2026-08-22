@@ -14,7 +14,7 @@
   limitations under the License.
 
   Script: p_enemy.ml
-  Purpose: Implements core gameplay simulation: map logic, physics, AI, and world interaction.
+  Purpose: Implements monster perception, chase movement, attack actions, resurrection, boss triggers, and Icon of Sin spawning.
 */
 import m_random
 import i_system
@@ -70,7 +70,7 @@ _PE_brain_easy = 0
 
 /*
 * Function: _PE_Abs
-* Purpose: Provides absolute-value helper behavior for the play simulation.
+* Purpose: Returns the non-negative magnitude of an enemy movement or distance scalar.
 */
 function inline _PE_Abs(v)
   if v < 0 then return - v end if
@@ -79,7 +79,7 @@ end function
 
 /*
 * Function: _PE_IDiv
-* Purpose: Performs integer division with enemy AI rounding and guard rules.
+* Purpose: Divides integer AI values with truncation toward zero, returning zero for invalid operands or a zero divisor.
 */
 function inline _PE_IDiv(a, b)
   if typeof(a) != "int" or typeof(b) != "int" or b == 0 then return 0 end if
@@ -90,7 +90,7 @@ end function
 
 /*
 * Function: _PE_StartSound
-* Purpose: Starts runtime behavior in the internal module support.
+* Purpose: Starts an actor sound when the audio subsystem is linked, otherwise leaves AI state unchanged.
 */
 function inline _PE_StartSound(origin, sfx)
   if typeof(S_StartSound) == "function" then
@@ -100,7 +100,7 @@ end function
 
 /*
 * Function: _PE_JunkLineWithTag
-* Purpose: Provides junk line with tag helper behavior for the play simulation.
+* Purpose: Constructs a minimal synthetic linedef carrying a tag for boss-death floor and door event APIs.
 */
 function inline _PE_JunkLineWithTag(tag)
   return line_t(void, void, 0, 0, 0, 0, tag,[0, -1],[0, 0, 0, 0], 0, void, void, 0, void)
@@ -108,7 +108,7 @@ end function
 
 /*
 * Function: _PE_ResolveThinkerMobj
-* Purpose: Advances resolve Thinker Mobj logic during the enemy AI tick.
+* Purpose: Resolves a thinker-list node to its registered mobj owner, accepting direct mobj-shaped nodes as fallback.
 */
 function inline _PE_ResolveThinkerMobj(cur)
   if cur is void then return void end if
@@ -124,7 +124,7 @@ end function
 
 /*
 * Function: _PE_HasOtherAliveType
-* Purpose: Provides has other alive type helper behavior for the play simulation.
+* Purpose: Scans registered thinkers for another living mobj of the requested type, excluding the supplied actor.
 */
 function _PE_HasOtherAliveType(exceptMo, moType)
   cur = thinkercap.next
@@ -140,7 +140,7 @@ end function
 
 /*
 * Function: P_RecursiveSound
-* Purpose: Provides sound helper behavior for the play simulation.
+* Purpose: Floods a noise target through open two-sided sectors, crossing at most one sound-blocking line.
 */
 function P_RecursiveSound(sec, soundblocks)
   global soundtarget
@@ -189,7 +189,7 @@ end function
 
 /*
 * Function: P_NoiseAlert
-* Purpose: Provides alert helper behavior for the play simulation.
+* Purpose: Starts a new sound-validity flood from the emitter's sector so monsters acquire target as their sound target.
 */
 function P_NoiseAlert(target, emmiter)
   global soundtarget
@@ -202,7 +202,7 @@ end function
 
 /*
 * Function: P_CheckMeleeRange
-* Purpose: Finds check Melee Range information for enemy AI processing.
+* Purpose: Requires a live target within radius-adjusted melee distance, modest vertical separation, and line of sight.
 */
 function P_CheckMeleeRange(actor)
   if actor is void or actor.target is void then return false end if
@@ -219,7 +219,7 @@ end function
 
 /*
 * Function: P_CheckMissileRange
-* Purpose: Finds check Missile Range information for enemy AI processing.
+* Purpose: Applies sight, reaction, distance, melee-capability, and randomized aggression rules before a monster fires.
 */
 function P_CheckMissileRange(actor)
   if actor is void or actor.target is void then return false end if
@@ -258,7 +258,7 @@ end function
 
 /*
 * Function: P_Move
-* Purpose: Computes movement/collision behavior in the gameplay and world simulation.
+* Purpose: Attempts one movedir step, adjusts floating monsters, and activates crossed special lines when blocked.
 */
 function P_Move(actor)
   global numspechit
@@ -309,7 +309,7 @@ end function
 
 /*
 * Function: P_TryWalk
-* Purpose: Computes movement/collision behavior in the gameplay and world simulation.
+* Purpose: Performs one monster move and randomizes the number of tics before its next chase-direction choice.
 */
 function P_TryWalk(actor)
   if not P_Move(actor) then return false end if
@@ -319,7 +319,7 @@ end function
 
 /*
 * Function: P_NewChaseDir
-* Purpose: Builds chase directory data for the play simulation.
+* Purpose: Chooses diagonal or cardinal movement toward the target while avoiding immediate turnaround and blocked directions.
 */
 function P_NewChaseDir(actor)
   if actor is void or actor.target is void then
@@ -409,7 +409,7 @@ end function
 
 /*
 * Function: P_LookForPlayers
-* Purpose: Provides for players helper behavior for the play simulation.
+* Purpose: Cycles active living players, enforcing field-of-view unless allaround, and acquires the first visible target.
 */
 function P_LookForPlayers(actor, allaround)
   if actor is void then return false end if
@@ -466,7 +466,7 @@ end function
 
 /*
 * Function: A_Fall
-* Purpose: Provides fall helper behavior for the play simulation.
+* Purpose: Clears MF_SOLID from a dead actor so corpses no longer block movement.
 */
 function A_Fall(actor)
   if actor is void then return end if
@@ -475,7 +475,7 @@ end function
 
 /*
 * Function: A_KeenDie
-* Purpose: Controls keen Die transitions in the enemy AI system.
+* Purpose: Makes a Keen corpse non-solid and opens tagged door 666 only after the last living Keen dies.
 */
 function A_KeenDie(mo)
   if mo is void then return end if
@@ -489,7 +489,7 @@ end function
 
 /*
 * Function: A_Look
-* Purpose: Provides look helper behavior for the play simulation.
+* Purpose: Leaves a monster idle until it hears a valid target or sees a player, then plays its wake sound and enters seestate.
 */
 function A_Look(actor)
   if actor is void then return end if
@@ -536,7 +536,7 @@ end function
 
 /*
 * Function: A_Chase
-* Purpose: Provides chase helper behavior for the play simulation.
+* Purpose: Turns and pursues the target, retargets when needed, selects melee/missile attacks, and chooses new paths when blocked.
 */
 function A_Chase(actor)
   if actor is void or actor.info is void then return end if
@@ -611,7 +611,7 @@ end function
 
 /*
 * Function: A_FaceTarget
-* Purpose: Provides face target helper behavior for the play simulation.
+* Purpose: Clears ambush, aims exactly at the target, and adds random angular jitter when the target is shadowed.
 */
 function A_FaceTarget(actor)
   if actor is void or actor.target is void then return end if
@@ -624,7 +624,7 @@ end function
 
 /*
 * Function: A_PosAttack
-* Purpose: Provides position attack helper behavior for the play simulation.
+* Purpose: Faces the target, plays the pistol sound, and fires one spread hitscan with randomized bullet damage.
 */
 function A_PosAttack(actor)
   if actor is void or actor.target is void then return end if
@@ -639,7 +639,7 @@ end function
 
 /*
 * Function: A_SPosAttack
-* Purpose: Provides s position attack helper behavior for the play simulation.
+* Purpose: Faces the target, plays the shotgun sound, and fires three independent spread hitscans.
 */
 function A_SPosAttack(actor)
   if actor is void or actor.target is void then return end if
@@ -657,7 +657,7 @@ end function
 
 /*
 * Function: A_CPosAttack
-* Purpose: Provides c position attack helper behavior for the play simulation.
+* Purpose: Faces the target and fires one chaingunner hitscan with pistol audio, spread, and randomized damage.
 */
 function A_CPosAttack(actor)
   if actor is void or actor.target is void then return end if
@@ -672,7 +672,7 @@ end function
 
 /*
 * Function: A_CPosRefire
-* Purpose: Provides c position refire helper behavior for the play simulation.
+* Purpose: Continues chaingunner fire while the random check and target visibility pass, otherwise returns to seestate.
 */
 function A_CPosRefire(actor)
   if actor is void then return end if
@@ -685,7 +685,7 @@ end function
 
 /*
 * Function: A_SpidRefire
-* Purpose: Provides spid refire helper behavior for the play simulation.
+* Purpose: Continues Spider Mastermind fire while its randomized stop check and target visibility pass.
 */
 function A_SpidRefire(actor)
   if actor is void then return end if
@@ -698,7 +698,7 @@ end function
 
 /*
 * Function: A_BspiAttack
-* Purpose: Provides bspi attack helper behavior for the play simulation.
+* Purpose: Faces the target and launches an arachnotron plasma projectile.
 */
 function A_BspiAttack(actor)
   if actor is void or actor.target is void then return end if
@@ -708,7 +708,7 @@ end function
 
 /*
 * Function: A_TroopAttack
-* Purpose: Provides troop attack helper behavior for the play simulation.
+* Purpose: Faces the target, performs an imp claw attack in melee, or launches an imp fireball at range.
 */
 function A_TroopAttack(actor)
   if actor is void or actor.target is void then return end if
@@ -724,7 +724,7 @@ end function
 
 /*
 * Function: A_SargAttack
-* Purpose: Provides sarg attack helper behavior for the play simulation.
+* Purpose: Faces the target and applies the demon's randomized melee bite when in range.
 */
 function A_SargAttack(actor)
   if actor is void or actor.target is void then return end if
@@ -737,7 +737,7 @@ end function
 
 /*
 * Function: A_HeadAttack
-* Purpose: Provides head attack helper behavior for the play simulation.
+* Purpose: Faces the target, bites in melee, or launches a cacodemon projectile at range.
 */
 function A_HeadAttack(actor)
   if actor is void or actor.target is void then return end if
@@ -752,7 +752,7 @@ end function
 
 /*
 * Function: A_CyberAttack
-* Purpose: Provides cyber attack helper behavior for the play simulation.
+* Purpose: Faces the target and launches one Cyberdemon rocket.
 */
 function A_CyberAttack(actor)
   if actor is void or actor.target is void then return end if
@@ -762,7 +762,7 @@ end function
 
 /*
 * Function: A_BruisAttack
-* Purpose: Provides bruis attack helper behavior for the play simulation.
+* Purpose: Faces the target, performs a Baron/Hell Knight melee strike, or launches a green plasma projectile.
 */
 function A_BruisAttack(actor)
   if actor is void or actor.target is void then return end if
@@ -777,7 +777,7 @@ end function
 
 /*
 * Function: A_SkelMissile
-* Purpose: Provides skel missile helper behavior for the play simulation.
+* Purpose: Faces the target, launches a Revenant tracer missile, and advances it outward from the actor before homing begins.
 */
 function A_SkelMissile(actor)
   if actor is void or actor.target is void then return end if
@@ -794,7 +794,7 @@ end function
 
 /*
 * Function: A_Tracer
-* Purpose: Provides tracer helper behavior for the play simulation.
+* Purpose: Periodically spawns smoke and steers a Revenant missile's angle and vertical momentum toward its live tracer target.
 */
 function A_Tracer(actor)
   if actor is void then return end if
@@ -849,7 +849,7 @@ end function
 
 /*
 * Function: A_SkelWhoosh
-* Purpose: Provides skel whoosh helper behavior for the play simulation.
+* Purpose: Faces the target and plays the Revenant melee swing sound.
 */
 function A_SkelWhoosh(actor)
   if actor is void or actor.target is void then return end if
@@ -859,7 +859,7 @@ end function
 
 /*
 * Function: A_SkelFist
-* Purpose: Provides skel fist helper behavior for the play simulation.
+* Purpose: Faces the target and applies the Revenant's randomized punch damage when still in melee range.
 */
 function A_SkelFist(actor)
   if actor is void or actor.target is void then return end if
@@ -873,7 +873,7 @@ end function
 
 /*
 * Function: PIT_VileCheck
-* Purpose: Finds vile Check information for enemy AI processing.
+* Purpose: Tests whether a nearby corpse is raiseable at the Arch-vile destination and records the first valid resurrection candidate.
 */
 function PIT_VileCheck(thing)
   global corpsehit
@@ -913,7 +913,7 @@ end function
 
 /*
 * Function: A_VileChase
-* Purpose: Provides vile chase helper behavior for the play simulation.
+* Purpose: Searches the next movement block for a raisable corpse, resurrects it when found, otherwise runs normal chase logic.
 */
 function A_VileChase(actor)
   global viletryx
@@ -969,7 +969,7 @@ end function
 
 /*
 * Function: A_VileStart
-* Purpose: Starts runtime behavior in the engine module behavior.
+* Purpose: Plays the Arch-vile's attack-start sound.
 */
 function A_VileStart(actor)
   if actor is void then return end if
@@ -978,7 +978,7 @@ end function
 
 /*
 * Function: A_StartFire
-* Purpose: Starts runtime behavior in the engine module behavior.
+* Purpose: Starts the Arch-vile flame sound and immediately positions its fire actor relative to the victim.
 */
 function A_StartFire(actor)
   if actor is void then return end if
@@ -988,7 +988,7 @@ end function
 
 /*
 * Function: A_FireCrackle
-* Purpose: Runs crackle firing behavior for the actor AI.
+* Purpose: Plays the Arch-vile flame crackle and updates the fire actor's attachment to its victim.
 */
 function A_FireCrackle(actor)
   if actor is void then return end if
@@ -998,7 +998,7 @@ end function
 
 /*
 * Function: A_Fire
-* Purpose: Runs fire firing behavior for the actor AI.
+* Purpose: Keeps an Arch-vile fire actor in front of its traced victim while the owner retains line of sight.
 */
 function A_Fire(actor)
   if actor is void then return end if
@@ -1018,7 +1018,7 @@ end function
 
 /*
 * Function: A_VileTarget
-* Purpose: Provides vile target helper behavior for the play simulation.
+* Purpose: Faces the victim, spawns the Arch-vile fire actor, and links owner/victim references used by later fire actions.
 */
 function A_VileTarget(actor)
   if actor is void or actor.target is void then return end if
@@ -1035,7 +1035,7 @@ end function
 
 /*
 * Function: A_VileAttack
-* Purpose: Provides vile attack helper behavior for the play simulation.
+* Purpose: Applies the Arch-vile blast, vertical thrust, radius damage, and final fire placement when sight remains clear.
 */
 function A_VileAttack(actor)
   if actor is void or actor.target is void then return end if
@@ -1063,7 +1063,7 @@ end function
 
 /*
 * Function: A_FatRaise
-* Purpose: Provides fat raise helper behavior for the play simulation.
+* Purpose: Faces the target and plays the Mancubus weapon-raise sound before its volley.
 */
 function A_FatRaise(actor)
   if actor is void then return end if
@@ -1073,7 +1073,7 @@ end function
 
 /*
 * Function: A_FatAttack1
-* Purpose: Provides fat attack1 helper behavior for the play simulation.
+* Purpose: Turns slightly right and launches the first two-projectile Mancubus spread pair.
 */
 function A_FatAttack1(actor)
   if actor is void or actor.target is void then return end if
@@ -1094,7 +1094,7 @@ end function
 
 /*
 * Function: A_FatAttack2
-* Purpose: Provides fat attack2 helper behavior for the play simulation.
+* Purpose: Turns left and launches the second two-projectile Mancubus spread pair.
 */
 function A_FatAttack2(actor)
   if actor is void or actor.target is void then return end if
@@ -1115,7 +1115,7 @@ end function
 
 /*
 * Function: A_FatAttack3
-* Purpose: Provides fat attack3 helper behavior for the play simulation.
+* Purpose: Launches the final Mancubus pair on diverging angles around the target direction.
 */
 function A_FatAttack3(actor)
   if actor is void or actor.target is void then return end if
@@ -1144,7 +1144,7 @@ end function
 
 /*
 * Function: A_SkullAttack
-* Purpose: Provides skull attack helper behavior for the play simulation.
+* Purpose: Faces the target, enters MF_SKULLFLY, plays attack audio, and sets charge momentum toward target center.
 */
 function A_SkullAttack(actor)
   if actor is void or actor.target is void then return end if
@@ -1167,7 +1167,7 @@ end function
 
 /*
 * Function: _PE_PainShootSkull
-* Purpose: Provides pain shoot skull helper behavior for the play simulation.
+* Purpose: Enforces the Lost Soul population cap, validates a spawn point, creates a soul, and starts its charge at the target.
 */
 function _PE_PainShootSkull(actor, angle)
   if actor is void or actor.target is void then return end if
@@ -1207,7 +1207,7 @@ end function
 
 /*
 * Function: A_PainShootSkull
-* Purpose: Provides pain shoot skull helper behavior for the play simulation.
+* Purpose: Public action wrapper that spawns and launches one Lost Soul at the requested angle.
 */
 function A_PainShootSkull(actor, angle)
   _PE_PainShootSkull(actor, angle)
@@ -1215,7 +1215,7 @@ end function
 
 /*
 * Function: A_PainAttack
-* Purpose: Provides pain attack helper behavior for the play simulation.
+* Purpose: Faces the target and emits one Lost Soul straight ahead.
 */
 function A_PainAttack(actor)
   if actor is void or actor.target is void then return end if
@@ -1225,7 +1225,7 @@ end function
 
 /*
 * Function: A_PainDie
-* Purpose: Provides pain die helper behavior for the play simulation.
+* Purpose: Makes the Pain Elemental corpse non-solid and emits three Lost Souls in separated directions.
 */
 function A_PainDie(actor)
   if actor is void then return end if
@@ -1237,7 +1237,7 @@ end function
 
 /*
 * Function: A_Scream
-* Purpose: Provides scream helper behavior for the play simulation.
+* Purpose: Selects variant death audio for certain monster families and plays boss deaths at full-volume origin.
 */
 function A_Scream(actor)
   if actor is void or actor.info is void then return end if
@@ -1260,7 +1260,7 @@ end function
 
 /*
 * Function: A_XScream
-* Purpose: Provides x scream helper behavior for the play simulation.
+* Purpose: Plays the universal gib/slop sound for an extreme death animation.
 */
 function A_XScream(actor)
   _PE_StartSound(actor, sfxenum_t.sfx_slop)
@@ -1268,7 +1268,7 @@ end function
 
 /*
 * Function: A_Pain
-* Purpose: Provides pain helper behavior for the play simulation.
+* Purpose: Plays the actor type's configured pain sound.
 */
 function A_Pain(actor)
   if actor is void or actor.info is void then return end if
@@ -1279,7 +1279,7 @@ end function
 
 /*
 * Function: A_Explode
-* Purpose: Provides explode helper behavior for the play simulation.
+* Purpose: Applies the standard 128-damage, 128-radius explosion centered on the actor.
 */
 function A_Explode(thingy)
   if thingy is void then return end if
@@ -1290,7 +1290,7 @@ end function
 
 /*
 * Function: A_BossDeath
-* Purpose: Provides boss death helper behavior for the play simulation.
+* Purpose: After validating map/type, living players, and last-boss status, triggers the canonical tagged floor/door action or exits.
 */
 function A_BossDeath(mo)
   if mo is void then return end if
@@ -1395,7 +1395,7 @@ end function
 
 /*
 * Function: A_Hoof
-* Purpose: Provides hoof helper behavior for the play simulation.
+* Purpose: Plays the Cyberdemon hoofstep and continues chase processing.
 */
 function A_Hoof(mo)
   _PE_StartSound(mo, sfxenum_t.sfx_hoof)
@@ -1404,7 +1404,7 @@ end function
 
 /*
 * Function: A_Metal
-* Purpose: Provides metal helper behavior for the play simulation.
+* Purpose: Plays the Spider Mastermind metal step and continues chase processing.
 */
 function A_Metal(mo)
   _PE_StartSound(mo, sfxenum_t.sfx_metal)
@@ -1413,7 +1413,7 @@ end function
 
 /*
 * Function: A_BabyMetal
-* Purpose: Provides baby metal helper behavior for the play simulation.
+* Purpose: Plays the Arachnotron walking sound and continues chase processing.
 */
 function A_BabyMetal(mo)
   _PE_StartSound(mo, sfxenum_t.sfx_bspwlk)
@@ -1422,7 +1422,7 @@ end function
 
 /*
 * Function: A_OpenShotgun2
-* Purpose: Runs shotgun2 lifecycle logic for the actor AI.
+* Purpose: Plays the super-shotgun breech-opening sound during the player's reload animation.
 */
 function A_OpenShotgun2(player, psp)
   psp = psp
@@ -1433,7 +1433,7 @@ end function
 
 /*
 * Function: A_LoadShotgun2
-* Purpose: Provides load shotgun2 helper behavior for the play simulation.
+* Purpose: Plays the super-shotgun shell-loading sound during the player's reload animation.
 */
 function A_LoadShotgun2(player, psp)
   psp = psp
@@ -1444,7 +1444,7 @@ end function
 
 /*
 * Function: A_CloseShotgun2
-* Purpose: Provides close shotgun2 helper behavior for the play simulation.
+* Purpose: Plays the super-shotgun closing sound and immediately re-enters refire logic.
 */
 function A_CloseShotgun2(player, psp)
   if player is not void and player.mo is not void then
@@ -1457,7 +1457,7 @@ end function
 
 /*
 * Function: A_BrainAwake
-* Purpose: Provides brain awake helper behavior for the play simulation.
+* Purpose: Collects all boss-target map objects, resets the target cursor, and starts the Icon of Sin wake sound.
 */
 function A_BrainAwake(mo)
   global braintargets
@@ -1486,7 +1486,7 @@ end function
 
 /*
 * Function: A_BrainPain
-* Purpose: Provides brain pain helper behavior for the play simulation.
+* Purpose: Plays the Icon of Sin pain sound globally.
 */
 function A_BrainPain(mo)
   mo = mo
@@ -1495,7 +1495,7 @@ end function
 
 /*
 * Function: A_BrainScream
-* Purpose: Provides brain scream helper behavior for the play simulation.
+* Purpose: Spawns a row of randomized explosions above the Icon of Sin and starts its death sound.
 */
 function A_BrainScream(mo)
   if mo is void then return end if
@@ -1519,7 +1519,7 @@ end function
 
 /*
 * Function: A_BrainExplode
-* Purpose: Provides brain explode helper behavior for the play simulation.
+* Purpose: Spawns one randomized explosion/fireball above the Icon of Sin during its death sequence.
 */
 function A_BrainExplode(mo)
   if mo is void then return end if
@@ -1536,7 +1536,7 @@ end function
 
 /*
 * Function: A_BrainDie
-* Purpose: Provides brain die helper behavior for the play simulation.
+* Purpose: Completes the Icon of Sin sequence by exiting the level.
 */
 function A_BrainDie(mo)
   mo = mo
@@ -1545,7 +1545,7 @@ end function
 
 /*
 * Function: A_BrainSpit
-* Purpose: Provides brain spit helper behavior for the play simulation.
+* Purpose: Cycles boss targets, applies the easy-skill cadence, and launches a spawn cube timed to its destination.
 */
 function A_BrainSpit(mo)
   global _PE_brain_easy
@@ -1586,7 +1586,7 @@ end function
 
 /*
 * Function: A_SpawnFly
-* Purpose: Creates and initializes runtime objects for the engine module behavior.
+* Purpose: Advances a spawn cube's countdown, teleports in a weighted-random monster at its target, and removes the cube.
 */
 function A_SpawnFly(mo)
   if mo is void then return end if
@@ -1644,7 +1644,7 @@ end function
 
 /*
 * Function: A_SpawnSound
-* Purpose: Creates and initializes runtime objects for the engine module behavior.
+* Purpose: Plays the spawn-cube travel sound and advances its spawn countdown/action.
 */
 function A_SpawnSound(mo)
   _PE_StartSound(mo, sfxenum_t.sfx_boscub)
@@ -1653,7 +1653,7 @@ end function
 
 /*
 * Function: A_PlayerScream
-* Purpose: Provides player scream helper behavior for the play simulation.
+* Purpose: Selects the normal or commercial extreme player death scream from the victim's health and plays it at the corpse.
 */
 function A_PlayerScream(mo)
   if mo is void then return end if

@@ -14,12 +14,12 @@
   limitations under the License.
 
   Script: d_think.ml
-  Purpose: Defines core Doom data types, shared state, and bootstrap flow.
+  Purpose: Defines callback wrappers and linked-list nodes used by Doom's per-tic thinker scheduler.
 */
 
 /*
 * Struct: actionf_t
-* Purpose: Stores actionf data used by the Doom core system.
+* Purpose: Wraps the optional single-argument callback invoked for an active thinker node.
 */
 struct actionf_t
   acp1
@@ -29,7 +29,7 @@ end struct
 
 /*
 * Struct: thinker_t
-* Purpose: Stores thinker data used by the Doom core system.
+* Purpose: Forms one node of the doubly linked thinker list and associates it with a callback and optional owning object.
 */
 struct thinker_t
   prev

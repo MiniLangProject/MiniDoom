@@ -14,13 +14,13 @@
   limitations under the License.
 
   Script: d_event.ml
-  Purpose: Defines core Doom data types, shared state, and bootstrap flow.
+  Purpose: Defines normalized input events, queued game actions, and button-bit constants shared by responders and the game loop.
 */
 import doomtype
 
 /*
 * Enum: evtype_t
-* Purpose: Defines named constants for evtype type.
+* Purpose: Distinguishes keyboard, mouse, joystick, and quit events as they pass through the responder chain.
 */
 enum evtype_t
   ev_keydown
@@ -31,7 +31,7 @@ end enum
 
 /*
 * Struct: event_t
-* Purpose: Stores event fields used by the Doom core.
+* Purpose: Carries one normalized input event and its three device-specific payload values through the responder chain.
 */
 struct event_t
   type
@@ -42,7 +42,7 @@ end struct
 
 /*
 * Enum: gameaction_t
-* Purpose: Defines named constants for gameaction type.
+* Purpose: Identifies deferred high-level transitions such as loading levels, saving games, screenshots, and demo playback.
 */
 enum gameaction_t
   ga_nothing
@@ -59,7 +59,7 @@ end enum
 
 /*
 * Enum: buttoncode_t
-* Purpose: Defines named constants for buttoncode type.
+* Purpose: Assigns tic-command button bits and encodings, including weapon changes, special commands, pause, and save slots.
 */
 enum buttoncode_t
   BT_ATTACK = 1

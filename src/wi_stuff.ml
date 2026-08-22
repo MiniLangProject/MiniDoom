@@ -33,7 +33,7 @@ import r_defs
 
 /*
 * Enum: stateenum_t
-* Purpose: Defines named constants for stateenum type.
+* Purpose: Identifies scoreboard counting, next-map display, and terminal intermission hold phases.
 */
 enum stateenum_t
   NoState = -1
@@ -43,7 +43,7 @@ end enum
 
 /*
 * Enum: animenum_t
-* Purpose: Defines named constants for animenum type.
+* Purpose: Selects looping, randomized-delay, or level-triggered background animation scheduling.
 */
 enum animenum_t
   ANIM_ALWAYS
@@ -62,7 +62,7 @@ end struct
 
 /*
 * Struct: anim_t
-* Purpose: Stores anim data used by the intermission system.
+* Purpose: Tracks one intermission background animation's timing, frames, map trigger, and origin.
 */
 struct anim_t
   type
@@ -80,7 +80,7 @@ end struct
 
 /*
 * Function: _WI_Point
-* Purpose: Provides point helper behavior for the intermission.
+* Purpose: Constructs an immutable two-coordinate map-node position.
 */
 function inline _WI_Point(x, y)
   return point_t(x, y)
@@ -88,7 +88,7 @@ end function
 
 /*
 * Function: _WI_AnimDefault
-* Purpose: Provides default helper behavior for the intermission.
+* Purpose: Creates an inert animation record used to preallocate episode animation tables.
 */
 function inline _WI_AnimDefault()
   return anim_t(animenum_t.ANIM_ALWAYS, _WI_IDiv(TICRATE, 3), 1, _WI_Point(0, 0), 0, 0,[void, void, void], 0, -1, 0, 0)
@@ -96,7 +96,7 @@ end function
 
 /*
 * Function: _WI_Abs
-* Purpose: Provides absolute-value helper behavior for the intermission.
+* Purpose: Returns a signed integer magnitude for counter animation and layout math.
 */
 function inline _WI_Abs(v)
   if v < 0 then return - v end if
@@ -124,7 +124,7 @@ end function
 
 /*
 * Function: _WI_IDiv
-* Purpose: Performs integer division with intermission rounding and guard rules.
+* Purpose: Truncates intermission percentage/time quotients toward zero and returns zero on invalid input.
 */
 function inline _WI_IDiv(a, b)
   ai = _WI_ToInt(a, 0)
@@ -137,7 +137,7 @@ end function
 
 /*
 * Function: _WI_Clamp
-* Purpose: Clamps clamp values to the supported intermission range.
+* Purpose: Bounds animated counters between their scoreboard-specific minimum and target value.
 */
 function inline _WI_Clamp(v, lo, hi)
   if v < lo then return lo end if
@@ -147,7 +147,7 @@ end function
 
 /*
 * Function: _WI_PatchW
-* Purpose: Provides w helper behavior for the intermission.
+* Purpose: Reads a patch width safely for intermission alignment calculations.
 */
 function inline _WI_PatchW(p)
   if p is void then return 8 end if
@@ -157,7 +157,7 @@ end function
 
 /*
 * Function: _WI_PatchH
-* Purpose: Provides h helper behavior for the intermission.
+* Purpose: Reads a patch height safely for intermission alignment calculations.
 */
 function inline _WI_PatchH(p)
   if p is void then return 8 end if
@@ -167,7 +167,7 @@ end function
 
 /*
 * Function: _WI_SafeDrawPatch
-* Purpose: Draws safe Draw Patch output for the intermission renderer.
+* Purpose: Draws a patch only when its decoded resource and destination coordinates are valid.
 */
 function inline _WI_SafeDrawPatch(x, y, patch)
   if patch is void then return end if
@@ -195,7 +195,7 @@ end function
 
 /*
 * Function: _WI_SafeStartSound
-* Purpose: Starts runtime behavior in the internal module support.
+* Purpose: Plays an intermission cue only when the sound backend is available.
 */
 function inline _WI_SafeStartSound(origin, sfx)
   if typeof(S_StartSound) == "function" then
@@ -205,7 +205,7 @@ end function
 
 /*
 * Function: _WI_CacheOrVoid
-* Purpose: Retrieves and caches data for the internal module support.
+* Purpose: Looks up an optional patch lump and caches it with the requested zone tag.
 */
 function inline _WI_CacheOrVoid(name, tag)
   if typeof(W_CheckNumForName) == "function" then
@@ -347,7 +347,7 @@ wi_wbstart = void
 
 /*
 * Function: _WI_GetPlr
-* Purpose: Reads plr data for the intermission.
+* Purpose: Returns a checked wminfo player row, falling back to an empty scoreboard record.
 */
 function inline _WI_GetPlr(index)
   if typeof(plrs) != "array" then return void end if
@@ -384,7 +384,7 @@ end function
 
 /*
 * Function: _WI_TargetKills
-* Purpose: Provides kills helper behavior for the intermission.
+* Purpose: Computes the bounded final kill percentage for the local single-player row.
 */
 function _WI_TargetKills(index)
   p = _WI_GetPlr(index)
@@ -403,7 +403,7 @@ end function
 
 /*
 * Function: _WI_TargetItems
-* Purpose: Provides items helper behavior for the intermission.
+* Purpose: Computes the bounded final item percentage for the local single-player row.
 */
 function _WI_TargetItems(index)
   p = _WI_GetPlr(index)
@@ -422,7 +422,7 @@ end function
 
 /*
 * Function: _WI_TargetSecrets
-* Purpose: Provides secrets helper behavior for the intermission.
+* Purpose: Computes the bounded final secret percentage for the local single-player row.
 */
 function _WI_TargetSecrets(index)
   p = _WI_GetPlr(index)
@@ -441,7 +441,7 @@ end function
 
 /*
 * Function: _WI_TargetTime
-* Purpose: Provides time helper behavior for the intermission.
+* Purpose: Converts the player's completion time from tics to scoreboard seconds.
 */
 function inline _WI_TargetTime(index)
   p = _WI_GetPlr(index)
@@ -454,7 +454,7 @@ end function
 
 /*
 * Function: _WI_TargetPar
-* Purpose: Provides par helper behavior for the intermission.
+* Purpose: Converts the map par time from tics to scoreboard seconds.
 */
 function inline _WI_TargetPar()
   if wbs is not void and typeof(wbs.partime) == "int" then return _WI_IDiv(wbs.partime, TICRATE) end if
@@ -463,7 +463,7 @@ end function
 
 /*
 * Function: WI_slamBackground
-* Purpose: Provides background helper behavior for the intermission.
+* Purpose: Copies the cached intermission background into the active framebuffer.
 */
 function WI_slamBackground()
   if bg is not void then
@@ -485,7 +485,7 @@ end function
 
 /*
 * Function: WI_Responder
-* Purpose: Handles responder events for the intermission system.
+* Purpose: Records attack/use acceleration requests from every active player during intermission.
 */
 function WI_Responder(ev)
   if ev is void then return false end if
@@ -499,7 +499,7 @@ end function
 
 /*
 * Function: WI_drawLF
-* Purpose: Draws lf output for the intermission.
+* Purpose: Draws the localized finished-map heading and current map name.
 */
 function WI_drawLF()
   if finished is not void then
@@ -509,7 +509,7 @@ end function
 
 /*
 * Function: WI_drawEL
-* Purpose: Draws el output for the intermission.
+* Purpose: Draws the localized entering-map heading and next map name.
 */
 function WI_drawEL()
   if entering is not void then
@@ -519,7 +519,7 @@ end function
 
 /*
 * Function: WI_drawOnLnode
-* Purpose: Draws on lnode output for the intermission.
+* Purpose: Places one map marker on a node while keeping its patch inside screen bounds.
 */
 function WI_drawOnLnode(n, c)
   c = c
@@ -541,7 +541,7 @@ end function
 
 /*
 * Function: WI_initAnimatedBack
-* Purpose: Initializes state and dependencies for the intermission subsystem.
+* Purpose: Resets per-animation frame indices and schedules their first episode-specific background tick.
 */
 function WI_initAnimatedBack()
   if wbs is void then return end if
@@ -559,7 +559,7 @@ end function
 
 /*
 * Function: WI_updateAnimatedBack
-* Purpose: Updates animated back state for the intermission.
+* Purpose: Advances looping, one-shot, and level-gated background animations at their configured cadence.
 */
 function WI_updateAnimatedBack()
   if wbs is void then return end if
@@ -579,7 +579,7 @@ end function
 
 /*
 * Function: WI_drawAnimatedBack
-* Purpose: Draws animated back output for the intermission.
+* Purpose: Draws each active episode-map background animation frame.
 */
 function WI_drawAnimatedBack()
   if wbs is void then return end if
@@ -597,7 +597,7 @@ end function
 
 /*
 * Function: WI_drawNum
-* Purpose: Draws number output for the intermission.
+* Purpose: Draws a signed decimal counter using WI digit/minus patches and right alignment.
 */
 function WI_drawNum(x, y, n, digits)
   if digits < 0 then digits = 0 end if
@@ -686,7 +686,7 @@ end function
 
 /*
 * Function: WI_drawPercent
-* Purpose: Draws percent output for the intermission.
+* Purpose: Draws a percentage value followed by the percent patch at the requested anchor.
 */
 function WI_drawPercent(x, y, p)
   n = _WI_ToInt(p, 0)
@@ -764,7 +764,7 @@ end function
 
 /*
 * Function: WI_drawTime
-* Purpose: Draws time output for the intermission.
+* Purpose: Draws mm:ss completion/par time or the overflow label for very long runs.
 */
 function WI_drawTime(x, y, t)
   if t < 0 then
@@ -808,7 +808,7 @@ end function
 
 /*
 * Function: WI_initNoState
-* Purpose: Initializes state and dependencies for the intermission subsystem.
+* Purpose: Enters the final ten-tic intermission hold before handing control back to world progression.
 */
 function WI_initNoState()
   global state
@@ -819,7 +819,7 @@ end function
 
 /*
 * Function: WI_updateNoState
-* Purpose: Updates no state state for the intermission.
+* Purpose: Counts down the terminal hold and invokes G_WorldDone exactly when it expires.
 */
 function WI_updateNoState()
   if cnt > 0 then
@@ -836,7 +836,7 @@ end function
 
 /*
 * Function: WI_initShowNextLoc
-* Purpose: Initializes state and dependencies for the intermission subsystem.
+* Purpose: Enters the next-location map screen with its fixed delay and pointer blink state reset.
 */
 function WI_initShowNextLoc()
   global state
@@ -849,7 +849,7 @@ end function
 
 /*
 * Function: WI_updateShowNextLoc
-* Purpose: Updates show next location state for the intermission.
+* Purpose: Animates the map pointer and transitions to the terminal hold after the location delay.
 */
 function WI_updateShowNextLoc()
   if cnt > 0 then
@@ -863,7 +863,7 @@ end function
 
 /*
 * Function: WI_drawShowNextLoc
-* Purpose: Draws show next location output for the intermission.
+* Purpose: Draws the world map, completed splats, blinking pointer, and entering heading.
 */
 function WI_drawShowNextLoc()
   WI_slamBackground()
@@ -881,7 +881,7 @@ end function
 
 /*
 * Function: WI_drawNoState
-* Purpose: Draws no state output for the intermission.
+* Purpose: Draws the final static world-map frame before leaving intermission.
 */
 function WI_drawNoState()
   WI_drawShowNextLoc()
@@ -889,7 +889,7 @@ end function
 
 /*
 * Function: WI_fragSum
-* Purpose: Provides sum helper behavior for the intermission.
+* Purpose: Sums one player's net frags with Doom self-frag subtraction semantics.
 */
 function WI_fragSum(playernum)
   sum = 0
@@ -906,7 +906,7 @@ end function
 
 /*
 * Function: WI_initDeathmatchStats
-* Purpose: Initializes state and dependencies for the intermission subsystem.
+* Purpose: Seeds the deathmatch frag matrix counters and opens the first staged scoreboard pause.
 */
 function WI_initDeathmatchStats()
   global state
@@ -936,7 +936,7 @@ end function
 
 /*
 * Function: WI_updateDeathmatchStats
-* Purpose: Updates deathmatch stats state for the intermission.
+* Purpose: Animates each frag cell and total toward authoritative values, honoring accelerate-to-finish.
 */
 function WI_updateDeathmatchStats()
   global acceleratestage
@@ -1013,7 +1013,7 @@ end function
 
 /*
 * Function: WI_drawDeathmatchStats
-* Purpose: Draws deathmatch stats output for the intermission.
+* Purpose: Draws the deathmatch frag matrix, totals, and host-synchronized player names.
 */
 function WI_drawDeathmatchStats()
   WI_slamBackground()
@@ -1059,7 +1059,7 @@ end function
 
 /*
 * Function: WI_initNetgameStats
-* Purpose: Initializes state and dependencies for the intermission subsystem.
+* Purpose: Clears cooperative kill/item/secret counters and starts their staged count-up sequence.
 */
 function WI_initNetgameStats()
   global state
@@ -1088,7 +1088,7 @@ end function
 
 /*
 * Function: WI_updateNetgameStats
-* Purpose: Updates netgame stats state for the intermission.
+* Purpose: Animates cooperative percentages for all active players and advances through pause stages.
 */
 function WI_updateNetgameStats()
   global acceleratestage
@@ -1216,7 +1216,7 @@ end function
 
 /*
 * Function: WI_drawNetgameStats
-* Purpose: Draws netgame stats output for the intermission.
+* Purpose: Draws cooperative kill/item/secret/frag columns for every active slot.
 */
 function WI_drawNetgameStats()
   WI_slamBackground()
@@ -1254,7 +1254,7 @@ end function
 
 /*
 * Function: WI_initStats
-* Purpose: Initializes state and dependencies for the intermission subsystem.
+* Purpose: Clears single-player counters and begins the kill/item/secret/time tally sequence.
 */
 function WI_initStats()
   global state
@@ -1283,7 +1283,7 @@ end function
 
 /*
 * Function: WI_updateStats
-* Purpose: Updates stats state for the intermission.
+* Purpose: Animates single-player percentages and times, with attack/use acceleration and stage sounds.
 */
 function WI_updateStats()
   global acceleratestage
@@ -1369,7 +1369,7 @@ end function
 
 /*
 * Function: WI_drawStats
-* Purpose: Draws stats output for the intermission.
+* Purpose: Draws the animated single-player completion counters and their labels.
 */
 function WI_drawStats()
   WI_slamBackground()
@@ -1403,7 +1403,7 @@ end function
 
 /*
 * Function: WI_checkForAccelerate
-* Purpose: Finds check For Accelerate information for intermission processing.
+* Purpose: Latches rising attack/use buttons from any active player into the shared accelerate flag.
 */
 function WI_checkForAccelerate()
   global acceleratestage
@@ -1448,7 +1448,7 @@ end function
 
 /*
 * Function: WI_loadData
-* Purpose: Reads data data for the intermission.
+* Purpose: Caches scoreboard digits, labels, map patches, player markers, and episode animation frames.
 */
 function WI_loadData()
   global bg
@@ -1612,7 +1612,7 @@ end function
 
 /*
 * Function: WI_unloadData
-* Purpose: Loads unload Data resources used by the intermission system.
+* Purpose: Releases intermission patch references so zone-cached graphics can be reclaimed after exit.
 */
 function WI_unloadData()
   global bg
@@ -1721,7 +1721,7 @@ end function
 
 /*
 * Function: WI_initVariables
-* Purpose: Initializes state and dependencies for the intermission subsystem.
+* Purpose: Validates wminfo, selects the local scoreboard row, and resets clocks/accelerate flags.
 */
 function WI_initVariables(wbstartstruct)
   if wbstartstruct is void then
@@ -1795,7 +1795,7 @@ end function
 
 /*
 * Function: WI_Start
-* Purpose: Starts runtime behavior in the intermission subsystem.
+* Purpose: Loads shared artwork and selects deathmatch, cooperative, or solo scoreboard state.
 */
 function WI_Start(wbstartstruct)
   global wi_started
@@ -1814,7 +1814,7 @@ end function
 
 /*
 * Function: WI_Ticker
-* Purpose: Advances ticker logic during the intermission tick.
+* Purpose: Samples acceleration, advances background animation, and ticks the active scoreboard state machine.
 */
 function WI_Ticker()
   if not wi_started then return end if
@@ -1848,7 +1848,7 @@ end function
 
 /*
 * Function: WI_Drawer
-* Purpose: Provides drawer helper behavior for the intermission.
+* Purpose: Selects and draws the current deathmatch, coop, solo, or map-transition intermission screen.
 */
 function WI_Drawer()
   if not wi_started then return end if

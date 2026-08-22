@@ -14,7 +14,7 @@
   limitations under the License.
 
   Script: d_french.ml
-  Purpose: Defines core Doom data types, shared state, and bootstrap flow.
+  Purpose: Supplies the French replacements for Doom's menu prompts, status messages, pickups, keys, and level titles.
 */
 
 const D_DEVSTR = "MODE DEVELOPPEMENT ON.\n"

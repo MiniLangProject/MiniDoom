@@ -14,7 +14,7 @@
   limitations under the License.
 
   Script: p_doors.ml
-  Purpose: Implements core gameplay simulation: map logic, physics, AI, and world interaction.
+  Purpose: Spawns and ticks keyed, tagged, timed, manual, and sliding sector-door state machines.
 */
 import z_zone
 import doomdef
@@ -27,7 +27,7 @@ import sounds
 
 /*
 * Function: _DoorsMakeThinker
-* Purpose: Provides make thinker helper behavior for the play simulation.
+* Purpose: Creates a thinker node bound to a door callback, preserving the layout expected by P_Ticker.
 */
 function inline _DoorsMakeThinker(fn)
   return thinker_t(void, void, actionf_t(fn, void, void), void)
@@ -35,7 +35,7 @@ end function
 
 /*
 * Function: _DoorsAddThinkerIfPossible
-* Purpose: Provides add thinker if possible helper behavior for the play simulation.
+* Purpose: Registers a door thinker only when both the node and thinker list API are available.
 */
 function inline _DoorsAddThinkerIfPossible(th)
   if typeof(P_AddThinker) == "function" then P_AddThinker(th) end if
@@ -43,7 +43,7 @@ end function
 
 /*
 * Function: _DoorsStartSound
-* Purpose: Starts runtime behavior in the internal module support.
+* Purpose: Plays a door cue from a sector sound origin when the sound backend is present.
 */
 function inline _DoorsStartSound(origin, snd)
   if typeof(S_StartSound) == "function" then
@@ -53,7 +53,7 @@ end function
 
 /*
 * Function: _DoorsSoundOrg
-* Purpose: Provides sound origin helper behavior for the play simulation.
+* Purpose: Returns a sector's positional sound origin, falling back to the sector object itself.
 */
 function inline _DoorsSoundOrg(sec)
   if sec is void then return void end if
@@ -62,7 +62,7 @@ end function
 
 /*
 * Function: _DoorsIsSeq
-* Purpose: Provides is sequence helper behavior for the play simulation.
+* Purpose: Accepts array and byte-buffer containers used by sector, line, and card tables.
 */
 function inline _DoorsIsSeq(v)
   t = typeof(v)
@@ -71,7 +71,7 @@ end function
 
 /*
 * Function: _DoorsHasCard
-* Purpose: Provides has card helper behavior for the play simulation.
+* Purpose: Tests a checked player's card slot without trusting malformed inventory containers.
 */
 function _DoorsHasCard(player, card)
   if player is void then return false end if
@@ -108,7 +108,7 @@ end function
 
 /*
 * Function: _DoorsBackSector
-* Purpose: Provides back sector helper behavior for the play simulation.
+* Purpose: Resolves a two-sided line's back sector through its second side, rejecting invalid indices.
 */
 function inline _DoorsBackSector(line)
   if line is void then return void end if
@@ -125,7 +125,7 @@ end function
 
 /*
 * Function: T_VerticalDoor
-* Purpose: Provides vertical door helper behavior for the play simulation.
+* Purpose: Moves one door ceiling through opening, waiting, closing, and crush-reversal phases.
 */
 function T_VerticalDoor(door)
   if door is void or door.sector is void then return end if
@@ -227,7 +227,7 @@ end function
 
 /*
 * Function: EV_DoLockedDoor
-* Purpose: Provides do locked door helper behavior for the play simulation.
+* Purpose: Enforces the line's colored key requirement, posts feedback, then delegates valid activation.
 */
 function EV_DoLockedDoor(line, type, thing)
   if line is void or thing is void then return 0 end if
@@ -266,7 +266,7 @@ end function
 
 /*
 * Function: EV_DoDoor
-* Purpose: Provides do door helper behavior for the play simulation.
+* Purpose: Spawns vertical-door thinkers for every sector carrying the triggering line's tag.
 */
 function EV_DoDoor(line, type)
   if line is void then return 0 end if
@@ -336,7 +336,7 @@ function EV_DoDoor(line, type)
 
   /*
 * Function: EV_VerticalDoor
-* Purpose: Provides vertical door helper behavior for the play simulation.
+* Purpose: Activates or reverses a manual two-sided door while preventing conflicting sector specials.
   */
   function EV_VerticalDoor(line, thing)
     if line is void then return end if
@@ -437,7 +437,7 @@ function EV_DoDoor(line, type)
 
   /*
   * Function: P_SpawnDoorCloseIn30
-  * Purpose: Creates and initializes runtime objects for the gameplay and world simulation.
+* Purpose: Attaches a countdown thinker that closes an initially open sector door after 30 seconds.
   */
   function P_SpawnDoorCloseIn30(sec)
     if sec is void then return end if
@@ -456,7 +456,7 @@ function EV_DoDoor(line, type)
 
   /*
   * Function: P_SpawnDoorRaiseIn5Mins
-  * Purpose: Creates and initializes runtime objects for the gameplay and world simulation.
+* Purpose: Attaches a delayed thinker that opens the sector door once after five minutes.
   */
   function P_SpawnDoorRaiseIn5Mins(sec, secnum)
     secnum = secnum
@@ -478,7 +478,7 @@ function EV_DoDoor(line, type)
 
   /*
   * Function: P_InitSlidingDoorFrames
-  * Purpose: Initializes state and dependencies for the gameplay and world simulation.
+* Purpose: Resets the sliding-door frame table before map or renderer-specific frames are registered.
   */
   function P_InitSlidingDoorFrames()
 
@@ -495,7 +495,7 @@ function EV_DoDoor(line, type)
 
   /*
 * Function: T_SlidingDoor
-* Purpose: Provides sliding door helper behavior for the play simulation.
+* Purpose: Advances a sliding-door thinker through its configured frame/wait phases.
   */
   function T_SlidingDoor(door)
     door = door
@@ -503,7 +503,7 @@ function EV_DoDoor(line, type)
 
   /*
 * Function: EV_SlidingDoor
-* Purpose: Provides sliding door helper behavior for the play simulation.
+* Purpose: Validates and starts a manual sliding door when the line and activator permit it.
   */
   function EV_SlidingDoor(line, thing)
     line = line

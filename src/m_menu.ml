@@ -14,7 +14,7 @@
   limitations under the License.
 
   Script: m_menu.ml
-  Purpose: Provides shared math, utility, and low-level helper routines.
+  Purpose: Implements Doom menus plus shared interactive/CLI multiplayer session startup.
 */
 import d_event
 import doomdef
@@ -50,7 +50,7 @@ const CH_Y = 121
 
 /*
 * Function: _min
-* Purpose: Provides min helper behavior for the utility.
+* Purpose: Returns the lower of two menu-layout coordinates.
 */
 function inline _min(a, b)
   if a < b then return a end if
@@ -69,7 +69,7 @@ end function
 
 /*
 * Function: _bytesOf
-* Purpose: Provides of helper behavior for the utility.
+* Purpose: Normalizes patch/text inputs to a byte sequence for legacy menu helpers.
 */
 function inline _bytesOf(x)
   if typeof(x) == "bytes" then return x end if
@@ -80,7 +80,7 @@ end function
 
 /*
 * Function: _MMENU_IDiv
-* Purpose: Performs integer division with menu rounding and guard rules.
+* Purpose: Truncates menu layout quotients toward zero and safely maps a zero divisor to zero.
 */
 function inline _MMENU_IDiv(a, b)
   if typeof(a) != "int" or typeof(b) != "int" or b == 0 then return 0 end if
@@ -110,7 +110,7 @@ end function
 
 /*
 * Function: _MMENU_ItemCount
-* Purpose: Provides item count helper behavior for the utility.
+* Purpose: Reads a non-negative item count from a possibly uninitialized menu definition.
 */
 function inline _MMENU_ItemCount(menu)
   if menu is void or menu == 0 then return 0 end if
@@ -126,7 +126,7 @@ end function
 
 /*
 * Function: _MMENU_ClampCursor
-* Purpose: Clamps mMENU Clamp Cursor values to the supported menu range.
+* Purpose: Keeps the selected row inside the current menu and advances past disabled entries.
 */
 function _MMENU_ClampCursor()
   global currentMenu
@@ -149,7 +149,7 @@ end function
 
 /*
 * Function: _patchWidth
-* Purpose: Provides width helper behavior for the utility.
+* Purpose: Reads a cached patch width without assuming the resource decoded successfully.
 */
 function inline _patchWidth(patch)
   if typeof(patch) != "bytes" then return 0 end if
@@ -160,7 +160,7 @@ end function
 
 /*
 * Function: _patchHeight
-* Purpose: Provides height helper behavior for the utility.
+* Purpose: Reads a cached patch height without assuming the resource decoded successfully.
 */
 function inline _patchHeight(patch)
   if typeof(patch) != "bytes" then return 0 end if
@@ -182,7 +182,7 @@ end function
 
 /*
 * Function: _cstrLen
-* Purpose: Provides len helper behavior for the utility.
+* Purpose: Counts bytes up to the first terminator in a fixed-size editable C string.
 */
 function _cstrLen(buf)
   if typeof(buf) != "bytes" then return 0 end if
@@ -195,7 +195,7 @@ end function
 
 /*
 * Function: _cstrFromString
-* Purpose: Provides from string helper behavior for the utility.
+* Purpose: Copies a MiniLang string into a bounded zero-terminated menu edit buffer.
 */
 function _cstrFromString(buf, s)
   if typeof(buf) != "bytes" then return end if
@@ -210,7 +210,7 @@ end function
 
 /*
 * Function: _cstrCopy
-* Purpose: Provides copy helper behavior for the utility.
+* Purpose: Copies one bounded zero-terminated edit buffer without leaking stale suffix bytes.
 */
 function _cstrCopy(dst, src)
   if typeof(dst) != "bytes" or typeof(src) != "bytes" then return end if
@@ -224,7 +224,7 @@ end function
 
 /*
 * Function: _cstrEqString
-* Purpose: Provides eq string helper behavior for the utility.
+* Purpose: Compares a zero-terminated menu buffer with an immutable string value.
 */
 function inline _cstrEqString(buf, s)
   if typeof(buf) != "bytes" then return false end if
@@ -233,7 +233,7 @@ end function
 
 /*
 * Function: _fmt1
-* Purpose: Provides fmt1 helper behavior for the utility.
+* Purpose: Formats one integer as a single printable decimal character for save/menu labels.
 */
 function _fmt1(fmt, arg)
 
@@ -280,7 +280,7 @@ end function
 
 /*
 * Struct: menuitem_t
-* Purpose: Stores menuitem data used by the menu system.
+* Purpose: Describes one menu row's activation mode, patch label, callback, and shortcut key.
 */
 struct menuitem_t
   status
@@ -291,7 +291,7 @@ end struct
 
 /*
 * Struct: menu_t
-* Purpose: Stores menu data used by the menu system.
+* Purpose: Defines a menu page, parent navigation, drawing callback, origin, and remembered selection.
 */
 struct menu_t
   numitems
@@ -305,7 +305,7 @@ end struct
 
 /*
 * Function: _MI
-* Purpose: Provides mi helper behavior for the utility.
+* Purpose: Constructs one menuitem_t while keeping table declarations concise.
 */
 function inline _MI(status, name, routine, alphaKey)
   return menuitem_t(status, name, routine, alphaKey)
@@ -313,7 +313,7 @@ end function
 
 /*
 * Function: _Menu
-* Purpose: Provides menu helper behavior for the utility.
+* Purpose: Constructs one menu_t and records its initial cursor position.
 */
 function inline _Menu(numitems, prevMenu, menuitems, routine, x, y, lastOn)
   return menu_t(numitems, prevMenu, menuitems, routine, x, y, lastOn)
@@ -473,6 +473,50 @@ mpJoinHostEnter = 0
 mpJoinHostCharIndex = 0
 mpJoinHostBuf = 0
 mpJoinHostOld = 0
+_mmenu_mp_log_path = ""
+
+/*
+* Function: _MMENU_ArgValue
+* Purpose: Returns the argument following a named CLI flag, or an empty string when absent/incomplete.
+*/
+function inline _MMENU_ArgValue(flag)
+  p = M_CheckParm(flag)
+  if p == 0 or p >= myargc - 1 then return "" end if
+  v = myargv[p + 1]
+  if typeof(v) != "string" then return "" end if
+  return v
+end function
+
+/*
+* Function: _MMENU_MPStatus
+* Purpose: Emits one stable automation status line to stdout and an optional per-process log file.
+*/
+function _MMENU_MPStatus(line)
+  global _mmenu_mp_log_path
+  if typeof(line) != "string" or line == "" then return end if
+  print line
+  if typeof(_mmenu_mp_log_path) == "string" and _mmenu_mp_log_path != "" and typeof(fs.appendAllText) == "function" then
+    appendTry = try(fs.appendAllText(_mmenu_mp_log_path, line + "\n"))
+    if typeof(appendTry) == "error" then
+      // Stdout remains authoritative when an optional event log becomes unwritable.
+      _mmenu_mp_log_path = ""
+      print "MPTEST LOG_DISABLED status=write_error"
+    end if
+  end if
+end function
+
+/*
+* Function: _MMENU_MPFailureCode
+* Purpose: Maps platform error text to compact failure categories used by CLI orchestration.
+*/
+function _MMENU_MPFailureCode(reason)
+  up = _MMENU_ToUpperAsciiString(reason)
+  if _MP_StrContains(up, "WAD") and _MP_StrContains(up, "MISMATCH") then return "wad_mismatch" end if
+  if _MP_StrContains(up, "SERVER FULL") then return "server_full" end if
+  if _MP_StrContains(up, "TIMEOUT") or _MP_StrContains(up, "DID NOT RESPOND") then return "timeout" end if
+  if _MP_StrContains(up, "IWAD") then return "iwad_error" end if
+  return "startup_error"
+end function
 
 /*
 * Function: _MMENU_BuildMainMenu
@@ -544,7 +588,7 @@ end function
 
 /*
 * Function: _BuildMenus
-* Purpose: Builds menus data for the utility.
+* Purpose: Constructs every static menu definition and wires its items to draw and activation callbacks.
 */
 function _BuildMenus()
   global MainMenu
@@ -681,7 +725,7 @@ end function
 
 /*
 * Function: M_ReadSaveStrings
-* Purpose: Reads save strings data for the utility.
+* Purpose: Scans each per-WAD save slot, copies its fixed title, and enables only readable load-menu rows.
 */
 function M_ReadSaveStrings()
   global savegamestrings
@@ -724,7 +768,7 @@ end function
 
 /*
 * Function: M_DrawLoad
-* Purpose: Loads draw Load resources used by the menu system.
+* Purpose: Renders the load-game heading, slot borders, and cached descriptions for every save row.
 */
 function M_DrawLoad()
   V_DrawPatchDirect(72, 28, 0, W_CacheLumpName("M_LOADG", PU_CACHE))
@@ -736,7 +780,7 @@ end function
 
 /*
 * Function: M_DrawSaveLoadBorder
-* Purpose: Loads draw Save Load Border resources used by the menu system.
+* Purpose: Tiles the left, center, and right patches forming one 24-character save-slot frame.
 */
 function M_DrawSaveLoadBorder(x, y)
   V_DrawPatchDirect(x - 8, y + 7, 0, W_CacheLumpName("M_LSLEFT", PU_CACHE))
@@ -749,7 +793,7 @@ end function
 
 /*
 * Function: M_LoadSelect
-* Purpose: Reads select data for the utility.
+* Purpose: Queues the selected slot's per-WAD save file for loading and closes the menu.
 */
 function M_LoadSelect(choice)
   name = _G_SaveFileName(choice)
@@ -759,7 +803,7 @@ end function
 
 /*
 * Function: M_LoadGame
-* Purpose: Reads game data for the utility.
+* Purpose: Rejects loads during netgames or opens the refreshed load-slot menu in offline play.
 */
 function M_LoadGame(choice)
   choice = choice
@@ -805,7 +849,7 @@ end function
 
 /*
 * Function: M_SaveSelect
-* Purpose: Writes select data for the utility.
+* Purpose: Opens text editing for the selected save row while preserving its prior description for cancel.
 */
 function M_SaveSelect(choice)
   global saveStringEnter
@@ -823,7 +867,7 @@ end function
 
 /*
 * Function: M_SaveGame
-* Purpose: Writes game data for the utility.
+* Purpose: Rejects invalid save contexts or opens the refreshed save-slot menu for a live level.
 */
 function M_SaveGame(choice)
   choice = choice
@@ -880,7 +924,7 @@ end function
 
 /*
 * Function: M_QuickLoadResponse
-* Purpose: Loads quick Load Response resources used by the menu system.
+* Purpose: Executes the remembered quick-load slot only after an affirmative confirmation key.
 */
 function M_QuickLoadResponse(ch)
   if ch == CH_Y then
@@ -891,7 +935,7 @@ end function
 
 /*
 * Function: M_QuickLoad
-* Purpose: Loads quick Load resources used by the menu system.
+* Purpose: Validates quick-load availability and opens the confirmation prompt for its remembered slot.
 */
 function M_QuickLoad()
   global tempstring
@@ -911,7 +955,7 @@ end function
 
 /*
 * Function: M_DrawReadThis1
-* Purpose: Reads draw Read This1 data from the menu data stream.
+* Purpose: Draws the first help page selected for commercial versus episodic game data.
 */
 function M_DrawReadThis1()
   global inhelpscreens
@@ -925,7 +969,7 @@ end function
 
 /*
 * Function: M_DrawReadThis2
-* Purpose: Reads draw Read This2 data from the menu data stream.
+* Purpose: Draws the credit or second help page appropriate to the active game edition.
 */
 function M_DrawReadThis2()
   global inhelpscreens
@@ -939,7 +983,7 @@ end function
 
 /*
 * Function: M_DrawSound
-* Purpose: Draws sound output for the utility.
+* Purpose: Draws the sound-options patch and both volume thermometers.
 */
 function M_DrawSound()
   V_DrawPatchDirect(60, 38, 0, W_CacheLumpName("M_SVOL", PU_CACHE))
@@ -949,7 +993,7 @@ end function
 
 /*
 * Function: M_Sound
-* Purpose: Provides sound helper behavior for the utility.
+* Purpose: Opens the sound submenu at its previously selected row.
 */
 function M_Sound(choice)
   choice = choice
@@ -958,7 +1002,7 @@ end function
 
 /*
 * Function: M_SfxVol
-* Purpose: Provides vol helper behavior for the utility.
+* Purpose: Adjusts the effects mixer volume and applies it immediately.
 */
 function M_SfxVol(choice)
   global snd_SfxVolume
@@ -972,7 +1016,7 @@ end function
 
 /*
 * Function: M_MusicVol
-* Purpose: Provides vol helper behavior for the utility.
+* Purpose: Adjusts the music mixer volume and applies it immediately.
 */
 function M_MusicVol(choice)
   global snd_MusicVolume
@@ -986,7 +1030,7 @@ end function
 
 /*
 * Function: M_DrawMainMenu
-* Purpose: Draws main menu output for the utility.
+* Purpose: Draws the title patch and custom multiplayer row for the root menu.
 */
 function M_DrawMainMenu()
   V_DrawPatchDirect(94, 2, 0, W_CacheLumpName("M_DOOM", PU_CACHE))
@@ -1437,18 +1481,18 @@ function M_MPHostPort(choice)
 end function
 
 /*
-* Function: M_MPHostStart
-* Purpose: Starts dedicated host bootstrap through platform multiplayer hooks.
+* Function: _MMENU_MPStartHostConfigured
+* Purpose: Starts a host from normalized shared settings and reports either menu or CLI diagnostics.
 */
-function M_MPHostStart(choice)
-  choice = choice
+function _MMENU_MPStartHostConfigured(interactive)
   MP_ClampSettings()
   MP_RebuildMapList()
   _MMENU_SyncMPBuffers()
 
   if not MP_UpdateIwadFingerprint() then
-    M_StartMessage("MP host failed: unable to hash active IWAD.", 0, false)
-    return
+    reason = "MP host failed: unable to hash active IWAD."
+    if interactive then M_StartMessage(reason, 0, false) end if
+    return [false, reason]
   end if
 
   if typeof(I_SetLoadingStatus) == "function" then I_SetLoadingStatus("Starting multiplayer host...") end if
@@ -1464,9 +1508,10 @@ function M_MPHostStart(choice)
     hostTime = mp_dm_time_limit
     ok = MP_PlatformHostGame(hostPort, hostMode, hostSkill, hostMap, hostPlayers, hostFrag, hostTime)
     if ok then
+      _MMENU_MPStatus("MPTEST HOST_READY port=" + hostPort + " map=" + hostMap + " mode=" + hostMode + " active=1 max=" + hostPlayers)
       _MMENU_StartMultiplayerGame(hostMode, hostSkill, hostMap, 0)
       M_ClearMenus()
-      return
+      return [true, ""]
     end if
   end if
 
@@ -1476,7 +1521,17 @@ function M_MPHostStart(choice)
     r = MP_PlatformGetLastError()
     if typeof(r) == "string" and r != "" then reason = r end if
   end if
-  M_StartMessage(reason, 0, false)
+  if interactive then M_StartMessage(reason, 0, false) end if
+  return [false, reason]
+end function
+
+/*
+* Function: M_MPHostStart
+* Purpose: Starts the menu-configured host and keeps startup errors inside the menu flow.
+*/
+function M_MPHostStart(choice)
+  choice = choice
+  _MMENU_MPStartHostConfigured(true)
 end function
 
 /*
@@ -1508,21 +1563,22 @@ function M_MPJoinPort(choice)
 end function
 
 /*
-* Function: M_MPJoinStart
-* Purpose: Starts multiplayer join handshake via platform networking hooks.
+* Function: _MMENU_MPStartJoinConfigured
+* Purpose: Joins the configured endpoint and boots the server-confirmed map/slot on success.
 */
-function M_MPJoinStart(choice)
+function _MMENU_MPStartJoinConfigured(interactive)
   global mp_join_host
-  choice = choice
   MP_ClampSettings()
-  mp_join_host = decodeZ(mpJoinHostBuf)
+  if interactive then mp_join_host = decodeZ(mpJoinHostBuf) end if
   if mp_join_host == "" then
-    M_StartMessage("Please enter a host address.", 0, false)
-    return
+    reason = "Please enter a host address."
+    if interactive then M_StartMessage(reason, 0, false) end if
+    return [false, reason]
   end if
   if not MP_UpdateIwadFingerprint() then
-    M_StartMessage("MP join failed: unable to hash active IWAD.", 0, false)
-    return
+    reason = "MP join failed: unable to hash active IWAD."
+    if interactive then M_StartMessage(reason, 0, false) end if
+    return [false, reason]
   end if
 
   if typeof(I_SetLoadingStatus) == "function" then I_SetLoadingStatus("Joining multiplayer game...") end if
@@ -1539,9 +1595,12 @@ function M_MPJoinStart(choice)
       if typeof(MP_PlatformGetSessionMap) == "function" then sessionMap = MP_PlatformGetSessionMap() end if
       localSlot = 0
       if typeof(MP_PlatformGetLocalPlayerSlot) == "function" then localSlot = MP_PlatformGetLocalPlayerSlot() end if
+      activePlayers = 1
+      if typeof(MP_PlatformGetNumPlayers) == "function" then activePlayers = MP_PlatformGetNumPlayers() end if
+      _MMENU_MPStatus("MPTEST CLIENT_CONNECTED slot=" + localSlot + " map=" + sessionMap + " mode=" + sessionMode + " active=" + activePlayers)
       _MMENU_StartMultiplayerGame(sessionMode, sessionSkill, sessionMap, localSlot)
       M_ClearMenus()
-      return
+      return [true, ""]
     end if
   end if
 
@@ -1551,7 +1610,184 @@ function M_MPJoinStart(choice)
     r = MP_PlatformGetLastError()
     if typeof(r) == "string" and r != "" then reason = r end if
   end if
-  M_StartMessage(reason, 0, false)
+  if interactive then M_StartMessage(reason, 0, false) end if
+  return [false, reason]
+end function
+
+/*
+* Function: M_MPJoinStart
+* Purpose: Starts the menu-configured join handshake and surfaces rejection details interactively.
+*/
+function M_MPJoinStart(choice)
+  choice = choice
+  _MMENU_MPStartJoinConfigured(true)
+end function
+
+/*
+* Function: _MMENU_MPCLIInt
+* Purpose: Parses one bounded numeric multiplayer option and returns [valid,value].
+*/
+function _MMENU_MPCLIInt(flag, fallback, lo, hi)
+  raw = _MMENU_ArgValue(flag)
+  if raw == "" then return [true, fallback] end if
+  n = toNumber(raw)
+  if typeof(n) != "int" then return [false, fallback] end if
+  if n < lo or n > hi then return [false, fallback] end if
+  return [true, n]
+end function
+
+/*
+* Function: _MMENU_MPIsNumericIPv4
+* Purpose: Validates the numerical dotted-quad form supported by the WinSock transport parser.
+*/
+function _MMENU_MPIsNumericIPv4(host)
+  if typeof(host) != "string" then return false end if
+  b = bytes(host)
+  if len(b) < 7 or len(b) > 15 then return false end if
+  parts = 0
+  digits = 0
+  value = 0
+  firstDigit = 0
+  i = 0
+  while i < len(b)
+    c = b[i]
+    if c >= 48 and c <= 57 then
+      if digits == 0 then firstDigit = c end if
+      value = value * 10 + (c - 48)
+      digits = digits + 1
+      if digits > 1 and firstDigit == 48 then return false end if
+      if digits > 3 or value > 255 then return false end if
+    else if c == 46 then
+      if digits <= 0 or parts >= 3 then return false end if
+      parts = parts + 1
+      digits = 0
+      value = 0
+      firstDigit = 0
+    else
+      return false
+    end if
+    i = i + 1
+  end while
+  return parts == 3 and digits > 0
+end function
+
+/*
+* Function: _MMENU_MPCLIReportFailure
+* Purpose: Emits a machine-readable startup failure while retaining the human-readable platform reason.
+*/
+function _MMENU_MPCLIReportFailure(role, reason)
+  code = _MMENU_MPFailureCode(reason)
+  _MMENU_MPStatus("MPTEST " + role + "_FAILED status=" + code + " reason=" + reason)
+end function
+
+/*
+* Function: M_MPStartFromCommandLine
+* Purpose: Applies documented host/join CLI options and invokes the same production startup used by menus.
+* Returns: 0 when no MP role was requested, 1 after success, -1 after a requested startup failed.
+*/
+function M_MPStartFromCommandLine()
+  global _mmenu_mp_log_path
+  global mp_join_host
+  global mp_join_port
+  global mp_host_port
+  global mp_host_mode
+  global mp_host_skill
+  global mp_host_max_players
+  global mp_dm_frag_limit
+  global mp_dm_time_limit
+
+  hp = M_CheckParm("-mp-host")
+  jp = M_CheckParm("-mp-join")
+  if hp == 0 and jp == 0 then return 0 end if
+
+  logPath = _MMENU_ArgValue("-mp-log")
+  if logPath == "" then logPath = _MMENU_ArgValue("-mp-test-log") end if
+  if logPath != "" then
+    _mmenu_mp_log_path = logPath
+    if typeof(fs.writeAllText) == "function" then
+      logTry = try(fs.writeAllText(logPath, ""))
+      if typeof(logTry) == "error" then
+        _mmenu_mp_log_path = ""
+        print "MPTEST LOG_DISABLED status=open_error"
+      end if
+    end if
+  end if
+  if typeof(MP_PlatformSetEventLogPath) == "function" then MP_PlatformSetEventLogPath(_mmenu_mp_log_path) end if
+
+  if hp != 0 and jp != 0 then
+    _MMENU_MPCLIReportFailure("START", "Choose either -mp-host or -mp-join, not both.")
+    return -1
+  end if
+
+  playerName = _MMENU_ArgValue("-mp-name")
+  if playerName != "" then MP_SetPlayerName(playerName) end if
+
+  if hp != 0 then
+    if hp >= myargc - 1 then
+      _MMENU_MPCLIReportFailure("HOST", "Missing port after -mp-host.")
+      return -1
+    end if
+    portRow = _MMENU_MPCLIInt("-mp-host", MP_DEFAULT_PORT, 1, 65535)
+    if not portRow[0] then
+      _MMENU_MPCLIReportFailure("HOST", "Invalid -mp-host port (expected 1..65535).")
+      return -1
+    end if
+    mp_host_port = portRow[1]
+
+    modeArg = _MMENU_ToUpperAsciiString(_MMENU_ArgValue("-mp-mode"))
+    if modeArg != "" then
+      if modeArg == "COOP" then
+        mp_host_mode = MP_MODE_COOP
+      else if modeArg == "DEATHMATCH" or modeArg == "DM" then
+        mp_host_mode = MP_MODE_DEATHMATCH
+      else
+        _MMENU_MPCLIReportFailure("HOST", "Invalid -mp-mode (expected coop or deathmatch).")
+        return -1
+      end if
+    end if
+
+    skillRow = _MMENU_MPCLIInt("-mp-skill", mp_host_skill, MP_SKILL_BABY, MP_SKILL_NIGHTMARE)
+    playerRow = _MMENU_MPCLIInt("-mp-maxplayers", mp_host_max_players, 2, MAXPLAYERS)
+    fragRow = _MMENU_MPCLIInt("-mp-fraglimit", mp_dm_frag_limit, 0, 999)
+    timeRow = _MMENU_MPCLIInt("-mp-timelimit", mp_dm_time_limit, 0, 180)
+    if not skillRow[0] or not playerRow[0] or not fragRow[0] or not timeRow[0] then
+      _MMENU_MPCLIReportFailure("HOST", "Invalid bounded multiplayer numeric option.")
+      return -1
+    end if
+    mp_host_skill = skillRow[1]
+    mp_host_max_players = playerRow[1]
+    mp_dm_frag_limit = fragRow[1]
+    mp_dm_time_limit = timeRow[1]
+
+    MP_RebuildMapList()
+    mapArg = _MMENU_ArgValue("-mp-map")
+    if mapArg != "" and not MP_SetSelectedMapByName(mapArg) then
+      _MMENU_MPCLIReportFailure("HOST", "Invalid or unavailable -mp-map token.")
+      return -1
+    end if
+    result = _MMENU_MPStartHostConfigured(false)
+    if result[0] then return 1 end if
+    _MMENU_MPCLIReportFailure("HOST", result[1])
+    return -1
+  end if
+
+  if jp >= myargc - 2 then
+    _MMENU_MPCLIReportFailure("CLIENT", "Usage: -mp-join <numeric-ipv4> <port>.")
+    return -1
+  end if
+  hostArg = myargv[jp + 1]
+  joinPortRaw = myargv[jp + 2]
+  joinPort = toNumber(joinPortRaw)
+  if typeof(hostArg) != "string" or not _MMENU_MPIsNumericIPv4(hostArg) or typeof(joinPort) != "int" or joinPort < 1 or joinPort > 65535 then
+    _MMENU_MPCLIReportFailure("CLIENT", "Invalid -mp-join endpoint (numeric IPv4 and port 1..65535 required).")
+    return -1
+  end if
+  mp_join_host = hostArg
+  mp_join_port = joinPort
+  result = _MMENU_MPStartJoinConfigured(false)
+  if result[0] then return 1 end if
+  _MMENU_MPCLIReportFailure("CLIENT", result[1])
+  return -1
 end function
 
 /*
@@ -1585,7 +1821,7 @@ end function
 
 /*
 * Function: M_DrawNewGame
-* Purpose: Draws new game output for the utility.
+* Purpose: Draws the skill-selection menu title and vanilla skill rows.
 */
 function M_DrawNewGame()
   V_DrawPatchDirect(96, 14, 0, W_CacheLumpName("M_NEWG", PU_CACHE))
@@ -1594,7 +1830,7 @@ end function
 
 /*
 * Function: M_NewGame
-* Purpose: Builds game data for the utility.
+* Purpose: Rejects active netgames or routes new-game selection to episode/skill menus for this IWAD.
 */
 function M_NewGame(choice)
   choice = choice
@@ -1612,7 +1848,7 @@ end function
 
 /*
 * Function: M_DrawEpisode
-* Purpose: Draws episode output for the utility.
+* Purpose: Draws the episode-selection title above the available IWAD episodes.
 */
 function M_DrawEpisode()
   V_DrawPatchDirect(54, 38, 0, W_CacheLumpName("M_EPISOD", PU_CACHE))
@@ -1620,7 +1856,7 @@ end function
 
 /*
 * Function: M_VerifyNightmare
-* Purpose: Provides nightmare helper behavior for the utility.
+* Purpose: Confirms or cancels nightmare difficulty before starting a new game.
 */
 function M_VerifyNightmare(ch)
   if ch != CH_Y then return end if
@@ -1630,7 +1866,7 @@ end function
 
 /*
 * Function: M_ChooseSkill
-* Purpose: Computes skill values for the utility.
+* Purpose: Requests nightmare confirmation or queues a new game at the chosen difficulty.
 */
 function M_ChooseSkill(choice)
   if choice == nightmare then
@@ -1644,7 +1880,7 @@ end function
 
 /*
 * Function: M_Episode
-* Purpose: Provides episode helper behavior for the utility.
+* Purpose: Validates shareware episode access and opens the skill selector for the chosen episode.
 */
 function M_Episode(choice)
   global epi
@@ -1665,7 +1901,7 @@ end function
 
 /*
 * Function: M_DrawOptions
-* Purpose: Draws options output for the utility.
+* Purpose: Draws the options page plus sensitivity and screen-size thermometers.
 */
 function M_DrawOptions()
   V_DrawPatchDirect(108, 15, 0, W_CacheLumpName("M_OPTTTL", PU_CACHE))
@@ -1684,7 +1920,7 @@ end function
 
 /*
 * Function: M_Options
-* Purpose: Provides options helper behavior for the utility.
+* Purpose: Opens the options submenu at its remembered selection.
 */
 function M_Options(choice)
   choice = choice
@@ -1693,7 +1929,7 @@ end function
 
 /*
 * Function: M_ChangeMessages
-* Purpose: Runs messages behavior for the utility.
+* Purpose: Toggles gameplay messages, posts the localized result, and protects it from immediate replacement.
 */
 function M_ChangeMessages(choice)
   global showMessages
@@ -1744,7 +1980,7 @@ end function
 
 /*
 * Function: M_ReadThis
-* Purpose: Reads this data for the utility.
+* Purpose: Opens the first help/read-this menu page.
 */
 function M_ReadThis(choice)
   choice = choice
@@ -1753,7 +1989,7 @@ end function
 
 /*
 * Function: M_ReadThis2
-* Purpose: Reads this2 data for the utility.
+* Purpose: Advances from the first help page to the second page.
 */
 function M_ReadThis2(choice)
   choice = choice
@@ -1762,7 +1998,7 @@ end function
 
 /*
 * Function: M_FinishReadThis
-* Purpose: Reads finish Read This data from the menu data stream.
+* Purpose: Returns from the last help page to the main menu.
 */
 function M_FinishReadThis(choice)
   choice = choice
@@ -1771,7 +2007,7 @@ end function
 
 /*
 * Function: M_QuitResponse
-* Purpose: Runs response lifecycle logic for the utility.
+* Purpose: Accepts the quit confirmation, plays the edition-specific exit cue, and terminates the process.
 */
 function M_QuitResponse(ch)
   if not(ch == CH_Y or ch == KEY_ENTER) then return end if
@@ -1790,7 +2026,7 @@ end function
 
 /*
 * Function: M_QuitDOOM
-* Purpose: Runs doom lifecycle logic for the utility.
+* Purpose: Selects a localized randomized quit message and opens its confirmation prompt.
 */
 function M_QuitDOOM(choice)
   global endstring
@@ -1808,7 +2044,7 @@ end function
 
 /*
 * Function: M_ChangeSensitivity
-* Purpose: Runs sensitivity behavior for the utility.
+* Purpose: Adjusts mouse sensitivity by one step within the persisted 0..9 range.
 */
 function M_ChangeSensitivity(choice)
   global mouseSensitivity
@@ -1821,7 +2057,7 @@ end function
 
 /*
 * Function: M_ChangeDetail
-* Purpose: Runs detail behavior for the utility.
+* Purpose: Selects the supported high-detail renderer mode and posts its localized HUD message.
 */
 function M_ChangeDetail(choice)
   global detailLevel
@@ -1869,7 +2105,7 @@ end function
 
 /*
 * Function: M_SizeDisplay
-* Purpose: Provides display helper behavior for the utility.
+* Purpose: Changes screen-block size within renderer bounds and schedules a view resize.
 */
 function M_SizeDisplay(choice)
   global screenblocks
@@ -1891,7 +2127,7 @@ end function
 
 /*
 * Function: M_DrawThermo
-* Purpose: Draws thermo output for the utility.
+* Purpose: Draws a patch-based horizontal slider with a checked marker position.
 */
 function M_DrawThermo(x, y, thermWidth, thermDot)
   xx = x
@@ -1908,7 +2144,7 @@ end function
 
 /*
 * Function: M_DrawEmptyCell
-* Purpose: Draws empty cell output for the utility.
+* Purpose: Draws the left/right save-slot border for an unselected cell.
 */
 function M_DrawEmptyCell(menu, item)
   V_DrawPatchDirect(menu.x - 10, menu.y + item * LINEHEIGHT - 1, 0,
@@ -1917,7 +2153,7 @@ end function
 
 /*
 * Function: M_DrawSelCell
-* Purpose: Draws sel cell output for the utility.
+* Purpose: Draws the selected save-slot border variant at a menu row.
 */
 function M_DrawSelCell(menu, item)
   V_DrawPatchDirect(menu.x - 10, menu.y + item * LINEHEIGHT - 1, 0,
@@ -1926,7 +2162,7 @@ end function
 
 /*
 * Function: M_StartMessage
-* Purpose: Starts runtime behavior in the utility/math layer.
+* Purpose: Replaces the current menu with a modal prompt while remembering whether a menu was already open.
 */
 function M_StartMessage(string, routine, input)
   global messageLastMenuActive
@@ -1945,7 +2181,7 @@ end function
 
 /*
 * Function: M_StopMessage
-* Purpose: Stops or tears down runtime behavior in the utility/math layer.
+* Purpose: Dismisses the modal prompt and restores the menu-active state captured when it opened.
 */
 function M_StopMessage()
   global menuactive
@@ -1972,7 +2208,7 @@ end function
 
 /*
 * Function: M_StringWidth
-* Purpose: Provides width helper behavior for the utility.
+* Purpose: Measures proportional menu text width using loaded HU font patches.
 */
 function M_StringWidth(string)
   b = _bytesOf(string)
@@ -2000,7 +2236,7 @@ end function
 
 /*
 * Function: M_StringHeight
-* Purpose: Provides height helper behavior for the utility.
+* Purpose: Measures multiline menu text height using the active HU font metrics.
 */
 function M_StringHeight(string)
   b = _bytesOf(string)
@@ -2018,7 +2254,7 @@ end function
 
 /*
 * Function: M_WriteText
-* Purpose: Writes text data for the utility.
+* Purpose: Draws patch-font glyphs with newline handling, unsupported-character spacing, and screen clipping.
 */
 function M_WriteText(x, y, string)
   b = _bytesOf(string)
@@ -2312,7 +2548,7 @@ end function
 
 /*
 * Function: M_Responder
-* Purpose: Handles responder events for the menu system.
+* Purpose: Routes modal/editor/navigation keys and invokes the selected menu item's callback.
 */
 function M_Responder(ev)
   global _joywait
@@ -2661,7 +2897,7 @@ function M_Responder(ev)
 
     /*
     * Function: M_StartControlPanel
-    * Purpose: Starts runtime behavior in the utility/math layer.
+    * Purpose: Opens the main menu at its remembered row and clamps the cursor to enabled items.
     */
     function M_StartControlPanel()
       global menuactive
@@ -2676,7 +2912,7 @@ function M_Responder(ev)
 
     /*
 * Function: M_Drawer
-* Purpose: Provides drawer helper behavior for the utility.
+* Purpose: Draws the active menu page, modal message, and animated selection skull.
     */
     function M_Drawer()
       global inhelpscreens
@@ -2739,7 +2975,7 @@ function M_Responder(ev)
 
     /*
 * Function: M_ClearMenus
-* Purpose: Updates menus state for the utility.
+* Purpose: Closes menu and multiplayer text editors, requesting a status-bar refresh when needed.
     */
 function M_ClearMenus()
   global menuactive
@@ -2757,7 +2993,7 @@ end function
 
     /*
 * Function: M_SetupNextMenu
-* Purpose: Runs next menu lifecycle logic for the utility.
+* Purpose: Switches menu definition, restores its remembered cursor, and exits active text editors.
     */
     function M_SetupNextMenu(menudef)
       global currentMenu
@@ -2774,7 +3010,7 @@ end function
 
     /*
 * Function: M_Ticker
-* Purpose: Advances ticker logic during the menu tick.
+* Purpose: Pumps multiplayer handshakes and flips the selection skull every eight menu tics.
     */
 function M_Ticker()
   global skullAnimCounter
@@ -2791,7 +3027,7 @@ function M_Ticker()
 
     /*
     * Function: M_Init
-    * Purpose: Initializes state and dependencies for the utility/math layer.
+    * Purpose: Constructs menu definitions and edit buffers, restores defaults, and seeds cursor/animation state.
     */
     function M_Init()
       global currentMenu

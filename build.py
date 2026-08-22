@@ -51,6 +51,11 @@ def _compiler_cmd(
     include_dirs: list[Path],
     subsystem: str,
 ) -> list[str]:
+    """Build a MiniLang compiler argv for script or native compiler frontends.
+
+    Include directories retain caller order, and ``subsystem`` selects whether
+    the generated executable owns a console or a Windows GUI entry point.
+    """
     comp = compiler_path.resolve()
     inp = input_file.resolve()
     out = output_file.resolve()
@@ -67,11 +72,13 @@ def _compiler_cmd(
 
 
 def _run(cmd: list[str], cwd: Path) -> None:
+    """Print and execute one build command, propagating a non-zero exit code."""
     print(">", " ".join(cmd))
     subprocess.run(cmd, cwd=str(cwd), check=True)
 
 
 def _find_first_existing(paths: list[Path]) -> Path | None:
+    """Return the first existing candidate without changing caller priority."""
     for path in paths:
         if path.exists():
             return path
@@ -79,6 +86,7 @@ def _find_first_existing(paths: list[Path]) -> Path | None:
 
 
 def _latest_child_dir(path: Path) -> Path | None:
+    """Select the lexically newest direct child directory, or ``None``."""
     if not path.is_dir():
         return None
     dirs = [p for p in path.iterdir() if p.is_dir()]
@@ -88,6 +96,7 @@ def _latest_child_dir(path: Path) -> Path | None:
 
 
 def _find_cl_exe() -> Path | None:
+    """Locate an x64 MSVC compiler from PATH or installed Visual Studio trees."""
     found = shutil.which("cl")
     if found:
         return Path(found)
@@ -105,6 +114,11 @@ def _find_cl_exe() -> Path | None:
 
 
 def _build_gl_helper(gl_helper_src: Path, out_dll: Path) -> bool:
+    """Compile the optional native OpenGL helper against the newest Windows SDK.
+
+    Missing toolchain components are treated as an optional-feature skip;
+    compiler or linker failures after discovery still abort the build.
+    """
     cl = _find_cl_exe()
     if cl is None:
         print("Skipping MiniDoomGL.dll: cl.exe not found.")
@@ -162,6 +176,7 @@ def _build_icon_tool(
     out_exe: Path,
     icon_tool_src: Path,
 ) -> None:
+    """Compile the console resource injector used by the final icon step."""
     out_exe.parent.mkdir(parents=True, exist_ok=True)
     cmd = _compiler_cmd(
         compiler_path=compiler_path,
@@ -181,6 +196,7 @@ def _build_game(
     out_exe: Path,
     game_entry: Path,
 ) -> None:
+    """Compile the selected MiniDoom entry module as a Windows executable."""
     out_exe.parent.mkdir(parents=True, exist_ok=True)
     cmd = _compiler_cmd(
         compiler_path=compiler_path,
@@ -200,6 +216,7 @@ def _inject_icon(
     group_id: int,
     lang_id: int,
 ) -> None:
+    """Replace the executable's icon group through the compiled resource tool."""
     cmd = [
         str(icon_tool_exe.resolve()),
         str(target_exe.resolve()),
@@ -211,6 +228,7 @@ def _inject_icon(
 
 
 def main() -> int:
+    """Parse build options and orchestrate native helper, game, and icon stages."""
     parser = argparse.ArgumentParser(description="Build MiniDoom with optional icon injection.")
     parser.add_argument(
         "--compiler",

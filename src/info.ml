@@ -23,7 +23,7 @@ import p_mobj
 
 /*
 * Enum: spritenum_t
-* Purpose: Defines named constants for spritenum type.
+* Purpose: Maps every actor and effect sprite mnemonic to the stable indices stored in animation states.
 */
 enum spritenum_t
   SPR_TROO
@@ -169,7 +169,7 @@ end enum
 
 /*
 * Enum: statenum_t
-* Purpose: Defines named constants for statenum type.
+* Purpose: Assigns stable indices to all actor, weapon, pickup, and effect states referenced by gameplay metadata.
 */
 enum statenum_t
   S_NULL
@@ -1144,7 +1144,7 @@ end enum
 
 /*
 * Struct: state_t
-* Purpose: Stores state state for the game metadata system.
+* Purpose: Defines one actor animation-state entry with sprite frame, duration, action callback, and successor state.
 */
 struct state_t
   sprite
@@ -2144,7 +2144,7 @@ sprnames =[
 
 /*
 * Enum: mobjtype_t
-* Purpose: Defines named constants for mobjtype type.
+* Purpose: Maps every spawnable actor class to the canonical index used by map things, state actions, and mobj metadata.
 */
 enum mobjtype_t
   MT_PLAYER
@@ -2289,7 +2289,7 @@ end enum
 
 /*
 * Struct: mobjinfo_t
-* Purpose: Stores mobjinfo data used by the game metadata system.
+* Purpose: Defines the immutable behavior, sounds, dimensions, flags, health, and state indices for one actor type.
 */
 struct mobjinfo_t
   doomednum
@@ -2459,7 +2459,7 @@ mobjinfo_t(81, statenum_t.S_BRAINSTEM, 1000, statenum_t.S_NULL, sfxenum_t.sfx_No
 
 /*
 * Function: Info_StateIndex
-* Purpose: Provides state index helper behavior for the game metadata.
+* Purpose: Resolves a state object back to its canonical index, returning the null state when the value is absent or unknown.
 */
 function Info_StateIndex(s)
   if typeof(s) == "int" then
@@ -5375,7 +5375,7 @@ end function
 
 /*
 * Function: Info_StateAt
-* Purpose: Provides state at helper behavior for the game metadata.
+* Purpose: Returns the canonical state object for a valid index and safely falls back to the null state for invalid input.
 */
 function Info_StateAt(s)
   idx = Info_StateIndex(s)

@@ -14,7 +14,7 @@
   limitations under the License.
 
   Script: m_random.ml
-  Purpose: Provides shared math, utility, and low-level helper routines.
+  Purpose: Supplies Doom's deterministic gameplay and miscellaneous pseudo-random byte streams.
 */
 import doomtype
 
@@ -45,7 +45,7 @@ prndindex = 0
 
 /*
 * Function: P_Random
-* Purpose: Provides random helper behavior for the utility.
+* Purpose: Advances and returns the deterministic gameplay random-table stream used by demo-synchronized simulation.
 */
 function P_Random()
   global prndindex
@@ -56,7 +56,7 @@ end function
 
 /*
 * Function: M_Random
-* Purpose: Provides random helper behavior for the utility.
+* Purpose: Advances the independent miscellaneous random-table stream so UI effects cannot perturb gameplay determinism.
 */
 function M_Random()
   global rndindex
@@ -67,7 +67,7 @@ end function
 
 /*
 * Function: M_ClearRandom
-* Purpose: Updates random state for the utility.
+* Purpose: Resets both Doom random-table cursors so demos and gameplay restart from the canonical deterministic sequence.
 */
 function M_ClearRandom()
   global rndindex

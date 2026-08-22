@@ -14,7 +14,7 @@
   limitations under the License.
 
   Script: doomstat.ml
-  Purpose: Contains Doom engine module logic for this subsystem.
+  Purpose: Owns the mutable session, map, player, renderer, demo, and command-line state shared by the Doom runtime.
 */
 import doomdata
 import d_net

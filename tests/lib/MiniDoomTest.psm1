@@ -2,11 +2,13 @@ Set-StrictMode -Version Latest
 
 $script:NativeLoaded = $false
 
+# Purpose: Resolves the repository root from this module's stable tests/lib location.
 function Get-MiniDoomRepoRoot {
     $p = Split-Path -Parent $PSScriptRoot
     return (Resolve-Path (Join-Path $p '..')).Path
 }
 
+# Purpose: Selects the explicit, environment-provided, bundled, or PATH Python runtime in that order.
 function Resolve-MiniDoomPython {
     param([string]$Python)
 
@@ -22,6 +24,7 @@ function Resolve-MiniDoomPython {
     throw 'Python not found. Pass -Python or set MINIDOOM_PYTHON.'
 }
 
+# Purpose: Resolves the MiniLang compiler path without mutating the caller's environment.
 function Resolve-MiniDoomCompiler {
     param([string]$Compiler)
 
@@ -34,6 +37,7 @@ function Resolve-MiniDoomCompiler {
     throw 'MiniLang compiler not found. Pass -Compiler or set MINIDOOM_COMPILER.'
 }
 
+# Purpose: Resolves the matching MiniLang standard-library directory for test compilation.
 function Resolve-MiniDoomStd {
     param(
         [string]$Std,
@@ -54,6 +58,7 @@ function Resolve-MiniDoomStd {
     throw 'MiniLang std folder not found. Pass -Std or set MINIDOOM_STD.'
 }
 
+# Purpose: Finds the requested or conventional IWAD used by end-to-end test processes.
 function Resolve-MiniDoomIwad {
     param(
         [string]$RepoRoot,
@@ -74,6 +79,7 @@ function Resolve-MiniDoomIwad {
     throw 'No IWAD found. Pass -Iwad or set MINIDOOM_IWAD.'
 }
 
+# Purpose: Runs the production build script with the resolved compiler/runtime inputs and propagates failure.
 function Invoke-MiniDoomBuild {
     param(
         [string]$RepoRoot,
@@ -98,6 +104,7 @@ function Invoke-MiniDoomBuild {
     }
 }
 
+# Purpose: Loads the small Win32 interop surface used for targeted window input and screenshot capture once.
 function Import-MiniDoomNative {
     if ($script:NativeLoaded) { return }
     if ('MiniDoomTestNative' -as [type]) {
@@ -112,6 +119,9 @@ using System.Runtime.InteropServices;
 
 public class MiniDoomTestNative {
   [DllImport("user32.dll")] public static extern bool PostMessage(IntPtr hWnd, uint Msg, IntPtr wParam, IntPtr lParam);
+  [DllImport("user32.dll")] public static extern bool SetForegroundWindow(IntPtr hWnd);
+  [DllImport("user32.dll")] public static extern IntPtr GetForegroundWindow();
+  [DllImport("user32.dll")] public static extern void keybd_event(byte bVk, byte bScan, uint dwFlags, UIntPtr dwExtraInfo);
   [DllImport("user32.dll")] public static extern bool PrintWindow(IntPtr hwnd, IntPtr hdcBlt, uint nFlags);
   [DllImport("user32.dll")] public static extern bool GetWindowRect(IntPtr hWnd, out RECT lpRect);
   [DllImport("user32.dll")] public static extern bool IsWindow(IntPtr hWnd);
@@ -121,6 +131,7 @@ public class MiniDoomTestNative {
     $script:NativeLoaded = $true
 }
 
+# Purpose: Throws the supplied diagnostic when a test invariant is false.
 function Assert-True {
     param(
         [bool]$Condition,
@@ -129,6 +140,7 @@ function Assert-True {
     if (-not $Condition) { throw $Message }
 }
 
+# Purpose: Verifies an owned MiniDoom process is alive and has not opened its fatal-error window.
 function Assert-MiniDoomHealthy {
     param([System.Diagnostics.Process]$Process)
 
@@ -138,6 +150,7 @@ function Assert-MiniDoomHealthy {
     Assert-True ($title -notmatch 'Fatal Error') "MiniDoom opened a fatal error dialog: $title"
 }
 
+# Purpose: Waits for an owned process to create its top-level game window or fail deterministically.
 function Wait-MiniDoomWindow {
     param(
         [System.Diagnostics.Process]$Process,
@@ -154,6 +167,7 @@ function Wait-MiniDoomWindow {
     throw "Timed out waiting for MiniDoom window."
 }
 
+# Purpose: Starts one test-owned MiniDoom instance and returns only after its window is ready.
 function Start-MiniDoomForTest {
     param(
         [string]$RepoRoot,
@@ -169,6 +183,7 @@ function Start-MiniDoomForTest {
     return $p
 }
 
+# Purpose: Terminates exactly the process object created by the test, never unrelated MiniDoom instances.
 function Stop-MiniDoomForTest {
     param([System.Diagnostics.Process]$Process)
 
@@ -180,6 +195,22 @@ function Stop-MiniDoomForTest {
     }
 }
 
+# Purpose: Posts WM_CLOSE only to the owned game window and waits for its normal LEAVE/quit path.
+function Close-MiniDoomGracefully {
+    param(
+        [System.Diagnostics.Process]$Process,
+        [int]$TimeoutSeconds = 8
+    )
+
+    Import-MiniDoomNative
+    Assert-MiniDoomHealthy -Process $Process
+    $hwnd = $Process.MainWindowHandle
+    Assert-True ($hwnd -ne 0) 'MiniDoom has no window handle for graceful close.'
+    Assert-True ([MiniDoomTestNative]::PostMessage($hwnd, 0x0010, [IntPtr]0, [IntPtr]0)) 'Posting WM_CLOSE to MiniDoom failed.'
+    Assert-True ($Process.WaitForExit($TimeoutSeconds * 1000)) "MiniDoom did not exit gracefully within $TimeoutSeconds seconds."
+}
+
+# Purpose: Captures the owned game window into a PNG artifact using PrintWindow.
 function Save-MiniDoomWindowImage {
     param(
         [System.Diagnostics.Process]$Process,
@@ -206,6 +237,7 @@ function Save-MiniDoomWindowImage {
     return $Path
 }
 
+# Purpose: Sends the renderer-toggle Alt+G chord only to the supplied game window and checks liveness afterward.
 function Send-MiniDoomAltG {
     param([System.Diagnostics.Process]$Process)
 
@@ -220,6 +252,27 @@ function Send-MiniDoomAltG {
     Assert-MiniDoomHealthy -Process $Process
 }
 
+# Purpose: Focuses the exact owned game window and injects one bounded physical key press for polled Doom input.
+function Send-MiniDoomKey {
+    param(
+        [System.Diagnostics.Process]$Process,
+        [int]$VirtualKey,
+        [int]$HoldMilliseconds = 350
+    )
+
+    Import-MiniDoomNative
+    Assert-MiniDoomHealthy -Process $Process
+    $hwnd = $Process.MainWindowHandle
+    Assert-True ($VirtualKey -ge 0 -and $VirtualKey -le 255) "Virtual key is outside the Win32 byte range: $VirtualKey"
+    [void][MiniDoomTestNative]::SetForegroundWindow($hwnd)
+    Start-Sleep -Milliseconds 120
+    Assert-True ([MiniDoomTestNative]::GetForegroundWindow() -eq $hwnd) 'Could not focus the exact MiniDoom window for key injection.'
+    [MiniDoomTestNative]::keybd_event([byte]$VirtualKey, 0, 0, [UIntPtr]::Zero)
+    Start-Sleep -Milliseconds ([Math]::Max(20, $HoldMilliseconds))
+    [MiniDoomTestNative]::keybd_event([byte]$VirtualKey, 0, 2, [UIntPtr]::Zero)
+}
+
+# Purpose: Samples an image to derive dimensions, dark/bright ratios, and an approximate color count.
 function Get-MiniDoomImageStats {
     param([string]$Path)
 
@@ -257,6 +310,7 @@ function Get-MiniDoomImageStats {
     }
 }
 
+# Purpose: Rejects blank, near-uniform, or otherwise obviously undrawn game-window screenshots.
 function Assert-MiniDoomImageLooksDrawn {
     param(
         [string]$Path,
@@ -270,6 +324,7 @@ function Assert-MiniDoomImageLooksDrawn {
     Assert-True ($s.DarkRatio -lt 0.85) "$Label image is mostly black; possible missing frame."
 }
 
+# Purpose: Computes mean sampled RGB-channel delta between two screenshots of potentially different size.
 function Measure-MiniDoomImageDifference {
     param(
         [string]$A,
@@ -305,6 +360,7 @@ function Measure-MiniDoomImageDifference {
     }
 }
 
+# Purpose: Decodes one unsigned little-endian 32-bit value from a managed byte array.
 function Read-MiniDoomU32LE {
     param(
         [byte[]]$Bytes,
@@ -318,6 +374,7 @@ function Read-MiniDoomU32LE {
     )
 }
 
+# Purpose: Validates HDWAD magic/version/count/offset fields without loading the entire cache file.
 function Test-MiniDoomHDWADHeader {
     param([string]$Path)
 

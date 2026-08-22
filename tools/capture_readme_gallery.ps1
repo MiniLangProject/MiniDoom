@@ -21,6 +21,10 @@ if ([string]::IsNullOrWhiteSpace($RepoRoot)) {
     $RepoRoot = Split-Path -Parent $PSScriptRoot
 }
 
+<#
+.SYNOPSIS
+Resolves an optional gallery path against its explicit fallback.
+#>
 function Resolve-GalleryPath {
     param([string]$Path, [string]$Fallback)
 
@@ -28,6 +32,10 @@ function Resolve-GalleryPath {
     return [IO.Path]::GetFullPath($Path)
 }
 
+<#
+.SYNOPSIS
+Reads unique E#M#/MAP## markers from a validated WAD directory in source order.
+#>
 function Get-WadMapNames {
     param([Parameter(Mandatory = $true)][string]$Path)
 
@@ -63,6 +71,10 @@ function Get-WadMapNames {
     }
 }
 
+<#
+.SYNOPSIS
+Validates a captured bitmap and writes the PNG artifact consumed by the README gallery.
+#>
 function Convert-BmpToPng {
     param(
         [Parameter(Mandatory = $true)][string]$Source,
@@ -85,6 +97,10 @@ function Convert-BmpToPng {
     }
 }
 
+<#
+.SYNOPSIS
+Terminates only the MiniDoom process launched for the current gallery frame.
+#>
 function Stop-GalleryProcess {
     param([Diagnostics.Process]$Process)
 
@@ -96,6 +112,10 @@ function Stop-GalleryProcess {
     }
 }
 
+<#
+.SYNOPSIS
+Launches one map/renderer combination, waits for a settled frame, and saves its gallery PNG.
+#>
 function Capture-GalleryFrame {
     param(
         [Parameter(Mandatory = $true)][string]$Exe,

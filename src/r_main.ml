@@ -14,7 +14,7 @@
   limitations under the License.
 
   Script: r_main.ml
-  Purpose: Implements renderer data preparation and software rendering pipeline stages.
+  Purpose: Builds view/projection tables, derives interpolated camera state, and orchestrates software or OpenGL player-view rendering.
 */
 import d_player
 import r_data
@@ -104,7 +104,7 @@ _r_interp_cur_angle = 0
 
 /*
 * Function: _R_TimeMs
-* Purpose: Provides milliseconds helper behavior for the renderer.
+* Purpose: Returns the platform tick counter as an integer millisecond timestamp for render profiling.
 */
 function inline _R_TimeMs()
   t = std.time.ticks()
@@ -113,7 +113,7 @@ end function
 
 /*
 * Function: _R_ProfileFlushMaybe
-* Purpose: Provides flush maybe helper behavior for the renderer.
+* Purpose: Once per second, prints accumulated pipeline counters and resets renderer, BSP, and draw profiling windows.
 */
 function _R_ProfileFlushMaybe()
   global _r_prof_t0
@@ -228,7 +228,7 @@ end function
 
 /*
 * Function: _R_Abs
-* Purpose: Provides absolute-value helper behavior for the renderer.
+* Purpose: Converts an arbitrary numeric value to an integer and returns its non-negative magnitude.
 */
 function inline _R_Abs(x)
   xi = _R_ToIntOr(x, 0)
@@ -238,7 +238,7 @@ end function
 
 /*
 * Function: _R_IDiv
-* Purpose: Performs integer division with main renderer rounding and guard rules.
+* Purpose: Coerces numeric operands and returns their signed quotient truncated toward zero, using zero for a zero divisor.
 */
 function inline _R_IDiv(a, b)
   a = _R_ToIntOr(a, 0)
@@ -251,7 +251,7 @@ end function
 
 /*
 * Function: _R_ToIntOr
-* Purpose: Converts int or values for the renderer.
+* Purpose: Coerces numbers and numeric values to a truncation-toward-zero integer, returning fallback on failure.
 */
 function inline _R_ToIntOr(v, fallback)
   if typeof(v) == "int" then return v end if
@@ -270,7 +270,7 @@ end function
 
 /*
 * Function: _R_IsSeq
-* Purpose: Checks sequence conditions for the renderer.
+* Purpose: Recognizes the array and list containers accepted by renderer lookup tables.
 */
 function inline _R_IsSeq(v)
   t = typeof(v)
@@ -279,7 +279,7 @@ end function
 
 /*
 * Function: _R_AngNorm
-* Purpose: Provides norm helper behavior for the renderer.
+* Purpose: Normalizes an angle or numeric input to Doom's unsigned 32-bit binary-angle domain.
 */
 function inline _R_AngNorm(a)
   ai = _R_ToIntOr(a, 0)
@@ -288,7 +288,7 @@ end function
 
 /*
 * Function: _R_AngSub
-* Purpose: Provides sub helper behavior for the renderer.
+* Purpose: Subtracts two binary angles with unsigned 32-bit wraparound.
 */
 function inline _R_AngSub(a, b)
   return _R_AngNorm(_R_AngNorm(a) - _R_AngNorm(b))
@@ -296,7 +296,7 @@ end function
 
 /*
 * Function: _R_FineSineAt
-* Purpose: Provides sine at helper behavior for the renderer.
+* Purpose: Samples the wrapped fine-sine table for a binary angle, returning zero if tables are unavailable.
 */
 function inline _R_FineSineAt(angle)
   if not _R_IsSeq(finesine) or len(finesine) == 0 then return 0 end if
@@ -311,7 +311,7 @@ end function
 
 /*
 * Function: _R_TanToAngle
-* Purpose: Converts tan to angle values for the renderer core.
+* Purpose: Converts a non-negative slope ratio into a clamped lookup-table binary angle.
 */
 function inline _R_TanToAngle(num, den)
   if not _R_IsSeq(tantoangle) or len(tantoangle) == 0 then return 0 end if
@@ -328,7 +328,7 @@ end function
 
 /*
 * Function: _R_ColorMapAt
-* Purpose: Provides map at helper behavior for the renderer.
+* Purpose: Returns one clamped 256-entry lighting colormap, or a black fallback when COLORMAP data is missing.
 */
 function inline _R_ColorMapAt(level)
   if typeof(colormaps) != "bytes" or len(colormaps) < 256 then
@@ -344,7 +344,7 @@ end function
 
 /*
 * Function: _R_HasSignBit
-* Purpose: Checks sign bit conditions for the renderer.
+* Purpose: Tests the high bit of a normalized binary angle or wrapped 32-bit delta.
 */
 function inline _R_HasSignBit(v)
   return (_R_AngNorm(v) & 0x80000000) != 0
@@ -352,7 +352,7 @@ end function
 
 /*
 * Function: _R_S32
-* Purpose: Provides s32 helper behavior for the renderer.
+* Purpose: Coerces a numeric value and reinterprets its low 32 bits as a signed integer.
 */
 function _R_S32(v)
   vi = 0
@@ -385,7 +385,7 @@ end function
 
 /*
 * Function: _R_ToFrac
-* Purpose: Converts frac values for the renderer.
+* Purpose: Converts the render interpolation control to a scalar clamped to [0,1], defaulting invalid inputs to one.
 */
 function inline _R_ToFrac(v)
   if typeof(v) == "float" then
@@ -412,7 +412,7 @@ end function
 
 /*
 * Function: _R_LerpS32
-* Purpose: Provides s32 helper behavior for the renderer.
+* Purpose: Linearly interpolates signed 32-bit coordinates and preserves signed wrap semantics at the result.
 */
 function inline _R_LerpS32(a, b, frac)
   if frac <= 0 then return _R_S32(a) end if
@@ -424,7 +424,7 @@ end function
 
 /*
 * Function: _R_LerpAngle
-* Purpose: Provides angle helper behavior for the renderer.
+* Purpose: Interpolates along the shortest wrapped path between two 32-bit binary angles.
 */
 function inline _R_LerpAngle(a, b, frac)
   if frac <= 0 then return _R_AngNorm(_R_ToIntOr(a, 0)) end if
@@ -438,7 +438,7 @@ end function
 
 /*
 * Function: R_PointOnSide
-* Purpose: Provides on side helper behavior for the renderer.
+* Purpose: Classifies a fixed-point position against a BSP partition, using axis fast paths and overflow-safe sign tests.
 */
 function inline R_PointOnSide(x, y, node)
 
@@ -481,7 +481,7 @@ end function
 
 /*
 * Function: R_PointOnSegSide
-* Purpose: Provides on seg side helper behavior for the renderer.
+* Purpose: Classifies a fixed-point position against an oriented seg for clipping and sprite-side decisions.
 */
 function inline R_PointOnSegSide(x, y, seg)
   if seg is void then return 0 end if
@@ -528,7 +528,7 @@ end function
 
 /*
 * Function: R_PointToAngle
-* Purpose: Converts point to angle values for the renderer core.
+* Purpose: Computes the wrapped binary angle from the current view origin to a world point via octant slope lookup.
 */
 function R_PointToAngle(x, y)
   global viewx
@@ -579,7 +579,7 @@ end function
 
 /*
 * Function: R_PointToAngle2
-* Purpose: Converts point to angle2 values for the renderer core.
+* Purpose: Computes the binary angle between arbitrary endpoints while restoring the renderer's global view origin afterward.
 */
 function inline R_PointToAngle2(x1, y1, x2, y2)
   global viewx
@@ -597,7 +597,7 @@ end function
 
 /*
 * Function: R_PointToDist
-* Purpose: Converts point to distance values for the renderer core.
+* Purpose: Computes fixed-point planar distance from the view origin using slope and sine lookup tables.
 */
 function inline R_PointToDist(x, y)
   global viewx
@@ -634,7 +634,7 @@ end function
 
 /*
 * Function: R_ScaleFromGlobalAngle
-* Purpose: Provides from global angle helper behavior for the renderer.
+* Purpose: Derives the perspective scale for a wall column and clamps it to Doom's supported fixed-point range.
 */
 function R_ScaleFromGlobalAngle(visangle)
   global rw_distance
@@ -684,7 +684,7 @@ end function
 
 /*
 * Function: R_PointInSubsector
-* Purpose: Provides in subsector helper behavior for the renderer.
+* Purpose: Walks the BSP from its root to locate the leaf subsector containing a world coordinate.
 */
 function R_PointInSubsector(x, y)
   if numnodes <= 0 then
@@ -708,7 +708,7 @@ end function
 
 /*
 * Function: R_AddPointToBox
-* Purpose: Adds point to box entries to the renderer.
+* Purpose: Expands a four-entry BOXLEFT/RIGHT/BOTTOM/TOP bounds array to include a point.
 */
 function R_AddPointToBox(x, y, box)
 
@@ -729,7 +729,7 @@ end function
 
 /*
 * Function: R_Init
-* Purpose: Initializes state and dependencies for the renderer.
+* Purpose: Initializes render data, geometry/light tables, view sizing, translations, and optional profiling hooks.
 */
 function R_Init()
   global _r_prof_enabled
@@ -771,7 +771,7 @@ end function
 
 /*
 * Function: R_SetViewSize
-* Purpose: Updates view size state for the renderer.
+* Purpose: Clamps and applies a view-block request, rebuilding projection, draw callbacks, buffers, sprite scale, and light tables.
 */
 function R_SetViewSize(blocks, detail)
   global detailshift
@@ -883,7 +883,7 @@ end function
 
 /*
 * Function: R_ExecuteSetViewSize
-* Purpose: Updates view size state for the renderer core.
+* Purpose: Applies the deferred block/detail request only when a view-size rebuild is pending.
 */
 function R_ExecuteSetViewSize()
   if not setsizeneeded then return end if
@@ -892,7 +892,7 @@ end function
 
 /*
 * Function: R_InitPointToAngle
-* Purpose: Initializes state and dependencies for the renderer.
+* Purpose: Ensures the trigonometric tables required by point-to-angle calculations are populated.
 */
 function R_InitPointToAngle()
   if typeof(Tables_Init) == "function" then Tables_Init() end if
@@ -900,7 +900,7 @@ end function
 
 /*
 * Function: R_InitTables
-* Purpose: Initializes state and dependencies for the renderer.
+* Purpose: Initializes the shared fine-angle, tangent, sine, and slope lookup tables.
 */
 function R_InitTables()
   if typeof(Tables_Init) == "function" then Tables_Init() end if
@@ -908,7 +908,7 @@ end function
 
 /*
 * Function: R_InitLightTables
-* Purpose: Initializes state and dependencies for the renderer.
+* Purpose: Builds distance-indexed, scale-indexed, and fixed-colormap lighting lookup matrices.
 */
 function R_InitLightTables()
   global zlight
@@ -947,7 +947,7 @@ end function
 
 /*
 * Function: _R_RebuildScaleLight
-* Purpose: Provides scale light helper behavior for the renderer.
+* Purpose: Recomputes scale-indexed wall colormaps for the active view width and detail shift.
 */
 function _R_RebuildScaleLight()
   global scalelight
@@ -975,7 +975,7 @@ end function
 
 /*
 * Function: R_InitTextureMapping
-* Purpose: Initializes state and dependencies for the renderer.
+* Purpose: Rebuilds the public view-column-to-angle and angle-to-column mapping tables.
 */
 function R_InitTextureMapping()
   _R_InitTextureMapping()
@@ -983,7 +983,7 @@ end function
 
 /*
 * Function: R_SetupFrame
-* Purpose: Runs frame lifecycle logic for the renderer.
+* Purpose: Public entry point that derives view position, angle, lighting, and interpolation state for one player frame.
 */
 function R_SetupFrame(player)
   _R_SetupFrame(player)
@@ -1141,7 +1141,7 @@ end function
 
 /*
 * Function: _R_SetupFrame
-* Purpose: Runs frame lifecycle logic for the renderer.
+* Purpose: Derives the camera from player state, interpolates uncapped frames, selects fixed lighting, and advances frame validity counters.
 */
 function _R_SetupFrame(player)
   global viewplayer
@@ -1287,7 +1287,7 @@ end function
 
 /*
 * Function: _R_InitTextureMapping
-* Purpose: Initializes state and dependencies for the internal module support.
+* Purpose: Builds inverse screen-column/binary-angle tables from the current projection and establishes the horizontal clip angle.
 */
 function _R_InitTextureMapping()
   global viewangletox

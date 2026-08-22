@@ -14,7 +14,7 @@
   limitations under the License.
 
   Script: p_mobj.ml
-  Purpose: Implements core gameplay simulation: map logic, physics, AI, and world interaction.
+  Purpose: Defines actor state, spawn/removal ownership, missile and player creation, movement, and item respawn.
 */
 import tables
 import m_fixed
@@ -40,7 +40,7 @@ import std.math
 
 /*
 * Enum: mobjflag_t
-* Purpose: Defines named constants for mobjflag type.
+* Purpose: Encodes actor collision, damage, gravity, AI allegiance, pickup, and render behavior bits.
 */
 enum mobjflag_t
   MF_SPECIAL = 1
@@ -75,7 +75,7 @@ end enum
 
 /*
 * Struct: mobj_t
-* Purpose: Stores mobj data used by the mobile object system.
+* Purpose: Holds one live actor's thinker link, spatial state, presentation state, combat fields, and ownership.
 */
 struct mobj_t
   thinker
@@ -144,7 +144,7 @@ _pm_next_netuid = 1
 
 /*
 * Function: _InitItemRespawnQueue
-* Purpose: Initializes state and dependencies for the internal module support.
+* Purpose: Allocates the bounded dropped-item mapthing/timestamp ring on first respawn-queue use.
 */
 function inline _InitItemRespawnQueue()
   global itemrespawnque
@@ -162,7 +162,7 @@ end function
 
 /*
 * Function: _PM_RegisterThinker
-* Purpose: Advances register Thinker logic during the mobile object tick.
+* Purpose: Records the stable thinker-node-to-mobj association used when callbacks receive only a node.
 */
 function inline _PM_RegisterThinker(node, owner)
   global _pm_thinker_nodes
@@ -197,7 +197,7 @@ end function
 
 /*
 * Function: _PM_ResolveThinkerOwner
-* Purpose: Advances resolve Thinker Owner logic during the mobile object tick.
+* Purpose: Resolves either a direct mobj or its registered thinker node to the current actor owner.
 */
 function inline _PM_ResolveThinkerOwner(node)
   i = len(_pm_thinker_nodes) - 1
@@ -232,7 +232,7 @@ end function
 
 /*
 * Function: _PM_UnregisterThinker
-* Purpose: Advances unregister Thinker logic during the mobile object tick.
+* Purpose: Removes a thinker-node ownership entry when its mobj leaves the world.
 */
 function inline _PM_UnregisterThinker(node)
   global _pm_thinker_nodes
@@ -252,7 +252,7 @@ end function
 
 /*
 * Function: _PM_IDiv
-* Purpose: Performs integer division with mobile object rounding and guard rules.
+* Purpose: Truncates actor movement quotients toward zero, returning zero for invalid operands.
 */
 function inline _PM_IDiv(a, b)
   if typeof(a) != "int" or typeof(b) != "int" or b == 0 then return 0 end if
@@ -263,7 +263,7 @@ end function
 
 /*
 * Function: _PM_ToInt
-* Purpose: Converts int values for the mobile object.
+* Purpose: Normalizes enum/numeric actor fields to truncating integers with a supplied fallback.
 */
 function inline _PM_ToInt(v, fallback)
   if typeof(v) == "int" then return v end if
@@ -282,7 +282,7 @@ end function
 
 /*
 * Function: _PM_MobjTypeIndex
-* Purpose: Provides mobile-object type index helper behavior for the mobile object.
+* Purpose: Converts a checked mobj type enum/value to an in-range mobjinfo table index.
 */
 function _PM_MobjTypeIndex(v)
   if typeof(v) == "int" then return v end if
@@ -328,7 +328,7 @@ end function
 
 /*
 * Function: _Mobj_Default
-* Purpose: Provides default helper behavior for the mobile object.
+* Purpose: Constructs an unlinked inert actor whose fields satisfy mobj_t's runtime invariants.
 */
 function _Mobj_Default()
 
@@ -357,7 +357,7 @@ end function
 
 /*
 * Function: _PM_StateSpriteIndex
-* Purpose: Provides state sprite index helper behavior for the mobile object.
+* Purpose: Converts a state sprite enum/value to a valid sprite table index or the null sprite.
 */
 function inline _PM_StateSpriteIndex(spr)
   if typeof(spr) == "int" then return spr end if
@@ -377,7 +377,7 @@ end function
 
 /*
 * Function: P_SetMobjState
-* Purpose: Updates mobile-object state state for the mobile object.
+* Purpose: Enters a state, runs its action, and follows zero-tic transitions until a timed or null state.
 */
 function P_SetMobjState(mobj, state)
   if mobj is void then return false end if
@@ -465,7 +465,7 @@ end function
 
 /*
 * Function: P_SpawnMobj
-* Purpose: Creates and initializes runtime objects for the gameplay and world simulation.
+* Purpose: Instantiates an actor from mobjinfo, links it spatially, and registers its thinker ownership.
 */
 function P_SpawnMobj(x, y, z, type)
   _InitItemRespawnQueue()
@@ -551,7 +551,7 @@ end function
 
 /*
 * Function: P_ExplodeMissile
-* Purpose: Provides missile helper behavior for the mobile object.
+* Purpose: Stops missile momentum, enters its death state, removes missile solidity, and plays its death cue.
 */
 function P_ExplodeMissile(mo)
   if mo is void then return end if
@@ -575,7 +575,7 @@ end function
 
 /*
 * Function: P_CheckMissileSpawn
-* Purpose: Finds check Missile Spawn information for mobile object processing.
+* Purpose: Advances a new missile half a tic and explodes it immediately if its initial position is blocked.
 */
 function P_CheckMissileSpawn(th)
   if th is void then return end if
@@ -597,7 +597,7 @@ end function
 
 /*
 * Function: P_SpawnMissile
-* Purpose: Creates and initializes runtime objects for the gameplay and world simulation.
+* Purpose: Aims a projectile from source to destination, sets owner/momentum, and validates its first step.
 */
 function P_SpawnMissile(source, dest, type)
   if source is void or dest is void then return void end if
@@ -648,7 +648,7 @@ end function
 
 /*
 * Function: P_SpawnPlayerMissile
-* Purpose: Creates and initializes runtime objects for the gameplay and world simulation.
+* Purpose: Auto-aims a player projectile across fallback angles before spawning and validating it.
 */
 function P_SpawnPlayerMissile(source, type)
   global linetarget
@@ -710,7 +710,7 @@ end function
 
 /*
 * Function: _PM_EnsurePlayerSlots
-* Purpose: Provides ensure player slots helper behavior for the mobile object.
+* Purpose: Extends player and in-game arrays to MAXPLAYERS before mapthing-driven spawn access.
 */
 function _PM_EnsurePlayerSlots()
   global players
@@ -743,7 +743,7 @@ end function
 
 /*
 * Function: P_SpawnPlayer
-* Purpose: Creates and initializes runtime objects for the gameplay and world simulation.
+* Purpose: Converts a player start mapthing into a live pawn and attaches view, health, and reborn state.
 */
 function P_SpawnPlayer(mthing)
   global players
@@ -819,7 +819,7 @@ end function
 
 /*
 * Function: P_SpawnMapThing
-* Purpose: Creates and initializes runtime objects for the gameplay and world simulation.
+* Purpose: Filters a mapthing by player/skill/type rules, then spawns its actor and map-derived flags.
 */
 function P_SpawnMapThing(mthing)
   global deathmatch_p
@@ -920,7 +920,7 @@ end function
 
 /*
 * Function: P_RemoveMobj
-* Purpose: Computes movement/collision behavior in the gameplay and world simulation.
+* Purpose: Queues eligible specials for respawn, unlinks the actor, and unregisters its thinker safely.
 */
 function P_RemoveMobj(th)
   if th is void then return end if
@@ -955,7 +955,7 @@ const FRICTION = 0xe800
 
 /*
 * Function: P_XYMovement
-* Purpose: Computes movement/collision behavior in the gameplay and world simulation.
+* Purpose: Applies bounded XY momentum through collision/slide logic, then friction for grounded actors.
 */
 function P_XYMovement(mo)
   if mo is void then return end if
@@ -1066,7 +1066,7 @@ end function
 
 /*
 * Function: P_ZMovement
-* Purpose: Computes movement/collision behavior in the gameplay and world simulation.
+* Purpose: Integrates vertical momentum, gravity, floor/ceiling impacts, bouncing skulls, and missile explosions.
 */
 function P_ZMovement(mo)
   if mo is void then return end if
@@ -1135,7 +1135,7 @@ end function
 
 /*
 * Function: P_NightmareRespawn
-* Purpose: Creates and initializes runtime objects for the gameplay and world simulation.
+* Purpose: Recreates a killed monster at its original spawn point with teleport fog and reaction delay.
 */
 function P_NightmareRespawn(mobj)
   if mobj is void then return end if
@@ -1184,7 +1184,7 @@ end function
 
 /*
 * Function: P_SpawnPuff
-* Purpose: Creates and initializes runtime objects for the gameplay and world simulation.
+* Purpose: Spawns a randomized-height bullet puff and selects its melee-safe animation variant.
 */
 function P_SpawnPuff(x, y, z)
   z = z +((P_Random() - P_Random()) << 10)
@@ -1203,7 +1203,7 @@ end function
 
 /*
 * Function: P_SpawnBlood
-* Purpose: Creates and initializes runtime objects for the gameplay and world simulation.
+* Purpose: Spawns a randomized blood spray and selects its damage-scaled animation state.
 */
 function P_SpawnBlood(x, y, z, damage)
   z = z +((P_Random() - P_Random()) << 10)
@@ -1224,7 +1224,7 @@ end function
 
 /*
 * Function: P_MobjThinker
-* Purpose: Advances mobj Thinker logic during the mobile object tick.
+* Purpose: Advances one actor's movement/state timer and triggers nightmare respawn when eligible.
 */
 function P_MobjThinker(mo)
   if mo is void then return end if
@@ -1287,7 +1287,7 @@ end function
 
 /*
 * Function: P_RespawnSpecials
-* Purpose: Creates and initializes runtime objects for the gameplay and world simulation.
+* Purpose: Respawns one queued pickup after its delay when the destination is unoccupied.
 */
 function P_RespawnSpecials()
   dm = deathmatch

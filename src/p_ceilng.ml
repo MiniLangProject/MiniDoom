@@ -14,7 +14,7 @@
   limitations under the License.
 
   Script: p_ceilng.ml
-  Purpose: Implements core gameplay simulation: map logic, physics, AI, and world interaction.
+  Purpose: Runs moving and crushing ceiling thinkers, including active-slot tracking and tagged stasis control.
 */
 import z_zone
 import doomdef
@@ -28,7 +28,7 @@ activeceilings =[]
 
 /*
 * Function: _InitActiveCeilings
-* Purpose: Initializes state and dependencies for the internal module support.
+* Purpose: Lazily creates the fixed-size active-ceiling slot table expected by tag and stasis operations.
 */
 function _InitActiveCeilings()
   global activeceilings
@@ -44,7 +44,7 @@ end function
 
 /*
 * Function: _CeilingMakeThinker
-* Purpose: Provides make thinker helper behavior for the play simulation.
+* Purpose: Creates a ceiling-mover thinker with list links, callback, direction, speed, and sector state initialized for activation.
 */
 function inline _CeilingMakeThinker(fn)
   return thinker_t(void, void, actionf_t(fn, void, void), void)
@@ -52,7 +52,7 @@ end function
 
 /*
 * Function: _CeilingSetSlot
-* Purpose: Updates slot state for the ceiling thinker.
+* Purpose: Rebuilds the active-ceiling sequence with one validated slot replaced, preserving list compatibility.
 */
 function inline _CeilingSetSlot(idx, v)
   global activeceilings
@@ -69,7 +69,7 @@ end function
 
 /*
 * Function: P_AddActiveCeiling
-* Purpose: Adds active ceiling entries to the play simulation.
+* Purpose: Places a ceiling mover in the first free active slot so tagged stop and resume events can find it.
 */
 function P_AddActiveCeiling(c)
   _InitActiveCeilings()
@@ -85,7 +85,7 @@ end function
 
 /*
 * Function: P_RemoveActiveCeiling
-* Purpose: Computes movement/collision behavior in the gameplay and world simulation.
+* Purpose: Clears the slot holding a completed ceiling mover so it no longer participates in tagged control.
 */
 function P_RemoveActiveCeiling(c)
   _InitActiveCeilings()
@@ -101,7 +101,7 @@ end function
 
 /*
 * Function: P_ActivateInStasisCeiling
-* Purpose: Runs in stasis ceiling behavior for the play simulation.
+* Purpose: Resumes every stopped ceiling matching a trigger tag by restoring its saved direction.
 */
 function P_ActivateInStasisCeiling(line)
   if line is void then return end if
@@ -118,7 +118,7 @@ end function
 
 /*
 * Function: EV_CeilingCrushStop
-* Purpose: Stops or tears down runtime behavior in the engine module behavior.
+* Purpose: Puts every active ceiling with the trigger tag into stasis and reports whether any mover was stopped.
 */
 function EV_CeilingCrushStop(line)
 
@@ -142,7 +142,7 @@ end function
 
 /*
 * Function: T_MoveCeiling
-* Purpose: Computes movement/collision behavior in the engine module behavior.
+* Purpose: Moves a ceiling toward its current bound, reverses cyclic crushers at endpoints, and removes one-shot movers on completion.
 */
 function T_MoveCeiling(ceiling)
   if ceiling is void or ceiling.sector is void then return end if
@@ -178,7 +178,7 @@ end function
 
 /*
 * Function: EV_DoCeiling
-* Purpose: Provides do ceiling helper behavior for the play simulation.
+* Purpose: Starts the requested ceiling action in every sector matching a trigger line's tag and reports whether any mover was created.
 */
 function EV_DoCeiling(line, type)
   if line is void then return 0 end if

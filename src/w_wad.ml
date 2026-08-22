@@ -32,7 +32,7 @@ const W_HDWAD_MAX_VERSION = 6
 
 /*
 * Struct: wadinfo_t
-* Purpose: Stores wadinfo data used by the WAD resource system.
+* Purpose: Mirrors a WAD header's identification, directory count, and directory byte offset.
 */
 struct wadinfo_t
   identification
@@ -42,7 +42,7 @@ end struct
 
 /*
 * Struct: filelump_t
-* Purpose: Stores filelump data used by the WAD resource system.
+* Purpose: Mirrors one on-disk WAD directory entry with file position, byte size, and fixed eight-byte name.
 */
 struct filelump_t
   filepos
@@ -52,7 +52,7 @@ end struct
 
 /*
 * Struct: lumpinfo_t
-* Purpose: Stores lumpinfo data used by the WAD resource system.
+* Purpose: Records a merged lump's canonical name, source-file handle, byte position, and size.
 */
 struct lumpinfo_t
   name
@@ -72,7 +72,7 @@ const _W_CACHE_NULL_PTR = -1
 
 /*
 * Struct: wadfile_t
-* Purpose: Stores wadfile data used by the WAD resource system.
+* Purpose: Owns one loaded WAD path and its immutable file bytes for indexed lump reads.
 */
 struct wadfile_t
   path
@@ -86,7 +86,7 @@ reloadfile = -1
 
 /*
 * Function: _W_ReadI32LE
-* Purpose: Reads i32 little-endian data for the WAD resource.
+* Purpose: Decodes one signed 32-bit little-endian field from a WAD header or directory entry.
 */
 function inline _W_ReadI32LE(b, off)
 
@@ -95,7 +95,7 @@ end function
 
 /*
 * Function: _W_CopyBytes
-* Purpose: Updates bytes state for the WAD resource.
+* Purpose: Returns an independent byte slice for a requested WAD-file range.
 */
 function inline _W_CopyBytes(b, off, n)
 
@@ -104,7 +104,7 @@ end function
 
 /*
 * Function: _W_ToUpperAscii
-* Purpose: Converts upper ASCII values for the WAD resource.
+* Purpose: Uppercases ASCII lump-name characters in a newly allocated string while preserving nonletters.
 */
 function inline _W_ToUpperAscii(s)
 
@@ -120,7 +120,7 @@ end function
 
 /*
 * Function: strupr
-* Purpose: Provides strupr helper behavior for the WAD resource.
+* Purpose: Exposes allocation-safe ASCII uppercase conversion under the legacy WAD API name.
 */
 function inline strupr(s)
   return _W_ToUpperAscii(s)
@@ -128,7 +128,7 @@ end function
 
 /*
 * Function: filelength
-* Purpose: Provides filelength helper behavior for the WAD resource.
+* Purpose: Returns the byte length of a validated loaded-file handle.
 */
 function inline filelength(handle)
   if typeof(handle) != "int" then return 0 end if
@@ -140,7 +140,7 @@ end function
 
 /*
 * Function: _W_Name8FromString
-* Purpose: Provides from string helper behavior for the WAD resource.
+* Purpose: Uppercases, truncates, and zero-pads a string to Doom's fixed eight-byte lump-name representation.
 */
 function inline _W_Name8FromString(name)
 
@@ -178,7 +178,7 @@ end function
 
 /*
 * Function: _W_Name8Equals
-* Purpose: Provides equals helper behavior for the WAD resource.
+* Purpose: Compares two canonical eight-byte lump names without string allocation.
 */
 function inline _W_Name8Equals(a, b)
 
@@ -190,7 +190,7 @@ end function
 
 /*
 * Function: _W_IsWadFilename
-* Purpose: Checks WAD filename conditions for the WAD resource.
+* Purpose: Recognizes a case-insensitive .wad suffix without allocating a normalized path copy.
 */
 function inline _W_IsWadFilename(path)
   pb = bytes(path)
@@ -210,7 +210,7 @@ end function
 
 /*
 * Function: _W_IsHDWADData
-* Purpose: Checks HDWAD data conditions for the WAD resource.
+* Purpose: Validates the minimum header length and four-byte MDHD signature of an in-memory HDWAD package.
 */
 function inline _W_IsHDWADData(data)
   if typeof(data) != "bytes" or len(data) < 28 then return false end if
@@ -219,7 +219,7 @@ end function
 
 /*
 * Function: _W_ExtractFileBase
-* Purpose: Provides file base helper behavior for the WAD resource.
+* Purpose: Extracts an uppercase, extension-free filename into an eight-byte lump name and rejects overlong bases.
 */
 function _W_ExtractFileBase(path)
 
@@ -250,7 +250,7 @@ end function
 
 /*
 * Function: ExtractFileBase
-* Purpose: Provides file base helper behavior for the WAD resource.
+* Purpose: Copies a canonical filename base into a byte buffer or reference slot for compatibility with the original API.
 */
 function ExtractFileBase(path, dest)
   name8 = _W_ExtractFileBase(path)
@@ -350,7 +350,7 @@ end function
 
 /*
 * Function: _W_SlotEmpty
-* Purpose: Provides empty helper behavior for the WAD resource.
+* Purpose: Tests the cache-slot convention in which empty, void, or negative pointer values mean no resident lump.
 */
 function inline _W_SlotEmpty(slot)
   if typeof(slot) != "array" or len(slot) == 0 then
@@ -364,7 +364,7 @@ end function
 
 /*
 * Function: _W_AddLoadedFile
-* Purpose: Loads add Loaded File resources used by the WAD resource system.
+* Purpose: Appends an in-memory WAD file record and returns the stable index stored by its lump directory entries.
 */
 function inline _W_AddLoadedFile(path, data)
   global _W_files
@@ -375,7 +375,7 @@ end function
 
 /*
 * Function: W_AddFile
-* Purpose: Adds file entries to the WAD resource.
+* Purpose: Loads a WAD or single-lump file, validates its directory, and appends normalized entries in load-order override precedence.
 */
 function W_AddFile(filename)
   global reloadname
@@ -546,7 +546,7 @@ end function
 
 /*
 * Function: W_InitMultipleFiles
-* Purpose: Initializes state and dependencies for the WAD resource system.
+* Purpose: Clears prior resource state, loads each configured WAD in order, validates the result, and creates empty zone-cache slots.
 */
 function W_InitMultipleFiles(filenames)
   global numlumps
@@ -613,7 +613,7 @@ end function
 
 /*
 * Function: W_InitFile
-* Purpose: Initializes state and dependencies for the WAD resource system.
+* Purpose: Initializes the merged lump directory and cache from a single WAD path.
 */
 function W_InitFile(filename)
   W_InitMultipleFiles([filename])
@@ -621,7 +621,7 @@ end function
 
 /*
 * Function: W_NumLumps
-* Purpose: Provides lumps helper behavior for the WAD resource.
+* Purpose: Returns the current merged directory size after all WAD and single-lump files have been added.
 */
 function W_NumLumps()
   return numlumps
@@ -629,7 +629,7 @@ end function
 
 /*
 * Function: W_Reload
-* Purpose: Loads reload resources used by the WAD resource system.
+* Purpose: Re-reads the designated reloadable WAD, invalidates its resident cache entries, and updates directory positions and sizes in place.
 */
 function W_Reload()
   global _W_files
@@ -689,7 +689,7 @@ end function
 
 /*
 * Function: W_CheckNumForName
-* Purpose: Finds check Num For Name information for WAD resource processing.
+* Purpose: Searches the merged directory backward so later WADs override earlier lumps with the same canonical name.
 */
 function W_CheckNumForName(name)
   name8 = _W_Name8FromString(name)
@@ -707,7 +707,7 @@ end function
 
 /*
 * Function: W_GetNumForName
-* Purpose: Reads number for name data for the WAD resource.
+* Purpose: Resolves a lump name to its overriding directory index and raises a fatal error when absent.
 */
 function W_GetNumForName(name)
   i = W_CheckNumForName(name)
@@ -719,7 +719,7 @@ end function
 
 /*
 * Function: W_LumpLength
-* Purpose: Provides length helper behavior for the WAD resource.
+* Purpose: Validates a lump index and returns its directory byte size.
 */
 function W_LumpLength(lump)
   lump = _W_ToIntOr(lump, -1)
@@ -732,7 +732,7 @@ end function
 
 /*
 * Function: W_ReadLump
-* Purpose: Reads lump data for the WAD resource.
+* Purpose: Copies one validated lump byte range from its owning loaded file into the caller's destination buffer.
 */
 function W_ReadLump(lump, dest)
   lump = _W_ToIntOr(lump, -1)
@@ -803,7 +803,7 @@ end function
 
 /*
 * Function: W_CacheLumpNum
-* Purpose: Retrieves and caches data for the WAD resource system.
+* Purpose: Allocates and fills a lump's zone-cache slot on first use, retags resident data, and records patch-name identity.
 */
 function W_CacheLumpNum(lump, tag)
   global wad_cached_patch_bytes
@@ -923,7 +923,7 @@ end function
 
 /*
 * Function: W_GetCachedLumpPtr
-* Purpose: Retrieves and caches data for the WAD resource system.
+* Purpose: Returns a resident lump's zone pointer without loading it, or the null-pointer sentinel for invalid or empty slots.
 */
 function W_GetCachedLumpPtr(lump)
   lump = _W_ToIntOr(lump, -1)
@@ -946,7 +946,7 @@ end function
 
 /*
 * Function: W_CacheLumpName
-* Purpose: Retrieves and caches data for the WAD resource system.
+* Purpose: Resolves a canonical lump name, ensures its data is resident under the requested tag, and preserves name metadata for patch users.
 */
 function W_CacheLumpName(name, tag)
   lump = W_GetNumForName(name)
@@ -960,7 +960,7 @@ _W_profile_count = 0
 
 /*
 * Function: W_Profile
-* Purpose: Provides profile helper behavior for the WAD resource.
+* Purpose: Samples cache residency for every lump and accumulates a per-snapshot history used to inspect resource-cache behavior.
 */
 function W_Profile()
   global _W_profile_info

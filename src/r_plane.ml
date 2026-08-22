@@ -14,7 +14,7 @@
   limitations under the License.
 
   Script: r_plane.ml
-  Purpose: Implements renderer data preparation and software rendering pipeline stages.
+  Purpose: Aggregates visible floor, ceiling, and sky regions into visplanes and rasterizes their horizontal spans or sky columns.
 */
 import r_data
 import i_system
@@ -71,7 +71,7 @@ _rp_prof_mapplane_calls = 0
 
 /*
 * Function: _RP_IDiv
-* Purpose: Performs integer division with plane renderer rounding and guard rules.
+* Purpose: Returns a signed quotient truncated toward zero, or zero for invalid operands and a zero divisor.
 */
 function inline _RP_IDiv(a, b)
   if typeof(a) != "int" or typeof(b) != "int" or b == 0 then return 0 end if
@@ -82,7 +82,7 @@ end function
 
 /*
 * Function: _RP_I
-* Purpose: Provides i helper behavior for the renderer.
+* Purpose: Coerces numeric values to truncation-toward-zero integers and returns a caller fallback on conversion failure.
 */
 function inline _RP_I(v, fallback)
   if typeof(v) == "int" then return v end if
@@ -101,7 +101,7 @@ end function
 
 /*
 * Function: _RP_Abs
-* Purpose: Provides absolute-value helper behavior for the renderer.
+* Purpose: Returns the non-negative integer magnitude of a possibly non-integer plane value.
 */
 function inline _RP_Abs(v)
   vi = _RP_I(v, 0)
@@ -111,7 +111,7 @@ end function
 
 /*
 * Function: _RP_IsSeq
-* Purpose: Provides is sequence helper behavior for the renderer.
+* Purpose: Recognizes both array and list containers accepted by plane tables and geometry records.
 */
 function inline _RP_IsSeq(v)
   t = typeof(v)
@@ -120,7 +120,7 @@ end function
 
 /*
 * Function: _RP_AngNorm
-* Purpose: Provides ang norm helper behavior for the renderer.
+* Purpose: Normalizes a coerced angle to Doom's unsigned 32-bit binary-angle domain.
 */
 function inline _RP_AngNorm(a)
   ai = _RP_I(a, 0)
@@ -129,7 +129,7 @@ end function
 
 /*
 * Function: _RP_FineAt
-* Purpose: Provides fine at helper behavior for the renderer.
+* Purpose: Samples a fine-angle lookup table with wraparound and returns zero when the table is unavailable.
 */
 function inline _RP_FineAt(tab, idx)
   if not _RP_IsSeq(tab) or len(tab) == 0 then return 0 end if
@@ -144,7 +144,7 @@ end function
 
 /*
 * Function: _RP_DefaultColorMap
-* Purpose: Provides default color map helper behavior for the renderer.
+* Purpose: Caches the first 256-byte colormap for unlit sky columns, falling back to a zeroed map when assets are absent.
 */
 function inline _RP_DefaultColorMap()
   global _rp_default_colormap
@@ -182,7 +182,7 @@ end function
 
 /*
 * Function: _RP_NewPlane
-* Purpose: Provides new plane helper behavior for the renderer.
+* Purpose: Constructs an unused visplane with target-width top/bottom arrays and sentinel horizontal bounds.
 */
 function inline _RP_NewPlane(height, picnum, lightlevel)
   w = _RP_TargetWidth()
@@ -191,7 +191,7 @@ end function
 
 /*
 * Function: _RP_EnsurePlaneCapacity
-* Purpose: Provides ensure plane capacity helper behavior for the renderer.
+* Purpose: Geometrically grows reusable visplane storage up to a hard safety limit and initializes every new slot.
 */
 function _RP_EnsurePlaneCapacity(needIndex)
   global visplanes
@@ -224,7 +224,7 @@ end function
 
 /*
 * Function: _RP_ResetPlane
-* Purpose: Clears reset Plane state before the next plane renderer update.
+* Purpose: Recycles a visplane for new height, texture, and light keys while clearing every covered-column marker.
 */
 function _RP_ResetPlane(pl, height, picnum, lightlevel, minx, maxx)
   if pl is void then return end if
@@ -259,7 +259,7 @@ end function
 
 /*
 * Function: _RP_RecomputeSlopeTables
-* Purpose: Provides recompute slope tables helper behavior for the renderer.
+* Purpose: Rebuilds row distance slopes and per-column perspective correction factors for the active view geometry.
 */
 function _RP_RecomputeSlopeTables()
   global viewheight
@@ -297,7 +297,7 @@ end function
 
 /*
 * Function: R_InitPlanes
-* Purpose: Initializes state and dependencies for the renderer.
+* Purpose: Sizes clipping, slope, span, opening, cache, and visplane workspaces for the active logical or HD render target.
 */
 function R_InitPlanes()
   global floorclip
@@ -355,7 +355,7 @@ end function
 
 /*
 * Function: R_ClearPlanes
-* Purpose: Updates planes state for the renderer.
+* Purpose: Resets per-column floor/ceiling clips and visplane allocation, invalidates row caches, and derives view-relative texture scales.
 */
 function R_ClearPlanes()
   global visplanes_last
@@ -403,7 +403,7 @@ end function
 
 /*
 * Function: R_MapPlane
-* Purpose: Provides plane helper behavior for the renderer.
+* Purpose: Derives perspective distance, texture stepping, origin, and lighting for one horizontal plane span before rasterization.
 */
 function R_MapPlane(y, x1, x2)
   global ds_xstep
@@ -486,7 +486,7 @@ end function
 
 /*
 * Function: R_MakeSpans
-* Purpose: Builds spans data for the renderer.
+* Purpose: Compares adjacent visplane column bounds, closes rows that ended, and records starting columns for newly opened rows.
 */
 function R_MakeSpans(x, t1, b1, t2, b2)
   while t1 < t2 and t1 <= b1
@@ -516,7 +516,7 @@ end function
 
 /*
 * Function: _RP_DrawVisplanes
-* Purpose: Draws visplanes output for the plane renderer.
+* Purpose: Rasterizes queued sky visplanes as vertical texture columns and ordinary flats as lit horizontal spans, updating profile counts.
 */
 function _RP_DrawVisplanes()
   global dc_iscale
@@ -654,7 +654,7 @@ end function
 
 /*
 * Function: R_DrawPlanes
-* Purpose: Draws planes output for the renderer.
+* Purpose: Executes the queued visplane rasterization pass after wall clipping has finalized visible column bounds.
 */
 function R_DrawPlanes()
   _RP_DrawVisplanes()
@@ -662,7 +662,7 @@ end function
 
 /*
 * Function: R_FindPlane
-* Purpose: Computes plane values for the renderer.
+* Purpose: Reuses a visplane with matching height, texture, and light keys or allocates a cleared entry for a new region.
 */
 function R_FindPlane(height, picnum, lightlevel)
   global visplanes
@@ -695,7 +695,7 @@ end function
 
 /*
 * Function: R_CheckPlane
-* Purpose: Finds check Plane information for plane renderer processing.
+* Purpose: Extends a visplane across unused columns or splits it into a duplicate when the requested range overlaps existing spans.
 */
 function R_CheckPlane(pl, start, stop)
   global visplanes

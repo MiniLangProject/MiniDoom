@@ -14,7 +14,7 @@
   limitations under the License.
 
   Script: st_stuff.ml
-  Purpose: Implements status bar and HUD presentation logic.
+  Purpose: Drives the classic status bar's player values, face state machine, palette flashes, cheats, resources, and widgets.
 */
 import doomtype
 import d_event
@@ -133,7 +133,7 @@ const ST_MAXAMMO3Y = 185
 
 /*
 * Enum: st_stateenum_t
-* Purpose: Defines named constants for st stateenum type.
+* Purpose: Distinguishes automap and first-person status-bar presentation state.
 */
 enum st_stateenum_t
   AutomapState = 0
@@ -142,7 +142,7 @@ end enum
 
 /*
 * Enum: st_chatstateenum_t
-* Purpose: Defines named constants for st chatstateenum type.
+* Purpose: Tracks the legacy status-bar chat input phases retained for compatibility.
 */
 enum st_chatstateenum_t
   StartChatState = 0
@@ -254,7 +254,7 @@ cheat_mypos = cheatseq_t(bytes([0xb2, 0x26, 0xb6, 0xba, 0x2a, 0xf6, 0xea, 0xff])
 
 /*
 * Function: _ST_Player
-* Purpose: Provides player helper behavior for the status bar.
+* Purpose: Returns the checked console-player record consumed by status widgets and cheats.
 */
 function inline _ST_Player()
   if typeof(players) != "array" then return void end if
@@ -265,7 +265,7 @@ end function
 
 /*
 * Function: _ST_ToInt
-* Purpose: Converts int values for the status bar.
+* Purpose: Converts numeric or numeric-string widget values by truncating toward zero, otherwise returning a fallback.
 */
 function _ST_ToInt(v, fallback)
   if typeof(v) == "int" then return v end if
@@ -284,7 +284,7 @@ end function
 
 /*
 * Function: _ST_EnumIndex
-* Purpose: Provides index helper behavior for the status bar.
+* Purpose: Converts integer/enum values to a checked table index below the requested limit.
 */
 function _ST_EnumIndex(v, limit)
   vi = _ST_ToInt(v, -1)
@@ -305,7 +305,7 @@ end function
 
 /*
 * Function: _ST_IDiv
-* Purpose: Performs integer division with status bar rounding and guard rules.
+* Purpose: Divides status calculations with truncation toward zero and returns zero for a zero divisor.
 */
 function inline _ST_IDiv(a, b)
   a = _ST_ToInt(a, 0)
@@ -318,7 +318,7 @@ end function
 
 /*
 * Function: _ST_SetMessage
-* Purpose: Updates message state for the status bar.
+* Purpose: Writes a cheat/status notification into the active console player's HUD message slot.
 */
 function inline _ST_SetMessage(msg)
   if st_plyr is void then return end if
@@ -327,7 +327,7 @@ end function
 
 /*
 * Function: _ST_DigitFromParam
-* Purpose: Provides from param helper behavior for the status bar.
+* Purpose: Parses one checked decimal digit from a cheat-code parameter string, returning minus one on invalid input.
 */
 function inline _ST_DigitFromParam(param, idx)
   if typeof(param) != "string" then return -1 end if
@@ -386,7 +386,7 @@ end function
 
 /*
 * Function: _ST_CheatParam
-* Purpose: Provides param helper behavior for the status bar.
+* Purpose: Extracts the decoded parameter bytes accumulated by a parameterized cheat sequence.
 */
 function inline _ST_CheatParam(cheat)
 
@@ -396,7 +396,7 @@ end function
 
 /*
 * Function: _ST_GetRef
-* Purpose: Reads ref data for the status bar.
+* Purpose: Dereferences the status widget's single-element mutable-reference convention with a fallback.
 */
 function inline _ST_GetRef(refv, fallback)
   if typeof(refv) == "array" and len(refv) > 0 then
@@ -408,7 +408,7 @@ end function
 
 /*
 * Function: _ST_SetRef
-* Purpose: Updates ref state for the status bar.
+* Purpose: Writes through a non-empty single-element status-widget reference.
 */
 function inline _ST_SetRef(refv, v)
   if typeof(refv) == "array" and len(refv) > 0 then
@@ -418,7 +418,7 @@ end function
 
 /*
 * Function: _ST_LoadPatchMaybe
-* Purpose: Reads patch maybe data for the status bar.
+* Purpose: Caches an optional status-bar patch only when its lump exists.
 */
 function inline _ST_LoadPatchMaybe(name)
   if typeof(W_CheckNumForName) != "function" then return void end if
@@ -428,7 +428,7 @@ end function
 
 /*
 * Function: _ST_LoadPatchRequired
-* Purpose: Reads patch required data for the status bar.
+* Purpose: Caches a required status-bar patch and registers its lump name for HD overlay lookup.
 */
 function inline _ST_LoadPatchRequired(name)
   if typeof(W_CacheLumpName) != "function" then return void end if
@@ -441,7 +441,7 @@ end function
 
 /*
 * Function: _ST_GetPower
-* Purpose: Reads power data for the status bar.
+* Purpose: Returns one checked player power timer or zero for absent/incomplete records.
 */
 function inline _ST_GetPower(player, idx)
   idx = _ST_ToInt(idx, -1)
@@ -454,7 +454,7 @@ end function
 
 /*
 * Function: _ST_GetCard
-* Purpose: Reads card data for the status bar.
+* Purpose: Returns one checked player key/card ownership flag.
 */
 function inline _ST_GetCard(player, idx)
   idx = _ST_ToInt(idx, -1)
@@ -466,7 +466,7 @@ end function
 
 /*
 * Function: _ST_GetWeaponOwned
-* Purpose: Reads weapon owned data for the status bar.
+* Purpose: Returns one checked player weapon-ownership flag.
 */
 function inline _ST_GetWeaponOwned(player, idx)
   idx = _ST_ToInt(idx, -1)
@@ -478,7 +478,7 @@ end function
 
 /*
 * Function: _ST_GetAmmo
-* Purpose: Reads ammo data for the status bar.
+* Purpose: Returns one checked player ammunition count as an integer.
 */
 function inline _ST_GetAmmo(player, idx)
   idx = _ST_ToInt(idx, -1)
@@ -490,7 +490,7 @@ end function
 
 /*
 * Function: _ST_GetMaxAmmo
-* Purpose: Reads maximum ammo data for the status bar.
+* Purpose: Returns one checked player ammunition-capacity value as an integer.
 */
 function inline _ST_GetMaxAmmo(player, idx)
   idx = _ST_ToInt(idx, -1)
@@ -502,7 +502,7 @@ end function
 
 /*
 * Function: _ST_WeaponAmmoType
-* Purpose: Provides ammo type helper behavior for the status bar.
+* Purpose: Resolves a checked ready-weapon index to its ammo pool or the no-ammo sentinel.
 */
 function inline _ST_WeaponAmmoType(weapon)
   wi = _ST_EnumIndex(weapon, NUMWEAPONS)
@@ -518,7 +518,7 @@ end function
 
 /*
 * Function: ST_calcPainOffset
-* Purpose: Computes pain offset values for the status bar.
+* Purpose: Maps clamped health to the cached five-tier face-patch row offset.
 */
 function ST_calcPainOffset()
   global st_lastcalc
@@ -539,7 +539,7 @@ end function
 
 /*
 * Function: ST_updateFaceWidget
-* Purpose: Updates face widget state for the status bar.
+* Purpose: Runs the prioritized death, grin, damage-direction, rampage, god, and idle face state machine.
 */
 function ST_updateFaceWidget()
   global st_facepriority
@@ -669,7 +669,7 @@ end function
 
 /*
 * Function: ST_updateWidgets
-* Purpose: Updates widgets state for the status bar.
+* Purpose: Copies current player health/armor/ammo/keys/weapons/frags into widget references and advances face/message state.
 */
 function ST_updateWidgets()
   global st_plyr
@@ -748,7 +748,7 @@ end function
 
 /*
 * Function: ST_Ticker
-* Purpose: Advances ticker logic during the status bar tick.
+* Purpose: Samples a new random face value, refreshes widget references, and records health once per game tic.
 */
 function ST_Ticker()
   global st_clock
@@ -764,7 +764,7 @@ end function
 
 /*
 * Function: ST_doPaletteStuff
-* Purpose: Runs palette stuff behavior for the status bar.
+* Purpose: Selects damage, bonus, or radiation palette feedback and routes OpenGL flashes separately from indexed palettes.
 */
 function ST_doPaletteStuff()
   global st_palette
@@ -814,7 +814,7 @@ end function
 
 /*
 * Function: ST_refreshBackground
-* Purpose: Provides background helper behavior for the status bar.
+* Purpose: Rebuilds the static classic status-bar background, multiplayer faceback, and optional HD overlays.
 */
 function ST_refreshBackground()
   if not _ST_GetRef(st_statusbaron_ref, false) then return end if
@@ -837,7 +837,7 @@ end function
 
 /*
 * Function: ST_drawWidgets
-* Purpose: Draws widgets output for the status bar.
+* Purpose: Draws enabled ammo, health, armor, arms/frags, face, and key widgets in dependency-safe order.
 */
 function ST_drawWidgets(refresh)
   if not _ST_GetRef(st_statusbaron_ref, false) then return end if
@@ -877,7 +877,7 @@ end function
 
 /*
 * Function: ST_doRefresh
-* Purpose: Runs refresh behavior for the status bar.
+* Purpose: Clears the first-frame flag, restores the static background, and forces every dynamic widget to redraw.
 */
 function ST_doRefresh()
   global st_firsttime
@@ -888,7 +888,7 @@ end function
 
 /*
 * Function: ST_diffDraw
-* Purpose: Draws diff Draw output for the status bar renderer.
+* Purpose: Redraws only widgets whose referenced values changed since the previous frame.
 */
 function ST_diffDraw()
   ST_drawWidgets(false)
@@ -896,7 +896,7 @@ end function
 
 /*
 * Function: ST_loadGraphics
-* Purpose: Reads graphics data for the status bar.
+* Purpose: Caches and names all number, key, arms, face, faceback, and background patches used by status widgets.
 */
 function ST_loadGraphics()
   global st_stbar
@@ -966,7 +966,7 @@ end function
 
 /*
 * Function: ST_loadData
-* Purpose: Reads data data for the status bar.
+* Purpose: Resolves the PLAYPAL lump and loads the complete status-bar patch set.
 */
 function ST_loadData()
   global lu_palette
@@ -980,7 +980,7 @@ end function
 
 /*
 * Function: ST_unloadGraphics
-* Purpose: Loads unload Graphics resources used by the status bar system.
+* Purpose: Drops all status-bar patch references and clears compound arms icon slots.
 */
 function ST_unloadGraphics()
   global st_stbar
@@ -1008,7 +1008,7 @@ end function
 
 /*
 * Function: ST_unloadData
-* Purpose: Loads unload Data resources used by the status bar system.
+* Purpose: Releases status-bar graphics through the module's data-teardown entry point.
 */
 function ST_unloadData()
   ST_unloadGraphics()
@@ -1016,7 +1016,7 @@ end function
 
 /*
 * Function: ST_initData
-* Purpose: Initializes state and dependencies for the status bar subsystem.
+* Purpose: Resets status/chat/face/palette history and snapshots initial player weapon ownership for a new level.
 */
 function ST_initData()
   global st_firsttime
@@ -1076,7 +1076,7 @@ end function
 
 /*
 * Function: ST_createWidgets
-* Purpose: Creates and initializes runtime objects for the status bar subsystem.
+* Purpose: Binds every status-bar widget to its screen coordinates, patch set, value reference, and visibility reference.
 */
 function ST_createWidgets()
   STlib_initNum(w_ready, ST_AMMOX, ST_AMMOY, st_tallnum, st_ready_ref, st_statusbaron_ref, ST_AMMOWIDTH)
@@ -1123,7 +1123,7 @@ end function
 
 /*
 * Function: ST_Start
-* Purpose: Starts runtime behavior in the status bar subsystem.
+* Purpose: Ensures graphics are loaded, resets per-level state, creates widgets, and activates status rendering.
 */
 function ST_Start()
   global st_started
@@ -1143,7 +1143,7 @@ end function
 
 /*
 * Function: ST_Stop
-* Purpose: Stops or tears down runtime behavior in the status bar subsystem.
+* Purpose: Restores the base PLAYPAL palette and deactivates status-bar rendering.
 */
 function ST_Stop()
   global st_started
@@ -1163,7 +1163,7 @@ end function
 
 /*
 * Function: ST_Responder
-* Purpose: Handles responder events for the status bar system.
+* Purpose: Consumes automap enter/exit messages and recognized cheat sequences, including map-warp validation.
 */
 function ST_Responder(ev)
   global st_plyr
@@ -1344,7 +1344,7 @@ end function
 
 /*
 * Function: ST_Drawer
-* Purpose: Provides drawer helper behavior for the status bar.
+* Purpose: Chooses full or differential status redraw, synchronizes fullscreen/automap visibility, and applies palette feedback.
 */
 function ST_Drawer(fullscreen, refresh)
   global st_firsttime
@@ -1369,7 +1369,7 @@ end function
 
 /*
 * Function: ST_Init
-* Purpose: Initializes state and dependencies for the status bar subsystem.
+* Purpose: Loads status resources, allocates the dedicated 320x32 background screen, and requests an initial full draw.
 */
 function ST_Init()
   global st_firsttime

@@ -14,7 +14,7 @@
   limitations under the License.
 
   Script: d_englsh.ml
-  Purpose: Defines core Doom data types, shared state, and bootstrap flow.
+  Purpose: Supplies the original English menu, status, pickup, key, and level-title strings used by the Doom UI.
 */
 
 const D_DEVSTR = "Development mode ON.\n"

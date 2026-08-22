@@ -28,6 +28,10 @@ const DEFAULT_GROUP_ID = 1
 const DEFAULT_LANG_ID = 1033
 const FIRST_ICON_ID = 1
 
+/*
+Struct: IcoImageEntry
+Purpose: Holds one decoded ICO directory entry plus its exact encoded image bytes for RT_ICON emission.
+*/
 struct IcoImageEntry
   width
   height
@@ -39,7 +43,15 @@ struct IcoImageEntry
   data
 end struct
 
+/*
+Function: BeginUpdateResourceW
+Purpose: Opens an executable's Win32 resource table for transactional updates while preserving unrelated resources.
+*/
 extern function BeginUpdateResourceW(fileName as wstr, deleteExisting as bool) from "kernel32.dll" returns ptr
+/*
+Function: UpdateResourceW
+Purpose: Adds or replaces one language-specific icon/group resource in an open executable update transaction.
+*/
 extern function UpdateResourceW(
 hUpdate as ptr,
 typeId as int,
@@ -48,7 +60,15 @@ language as int,
 data as bytes,
 size as int
 ) from "kernel32.dll" returns bool
+/*
+Function: EndUpdateResourceW
+Purpose: Commits or discards the open executable resource transaction and releases its Win32 handle.
+*/
 extern function EndUpdateResourceW(hUpdate as ptr, discard as bool) from "kernel32.dll" returns bool
+/*
+Function: GetLastError
+Purpose: Returns the calling thread's Win32 error code after a failed resource API operation.
+*/
 extern function GetLastError() from "kernel32.dll" returns int
 
 /*
@@ -381,7 +401,7 @@ end function
 
 /*
 Function: main
-Purpose: CLI entrypoint.
+Purpose: Validates CLI paths/resource identifiers, injects the ICO transactionally, and returns a shell-compatible status code.
 */
 function main(args)
   if typeof(args) != "array" or len(args) < 2 then

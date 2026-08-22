@@ -26,6 +26,10 @@ if ([string]::IsNullOrWhiteSpace($Doom1Wad)) { $Doom1Wad = Join-Path $repo 'buil
 if ([string]::IsNullOrWhiteSpace($Doom2Wad)) { $Doom2Wad = Join-Path $repo 'build\Doom2.wad' }
 if ([string]::IsNullOrWhiteSpace($OutputCsv)) { $OutputCsv = Join-Path $repo 'test-results\opengl-map-benchmark.csv' }
 
+<#
+.SYNOPSIS
+Reads the WAD directory and returns unique Doom map-marker names in file order.
+#>
 function Get-WadMapNames {
     param([Parameter(Mandatory = $true)][string]$Path)
 
@@ -56,6 +60,10 @@ function Get-WadMapNames {
     finally { $stream.Dispose() }
 }
 
+<#
+.SYNOPSIS
+Stops only the benchmark-owned MiniDoom process and waits briefly for cleanup.
+#>
 function Stop-BenchmarkProcess {
     param([Diagnostics.Process]$Process)
 
@@ -67,6 +75,10 @@ function Stop-BenchmarkProcess {
     }
 }
 
+<#
+.SYNOPSIS
+Runs one OpenGL map, waits for a valid FPS title, and returns sampled FPS statistics.
+#>
 function Measure-MapFps {
     param(
         [Parameter(Mandatory = $true)][string]$Wad,

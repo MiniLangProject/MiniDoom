@@ -14,7 +14,7 @@
   limitations under the License.
 
   Script: r_segs.ml
-  Purpose: Implements renderer data preparation and software rendering pipeline stages.
+  Purpose: Projects BSP wall segments into columns, maintains clip openings, and defers masked middle textures.
 */
 import i_system
 import doomdef
@@ -63,7 +63,7 @@ rw_solidwall = false
 
 /*
 * Function: _RS_IDiv
-* Purpose: Performs integer division with wall segment renderer rounding and guard rules.
+* Purpose: Returns a signed quotient truncated toward zero, or zero for invalid operands and a zero divisor.
 */
 function inline _RS_IDiv(a, b)
   if typeof(a) != "int" or typeof(b) != "int" or b == 0 then return 0 end if
@@ -74,7 +74,7 @@ end function
 
 /*
 * Function: _RS_ToInt
-* Purpose: Converts int values for the wall segment renderer.
+* Purpose: Coerces numeric values to truncation-toward-zero integers and returns fallback on failure.
 */
 function inline _RS_ToInt(v, fallback)
   if typeof(v) == "int" then return v end if
@@ -93,7 +93,7 @@ end function
 
 /*
 * Function: _RS_Clamp
-* Purpose: Clamps clamp values to the supported wall segment renderer range.
+* Purpose: Constrains a wall-rendering scalar to the supplied inclusive bounds.
 */
 function inline _RS_Clamp(v, lo, hi)
   if v < lo then return lo end if
@@ -103,7 +103,7 @@ end function
 
 /*
 * Function: _RS_Abs
-* Purpose: Provides absolute-value helper behavior for the renderer.
+* Purpose: Returns the non-negative integer magnitude of a numeric wall-renderer input.
 */
 function inline _RS_Abs(v)
   vi = _RS_ToInt(v, 0)
@@ -113,7 +113,7 @@ end function
 
 /*
 * Function: _RS_WrapIndex
-* Purpose: Provides wrap index helper behavior for the renderer.
+* Purpose: Wraps a possibly negative index into a non-empty cyclic lookup table.
 */
 function inline _RS_WrapIndex(i, n)
   if typeof(i) != "int" then i = 0 end if
@@ -128,7 +128,7 @@ end function
 
 /*
 * Function: _RS_ClampIndex
-* Purpose: Clamps clamp Index values to the supported wall segment renderer range.
+* Purpose: Clamps an index to the first or last entry of a non-empty lookup table.
 */
 function inline _RS_ClampIndex(i, n)
   if typeof(i) != "int" then i = 0 end if
@@ -140,7 +140,7 @@ end function
 
 /*
 * Function: _RS_IsSeq
-* Purpose: Provides is sequence helper behavior for the renderer.
+* Purpose: Recognizes the array and list containers used for column clips and renderer tables.
 */
 function inline _RS_IsSeq(v)
   t = typeof(v)
@@ -149,7 +149,7 @@ end function
 
 /*
 * Function: _RS_AllocIntList
-* Purpose: Provides alloc int list helper behavior for the renderer.
+* Purpose: Allocates an integer list of a requested length initialized to one sentinel value.
 */
 function inline _RS_AllocIntList(n, fill)
   lst =[]
@@ -163,7 +163,7 @@ end function
 
 /*
 * Function: _RS_EnsureOpeningsCapacity
-* Purpose: Provides ensure openings capacity helper behavior for the renderer.
+* Purpose: Grows the shared openings arena geometrically so a requested exclusive end offset is addressable.
 */
 function _RS_EnsureOpeningsCapacity(needed)
   global openings
@@ -197,7 +197,7 @@ end function
 
 /*
 * Function: R_ClearSolidClipScales
-* Purpose: Updates solid clip scales state for the renderer.
+* Purpose: Retains the classic renderer hook; solid clip scales need no separate reset in this implementation.
 */
 function R_ClearSolidClipScales()
 
@@ -205,7 +205,7 @@ end function
 
 /*
 * Function: _RS_AngNorm
-* Purpose: Provides ang norm helper behavior for the renderer.
+* Purpose: Normalizes a numeric value to Doom's unsigned 32-bit binary-angle domain.
 */
 function inline _RS_AngNorm(a)
   ai = _RS_ToInt(a, 0)
@@ -214,7 +214,7 @@ end function
 
 /*
 * Function: _RS_AngSub
-* Purpose: Provides ang sub helper behavior for the renderer.
+* Purpose: Subtracts two binary angles with unsigned 32-bit wraparound.
 */
 function inline _RS_AngSub(a, b)
   return _RS_AngNorm(_RS_AngNorm(a) - _RS_AngNorm(b))
@@ -222,7 +222,7 @@ end function
 
 /*
 * Function: _RS_ResolveTexture
-* Purpose: Provides resolve texture helper behavior for the renderer.
+* Purpose: Applies animation translation to a positive texture id and rejects invalid or out-of-table results.
 */
 function inline _RS_ResolveTexture(texId)
   t = texId
@@ -237,7 +237,7 @@ end function
 
 /*
 * Function: _RS_SelectWallLights
-* Purpose: Provides select wall lights helper behavior for the renderer.
+* Purpose: Selects the scale-light row for a sector, including horizontal/vertical wall bias and fixed-colormap override.
 */
 function _RS_SelectWallLights(line, sec)
   global walllights
@@ -276,7 +276,7 @@ end function
 
 /*
 * Function: _RS_GetClipValue
-* Purpose: Provides get clip value helper behavior for the renderer.
+* Purpose: Reads a screen-column clip from either a direct sequence or a biased offset into the openings arena.
 */
 function inline _RS_GetClipValue(clipref, x, fallback)
   if typeof(x) != "int" or x < 0 then return fallback end if
@@ -293,7 +293,7 @@ end function
 
 /*
 * Function: _RS_SetClipValue
-* Purpose: Updates clip value state for the wall segment renderer.
+* Purpose: Writes a screen-column clip through either a direct sequence or a biased openings-arena reference.
 */
 function inline _RS_SetClipValue(clipref, x, value)
   if typeof(x) != "int" or x < 0 then return end if
@@ -309,7 +309,7 @@ end function
 
 /*
 * Function: _RS_CopyClipToOpenings
-* Purpose: Provides copy clip to openings helper behavior for the renderer.
+* Purpose: Copies an inclusive screen-column clip range into the openings arena and returns an x-biased reference.
 */
 function _RS_CopyClipToOpenings(src, start, stop, fallback)
   global lastopening
@@ -338,7 +338,7 @@ end function
 
 /*
 * Function: _RS_AllocMaskedCols
-* Purpose: Provides alloc masked cols helper behavior for the renderer.
+* Purpose: Reserves an inclusive masked-column range in openings, initializes MAXSHORT sentinels, and returns an x-biased reference.
 */
 function _RS_AllocMaskedCols(start, stop)
   global lastopening
@@ -364,7 +364,7 @@ end function
 
 /*
 * Function: _RS_ReadMaskedCol
-* Purpose: Reads masked column data for the wall segment renderer.
+* Purpose: Reads a deferred masked texture column through direct or openings-backed storage, defaulting to MAXSHORT.
 */
 function inline _RS_ReadMaskedCol(maskref, x)
   if typeof(x) != "int" or x < 0 then return MAXSHORT end if
@@ -381,7 +381,7 @@ end function
 
 /*
 * Function: _RS_WriteMaskedCol
-* Purpose: Writes masked column data for the wall segment renderer.
+* Purpose: Writes a deferred masked texture column through direct or openings-backed storage.
 */
 function inline _RS_WriteMaskedCol(maskref, x, value)
   if typeof(x) != "int" or x < 0 then return end if
@@ -397,7 +397,7 @@ end function
 
 /*
 * Function: _RS_DrawTexturedRange
-* Purpose: Draws textured range output for the wall segment renderer.
+* Purpose: Scales one opaque texture column across a bounded vertical framebuffer range using a lighting colormap.
 */
 function _RS_DrawTexturedRange(fb, x, y1, y2, texnum, texCol, cmap)
   if y2 < y1 then return end if
@@ -424,7 +424,7 @@ end function
 
 /*
 * Function: _RS_DrawMaskedTextureColumn
-* Purpose: Draws masked texture column output for the wall segment renderer.
+* Purpose: Decodes patch posts for one masked wall column, clips each post, draws with depth state, and restores shared column inputs.
 */
 function _RS_DrawMaskedTextureColumn(x, texnum, texturecolumn, texturemid, yscale, topclip, bottomclip)
   global colfunc
@@ -530,7 +530,7 @@ end function
 
 /*
 * Function: R_RenderMaskedSegRange
-* Purpose: Draws render Masked Seg Range output for the wall segment renderer renderer.
+* Purpose: Renders an inclusive deferred middle-texture range with pegging, scale lighting, and saved sprite clip arrays.
 */
 function R_RenderMaskedSegRange(ds, x1, x2)
   global curline
@@ -613,7 +613,7 @@ end function
 
 /*
 * Function: R_RenderSegLoop
-* Purpose: Draws render Seg Loop output for the wall segment renderer renderer.
+* Purpose: Projects a prepared wall range column by column, draws its wall tiers, updates plane spans, clips, and records masked columns.
 */
 function R_RenderSegLoop()
   global rw_x
@@ -763,7 +763,7 @@ end function
 
 /*
 * Function: R_StoreWallRange
-* Purpose: Writes wall range data for the renderer.
+* Purpose: Builds a drawseg for a visible wall range, derives textures/pegging/silhouettes, renders opaque tiers, and saves sprite clips.
 */
 function R_StoreWallRange(start, stop)
   global sidedef

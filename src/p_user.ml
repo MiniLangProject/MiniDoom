@@ -14,7 +14,7 @@
   limitations under the License.
 
   Script: p_user.ml
-  Purpose: Implements core gameplay simulation: map logic, physics, AI, and world interaction.
+  Purpose: Applies player commands to turning, thrust, view height, jumping, weapon use, and power timers.
 */
 import doomdef
 import d_event
@@ -36,7 +36,7 @@ onground = false
 
 /*
 * Function: _P_FineIndexFromAngle
-* Purpose: Provides index from angle helper behavior for the play simulation.
+* Purpose: Converts a Doom binary angle to a wrapped fine-angle table index.
 */
 function inline _P_FineIndexFromAngle(angle)
   if typeof(angle) != "int" then return 0 end if
@@ -50,7 +50,7 @@ end function
 
 /*
 * Function: _PU_WeaponIndex
-* Purpose: Provides index helper behavior for the play simulation.
+* Purpose: Validates and clamps an arbitrary weapon identifier to the player weapon-array range.
 */
 function _PU_WeaponIndex(w)
   if typeof(w) == "int" then
@@ -71,7 +71,7 @@ end function
 
 /*
 * Function: _PU_PowerIndex
-* Purpose: Provides index helper behavior for the play simulation.
+* Purpose: Validates a power-up identifier before indexing the player's power timer array.
 */
 function _PU_PowerIndex(pw)
   if typeof(pw) == "int" then
@@ -94,7 +94,7 @@ end function
 
 /*
 * Function: _PU_GetPower
-* Purpose: Reads power data for the play simulation.
+* Purpose: Resolves a power enum safely and returns the player's remaining counter, defaulting to zero for malformed state.
 */
 function _PU_GetPower(player, pw)
   if player is void then return 0 end if
@@ -114,7 +114,7 @@ end function
 
 /*
 * Function: _PU_SetPower
-* Purpose: Updates power state for the play simulation.
+* Purpose: Resolves a power enum safely and replaces its counter only when the player's power table can hold it.
 */
 function _PU_SetPower(player, pw, value)
   if player is void then return end if
@@ -132,7 +132,7 @@ end function
 
 /*
 * Function: _PU_HasWeapon
-* Purpose: Checks weapon conditions for the play simulation.
+* Purpose: Resolves a weapon enum and reports ownership without indexing malformed player tables.
 */
 function inline _PU_HasWeapon(player, w)
   if player is void then return false end if
@@ -144,7 +144,7 @@ end function
 
 /*
 * Function: P_Thrust
-* Purpose: Runs thrust behavior for the play simulation.
+* Purpose: Projects a movement magnitude through fine-angle sine/cosine tables and adds it to player horizontal momentum.
 */
 function P_Thrust(player, angle, move)
   if player is void or player.mo is void then return end if
@@ -160,7 +160,7 @@ end function
 
 /*
 * Function: P_CalcHeight
-* Purpose: Computes height values for the play simulation.
+* Purpose: Derives weapon bob and eye height from horizontal momentum, stance, airborne state, and ceiling clearance.
 */
 function P_CalcHeight(player)
   if player is void or player.mo is void then return end if
@@ -218,7 +218,7 @@ end function
 
 /*
 * Function: P_MovePlayer
-* Purpose: Computes movement/collision behavior in the gameplay and world simulation.
+* Purpose: Applies command turning and grounded forward/side thrust, then enters the run animation when movement is requested.
 */
 function P_MovePlayer(player)
   global onground
@@ -253,7 +253,7 @@ end function
 
 /*
 * Function: P_DeathThink
-* Purpose: Advances death Think logic during the play simulation tick.
+* Purpose: Lowers the dead player's view, turns toward the attacker, and requests rebirth when use is pressed.
 */
 function P_DeathThink(player)
   global onground
@@ -296,7 +296,7 @@ end function
 
 /*
 * Function: P_PlayerThink
-* Purpose: Advances player Think logic during the play simulation tick.
+* Purpose: Applies one tic command to player movement, view, weapon, use, power timers, and death or live-state transitions.
 */
 function P_PlayerThink(player)
   if player is void then return end if

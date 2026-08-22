@@ -60,8 +60,6 @@ foreach ($script in $scripts) {
     }
 }
 
-Get-Process MiniDoom -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
-
 if (-not $KeepArtifacts -and $failures.Count -eq 0) {
     Write-Host ""
     Write-Host "Artifacts kept in $artifactRoot for this first framework version."

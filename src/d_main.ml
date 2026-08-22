@@ -14,7 +14,7 @@
   limitations under the License.
 
   Script: d_main.ml
-  Purpose: Defines core Doom data types, shared state, and bootstrap flow.
+  Purpose: Bootstraps WADs and engine subsystems, then drives title sequencing, frame dispatch, and profiling.
 */
 import d_event
 import doomdef
@@ -142,7 +142,7 @@ _d_hdwad_progress_last_draw_ms = 0
 
 /*
 * Function: D_ForceWipe
-* Purpose: Provides wipe helper behavior for the Doom core.
+* Purpose: Forces the next display pass to run a full screen-wipe transition.
 */
 function D_ForceWipe()
   global d_force_wipe
@@ -151,7 +151,7 @@ end function
 
 /*
 * Function: _D_TimeMs
-* Purpose: Provides milliseconds helper behavior for the Doom core.
+* Purpose: Returns the monotonic runtime clock used by loading and profiling telemetry.
 */
 function inline _D_TimeMs()
   t = std.time.ticks()
@@ -161,7 +161,7 @@ end function
 
 /*
 * Function: _D_ProfileAdd
-* Purpose: Provides add helper behavior for the Doom core.
+* Purpose: Adds one measured duration to its renderer/gameplay profiling bucket when profiling is enabled.
 */
 function _D_ProfileAdd(slot, delta)
   global _d_prof_r_ms
@@ -328,6 +328,10 @@ function _D_ProfilePercentileMs(percent)
   return 250
 end function
 
+/*
+* Function: _D_ProfileMs
+* Purpose: Converts accumulated microseconds to whole milliseconds for compact profile output.
+*/
 function inline _D_ProfileMs(us)
   return _D_IDiv(us, 1000)
 end function
@@ -384,7 +388,7 @@ end function
 
 /*
 * Function: _D_IDiv
-* Purpose: Performs integer division with Doom core rounding and guard rules.
+* Purpose: Returns a quotient truncated toward zero, mapping non-integers and division by zero to zero.
 */
 function inline _D_IDiv(a, b)
   if typeof(a) != "int" or typeof(b) != "int" or b == 0 then return 0 end if
@@ -395,7 +399,7 @@ end function
 
 /*
 * Function: _D_ProfileFlushMaybe
-* Purpose: Provides flush maybe helper behavior for the Doom core.
+* Purpose: Flushes one-second profiling aggregates and resets their counters after the interval elapsed.
 */
 function _D_ProfileFlushMaybe()
   global _d_prof_gl_light_ms
@@ -499,7 +503,7 @@ end function
 
 /*
 * Function: _D_InitEventQueue
-* Purpose: Initializes state and dependencies for the internal module support.
+* Purpose: Clears the fixed-size input event ring and resets both producer and consumer cursors.
 */
 function _D_InitEventQueue()
   global events
@@ -519,7 +523,7 @@ end function
 
 /*
 * Function: D_PostEvent
-* Purpose: Processes event events for the Doom core.
+* Purpose: Enqueues one input event in the bounded power-of-two responder ring.
 */
 function D_PostEvent(ev)
   global eventhead
@@ -533,7 +537,7 @@ end function
 
 /*
 * Function: D_ProcessEvents
-* Purpose: Processes events events for the Doom core.
+* Purpose: Dispatches queued input through menu then gameplay responders in deterministic order.
 */
 function D_ProcessEvents()
   global eventtail
@@ -568,7 +572,7 @@ end function
 
 /*
 * Function: D_PageTicker
-* Purpose: Advances page Ticker logic during the Doom core tick.
+* Purpose: Counts down the current title/help page and queues the next demo-sequence entry on expiry.
 */
 function D_PageTicker()
   global pagetic
@@ -583,7 +587,7 @@ end function
 
 /*
 * Function: D_PageDrawer
-* Purpose: Draws page Drawer output for the Doom core renderer.
+* Purpose: Draws the current title/demo page or clears the framebuffer when its lump is unavailable.
 */
 function D_PageDrawer()
   name = "TITLEPIC"
@@ -608,7 +612,7 @@ end function
 
 /*
 * Function: D_AdvanceDemo
-* Purpose: Runs demo behavior for the Doom core.
+* Purpose: Defers a title/demo sequence advance until the main loop reaches a safe game-action boundary.
 */
 function D_AdvanceDemo()
   global advancedemo
@@ -618,7 +622,7 @@ end function
 
 /*
 * Function: D_DoAdvanceDemo
-* Purpose: Runs advance demo behavior for the Doom core.
+* Purpose: Rotates through title pages and built-in demos, selecting mission-specific page durations and music.
 */
 function D_DoAdvanceDemo()
   global advancedemo
@@ -713,7 +717,7 @@ end function
 
 /*
 * Function: D_StartTitle
-* Purpose: Starts runtime behavior in the core game definitions.
+* Purpose: Resets game actions to the title demo screen and restarts the attract-mode sequence.
 */
 function D_StartTitle()
   global demosequence
@@ -762,7 +766,7 @@ end function
 
 /*
 * Function: _D_ArgValue
-* Purpose: Provides value helper behavior for the Doom core.
+* Purpose: Returns the string immediately following a command-line flag without consuming later options.
 */
 function _D_ArgValue(flag)
   p = M_CheckParm(flag)
@@ -774,7 +778,7 @@ end function
 
 /*
 * Function: _D_IsWadPath
-* Purpose: Checks WAD path conditions for the Doom core.
+* Purpose: Recognizes case-insensitive .wad filenames before deriving an adjacent HDWAD cache path.
 */
 function _D_IsWadPath(path)
   if typeof(path) != "string" then return false end if
@@ -793,7 +797,7 @@ end function
 
 /*
 * Function: _D_HDWADPathForWad
-* Purpose: Provides path for WAD helper behavior for the Doom core.
+* Purpose: Derives the automatic HD rendering-cache sidecar path for a gameplay WAD.
 */
 function _D_HDWADPathForWad(wad)
   return wad + ".hdwad"
@@ -831,7 +835,7 @@ end function
 
 /*
 * Function: _D_DigitAt
-* Purpose: Provides at helper behavior for the Doom core.
+* Purpose: Decodes one ASCII decimal digit at a checked string offset.
 */
 function _D_DigitAt(s, idx)
   if typeof(s) != "string" then return -1 end if
@@ -844,7 +848,7 @@ end function
 
 /*
 * Function: _D_MapNameFor
-* Purpose: Provides name for helper behavior for the Doom core.
+* Purpose: Formats an episode/map pair using the active IWAD naming convention.
 */
 function _D_MapNameFor(episode, map)
   if gamemode == GameMode_t.commercial then
@@ -923,7 +927,7 @@ end function
 
 /*
 * Function: _D_GeomNameForMapName
-* Purpose: Provides name for map name helper behavior for the Doom core.
+* Purpose: Converts a map marker into its deterministic cached-geometry lump name.
 */
 function _D_GeomNameForMapName(mapName)
   return mapName + "GL"
@@ -931,7 +935,7 @@ end function
 
 /*
 * Function: _D_IsMapMarkerName
-* Purpose: Checks map marker name conditions for the Doom core.
+* Purpose: Recognizes canonical MAPxx and ExMy lump markers with decimal digit validation.
 */
 function _D_IsMapMarkerName(name)
   if typeof(name) != "string" then return false end if
@@ -947,7 +951,7 @@ end function
 
 /*
 * Function: _D_MapPairsFromLumps
-* Purpose: Provides pairs from lumps helper behavior for the Doom core.
+* Purpose: Discovers playable episode/map pairs from loaded WAD marker lumps.
 */
 function _D_MapPairsFromLumps(lumps)
   maps =[]
@@ -972,7 +976,7 @@ end function
 
 /*
 * Function: _D_ReadHDWADLumpNames
-* Purpose: Reads HDWAD lump names data for the Doom core.
+* Purpose: Validates an HDWAD v6 directory and extracts its eight-byte lump-name table.
 */
 function _D_ReadHDWADLumpNames(path)
   names =[]
@@ -1029,7 +1033,7 @@ end function
 
 /*
 * Function: _D_NameInList
-* Purpose: Provides in list helper behavior for the Doom core.
+* Purpose: Tests ASCII map/lump membership without allocating a secondary lookup table.
 */
 function _D_NameInList(names, name)
   if typeof(names) != "array" then return false end if
@@ -1043,7 +1047,7 @@ end function
 
 /*
 * Function: _D_HDWADLooksComplete
-* Purpose: Provides looks complete helper behavior for the Doom core.
+* Purpose: Validates that an HDWAD contains metadata and generated geometry required for reuse.
 */
 function _D_HDWADLooksComplete(path)
   names = _D_ReadHDWADLumpNames(path)
@@ -1070,7 +1074,7 @@ end function
 
 /*
 * Function: _D_HDWADScaleFromArgs
-* Purpose: Provides scale from args helper behavior for the Doom core.
+* Purpose: Parses and clamps the requested offline HDWAD upscale factor.
 */
 function _D_HDWADScaleFromArgs()
   return 3
@@ -1469,7 +1473,7 @@ end function
 
 /*
 * Function: _D_FileReadable
-* Purpose: Reads file Readable data from the Doom core data stream.
+* Purpose: Accepts only non-empty paths that currently resolve to regular files.
 */
 function inline _D_FileReadable(path)
   if typeof(path) != "string" or len(path) == 0 then return false end if
@@ -1496,7 +1500,7 @@ end function
 
 /*
 * Function: _D_StrContains
-* Purpose: Provides contains helper behavior for the Doom core.
+* Purpose: Performs a bytewise substring search used while classifying command-line paths.
 */
 function _D_StrContains(haystack, needle)
   if typeof(haystack) != "string" or typeof(needle) != "string" then return false end if
@@ -1524,7 +1528,7 @@ end function
 
 /*
 * Function: _D_IsResponseTokenByte
-* Purpose: Checks response token byte conditions for the Doom core.
+* Purpose: Accepts the non-whitespace printable byte range used while tokenizing response files.
 */
 function inline _D_IsResponseTokenByte(c)
   return c >= 33 and c <= 122
@@ -1560,7 +1564,7 @@ end function
 
 /*
 * Function: IdentifyVersion
-* Purpose: Provides version helper behavior for the Doom core.
+* Purpose: Selects the IWAD, game mode, language, and mission family before resource initialization.
 */
 function IdentifyVersion()
   global gamemode
@@ -1836,40 +1840,53 @@ function D_DoomMain()
     end if
   end if
 
-  pRecord = M_CheckParm("-record")
-  if pRecord != 0 and pRecord < myargc - 1 then
-    if typeof(G_RecordDemo) == "function" then
-      G_RecordDemo(myargv[pRecord + 1])
-      autostart = true
+  // Explicit multiplayer startup owns the initial gameaction. Demo/load options
+  // remain unchanged when no -mp-host/-mp-join role was requested.
+  mpCliState = 0
+  if typeof(M_MPStartFromCommandLine) == "function" then
+    mpCliState = M_MPStartFromCommandLine()
+  end if
+
+  if mpCliState == 0 then
+    pRecord = M_CheckParm("-record")
+    if pRecord != 0 and pRecord < myargc - 1 then
+      if typeof(G_RecordDemo) == "function" then
+        G_RecordDemo(myargv[pRecord + 1])
+        autostart = true
+      end if
+    end if
+
+    pLoad = M_CheckParm("-loadgame")
+    if pLoad != 0 and pLoad < myargc - 1 then
+      slot = toNumber(myargv[pLoad + 1])
+      if typeof(slot) == "int" then
+        if slot < 0 then slot = 0 end if
+        if slot > 9 then slot = 9 end if
+        G_LoadGame(_G_SaveFileName(slot))
+      end if
+    end if
+
+    pPlayDemo = M_CheckParm("-playdemo")
+    if pPlayDemo != 0 and pPlayDemo < myargc - 1 then
+      if typeof(G_DeferedPlayDemo) == "function" then
+        singledemo = true
+        G_DeferedPlayDemo(myargv[pPlayDemo + 1])
+      end if
+    end if
+
+    pTimeDemo = M_CheckParm("-timedemo")
+    if pTimeDemo != 0 and pTimeDemo < myargc - 1 then
+      if typeof(G_TimeDemo) == "function" then
+        G_TimeDemo(myargv[pTimeDemo + 1])
+      end if
     end if
   end if
 
-  pLoad = M_CheckParm("-loadgame")
-  if pLoad != 0 and pLoad < myargc - 1 then
-    slot = toNumber(myargv[pLoad + 1])
-    if typeof(slot) == "int" then
-      if slot < 0 then slot = 0 end if
-      if slot > 9 then slot = 9 end if
-      G_LoadGame(_G_SaveFileName(slot))
-    end if
-  end if
-
-  pPlayDemo = M_CheckParm("-playdemo")
-  if pPlayDemo != 0 and pPlayDemo < myargc - 1 then
-    if typeof(G_DeferedPlayDemo) == "function" then
-      singledemo = true
-      G_DeferedPlayDemo(myargv[pPlayDemo + 1])
-    end if
-  end if
-
-  pTimeDemo = M_CheckParm("-timedemo")
-  if pTimeDemo != 0 and pTimeDemo < myargc - 1 then
-    if typeof(G_TimeDemo) == "function" then
-      G_TimeDemo(myargv[pTimeDemo + 1])
-    end if
-  end if
-
-  if gameaction == gameaction_t.ga_playdemo or gameaction == gameaction_t.ga_loadgame then
+  if mpCliState == 1 then
+    // _MMENU_StartMultiplayerGame queued ga_newgame with the negotiated role/slot.
+  else if mpCliState < 0 then
+    D_StartTitle()
+  else if gameaction == gameaction_t.ga_playdemo or gameaction == gameaction_t.ga_loadgame then
 
   else if autostart and typeof(G_InitNew) == "function" then
     G_InitNew(startskill, startepisode, startmap)
@@ -1884,7 +1901,7 @@ end function
 
 /*
 * Function: D_Display
-* Purpose: Draws display output for the Doom core.
+* Purpose: Composes one frame, including wipes, view/HUD layers, palette updates, and profiling.
 */
 function D_Display()
   global _d_profile_render
@@ -2231,7 +2248,7 @@ end function
 
 /*
 * Function: D_DoomLoop
-* Purpose: Provides loop helper behavior for the Doom core.
+* Purpose: Runs the permanent event/tic/render loop with capped or interpolated presentation scheduling.
 */
 function D_DoomLoop()
 

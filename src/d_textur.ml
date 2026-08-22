@@ -14,13 +14,13 @@
   limitations under the License.
 
   Script: d_textur.ml
-  Purpose: Defines core Doom data types, shared state, and bootstrap flow.
+  Purpose: Defines the compact picture-buffer record shared by texture and patch conversion code.
 */
 import doomtype
 
 /*
 * Struct: pic_t
-* Purpose: Stores pic data used by the Doom core system.
+* Purpose: Describes a rectangular picture buffer by dimensions and pixel payload for texture-processing code.
 */
 struct pic_t
   width

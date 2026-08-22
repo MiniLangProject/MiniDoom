@@ -14,7 +14,7 @@
   limitations under the License.
 
   Script: r_local.ml
-  Purpose: Implements renderer data preparation and software rendering pipeline stages.
+  Purpose: Aggregates the software renderer's tables, state, BSP, wall, plane, sprite, and draw modules for legacy import sites.
 */
 import tables
 import doomdef

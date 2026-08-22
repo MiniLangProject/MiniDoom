@@ -14,7 +14,7 @@
   limitations under the License.
 
   Script: r_sky.ml
-  Purpose: Implements renderer data preparation and software rendering pipeline stages.
+  Purpose: Resolves the level sky flat and texture identifiers plus the vertical mapping origin used by sky columns.
 */
 
 const SKYFLATNAME = "F_SKY1"
@@ -28,7 +28,7 @@ skytexturemid = 0
 
 /*
 * Function: R_InitSkyMap
-* Purpose: Initializes state and dependencies for the renderer.
+* Purpose: Resolves the sky flat and SKY1 texture indices and places the sky cylinder at the vanilla vertical midpoint.
 */
 function R_InitSkyMap()
   global skyflatnum

@@ -14,7 +14,7 @@
   limitations under the License.
 
   Script: m_argv.ml
-  Purpose: Provides shared math, utility, and low-level helper routines.
+  Purpose: Owns the process argument vector and implements Doom-style case-insensitive option lookup.
 */
 
 myargc = 0
@@ -22,7 +22,7 @@ myargv = void
 
 /*
 * Function: M_SetArgv
-* Purpose: Updates argument state for the utility.
+* Purpose: Rebuilds Doom's global argv with the executable name at index zero and records the resulting count.
 */
 function M_SetArgv(progName, args)
   global myargv
@@ -40,7 +40,7 @@ end function
 
 /*
 * Function: M_CheckParm
-* Purpose: Finds check Parm information for utility processing.
+* Purpose: Returns the first case-insensitive option index after argv[0], reserving zero to mean absent.
 */
 function M_CheckParm(check)
   i = 1
@@ -55,7 +55,7 @@ end function
 
 /*
 * Function: _M_ToLowerAscii
-* Purpose: Converts lower ASCII values for the utility.
+* Purpose: Folds one uppercase ASCII byte to lowercase while leaving all other bytes unchanged.
 */
 function inline _M_ToLowerAscii(c)
   if c >= 65 and c <= 90 then return c + 32 end if
@@ -64,7 +64,7 @@ end function
 
 /*
 * Function: _M_StrCaseEq
-* Purpose: Provides case eq helper behavior for the utility.
+* Purpose: Compares two ASCII strings case-insensitively without allocating normalized copies.
 */
 function _M_StrCaseEq(a, b)
   if typeof(a) != "string" or typeof(b) != "string" then return false end if

@@ -14,7 +14,7 @@
   limitations under the License.
 
   Script: f_wipe.ml
-  Purpose: Implements finale sequencing, text pages, and ending presentation.
+  Purpose: Captures transition screens and incrementally blends or melts the old image into the new one.
 */
 import z_zone
 import i_video
@@ -34,7 +34,7 @@ wipe_seed = 1234567
 
 /*
 * Function: _wipeRand
-* Purpose: Provides rand helper behavior for the finale and screen-wipe.
+* Purpose: Produces deterministic 15-bit fallback randomness for melt-column delays when the game RNG is unavailable.
 */
 function inline _wipeRand()
   global wipe_seed
@@ -45,7 +45,7 @@ end function
 
 /*
 * Function: _FW_ReadU16LE
-* Purpose: Reads U16 little-endian data for the finale and screen-wipe.
+* Purpose: Reads one bounds-checked little-endian 16-bit pixel pair from a byte buffer.
 */
 function inline _FW_ReadU16LE(buf, wordIndex)
   bi = wordIndex * 2
@@ -56,7 +56,7 @@ end function
 
 /*
 * Function: _FW_WriteU16LE
-* Purpose: Writes U16 little-endian data for the finale and screen-wipe.
+* Purpose: Writes one bounds-checked little-endian 16-bit pixel pair into a byte buffer.
 */
 function inline _FW_WriteU16LE(buf, wordIndex, v)
   bi = wordIndex * 2
@@ -69,7 +69,7 @@ end function
 
 /*
 * Function: _FW_ByteCopy
-* Purpose: Provides byte copy helper behavior for the finale and screen-wipe.
+* Purpose: Copies the common bounded prefix of two byte buffers without overrunning either allocation.
 */
 function _FW_ByteCopy(dst, src, count)
   if typeof(dst) != "bytes" or typeof(src) != "bytes" then return end if
@@ -85,7 +85,7 @@ end function
 
 /*
 * Function: wipe_shittyColMajorXform
-* Purpose: Provides shitty col major xform helper behavior for the finale and screen-wipe.
+* Purpose: Transposes packed two-pixel words in place from row-major to column-major order for independent melt columns.
 */
 function wipe_shittyColMajorXform(array16, width, height)
 
@@ -119,7 +119,7 @@ end function
 
 /*
 * Function: wipe_initColorXForm
-* Purpose: Initializes state and dependencies for the engine module behavior.
+* Purpose: Seeds the live framebuffer from the captured start image before a palette-index crossfade.
 */
 function wipe_initColorXForm(width, height, ticks)
   ticks = ticks
@@ -130,7 +130,7 @@ end function
 
 /*
 * Function: wipe_doColorXForm
-* Purpose: Provides do color x form helper behavior for the finale and screen-wipe.
+* Purpose: Moves every live palette index toward its target by at most ticks and reports when no differing pixels remain.
 */
 function wipe_doColorXForm(width, height, ticks)
   if typeof(wipe_scr) != "bytes" or typeof(wipe_scr_end) != "bytes" then return 1 end if
@@ -171,7 +171,7 @@ end function
 
 /*
 * Function: wipe_exitColorXForm
-* Purpose: Provides exit color x form helper behavior for the finale and screen-wipe.
+* Purpose: Completes the color-wipe lifecycle; this mode owns no temporary state requiring release.
 */
 function wipe_exitColorXForm(width, height, ticks)
   width = width
@@ -182,7 +182,7 @@ end function
 
 /*
 * Function: wipe_initMelt
-* Purpose: Initializes state and dependencies for the engine module behavior.
+* Purpose: Copies the start image, converts snapshots to column-major pairs, and assigns correlated random delays to melt columns.
 */
 function wipe_initMelt(width, height, ticks)
   global wipe_y
@@ -219,7 +219,7 @@ end function
 
 /*
 * Function: wipe_doMelt
-* Purpose: Provides do melt helper behavior for the finale and screen-wipe.
+* Purpose: Advances each delayed two-pixel melt column, exposing target pixels above and retaining source pixels below its frontier.
 */
 function wipe_doMelt(width, height, ticks)
   if typeof(wipe_scr) != "bytes" or typeof(wipe_scr_start) != "bytes" or typeof(wipe_scr_end) != "bytes" then
@@ -283,7 +283,7 @@ end function
 
 /*
 * Function: wipe_exitMelt
-* Purpose: Provides exit melt helper behavior for the finale and screen-wipe.
+* Purpose: Releases the per-column melt-frontier array after the transition reaches the bottom of the screen.
 */
 function wipe_exitMelt(width, height, ticks)
   global wipe_y
@@ -297,7 +297,7 @@ end function
 
 /*
 * Function: wipe_StartScreen
-* Purpose: Starts runtime behavior in the engine module behavior.
+* Purpose: Captures the current display into the start snapshot and selects screen zero as the transition output buffer.
 */
 function wipe_StartScreen(x, y, width, height)
   global wipe_scr
@@ -318,7 +318,7 @@ end function
 
 /*
 * Function: wipe_EndScreen
-* Purpose: Controls wipe End Screen transitions in the finale and wipe system.
+* Purpose: Captures the newly drawn display as the target snapshot, then restores the start image before animation begins.
 */
 function wipe_EndScreen(x, y, width, height)
   global wipe_scr_end
@@ -335,7 +335,7 @@ end function
 
 /*
 * Function: wipe_EndScreenFromBuffer
-* Purpose: Controls wipe End Screen From Buffer transitions in the finale and wipe system.
+* Purpose: Uses a supplied target snapshot and restores the captured start image, avoiding a display readback.
 */
 function wipe_EndScreenFromBuffer(x, y, width, height, buf)
   global wipe_scr_end
@@ -352,7 +352,7 @@ end function
 
 /*
 * Function: wipe_ScreenWipe
-* Purpose: Provides screen wipe helper behavior for the finale and screen-wipe.
+* Purpose: Initializes, advances, and finalizes the selected wipe mode; returns true only after the transition completes.
 */
 function wipe_ScreenWipe(wipeno, x, y, width, height, ticks)
   global wipe_go

@@ -212,14 +212,22 @@ function MP_RebuildMapList()
   global mp_map_index
 
   low = _MP_ToUpperAscii(MP_GetIwadPath())
-  isCommercial = _MP_StrContains(low, "DOOM2") or _MP_StrContains(low, "PLUTONIA") or _MP_StrContains(low, "TNT")
-  isShareware = _MP_StrContains(low, "DOOM1")
+  isCommercial = gamemode == GameMode_t.commercial
+  isShareware = gamemode == GameMode_t.shareware
+  // Before IdentifyVersion/WAD init, retain the filename fallback used by the menu bootstrap.
+  if typeof(gamemode) == "void" then
+    isCommercial = _MP_StrContains(low, "DOOM2") or _MP_StrContains(low, "PLUTONIA") or _MP_StrContains(low, "TNT")
+    isShareware = _MP_StrContains(low, "DOOM1")
+  end if
 
   lst = []
   if isCommercial then
     m = 1
     while m <= 32
-      lst = lst + ["MAP" + _MP_TwoDigits(m)]
+      token = "MAP" + _MP_TwoDigits(m)
+      available = true
+      if typeof(W_CheckNumForName) == "function" then available = W_CheckNumForName(token) >= 0 end if
+      if available then lst = lst + [token] end if
       m = m + 1
     end while
   else
@@ -229,7 +237,10 @@ function MP_RebuildMapList()
     while e <= eEnd
       m = 1
       while m <= 9
-        lst = lst + ["E" + e + "M" + m]
+        token = "E" + e + "M" + m
+        available = true
+        if typeof(W_CheckNumForName) == "function" then available = W_CheckNumForName(token) >= 0 end if
+        if available then lst = lst + [token] end if
         m = m + 1
       end while
       e = e + 1
@@ -344,7 +355,7 @@ end function
 
 /*
 * Function: MP_UpdateIwadFingerprint
-* Purpose: Computes and stores a fast non-cryptographic fingerprint of currently active IWAD file.
+* Purpose: Fingerprints every gameplay WAD in load order so host/client PWAD mismatches are rejected too.
 */
 function MP_UpdateIwadFingerprint()
   global mp_iwad_path
@@ -356,17 +367,56 @@ function MP_UpdateIwadFingerprint()
     return false
   end if
 
-  // Reuse existing fingerprint while path is unchanged.
-  if mp_iwad_path == newPath and typeof(mp_iwad_fnv1a_hex) == "string" and mp_iwad_fnv1a_hex != "" then
-    return true
+  paths = []
+  if typeof(wadfiles) == "array" then
+    i = 0
+    while i < len(wadfiles)
+      p = wadfiles[i]
+      if typeof(p) == "string" then
+        up = _MP_ToUpperAscii(p)
+        pb = bytes(up)
+        isWad = false
+        if len(pb) >= 4 then
+          n = len(pb)
+          isWad = pb[n - 4] == 46 and pb[n - 3] == 87 and pb[n - 2] == 65 and pb[n - 1] == 68
+        end if
+        // Automatic .hdwad render caches are not gameplay compatibility inputs.
+        if isWad and not _MP_StrContains(up, ".HDWAD") and fs.exists(p) and fs.isFile(p) then
+          paths = paths + [p]
+        end if
+      end if
+      i = i + 1
+    end while
   end if
+  if len(paths) == 0 then paths = [newPath] end if
 
-  rawTry = try(fs.readAllBytes(newPath))
-  if typeof(rawTry) == "error" then return false end if
-  raw = rawTry
-  if typeof(raw) != "bytes" then return false end if
+  // Fold each loaded file into one FNV-1a state. A four-byte length delimiter keeps
+  // different WAD partitions from hashing like the same concatenated byte run.
+  h = 2166136261
+  totalBytes = 0
+  i = 0
+  while i < len(paths)
+    rawTry = try(fs.readAllBytes(paths[i]))
+    if typeof(rawTry) == "error" or typeof(rawTry) != "bytes" then return false end if
+    raw = rawTry
+    fileLen = len(raw)
+    shift = 0
+    while shift < 32
+      h = h ^ ((fileLen >> shift) & 255)
+      h = _MP_HASH_U32(h * 16777619)
+      shift = shift + 8
+    end while
+    j = 0
+    while j < fileLen
+      h = h ^ (raw[j] & 255)
+      h = _MP_HASH_U32(h * 16777619)
+      j = j + 1
+    end while
+    totalBytes = _MP_HASH_U32(totalBytes + fileLen)
+    i = i + 1
+  end while
   mp_iwad_path = newPath
-  mp_iwad_fnv1a_hex = MP_FNV1A_Hex(raw)
+  mp_iwad_fnv1a_hex = _MP_HASH_ToHex8(h) + _MP_HASH_ToHex8(totalBytes)
   return typeof(mp_iwad_fnv1a_hex) == "string" and mp_iwad_fnv1a_hex != ""
 end function
 

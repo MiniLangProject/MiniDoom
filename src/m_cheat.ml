@@ -14,12 +14,12 @@
   limitations under the License.
 
   Script: m_cheat.ml
-  Purpose: Provides shared math, utility, and low-level helper routines.
+  Purpose: Matches scrambled cheat-key sequences and captures optional numeric parameters from player input.
 */
 
 /*
 * Struct: cheatseq_t
-* Purpose: Stores cheatseq data used by the utility system.
+* Purpose: Holds an encoded cheat key sequence, its current match cursor, and optional parameter bytes collected after the fixed prefix.
 */
 struct cheatseq_t
   sequence
@@ -31,7 +31,7 @@ cheat_xlate_table =[]
 
 /*
 * Function: _cht_scramble
-* Purpose: Provides scramble helper behavior for the utility.
+* Purpose: Applies Doom's reversible cheat-key bit permutation to one byte.
 */
 function inline _cht_scramble(a)
   a = a & 255
@@ -41,7 +41,7 @@ end function
 
 /*
 * Function: _cht_ensure_table
-* Purpose: Provides ensure table helper behavior for the utility.
+* Purpose: Lazily builds the 256-entry scrambled-key lookup table once and reuses it for subsequent cheat checks.
 */
 function _cht_ensure_table()
   global firsttime
@@ -59,7 +59,7 @@ end function
 
 /*
 * Function: _cht_key_byte
-* Purpose: Provides key byte helper behavior for the utility.
+* Purpose: Normalizes an input key to its low byte and converts uppercase ASCII letters to lowercase.
 */
 function inline _cht_key_byte(key)
   if typeof(key) == "int" then return key & 255 end if
@@ -73,7 +73,7 @@ end function
 
 /*
 * Function: _cht_seq_len
-* Purpose: Provides sequence len helper behavior for the utility.
+* Purpose: Locates the encoded terminator and returns the number of fixed cheat-sequence bytes before parameters begin.
 */
 function inline _cht_seq_len(seq)
   if typeof(seq) == "bytes" then return len(seq) end if
@@ -94,7 +94,7 @@ end function
 
 /*
 * Function: _cht_seq_set
-* Purpose: Provides sequence set helper behavior for the utility.
+* Purpose: Replaces a cheat definition's encoded byte sequence and resets its matching and parameter cursors.
 */
 function inline _cht_seq_set(seq, idx, v)
   if idx < 0 then return end if
@@ -105,7 +105,7 @@ end function
 
 /*
 * Function: cht_CheckCheat
-* Purpose: Finds cht Check Cheat information for utility processing.
+* Purpose: Feeds one key through a scrambled cheat sequence, advances or resets its cursor, and reports a completed match.
 */
 function cht_CheckCheat(cht, key)
   _cht_ensure_table()
@@ -143,7 +143,7 @@ end function
 
 /*
 * Function: _cht_bytes_from_list
-* Purpose: Provides bytes from list helper behavior for the utility.
+* Purpose: Packs integer list entries into a byte buffer, truncating each value to the low eight bits.
 */
 function _cht_bytes_from_list(lst)
   b = bytes(len(lst), 0)
@@ -157,7 +157,7 @@ end function
 
 /*
 * Function: _cht_write_buffer
-* Purpose: Writes cht write buffer data for the utility data stream.
+* Purpose: Copies a captured cheat parameter into either a byte buffer or legacy string-reference array and terminates it.
 */
 function _cht_write_buffer(buffer, outList)
   if typeof(buffer) == "bytes" then

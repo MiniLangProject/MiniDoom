@@ -14,7 +14,7 @@
   limitations under the License.
 
   Script: p_saveg.ml
-  Purpose: Implements core gameplay simulation: map logic, physics, AI, and world interaction.
+  Purpose: Serializes and restores players, world state, thinkers, specials, and cross-object savegame references.
 */
 import i_system
 import z_zone
@@ -39,7 +39,7 @@ save_p = 0
 
 /*
 * Function: _PSave_EnsureBuffer
-* Purpose: Saves pSave Ensure Buffer state for the savegame system.
+* Purpose: Ensures a byte buffer of at least the requested size exists and rewinds the shared stream cursor to zero.
 */
 function inline _PSave_EnsureBuffer(size)
   global savebuffer
@@ -53,7 +53,7 @@ end function
 
 /*
 * Function: _PSV_Ensure
-* Purpose: Provides ensure helper behavior for the play simulation.
+* Purpose: Grows the save buffer geometrically so a pending write fits without invalidating the current write offset.
 */
 function _PSV_Ensure(extra)
   global savebuffer
@@ -95,7 +95,7 @@ end function
 
 /*
 * Function: _PSV_WriteU8
-* Purpose: Writes U8 data for the savegame serializer.
+* Purpose: Appends the low byte of a normalized value, growing the save buffer before advancing the stream cursor.
 */
 function inline _PSV_WriteU8(v)
   global save_p
@@ -107,7 +107,7 @@ end function
 
 /*
 * Function: _PSV_WriteBool
-* Purpose: Writes boolean data for the savegame serializer.
+* Purpose: Appends a canonical one-byte boolean, encoding only literal true as one.
 */
 function inline _PSV_WriteBool(v)
   if v == true then _PSV_WriteU8(1) else _PSV_WriteU8(0) end if
@@ -115,7 +115,7 @@ end function
 
 /*
 * Function: _PSV_WriteS32
-* Purpose: Writes S32 data for the savegame serializer.
+* Purpose: Appends a normalized signed 32-bit value in stable little-endian byte order.
 */
 function inline _PSV_WriteS32(v)
   v = _PSV_ToS32(v)
@@ -127,7 +127,7 @@ end function
 
 /*
 * Function: _PSV_WriteTag
-* Purpose: Writes tag data for the savegame serializer.
+* Purpose: Appends exactly four identifier bytes, padding a short save-section tag with zeros.
 */
 function _PSV_WriteTag(tag)
   b = bytes(tag)
@@ -142,7 +142,7 @@ end function
 
 /*
 * Function: _PSV_WriteFixedString
-* Purpose: Writes fixed-point string data for the savegame serializer.
+* Purpose: Appends a fixed-width byte string, truncating excess text and zero-padding unused positions.
 */
 function _PSV_WriteFixedString(s, width)
   b = bytes(s)
@@ -157,7 +157,7 @@ end function
 
 /*
 * Function: _PSV_ReadU8
-* Purpose: Reads U8 data for the savegame serializer.
+* Purpose: Consumes one byte from the shared stream, returning zero but still advancing when the cursor is out of range.
 */
 function inline _PSV_ReadU8()
   global save_p
@@ -172,7 +172,7 @@ end function
 
 /*
 * Function: _PSV_ReadBool
-* Purpose: Reads boolean data for the savegame serializer.
+* Purpose: Consumes one canonical byte and interprets every nonzero value as true.
 */
 function inline _PSV_ReadBool()
   return _PSV_ReadU8() != 0
@@ -180,7 +180,7 @@ end function
 
 /*
 * Function: _PSV_ReadS32
-* Purpose: Reads S32 data for the savegame serializer.
+* Purpose: Consumes four little-endian bytes and restores their signed 32-bit interpretation.
 */
 function inline _PSV_ReadS32()
   b0 = _PSV_ReadU8()
@@ -194,7 +194,7 @@ end function
 
 /*
 * Function: _PSV_CheckTag
-* Purpose: Finds check Tag information for savegame processing.
+* Purpose: Consumes a four-byte section identifier and reports whether it matches the expected zero-padded tag.
 */
 function _PSV_CheckTag(tag)
   b = bytes(tag)
@@ -212,7 +212,7 @@ end function
 
 /*
 * Function: _PSV_ReadFixedString
-* Purpose: Reads fixed-point string data for the savegame serializer.
+* Purpose: Consumes a fixed-width byte field and decodes its zero-terminated text prefix.
 */
 function _PSV_ReadFixedString(width)
   b = bytes(width, 0)
@@ -226,7 +226,7 @@ end function
 
 /*
 * Function: _PSV_ObjIndex
-* Purpose: Provides obj index helper behavior for the play simulation.
+* Purpose: Resolves an object reference to its stable array index for serialized cross-references, returning -1 when absent.
 */
 function _PSV_ObjIndex(arr, obj)
   if obj is void then return -1 end if
@@ -241,7 +241,7 @@ end function
 
 /*
 * Function: _PSV_PlayerIndex
-* Purpose: Provides player index helper behavior for the play simulation.
+* Purpose: Resolves a player record to its slot so mobj/player ownership links can be serialized as integers.
 */
 function inline _PSV_PlayerIndex(p)
   if typeof(players) != "array" then return -1 end if
@@ -250,7 +250,7 @@ end function
 
 /*
 * Function: _PSV_SectorIndex
-* Purpose: Provides sector index helper behavior for the play simulation.
+* Purpose: Resolves a sector object to its map-array index for thinker and world-state serialization.
 */
 function inline _PSV_SectorIndex(sec)
   if typeof(sectors) != "array" then return -1 end if
@@ -259,7 +259,7 @@ end function
 
 /*
 * Function: _PSV_StateToIndex
-* Purpose: Provides state to index helper behavior for the play simulation.
+* Purpose: Converts an actor-state reference to the canonical metadata index written into the save stream.
 */
 function _PSV_StateToIndex(st)
   if st is void then return -1 end if
@@ -276,7 +276,7 @@ end function
 
 /*
 * Function: _PSV_StateFromIndex
-* Purpose: Provides state from index helper behavior for the play simulation.
+* Purpose: Restores a validated actor-state reference from its serialized canonical index.
 */
 function inline _PSV_StateFromIndex(idx)
   if typeof(idx) != "int" or idx < 0 then return void end if
@@ -288,7 +288,7 @@ end function
 
 /*
 * Function: _PSV_WriteMapthing
-* Purpose: Writes map thing data for the savegame serializer.
+* Purpose: Appends a spawn point's five map fields in fixed order, substituting a zero record for an absent spawn point.
 */
 function inline _PSV_WriteMapthing(mt)
   if mt is void then
@@ -304,7 +304,7 @@ end function
 
 /*
 * Function: _PSV_ReadMapthing
-* Purpose: Reads map thing data for the savegame serializer.
+* Purpose: Consumes five signed fields and reconstructs one map spawn-point record.
 */
 function inline _PSV_ReadMapthing()
   return mapthing_t(_PSV_ReadS32(), _PSV_ReadS32(), _PSV_ReadS32(), _PSV_ReadS32(), _PSV_ReadS32())
@@ -312,7 +312,7 @@ end function
 
 /*
 * Function: _PSV_WriteTiccmd
-* Purpose: Writes ticcmd data for the savegame serializer.
+* Purpose: Appends all six command fields in fixed order, substituting a neutral command when no record is supplied.
 */
 function inline _PSV_WriteTiccmd(cmd)
   if cmd is void then
@@ -329,7 +329,7 @@ end function
 
 /*
 * Function: _PSV_ReadTiccmd
-* Purpose: Reads ticcmd data for the savegame serializer.
+* Purpose: Consumes six signed fields and reconstructs one player tic command.
 */
 function inline _PSV_ReadTiccmd()
   return ticcmd_t(_PSV_ReadS32(), _PSV_ReadS32(), _PSV_ReadS32(), _PSV_ReadS32(), _PSV_ReadS32(), _PSV_ReadS32())
@@ -337,7 +337,7 @@ end function
 
 /*
 * Function: _PSV_WritePsprite
-* Purpose: Writes psprite data for the savegame serializer.
+* Purpose: Appends a weapon sprite's canonical state index, timer, and screen coordinates, with an absent-state sentinel for void.
 */
 function inline _PSV_WritePsprite(psp)
   if psp is void then
@@ -352,7 +352,7 @@ end function
 
 /*
 * Function: _PSV_ReadPsprite
-* Purpose: Reads psprite data for the savegame serializer.
+* Purpose: Consumes a weapon sprite record and resolves its canonical state index back to a runtime reference.
 */
 function inline _PSV_ReadPsprite()
   stidx = _PSV_ReadS32()
@@ -364,7 +364,7 @@ end function
 
 /*
 * Function: _PSV_ClearThingLists
-* Purpose: Provides clear thing lists helper behavior for the play simulation.
+* Purpose: Clears sector thing chains before unarchived mobjs are relinked into the reconstructed world.
 */
 function _PSV_ClearThingLists()
   if typeof(sectors) != "array" then return end if
@@ -382,7 +382,7 @@ end function
 
 /*
 * Function: _PSV_ClearBlockLinks
-* Purpose: Provides clear block links helper behavior for the play simulation.
+* Purpose: Empties every blockmap thing head before restoring mobj spatial links.
 */
 function _PSV_ClearBlockLinks()
   if typeof(blocklinks) != "array" then return end if
@@ -395,7 +395,7 @@ end function
 
 /*
 * Function: _PSV_ArchivePlayerV2
-* Purpose: Provides archive player v2 helper behavior for the play simulation.
+* Purpose: Writes the version-two player record in fixed field order, including commands, view, inventory, powers, weapons, counters, frags, and psprites.
 */
 function _PSV_ArchivePlayerV2(p)
   _PSV_WriteS32(p.playerstate)
@@ -475,7 +475,7 @@ end function
 
 /*
 * Function: _PSV_UnArchivePlayerV1
-* Purpose: Provides un archive player v1 helper behavior for the play simulation.
+* Purpose: Reads the legacy player layout, supplies defaults for fields introduced later, and leaves object links for post-load repair.
 */
 function _PSV_UnArchivePlayerV1(p)
   p.playerstate = _PSV_ReadS32()
@@ -550,7 +550,7 @@ end function
 
 /*
 * Function: _PSV_UnArchivePlayerV2
-* Purpose: Provides un archive player v2 helper behavior for the play simulation.
+* Purpose: Reconstructs a version-two player record in stream order while validating enum indices and fixed-size arrays.
 */
 function _PSV_UnArchivePlayerV2(p)
   p.playerstate = _PSV_ReadS32()
@@ -632,7 +632,7 @@ end function
 
 /*
 * Function: P_ArchivePlayers
-* Purpose: Provides players helper behavior for the play simulation.
+* Purpose: Writes the active-player mask followed by one versioned player record for each participating slot.
 */
 function P_ArchivePlayers()
   _PSV_WriteTag("PLYR")
@@ -654,7 +654,7 @@ end function
 
 /*
 * Function: P_UnArchivePlayers
-* Purpose: Provides archive players helper behavior for the play simulation.
+* Purpose: Reads active player records for the detected save version and resets inactive slots to canonical defaults.
 */
 function P_UnArchivePlayers()
   ok = _PSV_CheckTag("PLYR")
@@ -696,7 +696,7 @@ end function
 
 /*
 * Function: P_ArchiveWorld
-* Purpose: Provides world helper behavior for the play simulation.
+* Purpose: Serializes mutable sector heights, textures, light, specials, and sidedef texture/offset state in map-array order.
 */
 function P_ArchiveWorld()
   _PSV_WriteTag("WRLD")
@@ -761,7 +761,7 @@ end function
 
 /*
 * Function: P_UnArchiveWorld
-* Purpose: Provides archive world helper behavior for the play simulation.
+* Purpose: Restores mutable sector and sidedef fields in map-array order, validating stream availability before each assignment.
 */
 function P_UnArchiveWorld()
   ok = _PSV_CheckTag("WRLD")
@@ -842,7 +842,7 @@ const _PSV_SC_GLOW = 7
 
 /*
 * Function: _PSV_ResolveThinkerMobj
-* Purpose: Advances resolve Thinker Mobj logic during the savegame tick.
+* Purpose: Resolves a thinker owner through current and legacy registries, accepting only objects with the core mobj fields.
 */
 function _PSV_ResolveThinkerMobj(node)
   if node is void then return void end if
@@ -862,7 +862,7 @@ end function
 
 /*
 * Function: _PSV_WriteMobj
-* Purpose: Writes mobj data for the savegame serializer.
+* Purpose: Appends an mobj's position, physics, state, AI counters, player slot, and spawn point while omitting transient links.
 */
 function _PSV_WriteMobj(mo)
   _PSV_WriteS32(mo.x)
@@ -901,7 +901,7 @@ end function
 
 /*
 * Function: _PSV_ReadMobj
-* Purpose: Reads mobj data for the savegame serializer.
+* Purpose: Reconstructs an mobj from serialized fields, restores metadata and player ownership, and relinks its thinker and spatial indices.
 */
 function _PSV_ReadMobj()
   mo = _Mobj_Default()
@@ -978,7 +978,7 @@ end function
 
 /*
 * Function: P_ArchiveThinkers
-* Purpose: Advances archive Thinkers logic during the savegame tick.
+* Purpose: Counts serializable mobj thinkers and emits a versioned typed thinker section containing each validated owner.
 */
 function P_ArchiveThinkers()
   _PSV_WriteTag("THKR")
@@ -1010,7 +1010,7 @@ end function
 
 /*
 * Function: P_UnArchiveThinkers
-* Purpose: Advances un Archive Thinkers logic during the savegame tick.
+* Purpose: Clears old thinker and spatial ownership, then recreates every typed mobj in the validated thinker section.
 */
 function P_UnArchiveThinkers()
   ok = _PSV_CheckTag("THKR")
@@ -1048,7 +1048,7 @@ end function
 
 /*
 * Function: _PSV_WriteCeiling
-* Purpose: Writes ceiling data for the savegame serializer.
+* Purpose: Appends a ceiling mover's sector index, bounds, speed, crush flag, direction, tag, and saved direction.
 */
 function inline _PSV_WriteCeiling(c)
   _PSV_WriteS32(_PSV_SectorIndex(c.sector))
@@ -1064,7 +1064,7 @@ end function
 
 /*
 * Function: _PSV_WriteDoor
-* Purpose: Writes door data for the savegame serializer.
+* Purpose: Appends a vertical door's sector index, type, destination, speed, direction, wait, and countdown.
 */
 function inline _PSV_WriteDoor(d)
   _PSV_WriteS32(_PSV_SectorIndex(d.sector))
@@ -1078,7 +1078,7 @@ end function
 
 /*
 * Function: _PSV_WriteFloor
-* Purpose: Writes floor data for the savegame serializer.
+* Purpose: Appends a floor mover's sector index, type, crush and direction flags, endpoint changes, destination, and speed.
 */
 function inline _PSV_WriteFloor(f)
   _PSV_WriteS32(_PSV_SectorIndex(f.sector))
@@ -1093,7 +1093,7 @@ end function
 
 /*
 * Function: _PSV_WritePlat
-* Purpose: Writes plat data for the savegame serializer.
+* Purpose: Appends a platform's sector, travel bounds, timing, current and saved status, crush flag, tag, and behavior type.
 */
 function _PSV_WritePlat(p)
   _PSV_WriteS32(_PSV_SectorIndex(p.sector))
@@ -1111,7 +1111,7 @@ end function
 
 /*
 * Function: _PSV_WriteFlash
-* Purpose: Writes flash data for the savegame serializer.
+* Purpose: Appends a light flash's sector, countdown, brightness bounds, and randomized interval limits.
 */
 function inline _PSV_WriteFlash(f)
   _PSV_WriteS32(_PSV_SectorIndex(f.sector))
@@ -1124,7 +1124,7 @@ end function
 
 /*
 * Function: _PSV_WriteStrobe
-* Purpose: Writes strobe data for the savegame serializer.
+* Purpose: Appends a strobe's sector, countdown, brightness bounds, and dark/bright durations.
 */
 function inline _PSV_WriteStrobe(s)
   _PSV_WriteS32(_PSV_SectorIndex(s.sector))
@@ -1137,7 +1137,7 @@ end function
 
 /*
 * Function: _PSV_WriteGlow
-* Purpose: Writes glow data for the savegame serializer.
+* Purpose: Appends a glow's sector, brightness bounds, and current oscillation direction.
 */
 function inline _PSV_WriteGlow(g)
   _PSV_WriteS32(_PSV_SectorIndex(g.sector))
@@ -1148,7 +1148,7 @@ end function
 
 /*
 * Function: P_ArchiveSpecials
-* Purpose: Provides specials helper behavior for the play simulation.
+* Purpose: Serializes supported active ceiling, door, floor, platform, lighting, and button thinkers with sector references and terminates the list.
 */
 function P_ArchiveSpecials()
   _PSV_WriteTag("SPCL")
@@ -1207,7 +1207,7 @@ end function
 
 /*
 * Function: _PSV_ReadSectorRef
-* Purpose: Reads sector ref data for the savegame serializer.
+* Purpose: Consumes a sector index and returns its validated map reference, or void for malformed input.
 */
 function inline _PSV_ReadSectorRef()
   idx = _PSV_ReadS32()
@@ -1218,7 +1218,7 @@ end function
 
 /*
 * Function: _PSV_ReadCeiling
-* Purpose: Reads ceiling data for the savegame serializer.
+* Purpose: Recreates a ceiling mover, reclaims its sector, registers its thinker, and restores tagged active-ceiling control.
 */
 function inline _PSV_ReadCeiling()
   sec = _PSV_ReadSectorRef()
@@ -1232,7 +1232,7 @@ end function
 
 /*
 * Function: _PSV_ReadDoor
-* Purpose: Reads door data for the savegame serializer.
+* Purpose: Recreates a vertical door from stream fields, reclaims its sector, and registers its movement thinker.
 */
 function inline _PSV_ReadDoor()
   sec = _PSV_ReadSectorRef()
@@ -1245,7 +1245,7 @@ end function
 
 /*
 * Function: _PSV_ReadFloor
-* Purpose: Reads floor data for the savegame serializer.
+* Purpose: Recreates a floor mover from stream fields, reclaims its sector, and registers its movement thinker.
 */
 function inline _PSV_ReadFloor()
   sec = _PSV_ReadSectorRef()
@@ -1258,7 +1258,7 @@ end function
 
 /*
 * Function: _PSV_ReadPlat
-* Purpose: Reads plat data for the savegame serializer.
+* Purpose: Recreates a platform mover, reclaims its sector, registers its thinker, and restores tagged active-platform control.
 */
 function inline _PSV_ReadPlat()
   sec = _PSV_ReadSectorRef()
@@ -1273,7 +1273,7 @@ end function
 
 /*
 * Function: _PSV_ReadFlash
-* Purpose: Reads flash data for the savegame serializer.
+* Purpose: Recreates and registers a randomized two-level sector light-flash thinker from stream fields.
 */
 function inline _PSV_ReadFlash()
   sec = _PSV_ReadSectorRef()
@@ -1285,7 +1285,7 @@ end function
 
 /*
 * Function: _PSV_ReadStrobe
-* Purpose: Reads strobe data for the savegame serializer.
+* Purpose: Recreates and registers a sector strobe thinker with its saved countdown and timing bounds.
 */
 function inline _PSV_ReadStrobe()
   sec = _PSV_ReadSectorRef()
@@ -1297,7 +1297,7 @@ end function
 
 /*
 * Function: _PSV_ReadGlow
-* Purpose: Reads glow data for the savegame serializer.
+* Purpose: Recreates and registers a sector glow thinker with its saved brightness bounds and direction.
 */
 function inline _PSV_ReadGlow()
   sec = _PSV_ReadSectorRef()
@@ -1309,7 +1309,7 @@ end function
 
 /*
 * Function: P_UnArchiveSpecials
-* Purpose: Provides archive specials helper behavior for the play simulation.
+* Purpose: Recreates serialized special thinkers, reconnects their sector ownership, and rebuilds active ceiling/platform registries.
 */
 function P_UnArchiveSpecials()
   ok = _PSV_CheckTag("SPCL")

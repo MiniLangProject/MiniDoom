@@ -14,21 +14,22 @@
   limitations under the License.
 
   Script: d_ticcmd.ml
-  Purpose: Defines core Doom data types, shared state, and bootstrap flow.
+  Purpose: Defines the deterministic per-tic input command shared by local and network game loops.
 */
 import doomtype
 
 /*
 * Struct: ticcmd_t
-* Purpose: Stores ticcmd event data for the Doom core system.
+* Purpose: Stores movement, view, consistency, chat, and button state for exactly one simulation tic.
+* Invariant: All six fields are serialized as signed 32-bit values by i_net and must remain in this wire order.
 */
 struct ticcmd_t
-  forwardmove
-  sidemove
-  angleturn
-  consistancy
-  chatchar
-  buttons
+  forwardmove   // Signed forward/back movement impulse.
+  sidemove      // Signed strafe movement impulse.
+  angleturn     // Signed view-angle delta.
+  consistancy   // Determinism check value for the originating tic.
+  chatchar      // One queued chat character, or zero.
+  buttons       // Bit field of attack/use/weapon actions.
 end struct
 
 

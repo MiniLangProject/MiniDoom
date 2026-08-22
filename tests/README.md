@@ -22,6 +22,8 @@ It also auto-detects `Doom2.wad`, `DOOM2.WAD`, `Doom1.wad`, `DOOM1.WAD`, or `DOO
 .\tests\run_tests.ps1 -SkipBuild
 .\tests\run_tests.ps1 -Test smoke
 .\tests\run_tests.ps1 -Test renderer_toggle
+.\tests\run_tests.ps1 -Test mp_transport
+.\tests\run_tests.ps1 -Test multiplayer_loopback
 .\tests\run_tests.ps1 -Iwad "C:\Games\DOOM2.WAD"
 .\tests\run_tests.ps1 -Compiler "C:\MiniLangCompilerPy\mlc_win64.py" -Std "C:\MiniLangCompilerPy\std"
 ```
@@ -40,5 +42,11 @@ $env:MINIDOOM_PYTHON = "C:\Python311\python.exe"
 - `smoke`: starts classic and OpenGL modes, captures screenshots, and rejects blank/fatal-error frames.
 - `renderer_toggle`: starts OpenGL, toggles `Alt+G` to classic and back through targeted Win32 messages, verifies the images are drawn and visibly changed.
 - `hdwad`: validates the `.hdwad` header and verifies OpenGL can start with the HDWAD path.
+- `mp_transport`: compiles a deterministic console fixture that validates FNV, gameplay framing/checksums, strict Doom packet decoding, mutation safety, and bounded queue freshness.
+- `multiplayer_loopback`: runs one host and three clients on an ephemeral loopback port; validates authenticated bidirectional gameplay and HUD chat, real CLI full/WAD-mismatch denials, malformed traffic resilience, graceful leave with slot reclaim, client timeout/title fallback, socket cleanup, and a deathmatch rejoin.
+
+Every test stops only the exact process IDs it created. The runner intentionally
+does not perform a global `MiniDoom` process sweep, so unrelated sessions remain
+untouched.
 
 Artifacts are written to `test-results/`.

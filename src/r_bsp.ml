@@ -14,7 +14,7 @@
   limitations under the License.
 
   Script: r_bsp.ml
-  Purpose: Implements renderer data preparation and software rendering pipeline stages.
+  Purpose: Traverses front-to-back BSP nodes, culls occluded child bounds, and clips wall segments against solid screen ranges.
 */
 import doomdef
 import m_bbox
@@ -50,7 +50,7 @@ dscalelight = void
 
 /*
 * Struct: cliprange_t
-* Purpose: Stores cliprange data used by the renderer system.
+* Purpose: Represents one inclusive horizontal screen interval already occluded by solid walls.
 */
 struct cliprange_t
   first
@@ -93,7 +93,7 @@ _rbsp_disable_bbox_cull = false
 
 /*
 * Function: R_BspProfileSetEnabled
-* Purpose: Provides profile set enabled helper behavior for the renderer.
+* Purpose: Enables or disables collection of BSP traversal, clipping, and wall-storage timing counters.
 */
 function R_BspProfileSetEnabled(on)
   global _rb_prof_enabled
@@ -102,7 +102,7 @@ end function
 
 /*
 * Function: R_BspProfileReset
-* Purpose: Clears bsp Profile Reset state before the next renderer update.
+* Purpose: Zeros every BSP timing, call-count, span, and peak-clip statistic before a new measurement window.
 */
 function R_BspProfileReset()
   global _rb_prof_addline_ms
@@ -136,7 +136,7 @@ end function
 
 /*
 * Function: _RBSP_TimeMs
-* Purpose: Provides time milliseconds helper behavior for the renderer.
+* Purpose: Returns the runtime tick clock as a truncation-toward-zero integer for BSP profiling deltas.
 */
 function inline _RBSP_TimeMs()
   t = std.time.ticks()
@@ -145,7 +145,7 @@ end function
 
 /*
 * Function: _RBSP_StoreWallRange
-* Purpose: Provides store wall range helper behavior for the renderer.
+* Purpose: Delegates a visible wall-column range and, when profiling is active, accumulates its storage time and call count.
 */
 function inline _RBSP_StoreWallRange(first, last)
   global _rb_prof_store_ms
@@ -164,7 +164,7 @@ end function
 
 /*
 * Function: _makeDrawseg
-* Purpose: Draws make Drawseg output for the renderer renderer.
+* Purpose: Constructs an empty draw-segment record used to preallocate the reusable masked-sprite clipping table.
 */
 function inline _makeDrawseg()
 
@@ -173,7 +173,7 @@ end function
 
 /*
 * Function: _makeClip
-* Purpose: Builds clip data for the renderer.
+* Purpose: Constructs one inclusive solid-column interval for the occlusion list.
 */
 function inline _makeClip(first, last)
   return cliprange_t(first, last)
@@ -181,7 +181,7 @@ end function
 
 /*
 * Function: _R_ClipGet
-* Purpose: Computes get values for the renderer.
+* Purpose: Returns a solid clip interval by index, substituting an empty sentinel for invalid access.
 */
 function inline _R_ClipGet(i)
   if i < 0 or i >= len(solidsegs) then return _makeClip(0, 0) end if
@@ -190,7 +190,7 @@ end function
 
 /*
 * Function: _R_ClipSet
-* Purpose: Computes set values for the renderer.
+* Purpose: Replaces or appends a solid clip interval, growing intermediate slots with empty sentinels.
 */
 function inline _R_ClipSet(i, c)
   global solidsegs
@@ -207,7 +207,7 @@ end function
 
 /*
 * Function: _RBSP_IsSeq
-* Purpose: Provides is sequence helper behavior for the renderer.
+* Purpose: Recognizes both array and list containers accepted by BSP geometry and lookup tables.
 */
 function inline _RBSP_IsSeq(v)
   t = typeof(v)
@@ -216,7 +216,7 @@ end function
 
 /*
 * Function: _RBSP_ToInt
-* Purpose: Converts int values for the BSP renderer.
+* Purpose: Coerces numeric values to truncation-toward-zero integers and returns a caller fallback on conversion failure.
 */
 function inline _RBSP_ToInt(v, fallback)
   if typeof(v) == "int" then return v end if
@@ -235,7 +235,7 @@ end function
 
 /*
 * Function: _R_ViewAngleToX
-* Purpose: Provides angle to x helper behavior for the renderer.
+* Purpose: Clamps a fine view-angle index and maps it to a projected screen column, falling back to view center when unavailable.
 */
 function inline _R_ViewAngleToX(aidx)
   if not _RBSP_IsSeq(viewangletox) or len(viewangletox) == 0 then return centerx end if
@@ -247,7 +247,7 @@ end function
 
 /*
 * Function: _RBSP_AngNorm
-* Purpose: Provides ang norm helper behavior for the renderer.
+* Purpose: Normalizes a coerced angle to Doom's unsigned 32-bit binary-angle domain.
 */
 function inline _RBSP_AngNorm(a)
   ai = _RBSP_ToInt(a, 0)
@@ -256,7 +256,7 @@ end function
 
 /*
 * Function: _RBSP_AngSub
-* Purpose: Provides ang sub helper behavior for the renderer.
+* Purpose: Subtracts two binary angles with explicit unsigned 32-bit wraparound.
 */
 function inline _RBSP_AngSub(a, b)
   return _RBSP_AngNorm(_RBSP_AngNorm(a) - _RBSP_AngNorm(b))
@@ -264,7 +264,7 @@ end function
 
 /*
 * Function: R_ClearDrawSegs
-* Purpose: Updates draw segs state for the renderer.
+* Purpose: Rewinds draw-segment allocation for a frame and lazily seeds the reusable table to its baseline capacity.
 */
 function R_ClearDrawSegs()
   global ds_p
@@ -283,7 +283,7 @@ end function
 
 /*
 * Function: R_ClearClipSegs
-* Purpose: Updates clip segs state for the renderer.
+* Purpose: Resets solid-wall occlusion to left and right offscreen sentinels and records the baseline peak when profiling.
 */
 function R_ClearClipSegs()
   global solidsegs
@@ -297,7 +297,7 @@ end function
 
 /*
 * Function: R_ClipSolidWallSegment
-* Purpose: Computes solid wall segment values for the renderer.
+* Purpose: Emits visible portions of a solid wall range, then merges that range into the ordered screen-space occlusion intervals.
 */
 function R_ClipSolidWallSegment(first, last)
   global newend
@@ -494,7 +494,7 @@ end function
 
 /*
 * Function: R_CheckBBox
-* Purpose: Finds check BBox information for renderer processing.
+* Purpose: Projects the visible corners of a BSP child bound and rejects it only when its complete screen span is already occluded.
 */
 function R_CheckBBox(bspcoord)
   if _rbsp_disable_bbox_cull then return true end if
@@ -570,7 +570,7 @@ end function
 
 /*
 * Function: R_Subsector
-* Purpose: Provides subsector helper behavior for the renderer.
+* Purpose: Selects visible floor/ceiling planes, queues sector sprites, and submits every seg belonging to one BSP leaf.
 */
 function R_Subsector(num)
   global _rb_prof_subsector_calls
@@ -630,7 +630,7 @@ end function
 
 /*
 * Function: R_RenderBSPNode
-* Purpose: Draws render BSPNode output for the renderer renderer.
+* Purpose: Recurses front-to-back through a BSP node, always renders the near child, and visits the far child only if its bound remains visible.
 */
 function R_RenderBSPNode(bspnum)
   global _rb_prof_bbox_ms

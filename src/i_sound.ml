@@ -14,7 +14,7 @@
   limitations under the License.
 
   Script: i_sound.ml
-  Purpose: Implements platform integration for input, timing, video, audio, and OS services.
+  Purpose: Mixes Doom sound effects into WinMM PCM buffers and translates MUS music events to the Windows MIDI device.
 */
 import doomdef
 import doomstat
@@ -31,7 +31,7 @@ import std.math
 /*
  * Function: waveOutOpen
  *
- * Purpose: Maps the external waveOutOpen binding used for audio output.
+ * Purpose: Opens the WinMM waveform mapper with the supplied PCM format and writes the device handle to caller storage.
  */
 
 extern function waveOutOpen(phwo as bytes, dev as u32, pwfx as bytes, cb as ptr, inst as ptr, flags as u32) from "winmm.dll" symbol "waveOutOpen" returns u32
@@ -39,7 +39,7 @@ extern function waveOutOpen(phwo as bytes, dev as u32, pwfx as bytes, cb as ptr,
 /*
  * Function: waveOutPrepareHeader
  *
- * Purpose: Maps the external waveOutPrepareHeader binding used for audio output.
+ * Purpose: Registers one unmanaged WAVEHDR with an open waveform device before queued playback.
  */
 
 extern function waveOutPrepareHeader(hwo as ptr, pwh as ptr, cbwh as u32) from "winmm.dll" symbol "waveOutPrepareHeader" returns u32
@@ -47,7 +47,7 @@ extern function waveOutPrepareHeader(hwo as ptr, pwh as ptr, cbwh as u32) from "
 /*
  * Function: waveOutWrite
  *
- * Purpose: Maps the external waveOutWrite binding used for audio output.
+ * Purpose: Queues a prepared WAVEHDR buffer for asynchronous playback on the waveform device.
  */
 
 extern function waveOutWrite(hwo as ptr, pwh as ptr, cbwh as u32) from "winmm.dll" symbol "waveOutWrite" returns u32
@@ -55,7 +55,7 @@ extern function waveOutWrite(hwo as ptr, pwh as ptr, cbwh as u32) from "winmm.dl
 /*
  * Function: waveOutUnprepareHeader
  *
- * Purpose: Maps the external waveOutUnprepareHeader binding used for audio output.
+ * Purpose: Releases WinMM ownership of a completed WAVEHDR before its unmanaged memory is freed.
  */
 
 extern function waveOutUnprepareHeader(hwo as ptr, pwh as ptr, cbwh as u32) from "winmm.dll" symbol "waveOutUnprepareHeader" returns u32
@@ -63,7 +63,7 @@ extern function waveOutUnprepareHeader(hwo as ptr, pwh as ptr, cbwh as u32) from
 /*
  * Function: waveOutReset
  *
- * Purpose: Maps the external waveOutReset binding used for audio output.
+ * Purpose: Stops waveform playback and returns all queued buffers to the application.
  */
 
 extern function waveOutReset(hwo as ptr) from "winmm.dll" symbol "waveOutReset" returns u32
@@ -71,7 +71,7 @@ extern function waveOutReset(hwo as ptr) from "winmm.dll" symbol "waveOutReset" 
 /*
  * Function: waveOutClose
  *
- * Purpose: Maps the external waveOutClose binding used for audio output.
+ * Purpose: Closes a reset waveform output handle after all headers have been unprepared.
  */
 
 extern function waveOutClose(hwo as ptr) from "winmm.dll" symbol "waveOutClose" returns u32
@@ -79,7 +79,7 @@ extern function waveOutClose(hwo as ptr) from "winmm.dll" symbol "waveOutClose" 
 /*
  * Function: midiOutOpen
  *
- * Purpose: Maps the external midiOutOpen binding used for audio output.
+ * Purpose: Opens the Windows MIDI mapper and writes its output handle to caller-owned storage.
  */
 
 extern function midiOutOpen(phmo as bytes, dev as u32, cb as ptr, inst as ptr, flags as u32) from "winmm.dll" symbol "midiOutOpen" returns u32
@@ -87,7 +87,7 @@ extern function midiOutOpen(phmo as bytes, dev as u32, cb as ptr, inst as ptr, f
 /*
  * Function: midiOutShortMsg
  *
- * Purpose: Maps the external midiOutShortMsg binding used for audio output.
+ * Purpose: Sends one packed channel/system MIDI message to the active output device.
  */
 
 extern function midiOutShortMsg(hmo as ptr, msg as u32) from "winmm.dll" symbol "midiOutShortMsg" returns u32
@@ -95,7 +95,7 @@ extern function midiOutShortMsg(hmo as ptr, msg as u32) from "winmm.dll" symbol 
 /*
  * Function: midiOutReset
  *
- * Purpose: Maps the external midiOutReset binding used for audio output.
+ * Purpose: Silences and resets every channel on the active Windows MIDI output device.
  */
 
 extern function midiOutReset(hmo as ptr) from "winmm.dll" symbol "midiOutReset" returns u32
@@ -103,7 +103,7 @@ extern function midiOutReset(hmo as ptr) from "winmm.dll" symbol "midiOutReset" 
 /*
  * Function: midiOutClose
  *
- * Purpose: Maps the external midiOutClose binding used for audio output.
+ * Purpose: Closes the Windows MIDI output handle after playback has stopped.
  */
 
 extern function midiOutClose(hmo as ptr) from "winmm.dll" symbol "midiOutClose" returns u32
@@ -111,7 +111,7 @@ extern function midiOutClose(hmo as ptr) from "winmm.dll" symbol "midiOutClose" 
 /*
  * Function: midiOutSetVolume
  *
- * Purpose: Maps the external midiOutSetVolume binding used for audio output.
+ * Purpose: Applies a packed left/right 16-bit master volume to the MIDI output device.
  */
 
 extern function midiOutSetVolume(hmo as ptr, vol as u32) from "winmm.dll" symbol "midiOutSetVolume" returns u32
@@ -119,7 +119,7 @@ extern function midiOutSetVolume(hmo as ptr, vol as u32) from "winmm.dll" symbol
 /*
  * Function: GlobalAlloc
  *
- * Purpose: Maps the external GlobalAlloc binding used for audio output.
+ * Purpose: Allocates fixed-address unmanaged storage for WinMM sample buffers and WAVEHDR records.
  */
 
 extern function GlobalAlloc(flags as u32, size as u32) from "kernel32.dll" symbol "GlobalAlloc" returns ptr
@@ -127,20 +127,20 @@ extern function GlobalAlloc(flags as u32, size as u32) from "kernel32.dll" symbo
 /*
  * Function: GlobalFree
  *
- * Purpose: Maps the external GlobalFree binding used for audio output.
+ * Purpose: Releases unmanaged WinMM buffer/header storage and returns null on success.
  */
 
 extern function GlobalFree(mem as ptr) from "kernel32.dll" symbol "GlobalFree" returns ptr
 
 /*
 * Function: RtlMoveMemoryToPtr
-* Purpose: Computes movement/collision behavior in the engine module behavior.
+* Purpose: Copies a managed byte buffer into fixed unmanaged WinMM storage.
 */
 extern function RtlMoveMemoryToPtr(dst as ptr, src as bytes, len as u32) from "kernel32.dll" symbol "RtlMoveMemory" returns void
 
 /*
 * Function: RtlMoveMemoryFromPtr
-* Purpose: Computes movement/collision behavior in the engine module behavior.
+* Purpose: Copies an unmanaged WAVEHDR record into managed bytes for flag inspection.
 */
 extern function RtlMoveMemoryFromPtr(dst as bytes, src as ptr, len as u32) from "kernel32.dll" symbol "RtlMoveMemory" returns void
 
@@ -157,7 +157,7 @@ const _IS_GMEM_FIXED = 0x0000
 
 /*
 * Struct: _I_wavebuf_t
-* Purpose: Stores wavebuf data used by the sound backend system.
+* Purpose: Owns one unmanaged PCM data block and WAVEHDR plus its in-flight submission flag.
 */
 struct _I_wavebuf_t
   dataPtr
@@ -218,7 +218,7 @@ _I_soundTimerEnabled = false
 
 /*
 * Function: _IS_IsSeq
-* Purpose: Checks is sequence conditions for the sound backend.
+* Purpose: Accepts either array or list storage used by translated audio tables.
 */
 function inline _IS_IsSeq(v)
   t = typeof(v)
@@ -227,7 +227,7 @@ end function
 
 /*
 * Function: _IS_ToInt
-* Purpose: Checks to int conditions for the sound backend.
+* Purpose: Converts numeric or numeric-string values by truncating toward zero, otherwise returning the supplied fallback.
 */
 function inline _IS_ToInt(v, fallback)
   if typeof(v) == "int" then return v end if
@@ -248,7 +248,7 @@ end function
 
 /*
 * Function: _ISnd_IDiv
-* Purpose: Performs integer division with sound backend rounding and guard rules.
+* Purpose: Divides mixer integers with truncation toward zero and returns zero for a zero divisor.
 */
 function inline _ISnd_IDiv(a, b)
   ai = _IS_ToInt(a, 0)
@@ -261,7 +261,7 @@ end function
 
 /*
 * Function: _IS_Clamp
-* Purpose: Clamps clamp values to the supported sound backend range.
+* Purpose: Converts and clamps a scalar to an inclusive mixer/MIDI range.
 */
 function inline _IS_Clamp(v, lo, hi)
   n = _IS_ToInt(v, lo)
@@ -272,7 +272,7 @@ end function
 
 /*
 * Function: _IS_NormalizeVolume127
-* Purpose: Checks normalize volume127 conditions for the sound backend.
+* Purpose: Converts legacy 0..15 Doom volume values to 0..127 while accepting already normalized MIDI-scale values.
 */
 function inline _IS_NormalizeVolume127(v)
   n = _IS_Clamp(v, 0, 127)
@@ -284,7 +284,7 @@ end function
 
 /*
 * Function: _IS_CalcStereoVolumes
-* Purpose: Checks calc stereo volumes conditions for the sound backend.
+* Purpose: Applies Doom's quadratic separation curve and returns clamped left/right 0..127 channel gains.
 */
 function inline _IS_CalcStereoVolumes(vol127, sep)
   v = _IS_Clamp(vol127, 0, 127)
@@ -301,7 +301,7 @@ end function
 
 /*
 * Function: _IS_WriteU16
-* Purpose: Checks write U16 conditions for the engine.
+* Purpose: Writes one non-negative unsigned 16-bit value in little-endian order to a WinMM structure buffer.
 */
 function inline _IS_WriteU16(buf, off, value)
   if typeof(buf) != "bytes" then return end if
@@ -313,7 +313,7 @@ end function
 
 /*
 * Function: _IS_WriteU32
-* Purpose: Checks write U32 conditions for the engine.
+* Purpose: Writes one non-negative unsigned 32-bit value in little-endian order to a WinMM structure buffer.
 */
 function inline _IS_WriteU32(buf, off, value)
   if typeof(buf) != "bytes" then return end if
@@ -327,7 +327,7 @@ end function
 
 /*
 * Function: _IS_WriteU64
-* Purpose: Checks write U64 conditions for the sound backend.
+* Purpose: Writes a pointer-sized 64-bit value as two little-endian words in a WinMM structure buffer.
 */
 function inline _IS_WriteU64(buf, off, value)
   if typeof(buf) != "bytes" then return end if
@@ -340,7 +340,7 @@ end function
 
 /*
 * Function: _IS_ReadU16
-* Purpose: Checks read U16 conditions for the engine.
+* Purpose: Reads a checked unsigned little-endian 16-bit field, returning zero outside the buffer.
 */
 function inline _IS_ReadU16(buf, off)
   if typeof(buf) != "bytes" then return 0 end if
@@ -351,7 +351,7 @@ end function
 
 /*
 * Function: _IS_ReadU32
-* Purpose: Checks read U32 conditions for the engine.
+* Purpose: Reads a checked unsigned little-endian 32-bit field, returning zero outside the buffer.
 */
 function inline _IS_ReadU32(buf, off)
   if typeof(buf) != "bytes" then return 0 end if
@@ -362,7 +362,7 @@ end function
 
 /*
 * Function: _IS_ReadU64
-* Purpose: Checks read U64 conditions for the sound backend.
+* Purpose: Reconstructs a pointer-sized little-endian value from two checked 32-bit words.
 */
 function inline _IS_ReadU64(buf, off)
   lo = _IS_ReadU32(buf, off)
@@ -372,7 +372,7 @@ end function
 
 /*
 * Function: _IS_EnumIndex
-* Purpose: Checks enum index conditions for the sound backend.
+* Purpose: Converts enum-compatible integer values without accepting fractional numbers.
 */
 function inline _IS_EnumIndex(v, fallback)
   if typeof(v) == "int" then return v end if
@@ -383,7 +383,7 @@ end function
 
 /*
 * Function: _IS_TickMs
-* Purpose: Advances tick Ms logic during the sound backend tick.
+* Purpose: Returns the platform millisecond clock used to schedule MUS playback.
 */
 function inline _IS_TickMs()
   if typeof(_I_GetTickCount) == "function" then
@@ -394,7 +394,7 @@ end function
 
 /*
 * Function: _IS_EnsureSfxCacheSize
-* Purpose: Retrieves and caches data for the internal module support.
+* Purpose: Resizes per-SFX rate/sample/length caches to the metadata table while preserving existing entries.
 */
 function _IS_EnsureSfxCacheSize()
   global _I_sfxRates
@@ -435,7 +435,7 @@ end function
 
 /*
 * Function: _IS_InitStepTable
-* Purpose: Initializes state and dependencies for the internal module support.
+* Purpose: Precomputes 16.16 pitch steps for every signed Doom pitch offset.
 */
 function inline _IS_InitStepTable()
   global _I_stepTable
@@ -478,7 +478,7 @@ end function
 
 /*
 * Function: _IS_ResetChannels
-* Purpose: Clears reset Channels state before the next sound backend update.
+* Purpose: Reinitializes every software mixing channel to an inactive, centered, empty state.
 */
 function _IS_ResetChannels()
   global _I_chActive
@@ -508,7 +508,7 @@ end function
 
 /*
 * Function: _IS_SetChannelVolumes
-* Purpose: Checks set channel volumes conditions for the sound backend.
+* Purpose: Stores Doom's separation-adjusted left/right gains for one checked software mixing channel.
 */
 function inline _IS_SetChannelVolumes(slot, vol, sep)
   if slot < 0 or slot >= _IS_NUM_MIX_CHANNELS then return end if
@@ -526,7 +526,7 @@ end function
 
 /*
 * Function: _IS_LoadSfxData
-* Purpose: Checks load SFX data conditions for the sound backend.
+* Purpose: Decodes and caches a DMX sound lump's sample rate and unsigned 8-bit PCM payload by SFX id.
 */
 function _IS_LoadSfxData(sid)
   _IS_EnsureSfxCacheSize()
@@ -567,7 +567,7 @@ end function
 
 /*
 * Function: _IS_ShouldSingleInstance
-* Purpose: Checks should single instance conditions for the sound backend.
+* Purpose: Identifies chainsaw, platform-move, and pistol effects that replace an existing identical channel.
 */
 function inline _IS_ShouldSingleInstance(sid)
   sawup = _IS_EnumIndex(sfxenum_t.sfx_sawup, -1000)
@@ -582,7 +582,7 @@ end function
 
 /*
 * Function: _IS_FindChannelForNewSound
-* Purpose: Checks find channel for new sound conditions for the sound backend.
+* Purpose: Reuses a free mixing channel, otherwise evicting the oldest after enforcing single-instance effects.
 */
 function _IS_FindChannelForNewSound(sid)
 
@@ -619,7 +619,7 @@ end function
 
 /*
 * Function: _IS_PitchToStep
-* Purpose: Checks pitch to step conditions for the sound backend.
+* Purpose: Combines Doom pitch and source sample rate into a positive 16.16 mixer cursor step.
 */
 function inline _IS_PitchToStep(pitch, rate)
   _IS_InitStepTable()
@@ -637,7 +637,7 @@ end function
 
 /*
 * Function: _IS_FindChannelByHandle
-* Purpose: Checks find channel by handle conditions for the sound backend.
+* Purpose: Resolves a public sound handle to its active software channel index, or minus one when stale.
 */
 function inline _IS_FindChannelByHandle(handle)
   h = _IS_ToInt(handle, -1)
@@ -656,7 +656,7 @@ end function
 
 /*
 * Function: _IS_StopAllSfx
-* Purpose: Stops or tears down runtime behavior in the internal module support.
+* Purpose: Marks every software SFX channel inactive without disturbing music playback.
 */
 function inline _IS_StopAllSfx()
   i = 0
@@ -668,7 +668,7 @@ end function
 
 /*
 * Function: _IS_WaveFormat
-* Purpose: Checks wave format conditions for the sound backend.
+* Purpose: Builds the PCM WAVEFORMATEX for 11,025-Hz stereo signed 16-bit mixer output.
 */
 function inline _IS_WaveFormat()
   wfx = bytes(18, 0)
@@ -684,7 +684,7 @@ end function
 
 /*
 * Function: _IS_WaveInit
-* Purpose: Initializes state and dependencies for the internal module support.
+* Purpose: Opens WinMM waveform output and allocates/prepares the fixed ring of unmanaged PCM buffers.
 */
 function _IS_WaveInit()
   global _I_waveBuffers
@@ -741,7 +741,7 @@ end function
 
 /*
 * Function: _IS_WaveShutdown
-* Purpose: Shuts down wave Shutdown resources owned by the sound backend system.
+* Purpose: Resets waveform output, unprepares every header, frees unmanaged buffers, and closes the device.
 */
 function _IS_WaveShutdown()
   global _I_waveBuffers
@@ -779,7 +779,7 @@ end function
 
 /*
 * Function: _IS_WaveIsDone
-* Purpose: Checks wave is done conditions for the sound backend.
+* Purpose: Reads a submitted WAVEHDR's WHDR_DONE flag, treating never-submitted buffers as immediately reusable.
 */
 function inline _IS_WaveIsDone(wb)
   if wb is void then return false end if
@@ -795,7 +795,7 @@ end function
 
 /*
 * Function: _IS_WaveRefresh
-* Purpose: Checks wave refresh conditions for the sound backend.
+* Purpose: Marks submitted ring buffers reusable after WinMM reports their headers complete.
 */
 function inline _IS_WaveRefresh()
   if not _IS_IsSeq(_I_waveBuffers) then return end if
@@ -813,7 +813,7 @@ end function
 
 /*
 * Function: _IS_WaveFindFreeBuffer
-* Purpose: Finds wave Find Free Buffer information for sound backend processing.
+* Purpose: Returns the first waveform ring slot not currently owned by WinMM, or minus one when saturated.
 */
 function inline _IS_WaveFindFreeBuffer()
   if not _IS_IsSeq(_I_waveBuffers) then return -1 end if
@@ -832,7 +832,7 @@ end function
 
 /*
 * Function: _IS_ClampS16
-* Purpose: Clamps clamp S16 values to the supported sound backend range.
+* Purpose: Saturates a mixed accumulator to the signed 16-bit PCM sample range.
 */
 function inline _IS_ClampS16(v)
   n = _IS_ToInt(v, 0)
@@ -843,7 +843,7 @@ end function
 
 /*
 * Function: _IS_MixToBytes
-* Purpose: Checks mix to bytes conditions for the sound backend.
+* Purpose: Mixes active unsigned 8-bit SFX channels into an interleaved signed 16-bit stereo PCM block.
 */
 function _IS_MixToBytes(outb)
   if typeof(outb) != "bytes" then return end if
@@ -908,7 +908,7 @@ end function
 
 /*
 * Function: _IS_WaveSubmitMixedBuffer
-* Purpose: Checks wave submit mixed buffer conditions for the sound backend.
+* Purpose: Fills one free unmanaged waveform buffer with a mixed block and queues its prepared header to WinMM.
 */
 function _IS_WaveSubmitMixedBuffer()
   if not _I_waveReady then return end if
@@ -934,7 +934,7 @@ end function
 
 /*
 * Function: _IS_MidiInit
-* Purpose: Initializes state and dependencies for the internal module support.
+* Purpose: Opens the Windows MIDI mapper once and stores its pointer-sized output handle.
 */
 function inline _IS_MidiInit()
   global _I_midiHandle
@@ -956,7 +956,7 @@ end function
 
 /*
 * Function: _IS_MidiShutdown
-* Purpose: Shuts down midi Shutdown resources owned by the sound backend system.
+* Purpose: Resets all MIDI voices, closes the mapper handle, and clears local ownership.
 */
 function inline _IS_MidiShutdown()
   global _I_midiHandle
@@ -970,7 +970,7 @@ end function
 
 /*
 * Function: _IS_MidiMsg2
-* Purpose: Checks MIDI msg2 conditions for the sound backend.
+* Purpose: Packs and sends a two-byte MIDI message, reporting only the first failure in developer mode.
 */
 function inline _IS_MidiMsg2(status, data1)
   global _I_midiDbgPrinted
@@ -989,7 +989,7 @@ end function
 
 /*
 * Function: _IS_MidiMsg3
-* Purpose: Checks MIDI msg3 conditions for the sound backend.
+* Purpose: Packs and sends a three-byte MIDI message, reporting only the first failure in developer mode.
 */
 function inline _IS_MidiMsg3(status, data1, data2)
   global _I_midiDbgPrinted
@@ -1009,7 +1009,7 @@ end function
 
 /*
 * Function: _IS_MidiAllNotesOff
-* Purpose: Checks MIDI all notes off conditions for the sound backend.
+* Purpose: Sends both all-notes-off and all-sound-off controllers on every MIDI channel.
 */
 function inline _IS_MidiAllNotesOff()
   if _I_midiHandle == 0 then return end if
@@ -1024,7 +1024,7 @@ end function
 
 /*
 * Function: _IS_MusicResetRuntime
-* Purpose: Clears music Reset Runtime state before the next sound backend update.
+* Purpose: Resets MUS channel velocities/mappings, reserves MIDI percussion channel 10, and clears timing fractions.
 */
 function _IS_MusicResetRuntime()
   global _I_musicChanVel
@@ -1044,7 +1044,7 @@ end function
 
 /*
 * Function: _IS_MusCtrlToMidi
-* Purpose: Checks MUS ctrl to MIDI conditions for the sound backend.
+* Purpose: Maps Doom MUS controller numbers to their General MIDI controller equivalents.
 */
 function inline _IS_MusCtrlToMidi(ctrl)
   c = _IS_ToInt(ctrl, -1)
@@ -1068,7 +1068,7 @@ end function
 
 /*
 * Function: _IS_MapMusChannel
-* Purpose: Checks map MUS channel conditions for the sound backend.
+* Purpose: Assigns a stable non-percussion MIDI channel to a MUS channel, with MUS channel 15 mapped to percussion.
 */
 function _IS_MapMusChannel(mchan)
   mc = _IS_Clamp(mchan, 0, 15)
@@ -1096,7 +1096,7 @@ end function
 
 /*
 * Function: _IS_MusicScale7
-* Purpose: Checks music scale7 conditions for the sound backend.
+* Purpose: Scales a seven-bit MUS velocity/controller value by the current music master volume.
 */
 function inline _IS_MusicScale7(v)
   x = _IS_Clamp(v, 0, 127)
@@ -1105,7 +1105,7 @@ end function
 
 /*
 * Function: _IS_ReadMusVarLen
-* Purpose: Checks read MUS var len conditions for the sound backend.
+* Purpose: Decodes a bounded MUS base-128 variable-length delay and advances the caller's byte cursor.
 */
 function inline _IS_ReadMusVarLen(data, posref)
   if typeof(data) != "bytes" then return 0 end if
@@ -1126,7 +1126,7 @@ end function
 
 /*
 * Function: _IS_MusicFindSlotIndex
-* Purpose: Finds music Find Slot Index information for sound backend processing.
+* Purpose: Resolves a registered song handle to its metadata slot, or minus one when unregistered.
 */
 function inline _IS_MusicFindSlotIndex(handle)
   if not _IS_IsSeq(_I_songData) then return -1 end if
@@ -1146,7 +1146,7 @@ end function
 
 /*
 * Function: _IS_MusicSetSlotPlaying
-* Purpose: Checks music set slot playing conditions for the sound backend.
+* Purpose: Updates the looping and playing flags stored with a registered song handle.
 */
 function inline _IS_MusicSetSlotPlaying(handle, playing, looping)
   idx = _IS_MusicFindSlotIndex(handle)
@@ -1160,7 +1160,7 @@ end function
 
 /*
 * Function: _IS_MusicStopInternal
-* Purpose: Stops or tears down runtime behavior in the internal module support.
+* Purpose: Silences MIDI, clears the active MUS decoder/timing state, and optionally marks its song slot stopped.
 */
 function _IS_MusicStopInternal(updateSlot)
   global _I_musicPlaying
@@ -1201,7 +1201,7 @@ end function
 
 /*
 * Function: _IS_MusicStartInternal
-* Purpose: Starts runtime behavior in the internal module support.
+* Purpose: Validates a MUS score header/range and initializes decoder, timing, loop, and registration state for playback.
 */
 function _IS_MusicStartInternal(handle, data, looping)
   global _I_currentSongHandle
@@ -1250,7 +1250,7 @@ end function
 
 /*
 * Function: _IS_MusicProcessSlice
-* Purpose: Checks music process slice conditions for the sound backend.
+* Purpose: Translates MUS events into MIDI messages until a timed slice boundary or score end is reached.
 */
 function _IS_MusicProcessSlice()
   global _I_musicPos
@@ -1378,7 +1378,7 @@ end function
 
 /*
 * Function: _IS_MusicRestart
-* Purpose: Starts runtime behavior in the internal module support.
+* Purpose: Silences current notes and rewinds a looping MUS score to its first event with fresh channel mappings.
 */
 function inline _IS_MusicRestart()
   global _I_musicPos
@@ -1393,7 +1393,7 @@ end function
 
 /*
 * Function: _IS_MusicRunTicks
-* Purpose: Advances music Run Ticks logic during the sound backend tick.
+* Purpose: Consumes a bounded number of 140-Hz MUS ticks, honoring delays, looping, pause, and malformed-score guards.
 */
 function _IS_MusicRunTicks(ticks)
   global _I_musicDelay
@@ -1449,7 +1449,7 @@ end function
 
 /*
 * Function: _IS_MusicTicker
-* Purpose: Advances music Ticker logic during the sound backend tick.
+* Purpose: Converts elapsed milliseconds to fractional 140-Hz MUS ticks and advances active playback with stall clamping.
 */
 function _IS_MusicTicker()
   global _I_musicLastMs
@@ -1479,7 +1479,7 @@ end function
 
 /*
 * Function: I_InitSound
-* Purpose: Initializes state and dependencies for the platform layer.
+* Purpose: Initializes SFX caches/tables/channels, opens waveform output, and starts the MIDI music backend.
 */
 function I_InitSound()
   global _I_nextHandle
@@ -1496,7 +1496,7 @@ end function
 
 /*
 * Function: I_UpdateSound
-* Purpose: Updates sound state for the sound backend.
+* Purpose: Advances wall-clock-driven MUS/MIDI playback during the engine sound update.
 */
 function I_UpdateSound()
   _IS_MusicTicker()
@@ -1504,7 +1504,7 @@ end function
 
 /*
 * Function: I_SubmitSound
-* Purpose: Provides sound helper behavior for the sound backend.
+* Purpose: Fills every currently free WinMM ring slot with a freshly mixed PCM block.
 */
 function I_SubmitSound()
 
@@ -1517,7 +1517,7 @@ end function
 
 /*
 * Function: I_ShutdownSound
-* Purpose: Shuts down shutdown Sound resources owned by the sound backend system.
+* Purpose: Stops SFX, releases waveform buffers/device state, and shuts down registered MIDI music.
 */
 function I_ShutdownSound()
   _IS_StopAllSfx()
@@ -1527,7 +1527,7 @@ end function
 
 /*
 * Function: I_SetChannels
-* Purpose: Updates channels state for the sound backend.
+* Purpose: Rebuilds the pitch table if needed and resets all software mixing channels.
 */
 function I_SetChannels()
   _IS_InitStepTable()
@@ -1536,7 +1536,7 @@ end function
 
 /*
 * Function: I_GetSfxLumpNum
-* Purpose: Reads SFX lump number data for the sound backend.
+* Purpose: Resolves an SFX metadata name to its `DS*` lump, falling back to the pistol sound when absent.
 */
 function I_GetSfxLumpNum(sfxinfo)
   if sfxinfo is void or sfxinfo.name is void then
@@ -1552,7 +1552,7 @@ end function
 
 /*
 * Function: I_PrecacheSfx
-* Purpose: Retrieves and caches data for the platform layer.
+* Purpose: Decodes one SFX id into the rate/sample cache before first playback.
 */
 function I_PrecacheSfx(id)
   sid = _IS_ToInt(id, -1)
@@ -1562,7 +1562,7 @@ end function
 
 /*
 * Function: I_StartSound
-* Purpose: Starts runtime behavior in the platform layer.
+* Purpose: Loads an SFX, derives its pitch step, assigns a mixing channel, and returns a public playback handle.
 */
 function I_StartSound(id, vol, sep, pitch, priority)
   priority = priority
@@ -1581,7 +1581,7 @@ end function
 
 /*
 * Function: I_StopSound
-* Purpose: Stops or tears down runtime behavior in the platform layer.
+* Purpose: Deactivates the software mixing channel associated with a public sound handle.
 */
 function I_StopSound(handle)
   slot = _IS_FindChannelByHandle(handle)
@@ -1591,7 +1591,7 @@ end function
 
 /*
 * Function: I_SoundIsPlaying
-* Purpose: Provides is playing helper behavior for the sound backend.
+* Purpose: Reports whether a sound handle still owns an active channel with unread PCM samples.
 */
 function I_SoundIsPlaying(handle)
   slot = _IS_FindChannelByHandle(handle)
@@ -1609,7 +1609,7 @@ end function
 
 /*
 * Function: I_UpdateSoundParams
-* Purpose: Updates sound params state for the sound backend.
+* Purpose: Recomputes pitch step and stereo gains for an active sound handle.
 */
 function I_UpdateSoundParams(handle, vol, sep, pitch)
   slot = _IS_FindChannelByHandle(handle)
@@ -1625,7 +1625,7 @@ end function
 
 /*
 * Function: I_InitMusic
-* Purpose: Initializes state and dependencies for the platform layer.
+* Purpose: Clears song registration/playback state, opens MIDI output, and applies the default master volume.
 */
 function I_InitMusic()
   global _I_musicVolume
@@ -1643,7 +1643,7 @@ end function
 
 /*
 * Function: I_ShutdownMusic
-* Purpose: Shuts down shutdown Music resources owned by the sound backend system.
+* Purpose: Stops the active MUS score and resets/closes the Windows MIDI mapper.
 */
 function I_ShutdownMusic()
   _IS_MusicStopInternal(false)
@@ -1652,7 +1652,7 @@ end function
 
 /*
 * Function: I_SetMusicVolume
-* Purpose: Updates music volume state for the sound backend.
+* Purpose: Normalizes Doom music volume and applies it to both WinMM MIDI output channels.
 */
 function I_SetMusicVolume(volume)
   global _I_musicVolume
@@ -1668,7 +1668,7 @@ end function
 
 /*
 * Function: I_SetSfxVolume
-* Purpose: Updates SFX volume state for the sound backend.
+* Purpose: Normalizes and stores the master SFX gain used when starting/mixing effects.
 */
 function I_SetSfxVolume(volume)
   global _I_sfxVolume
@@ -1677,7 +1677,7 @@ end function
 
 /*
 * Function: I_PauseSong
-* Purpose: Runs song lifecycle logic for the sound backend.
+* Purpose: Pauses the active registered song, resets sounding MIDI notes, and updates its slot flags.
 */
 function I_PauseSong(handle)
   global _I_musicPaused
@@ -1692,7 +1692,7 @@ end function
 
 /*
 * Function: I_ResumeSong
-* Purpose: Runs song lifecycle logic for the sound backend.
+* Purpose: Resumes the active paused song from its MUS cursor with a rebased wall-clock timestamp.
 */
 function I_ResumeSong(handle)
   global _I_musicPaused
@@ -1708,7 +1708,7 @@ end function
 
 /*
 * Function: I_RegisterSong
-* Purpose: Adds song entries to the sound backend.
+* Purpose: Stores immutable MUS bytes under a new handle with initial stopped/non-looping metadata.
 */
 function I_RegisterSong(data)
   global _I_nextSongHandle
@@ -1723,7 +1723,7 @@ end function
 
 /*
 * Function: I_PlaySong
-* Purpose: Runs song lifecycle logic for the sound backend.
+* Purpose: Resolves a registered song, validates/starts its MUS stream, and records requested looping state.
 */
 function I_PlaySong(handle, looping)
   h = _IS_ToInt(handle, -1)
@@ -1743,7 +1743,7 @@ end function
 
 /*
 * Function: I_StopSong
-* Purpose: Stops or tears down runtime behavior in the platform layer.
+* Purpose: Stops the active song decoder or clears only the metadata flags of a different registered handle.
 */
 function I_StopSong(handle)
   h = _IS_ToInt(handle, -1)
@@ -1757,7 +1757,7 @@ end function
 
 /*
 * Function: I_UnRegisterSong
-* Purpose: Provides register song helper behavior for the sound backend.
+* Purpose: Stops a matching active song and removes its handle/data record from the registration table.
 */
 function I_UnRegisterSong(handle)
   global _I_songData
@@ -1784,7 +1784,7 @@ end function
 
 /*
 * Function: I_QrySongPlaying
-* Purpose: Provides song playing helper behavior for the sound backend.
+* Purpose: Reports whether the requested handle is the active, unpaused MUS song.
 */
 function I_QrySongPlaying(handle)
   h = _IS_ToInt(handle, -1)
@@ -1794,7 +1794,7 @@ end function
 
 /*
 * Function: myioctl
-* Purpose: Provides myioctl helper behavior for the sound backend.
+* Purpose: Retains the legacy Unix audio-control entry point as a deterministic no-op on WinMM.
 */
 function myioctl(fd, req, arg)
   fd = fd
@@ -1805,7 +1805,7 @@ end function
 
 /*
 * Function: getsfx
-* Purpose: Provides getsfx helper behavior for the sound backend.
+* Purpose: Loads a named `DS*` sound lump and writes its byte length through the legacy output reference.
 */
 function getsfx(name, lenOut)
   if typeof(name) != "string" then
@@ -1826,7 +1826,7 @@ end function
 
 /*
 * Function: addsfx
-* Purpose: Provides addsfx helper behavior for the sound backend.
+* Purpose: Assigns cached PCM to a mixing channel, initializes cursor/gains, and returns a unique playback handle.
 */
 function addsfx(sfxid, volume, step, seperation)
   global _I_nextHandle
@@ -1862,7 +1862,7 @@ end function
 
 /*
 * Function: I_HandleSoundTimer
-* Purpose: Processes sound timer events for the sound backend.
+* Purpose: Preserves the legacy timer callback hook; WinMM/MUS advancement is driven by the main update loop.
 */
 function I_HandleSoundTimer()
 
@@ -1870,7 +1870,7 @@ end function
 
 /*
 * Function: I_SoundSetTimer
-* Purpose: Updates timer state for the sound backend.
+* Purpose: Marks the legacy sound timer enabled while ignoring its obsolete tick-period argument.
 */
 function I_SoundSetTimer(ticks)
   ticks = ticks
@@ -1880,7 +1880,7 @@ end function
 
 /*
 * Function: I_SoundDelTimer
-* Purpose: Provides del timer helper behavior for the sound backend.
+* Purpose: Clears the legacy sound-timer enabled flag during backend teardown.
 */
 function I_SoundDelTimer()
   global _I_soundTimerEnabled

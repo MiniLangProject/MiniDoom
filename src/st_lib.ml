@@ -14,7 +14,7 @@
   limitations under the License.
 
   Script: st_lib.ml
-  Purpose: Implements status bar and HUD presentation logic.
+  Purpose: Implements reusable number, percent, multi-icon, and binary-icon widgets with classic-background restoration.
 */
 import r_defs
 import doomdef
@@ -31,7 +31,7 @@ const STlib_FG = 0
 
 /*
 * Struct: st_number_t
-* Purpose: Stores number data used by the status bar system.
+* Purpose: Describes a fixed-width numeric widget, including screen position, digit patches, referenced value/visibility, and last drawn value.
 */
 struct st_number_t
   x
@@ -46,7 +46,7 @@ end struct
 
 /*
 * Struct: st_percent_t
-* Purpose: Stores percent data used by the status bar system.
+* Purpose: Combines a three-digit numeric widget with the percent-sign patch drawn beside it.
 */
 struct st_percent_t
   n
@@ -55,7 +55,7 @@ end struct
 
 /*
 * Struct: st_multicon_t
-* Purpose: Stores multicon data used by the status bar system.
+* Purpose: Tracks an indexed icon widget, its patch set, referenced selection/visibility, and previously drawn index for background restoration.
 */
 struct st_multicon_t
   x
@@ -69,7 +69,7 @@ end struct
 
 /*
 * Struct: st_binicon_t
-* Purpose: Stores binicon data used by the status bar system.
+* Purpose: Tracks a boolean icon widget and its prior value so toggles can draw or erase only the affected patch bounds.
 */
 struct st_binicon_t
   x
@@ -115,7 +115,7 @@ end function
 
 /*
 * Function: STlib_RegisterPatchName
-* Purpose: Provides register patch name helper behavior for the status bar.
+* Purpose: Associates patch bytes with their lump name for optional HD overlays, replacing an existing mapping for the same object.
 */
 function STlib_RegisterPatchName(patch, name)
   global stlib_patch_name_data
@@ -134,7 +134,7 @@ end function
 
 /*
 * Function: _STL_NameForPatch
-* Purpose: Provides name for patch helper behavior for the status bar.
+* Purpose: Resolves a registered patch object back to the lump name required by the HD overlay path.
 */
 function _STL_NameForPatch(patch)
   if typeof(patch) != "bytes" then return "" end if
@@ -148,7 +148,7 @@ end function
 
 /*
 * Function: _STL_DrawPatchHD
-* Purpose: Draws patch HD output for the status bar widget library.
+* Purpose: Draws the classic patch and, on the foreground screen, overlays its registered high-resolution counterpart at offset-corrected coordinates.
 */
 function _STL_DrawPatchHD(x, y, scrn, patch)
   V_DrawPatch(x, y, scrn, patch)
@@ -160,7 +160,7 @@ end function
 
 /*
 * Function: _STL_GetRefValue
-* Purpose: Provides get ref value helper behavior for the status bar.
+* Purpose: Dereferences the library's single-element reference convention and returns a fallback for empty or void values.
 */
 function inline _STL_GetRefValue(refv, fallback)
   if typeof(refv) == "array" then
@@ -173,7 +173,7 @@ end function
 
 /*
 * Function: _STL_SetRefValue
-* Purpose: Updates ref value state for the status bar widget library.
+* Purpose: Writes through the widget library's mutable single-element reference convention when storage is present.
 */
 function inline _STL_SetRefValue(refv, v)
   if typeof(refv) == "array" and len(refv) > 0 then
@@ -183,7 +183,7 @@ end function
 
 /*
 * Function: _STL_AsBool
-* Purpose: Provides as boolean helper behavior for the status bar.
+* Purpose: Converts supported scalar values to the widget visibility truth convention.
 */
 function inline _STL_AsBool(v)
   if typeof(v) == "bool" then return v end if
@@ -194,7 +194,7 @@ end function
 
 /*
 * Function: _STL_RefBool
-* Purpose: Provides ref boolean helper behavior for the status bar.
+* Purpose: Dereferences a widget value and normalizes it to a visibility boolean.
 */
 function inline _STL_RefBool(refv)
   return _STL_AsBool(_STL_GetRefValue(refv, false))
@@ -202,7 +202,7 @@ end function
 
 /*
 * Function: _STL_ToInt
-* Purpose: Converts int values for the status bar widget library.
+* Purpose: Converts numeric/string widget values to integers by truncating toward zero, retaining the fallback on failure.
 */
 function _STL_ToInt(v, fallback)
   if typeof(v) == "int" then return v end if
@@ -221,7 +221,7 @@ end function
 
 /*
 * Function: _STL_IDiv
-* Purpose: Performs integer division with status bar rounding and guard rules.
+* Purpose: Divides widget layout integers with truncation toward zero and returns zero for a zero divisor.
 */
 function inline _STL_IDiv(a, b)
   a = _STL_ToInt(a, 0)
@@ -234,7 +234,7 @@ end function
 
 /*
 * Function: _STL_RefInt
-* Purpose: Provides ref int helper behavior for the status bar.
+* Purpose: Dereferences and truncates a widget value to an integer, retaining the supplied fallback on invalid input.
 */
 function inline _STL_RefInt(refv, fallback)
   v = _STL_GetRefValue(refv, fallback)
@@ -243,7 +243,7 @@ end function
 
 /*
 * Function: _STL_PatchWidth
-* Purpose: Provides patch width helper behavior for the status bar.
+* Purpose: Reads the signed little-endian width from a validated Doom patch header.
 */
 function inline _STL_PatchWidth(p)
   if typeof(p) != "bytes" then return 0 end if
@@ -252,7 +252,7 @@ end function
 
 /*
 * Function: _STL_PatchHeight
-* Purpose: Provides patch height helper behavior for the status bar.
+* Purpose: Reads the signed little-endian height from a validated Doom patch header.
 */
 function inline _STL_PatchHeight(p)
   if typeof(p) != "bytes" then return 0 end if
@@ -261,7 +261,7 @@ end function
 
 /*
 * Function: _STL_PatchLeft
-* Purpose: Provides patch left helper behavior for the status bar.
+* Purpose: Reads the patch left offset used to restore its exact background rectangle.
 */
 function inline _STL_PatchLeft(p)
   if typeof(p) != "bytes" then return 0 end if
@@ -270,7 +270,7 @@ end function
 
 /*
 * Function: _STL_PatchTop
-* Purpose: Provides patch top helper behavior for the status bar.
+* Purpose: Reads the patch top offset used to restore its exact background rectangle.
 */
 function inline _STL_PatchTop(p)
   if typeof(p) != "bytes" then return 0 end if
@@ -279,7 +279,7 @@ end function
 
 /*
 * Function: _STL_GetPatch
-* Purpose: Provides get patch helper behavior for the status bar.
+* Purpose: Safely resolves one patch from an array/list after integer normalization and bounds checks.
 */
 function inline _STL_GetPatch(patches, idx)
   tp = typeof(patches)
@@ -291,7 +291,7 @@ end function
 
 /*
 * Function: STlib_init
-* Purpose: Initializes state and dependencies for the engine module behavior.
+* Purpose: Caches and registers the optional minus-sign patch used by negative numeric widgets.
 */
 function STlib_init()
   global sttminus
@@ -305,7 +305,7 @@ end function
 
 /*
 * Function: STlib_initNum
-* Purpose: Initializes state and dependencies for the engine module behavior.
+* Purpose: Binds a numeric widget to coordinates, digit patches, referenced value/visibility, and fixed digit width.
 */
 function STlib_initNum(n, x, y, pl, num, on, width)
   n.x = x
@@ -319,7 +319,7 @@ end function
 
 /*
 * Function: STlib_drawNum
-* Purpose: Draws sTlib draw Num output for the status bar renderer.
+* Purpose: Restores the old digit area and draws a changed fixed-width signed value right-to-left, honoring Doom's 1994 sentinel.
 */
 function STlib_drawNum(n, refresh)
   refresh = refresh
@@ -382,7 +382,7 @@ end function
 
 /*
 * Function: STlib_initPercent
-* Purpose: Initializes state and dependencies for the engine module behavior.
+* Purpose: Initializes a three-digit numeric widget and attaches its percent-sign patch.
 */
 function STlib_initPercent(p, x, y, pl, num, on, percentPatch)
   p.n = st_number_t(0, 0, 0, 0, 0, 0, 0, 0)
@@ -392,7 +392,7 @@ end function
 
 /*
 * Function: STlib_drawPercent
-* Purpose: Draws sTlib draw Percent output for the status bar renderer.
+* Purpose: Draws the percent sign on refresh when visible, then updates the associated numeric widget.
 */
 function STlib_drawPercent(p, refresh)
   if p == 0 then return end if
@@ -404,7 +404,7 @@ end function
 
 /*
 * Function: STlib_initMultIcon
-* Purpose: Initializes state and dependencies for the engine module behavior.
+* Purpose: Binds an indexed icon widget to its patch array, referenced index/visibility, coordinates, and invalid initial cache.
 */
 function STlib_initMultIcon(i, x, y, il, inum, on)
   i.x = x
@@ -417,7 +417,7 @@ end function
 
 /*
 * Function: STlib_drawMultIcon
-* Purpose: Draws sTlib draw Mult Icon output for the status bar renderer.
+* Purpose: Erases a changed prior icon from the status background and draws the newly selected patch when visible.
 */
 function STlib_drawMultIcon(i, refresh)
   if i == 0 then return end if
@@ -451,7 +451,7 @@ end function
 
 /*
 * Function: STlib_initBinIcon
-* Purpose: Initializes state and dependencies for the engine module behavior.
+* Purpose: Binds a boolean icon widget to its patch, coordinates, referenced value, and visibility control.
 */
 function STlib_initBinIcon(b, x, y, patch, val, on)
   b.x = x
@@ -464,7 +464,7 @@ end function
 
 /*
 * Function: STlib_drawBinIcon
-* Purpose: Draws sTlib draw Bin Icon output for the status bar renderer.
+* Purpose: Draws or erases a boolean icon only when its value changes or a full refresh is requested.
 */
 function STlib_drawBinIcon(b, refresh)
   if b == 0 then return end if
@@ -494,7 +494,7 @@ end function
 
 /*
 * Function: STlib_updateNum
-* Purpose: Advances sTlib update Num logic during the status bar tick.
+* Purpose: Redraws an enabled numeric widget when its value changed or a full refresh was requested.
 */
 function STlib_updateNum(n, refresh)
   if _STL_RefBool(n.on) then STlib_drawNum(n, refresh) end if
@@ -502,7 +502,7 @@ end function
 
 /*
 * Function: STlib_updatePercent
-* Purpose: Advances sTlib update Percent logic during the status bar tick.
+* Purpose: Updates a percentage widget, including its percent patch and visibility-controlled numeric value.
 */
 function STlib_updatePercent(p, refresh)
   STlib_drawPercent(p, refresh)
@@ -510,7 +510,7 @@ end function
 
 /*
 * Function: STlib_updateMultIcon
-* Purpose: Advances sTlib update Mult Icon logic during the status bar tick.
+* Purpose: Replaces a multi-icon widget when its referenced icon index changes or the status bar refreshes.
 */
 function STlib_updateMultIcon(i, refresh)
   STlib_drawMultIcon(i, refresh)
@@ -518,7 +518,7 @@ end function
 
 /*
 * Function: STlib_updateBinIcon
-* Purpose: Advances sTlib update Bin Icon logic during the status bar tick.
+* Purpose: Shows or erases a binary icon when its referenced boolean changes or the status bar refreshes.
 */
 function STlib_updateBinIcon(b, refresh)
   STlib_drawBinIcon(b, refresh)

@@ -23,9 +23,11 @@ import std.net as net
 import std.time as time
 import std.string as str
 import std.math
+import std.fs as fs
 
 _mp_platform_last_error = ""
 _mp_platform_last_status = ""
+_mp_platform_event_log_path = ""
 
 const _MPPLAT_ROLE_NONE = 0
 const _MPPLAT_ROLE_HOST = 1
@@ -38,21 +40,22 @@ const _MPPLAT_DEN = "DEN"
 const _MPPLAT_PING = "PING"
 const _MPPLAT_PONG = "PONG"
 const _MPPLAT_LEAVE = "LEAVE"
-const _MPPLAT_CHAT = "CHAT"
 const _MPPLAT_GAME_MAGIC0 = 77
 const _MPPLAT_GAME_MAGIC1 = 68
 const _MPPLAT_GAME_MAGIC2 = 71
 const _MPPLAT_GAME_MAGIC3 = 49
 
 const _MPPLAT_RECV_MAX = 1400
+const _MPPLAT_GAME_PAYLOAD_MAX = 1391
+const _MPPLAT_CONTROL_MAX = 512
 const _MPPLAT_TIMEOUT_MS = 2500
 const _MPPLAT_WOULDBLOCK = 10035
 const _MPPLAT_TIMEDOUT = 10060
 const _MPPLAT_HOST_PEER_TIMEOUT_MS = 30000
+const _MPPLAT_CLIENT_HOST_TIMEOUT_MS = 10000
 const _MPPLAT_CLIENT_PING_INTERVAL_MS = 1000
 const _MPPLAT_HOST_PING_INTERVAL_MS = 1000
 const _MPPLAT_FIONBIO = 0x8004667E
-const _MPPLAT_FIONREAD = 0x4004667F
 const _MPPLAT_MAX_PLAYERS = 4
 const _MPPLAT_SO_RCVTIMEO = 0x1006
 const _MPPLAT_GAME_QUEUE_CHUNK = 256
@@ -60,10 +63,6 @@ const _MPPLAT_GAME_QUEUE_MAX = 2048
 const _MPPLAT_PUMP_MAX_PACKETS = 192
 const _MPPLAT_PUMP_MIN_PACKETS = 48
 const _MPPLAT_PUMP_BUDGET_MS = 4
-const _MPPLAT_AF_INET = 2
-const _MPPLAT_SOCK_DGRAM = 2
-const _MPPLAT_IPPROTO_UDP = 17
-const _MPPLAT_SOCKET_ERROR = -1
 
 /*
 * Struct: _mp_peer_t
@@ -87,6 +86,51 @@ struct _mp_peer_t
   gameOutCount
 end struct
 
+/*
+* Function: MP_PlatformSetEventLogPath
+* Purpose: Selects an optional per-process diagnostics file used by CLI loopback tests and support logs.
+*/
+function MP_PlatformSetEventLogPath(path)
+  global _mp_platform_event_log_path
+  if typeof(path) != "string" then
+    _mp_platform_event_log_path = ""
+  else
+    _mp_platform_event_log_path = path
+  end if
+end function
+
+/*
+* Function: _MPPlatform_LogEvent
+* Purpose: Emits one machine-readable transport event to stdout and the configured process-local log.
+*/
+function _MPPlatform_LogEvent(line)
+  global _mp_platform_event_log_path
+  if typeof(line) != "string" or line == "" then return end if
+  print line
+  if _mp_platform_event_log_path != "" and typeof(fs.appendAllText) == "function" then
+    appendTry = try(fs.appendAllText(_mp_platform_event_log_path, line + "\n"))
+    attempts = 1
+    // A test/support reader can briefly contend with Windows append-open.
+    // Retry that transient sharing failure before declaring the path dead.
+    while typeof(appendTry) == "error" and attempts < 4
+      time.sleep(2)
+      appendTry = try(fs.appendAllText(_mp_platform_event_log_path, line + "\n"))
+      attempts = attempts + 1
+    end while
+    if typeof(appendTry) == "error" then
+      _mp_platform_event_log_path = ""
+      // CLI setup owns a second reference to the same log path. Its writer is
+      // a final synchronous fallback so a terminal disconnect event is not
+      // lost merely because this append-open collided with a reader.
+      if typeof(_MMENU_MPStatus) == "function" then
+        _MMENU_MPStatus(line)
+      else
+        print "MPTEST LOG_DISABLED status=write_error"
+      end if
+    end if
+  end if
+end function
+
 _mp_role = _MPPLAT_ROLE_NONE
 _mp_sock = void
 
@@ -108,6 +152,7 @@ _mp_client_last_ping_ms = 0
 _mp_client_ping_seq = 0
 _mp_client_last_ping_tx_ms = 0
 _mp_client_last_pong_ms = 0
+_mp_client_last_seen_ms = 0
 _mp_client_rtt_ms = -1
 _mp_client_ping_sent = 0
 _mp_client_pong_recv = 0
@@ -123,8 +168,6 @@ _mp_game_queue_payloads = []
 _mp_game_queue_head = 0
 _mp_game_queue_tail = 0
 _mp_game_queue_dropped = 0
-_mp_chat_queue = []
-_mp_chat_queue_head = 0
 
 /*
 * Function: ioctlsocket
@@ -134,32 +177,10 @@ extern function ioctlsocket(s as ptr, cmd as i32, argp as bytes) from "ws2_32.dl
 /*
  * Function: setsockopt
  *
- * Purpose: Maps the external setsockopt binding used for networking.
+ * Purpose: Configures the receive timeout on the owned WinSock UDP handle.
  */
 
 extern function setsockopt(s as ptr, level as int, optname as int, optval as bytes, optlen as int) from "ws2_32.dll" symbol "setsockopt" returns int
-/*
- * Function: socket
- *
- * Purpose: Maps the external socket binding used for networking.
- */
-
-extern function socket(af as int, type as int, protocol as int) from "ws2_32.dll" returns ptr
-/*
- * Function: bind
- *
- * Purpose: Maps the external bind binding used for networking.
- */
-
-extern function bind(s as ptr, addr as bytes, addrlen as int) from "ws2_32.dll" returns int
-/*
- * Function: closesocket
- *
- * Purpose: Maps the external closesocket binding used for networking.
- */
-
-extern function closesocket(s as ptr) from "ws2_32.dll" returns int
-
 /*
 * Function: _MPPlatform_ToInt
 * Purpose: Converts mixed numeric values to stable integer values.
@@ -285,104 +306,6 @@ function inline _MPPlatform_PushConsoleMessage(msg)
   if typeof(p) != "struct" then return end if
   p.message = msg
   players[cp] = p
-end function
-
-/*
-* Function: _MPPlatform_QueueChatLine
-* Purpose: Appends one formatted chat line for local HUD consumption.
-*/
-function _MPPlatform_QueueChatLine(line)
-  global _mp_chat_queue
-  global _mp_chat_queue_head
-  if typeof(line) != "string" or line == "" then return end if
-  if typeof(_mp_chat_queue) != "array" then _mp_chat_queue = [] end if
-  if typeof(_mp_chat_queue_head) != "int" then _mp_chat_queue_head = 0 end if
-
-  // Compact occasionally to keep queue growth bounded.
-  if _mp_chat_queue_head > 32 then
-    keep = array(len(_mp_chat_queue))
-    keepCount = 0
-    i = _mp_chat_queue_head
-    while i < len(_mp_chat_queue)
-      keep[keepCount] = _mp_chat_queue[i]
-      keepCount = keepCount + 1
-      i = i + 1
-    end while
-    if keepCount < len(keep) then
-      trimmed = array(keepCount)
-      i = 0
-      while i < keepCount
-        trimmed[i] = keep[i]
-        i = i + 1
-      end while
-      keep = trimmed
-    end if
-    _mp_chat_queue = keep
-    _mp_chat_queue_head = 0
-  end if
-
-  _mp_chat_queue = _mp_chat_queue + [line]
-end function
-
-/*
-* Function: MP_PlatformPollChatLine
-* Purpose: Pops one pending formatted chat line, or empty string when none.
-*/
-function MP_PlatformPollChatLine()
-  global _mp_chat_queue_head
-  if typeof(_mp_chat_queue) != "array" then return "" end if
-  if typeof(_mp_chat_queue_head) != "int" then _mp_chat_queue_head = 0 end if
-  if _mp_chat_queue_head < 0 then _mp_chat_queue_head = 0 end if
-  if _mp_chat_queue_head >= len(_mp_chat_queue) then return "" end if
-  line = _mp_chat_queue[_mp_chat_queue_head]
-  _mp_chat_queue_head = _mp_chat_queue_head + 1
-  if typeof(line) != "string" then return "" end if
-  return line
-end function
-
-/*
-* Function: _MPPlatform_HostBroadcastChat
-* Purpose: Broadcasts one authoritative chat line to every connected peer.
-*/
-function _MPPlatform_HostBroadcastChat(senderName, msg)
-  if _mp_role != _MPPLAT_ROLE_HOST then return end if
-  snd = _MPPlatform_SanitizeField(senderName)
-  txt = _MPPlatform_SanitizeField(msg)
-  if txt == "" then return end if
-  if snd == "" then snd = "Player" end if
-  i = 0
-  while i < len(_mp_host_peers)
-    p = _mp_host_peers[i]
-    if typeof(p) == "struct" then
-      _MPPlatform_SendFields(_mp_sock, p.ip, _MPPlatform_ToInt(p.port, 0), [_MPPLAT_PROTO, _MPPLAT_CHAT, snd, txt])
-    end if
-    i = i + 1
-  end while
-end function
-
-/*
-* Function: MP_PlatformSendChatMessage
-* Purpose: Sends one complete chat message to host (client role) or broadcasts (host role).
-*/
-function MP_PlatformSendChatMessage(msg)
-  txt = _MPPlatform_SanitizeField(msg)
-  if txt == "" then return false end if
-  if (typeof(_mp_sock) != "int" and typeof(_mp_sock) != "ptr") then return false end if
-
-  if _mp_role == _MPPLAT_ROLE_CLIENT then
-    sent = _MPPlatform_SendFields(_mp_sock, _mp_client_host, _mp_client_port, [_MPPLAT_PROTO, _MPPLAT_CHAT, txt])
-    return typeof(sent) != "error"
-  end if
-
-  if _mp_role == _MPPLAT_ROLE_HOST then
-    snd = MP_SanitizeName(MP_GetPlayerName())
-    if snd == "" then snd = "Host" end if
-    _MPPlatform_QueueChatLine(snd + ": " + txt)
-    _MPPlatform_HostBroadcastChat(snd, txt)
-    return true
-  end if
-
-  return false
 end function
 
 /*
@@ -760,38 +683,6 @@ function inline _MPPlatform_SetNonBlocking(sock, enabled)
 end function
 
 /*
-* Function: _MPPlatform_SockAddrAny
-* Purpose: Builds an IPv4 INADDR_ANY sockaddr_in buffer for local UDP bind checks.
-*/
-function inline _MPPlatform_SockAddrAny(port)
-  p = _MPPlatform_ToInt(port, 0)
-  if p < 0 then p = 0 end if
-  if p > 65535 then p = 65535 end if
-  a = bytes(16, 0)
-  a[0] = _MPPLAT_AF_INET & 255
-  a[1] = (_MPPLAT_AF_INET >> 8) & 255
-  a[2] = (p >> 8) & 255
-  a[3] = p & 255
-  return a
-end function
-
-/*
-* Function: _MPPlatform_CanBindUdpPort
-* Purpose: Performs a non-throwing raw WinSock bind probe so host start can fail gracefully.
-*/
-function inline _MPPlatform_CanBindUdpPort(port)
-  if typeof(net.init) == "function" then
-    if not net.init() then return false end if
-  end if
-  s = socket(_MPPLAT_AF_INET, _MPPLAT_SOCK_DGRAM, _MPPLAT_IPPROTO_UDP)
-  if typeof(s) != "int" and typeof(s) != "ptr" then return false end if
-  addr = _MPPlatform_SockAddrAny(port)
-  rc = bind(s, addr, len(addr))
-  closesocket(s)
-  return rc == 0
-end function
-
-/*
 * Function: _MPPlatform_SetRecvTimeout
 * Purpose: Configures socket receive timeout in milliseconds.
 */
@@ -809,17 +700,6 @@ function inline _MPPlatform_SetRecvTimeout(sock, timeoutMs)
 end function
 
 /*
-* Function: _MPPlatform_PendingBytes
-* Purpose: Returns pending receive bytes count for the socket, or -1 on failure.
-*/
-function inline _MPPlatform_PendingBytes(sock)
-  arg = bytes(4, 0)
-  rc = ioctlsocket(sock, _MPPLAT_FIONREAD, arg)
-  if rc != 0 then return -1 end if
-  return arg[0] | (arg[1] << 8) | (arg[2] << 16) | (arg[3] << 24)
-end function
-
-/*
 * Function: _MPPlatform_IsWouldBlockError
 * Purpose: Checks whether a net error maps to WSAEWOULDBLOCK.
 */
@@ -834,8 +714,58 @@ end function
 * Purpose: Encodes and sends a textual UDP packet with field separators.
 */
 function inline _MPPlatform_SendFields(sock, ip, port, fields)
-  msg = str.join(fields, "|")
-  return net.udpSendTo(sock, ip, port, bytes(msg))
+  if typeof(fields) != "array" and typeof(fields) != "list" then return error(1, "control fields must be a sequence") end if
+  textFields = array(len(fields), "")
+  i = 0
+  while i < len(fields)
+    field = fields[i]
+    if typeof(field) == "string" then
+      textFields[i] = field
+    else if typeof(field) == "int" or typeof(field) == "float" or typeof(field) == "bool" then
+      textFields[i] = "" + field
+    else
+      return error(1, "control field has unsupported type")
+    end if
+    i = i + 1
+  end while
+  msg = str.join(textFields, "|")
+  if typeof(msg) != "string" then return error(1, "control packet encoding failed") end if
+  wire = bytes(msg)
+  if typeof(wire) != "bytes" then return error(1, "control packet byte encoding failed") end if
+  if len(wire) > _MPPLAT_CONTROL_MAX then return error(1, "control packet exceeds wire limit") end if
+  return net.udpSendTo(sock, ip, port, wire)
+end function
+
+/*
+* Function: _MPPlatform_NormalizeIPv4
+* Purpose: Validates dotted-decimal IPv4 input and returns the canonical form used by udpRecvFrom endpoints.
+*/
+function _MPPlatform_NormalizeIPv4(value)
+  if typeof(value) != "string" then return "" end if
+  input = str.trim(value)
+  parts = str.split(input, ".")
+  if typeof(parts) != "array" or len(parts) != 4 then return "" end if
+  output = ""
+  i = 0
+  while i < 4
+    segment = parts[i]
+    if typeof(segment) != "string" then return "" end if
+    raw = bytes(segment)
+    if len(raw) < 1 or len(raw) > 3 then return "" end if
+    valuePart = 0
+    j = 0
+    while j < len(raw)
+      digit = raw[j]
+      if digit < 48 or digit > 57 then return "" end if
+      valuePart = valuePart * 10 + (digit - 48)
+      if valuePart > 255 then return "" end if
+      j = j + 1
+    end while
+    if i > 0 then output = output + "." end if
+    output = output + valuePart
+    i = i + 1
+  end while
+  return output
 end function
 
 /*
@@ -967,6 +897,24 @@ function _MPPlatform_QueueGamePacket(node, payload)
   if _mp_game_queue_head < 0 then _mp_game_queue_head = 0 end if
   if _mp_game_queue_tail < _mp_game_queue_head then _mp_game_queue_tail = _mp_game_queue_head end if
 
+  // Drop one chunk of stale backlog at a time.  This admits fresh snapshots
+  // while amortizing compaction over 256 future enqueues instead of copying
+  // roughly 2K entries for every datagram once the queue is full.
+  if _MPPlatform_QueueDepth() >= _MPPLAT_GAME_QUEUE_MAX then
+    dropCount = _MPPLAT_GAME_QUEUE_CHUNK
+    depth = _MPPlatform_QueueDepth()
+    if dropCount > depth then dropCount = depth end if
+    i = 0
+    while i < dropCount
+      off = _mp_game_queue_head + i
+      if off >= 0 and off < len(_mp_game_queue_nodes) then _mp_game_queue_nodes[off] = 0 end if
+      if off >= 0 and off < len(_mp_game_queue_payloads) then _mp_game_queue_payloads[off] = 0 end if
+      i = i + 1
+    end while
+    _mp_game_queue_head = _mp_game_queue_head + dropCount
+    _mp_game_queue_dropped = _MPPlatform_ToInt(_mp_game_queue_dropped, 0) + dropCount
+  end if
+
   cap = len(_mp_game_queue_nodes)
   if _mp_game_queue_head > 0 and _mp_game_queue_tail >= cap then
     live = _mp_game_queue_tail - _mp_game_queue_head
@@ -993,20 +941,6 @@ function _MPPlatform_QueueGamePacket(node, payload)
     cap = len(_mp_game_queue_nodes)
   end if
   if _mp_game_queue_tail < 0 or _mp_game_queue_tail >= cap then return end if
-
-  // Hard queue cap to prevent unbounded growth under burst load.
-  while _MPPlatform_QueueDepth() >= _MPPLAT_GAME_QUEUE_MAX
-    if _mp_game_queue_head < 0 then _mp_game_queue_head = 0 end if
-    if _mp_game_queue_head >= _mp_game_queue_tail then
-      _mp_game_queue_head = 0
-      _mp_game_queue_tail = 0
-      break
-    end if
-    if _mp_game_queue_head < len(_mp_game_queue_nodes) then _mp_game_queue_nodes[_mp_game_queue_head] = 0 end if
-    if _mp_game_queue_head < len(_mp_game_queue_payloads) then _mp_game_queue_payloads[_mp_game_queue_head] = 0 end if
-    _mp_game_queue_head = _mp_game_queue_head + 1
-    _mp_game_queue_dropped = _MPPlatform_ToInt(_mp_game_queue_dropped, 0) + 1
-  end while
 
   if _mp_game_queue_head >= _mp_game_queue_tail then
     _mp_game_queue_head = 0
@@ -1141,24 +1075,18 @@ end function
 function _MPPlatform_UnwrapGamePayload(packet)
   if not _MPPlatform_IsGamePacket(packet) then return end if
   declared = (packet[5] & 255) | ((packet[6] & 255) << 8)
-  if declared < 0 then return end if
-  if 7 + declared > len(packet) then return end if
-  // New frame format appends checksum16 (little-endian) after payload.
-  hasChecksum = (7 + declared + 2) <= len(packet)
-  expectedCsum = 0
-  if hasChecksum then
-    expectedCsum = (packet[7 + declared] & 255) | ((packet[7 + declared + 1] & 255) << 8)
-  end if
+  if declared < 0 or declared > _MPPLAT_GAME_PAYLOAD_MAX then return end if
+  // MDG1 always carries exactly one checksum after the declared payload.
+  if len(packet) != 9 + declared then return end if
+  expectedCsum = (packet[7 + declared] & 255) | ((packet[7 + declared + 1] & 255) << 8)
   bufCopy = bytes(declared, 0)
   i = 0
   while i < declared
     bufCopy[i] = packet[7 + i] & 255
     i = i + 1
   end while
-  if hasChecksum then
-    actualCsum = _MPPlatform_GameChecksum16(bufCopy, declared)
-    if actualCsum != expectedCsum then return end if
-  end if
+  actualCsum = _MPPlatform_GameChecksum16(bufCopy, declared)
+  if actualCsum != expectedCsum then return end if
   return bufCopy
 end function
 
@@ -1167,9 +1095,9 @@ end function
 * Purpose: Encodes gameplay payload in MiniDoom gameplay UDP frame format.
 */
 function _MPPlatform_WrapGamePayload(localSlot, payload)
-  if typeof(payload) != "bytes" then return bytes(0) end if
+  if typeof(payload) != "bytes" then return end if
   n = len(payload)
-  if n > 65535 then n = 65535 end if
+  if n < 0 or n > _MPPLAT_GAME_PAYLOAD_MAX then return end if
   packet = bytes(9 + n, 0)
   packet[0] = _MPPLAT_GAME_MAGIC0
   packet[1] = _MPPLAT_GAME_MAGIC1
@@ -1214,7 +1142,7 @@ end function
 
 /*
 * Function: _MPPlatform_UpsertHostPeer
-* Purpose: Creates or refreshes host peer entry and returns assigned peer id.
+* Purpose: Creates or refreshes a host peer entry and returns its assigned player slot (1..3).
 */
 function _MPPlatform_UpsertHostPeer(ip, port, name)
   global _mp_host_peers
@@ -1238,9 +1166,10 @@ function _MPPlatform_UpsertHostPeer(ip, port, name)
   slot = _MPPlatform_AllocHostSlot()
   if slot <= 0 then return 0 end if
 
-  peer = _mp_peer_t(ip, port, name, slot, pid, true, nowMs, 0, 0, 0, -1, 0, 0, 0, 0)
+  peer = _mp_peer_t(ip, port, name, slot, pid, false, nowMs, 0, 0, 0, -1, 0, 0, 0, 0)
   _mp_host_peers = _mp_host_peers + [peer]
   _MPPlatform_SetStatus(name + " connected (" + ip + ":" + port + ")")
+  _MPPlatform_LogEvent("MPTEST PEER_JOINED slot=" + slot + " active=" + (len(_mp_host_peers) + 1) + " name=" + _MPPlatform_SanitizeField(name))
   return slot
 end function
 
@@ -1263,6 +1192,9 @@ function _MPPlatform_RemoveHostPeerByIndex(idx, withMessage)
       nm = "Player"
       if typeof(p) == "struct" and typeof(p.name) == "string" and p.name != "" then nm = p.name end if
       _MPPlatform_SetStatus(nm + " left")
+      slotLeft = 0
+      if typeof(p) == "struct" then slotLeft = _MPPlatform_ToInt(p.slot, 0) end if
+      _MPPlatform_LogEvent("MPTEST PEER_LEFT slot=" + slotLeft + " active=" + len(_mp_host_peers))
     end if
     i = i + 1
   end while
@@ -1318,6 +1250,7 @@ end function
 */
 function _MPPlatform_HostHandlePacket(payload, peerIp, peerPort)
   if typeof(payload) != "bytes" then return end if
+  if len(payload) <= 0 or len(payload) > _MPPLAT_CONTROL_MAX then return end if
   text = decode(payload)
   if typeof(text) != "string" or text == "" then return end if
   parts = str.split(text, "|")
@@ -1326,7 +1259,7 @@ function _MPPlatform_HostHandlePacket(payload, peerIp, peerPort)
 
   mtype = parts[1]
   if mtype == _MPPLAT_REQ then
-    if len(parts) < 10 then
+    if len(parts) != 10 then
       _MPPlatform_HostSendDeny(peerIp, peerPort, 6, "Malformed connect request.", false)
       return
     end if
@@ -1372,20 +1305,19 @@ function _MPPlatform_HostHandlePacket(payload, peerIp, peerPort)
 
   if mtype == _MPPLAT_PING then
     idx = _MPPlatform_FindHostPeerIndex(peerIp, peerPort)
+    if idx < 0 or idx >= len(_mp_host_peers) or len(parts) != 3 then return end if
     seq = 0
-    if len(parts) >= 3 then seq = _MPPlatform_ToInt(parts[2], 0) end if
-    if idx >= 0 and idx < len(_mp_host_peers) then
-      p = _MPPlatform_EnsurePeerTelemetry(_mp_host_peers[idx])
-      p.lastSeenMs = _MPPlatform_ToInt(time.ticks(), 0)
-      _mp_host_peers[idx] = p
-    end if
+    seq = _MPPlatform_ToInt(parts[2], 0)
+    p = _MPPlatform_EnsurePeerTelemetry(_mp_host_peers[idx])
+    p.lastSeenMs = _MPPlatform_ToInt(time.ticks(), 0)
+    _mp_host_peers[idx] = p
     _MPPlatform_SendFields(_mp_sock, peerIp, peerPort, [_MPPLAT_PROTO, _MPPLAT_PONG, seq])
     return
   end if
 
   if mtype == _MPPLAT_PONG then
     idx = _MPPlatform_FindHostPeerIndex(peerIp, peerPort)
-    if idx >= 0 and idx < len(_mp_host_peers) then
+    if len(parts) == 3 and idx >= 0 and idx < len(_mp_host_peers) then
       nowMs = _MPPlatform_ToInt(time.ticks(), 0)
       p = _MPPlatform_EnsurePeerTelemetry(_mp_host_peers[idx])
       p.lastSeenMs = nowMs
@@ -1405,29 +1337,12 @@ function _MPPlatform_HostHandlePacket(payload, peerIp, peerPort)
   end if
 
   if mtype == _MPPLAT_LEAVE then
+    if len(parts) != 2 then return end if
     idx = _MPPlatform_FindHostPeerIndex(peerIp, peerPort)
     if idx >= 0 then _MPPlatform_RemoveHostPeerByIndex(idx, true) end if
     return
   end if
 
-  if mtype == _MPPLAT_CHAT then
-    idx = _MPPlatform_FindHostPeerIndex(peerIp, peerPort)
-    if idx < 0 or idx >= len(_mp_host_peers) then return end if
-
-    p = _MPPlatform_EnsurePeerTelemetry(_mp_host_peers[idx])
-    p.lastSeenMs = _MPPlatform_ToInt(time.ticks(), 0)
-    _mp_host_peers[idx] = p
-
-    txt = ""
-    if len(parts) >= 3 then txt = _MPPlatform_SanitizeField(parts[2]) end if
-    if txt == "" then return end if
-
-    snd = "Player"
-    if typeof(p.name) == "string" and p.name != "" then snd = p.name end if
-    _MPPlatform_QueueChatLine(snd + ": " + txt)
-    _MPPlatform_HostBroadcastChat(snd, txt)
-    return
-  end if
 end function
 
 /*
@@ -1439,8 +1354,10 @@ function _MPPlatform_ClientHandlePacket(payload, peerIp, peerPort)
   global _mp_client_last_pong_ms
   global _mp_client_pong_recv
   global _mp_client_rtt_ms
+  global _mp_client_last_seen_ms
   if peerIp != _mp_client_host or peerPort != _mp_client_port then return end if
   if typeof(payload) != "bytes" then return end if
+  if len(payload) <= 0 or len(payload) > _MPPLAT_CONTROL_MAX then return end if
   text = decode(payload)
   if typeof(text) != "string" or text == "" then return end if
   parts = str.split(text, "|")
@@ -1449,16 +1366,23 @@ function _MPPlatform_ClientHandlePacket(payload, peerIp, peerPort)
 
   mtype = parts[1]
   if mtype == _MPPLAT_DEN then
+    if len(parts) != 4 and len(parts) != 5 then return end if
+    _mp_client_last_seen_ms = _MPPlatform_ToInt(time.ticks(), 0)
     reason = "Disconnected by host."
     if len(parts) >= 4 and typeof(parts[3]) == "string" and parts[3] != "" then reason = parts[3] end if
+    disconnectStatus = "host_closed"
+    if _MPPlatform_ToInt(parts[2], 0) == 7 then disconnectStatus = "timeout" end if
     _MPPlatform_SetError(reason)
     _MPPlatform_SetStatus(reason)
+    _MPPlatform_LogEvent("MPTEST CLIENT_DISCONNECTED status=" + disconnectStatus + " reason=" + _MPPlatform_SanitizeField(reason))
     MP_PlatformShutdown()
     return
   end if
 
   if mtype == _MPPLAT_PONG then
+    if len(parts) != 3 then return end if
     nowMs = _MPPlatform_ToInt(time.ticks(), 0)
+    _mp_client_last_seen_ms = nowMs
     _mp_client_last_ping_ms = nowMs
     _mp_client_last_pong_ms = nowMs
     _mp_client_pong_recv = _MPPlatform_ToInt(_mp_client_pong_recv, 0) + 1
@@ -1474,25 +1398,14 @@ function _MPPlatform_ClientHandlePacket(payload, peerIp, peerPort)
   end if
 
   if mtype == _MPPLAT_PING then
+    if len(parts) != 3 then return end if
+    _mp_client_last_seen_ms = _MPPlatform_ToInt(time.ticks(), 0)
     seq = 0
     if len(parts) >= 3 then seq = _MPPlatform_ToInt(parts[2], 0) end if
     _MPPlatform_SendFields(_mp_sock, _mp_client_host, _mp_client_port, [_MPPLAT_PROTO, _MPPLAT_PONG, seq])
     return
   end if
 
-  if mtype == _MPPLAT_CHAT then
-    snd = "Player"
-    txt = ""
-    if len(parts) >= 4 then
-      snd = _MPPlatform_SanitizeField(parts[2])
-      txt = _MPPlatform_SanitizeField(parts[3])
-    else if len(parts) >= 3 then
-      txt = _MPPlatform_SanitizeField(parts[2])
-    end if
-    if snd == "" then snd = "Player" end if
-    if txt != "" then _MPPlatform_QueueChatLine(snd + ": " + txt) end if
-    return
-  end if
 end function
 
 /*
@@ -1504,6 +1417,8 @@ function _MPPlatform_ExpireHostPeers()
   nowMs = _MPPlatform_ToInt(time.ticks(), 0)
   keep = array(len(_mp_host_peers))
   keepCount = 0
+  timedOutSlots = array(len(_mp_host_peers), 0)
+  timedOutCount = 0
   i = 0
   while i < len(_mp_host_peers)
     p = _mp_host_peers[i]
@@ -1519,6 +1434,8 @@ function _MPPlatform_ExpireHostPeers()
           _MPPlatform_HostSendDeny(p.ip, _MPPlatform_ToInt(p.port, 0), 7, "Connection timed out.", false)
         end if
         _MPPlatform_SetStatus(nm + " left (timeout)")
+        timedOutSlots[timedOutCount] = _MPPlatform_ToInt(p.slot, 0)
+        timedOutCount = timedOutCount + 1
       end if
     end if
     i = i + 1
@@ -1533,6 +1450,11 @@ function _MPPlatform_ExpireHostPeers()
     keep = trimmed
   end if
   _mp_host_peers = keep
+  i = 0
+  while i < timedOutCount
+    _MPPlatform_LogEvent("MPTEST PEER_TIMEOUT slot=" + timedOutSlots[i] + " active=" + (keepCount + 1))
+    i = i + 1
+  end while
 end function
 
 /*
@@ -1545,6 +1467,7 @@ function MP_PlatformPump()
   global _mp_client_last_ping_tx_ms
   global _mp_client_ping_sent
   global _mp_client_game_in
+  global _mp_client_last_seen_ms
   if _mp_role == _MPPLAT_ROLE_NONE then return end if
   if typeof(_mp_sock) != "int" and typeof(_mp_sock) != "ptr" then return end if
 
@@ -1580,37 +1503,38 @@ function MP_PlatformPump()
         if typeof(gp) == "bytes" then
           if _mp_role == _MPPLAT_ROLE_HOST then
             idx = _MPPlatform_FindHostPeerIndex(peerIp, peerPort)
-            if idx < 0 then
-              slotHdr = payload[4] & 255
-              if slotHdr >= 1 and slotHdr < _MPPLAT_MAX_PLAYERS then
-                idx = _MPPlatform_FindHostPeerBySlot(slotHdr)
-              end if
-            end if
             if idx >= 0 and idx < len(_mp_host_peers) then
               p = _MPPlatform_EnsurePeerTelemetry(_mp_host_peers[idx])
-              // Keep endpoint fresh even if client source tuple changed after handshake.
-              p.ip = peerIp
-              p.port = peerPort
-              active = _MPPlatform_PeerIngame(p)
-              justActivated = false
-              if not active then
-                p.ingame = true
-                justActivated = true
+              // A gameplay frame is authenticated by the accepted source tuple
+              // and must also claim the slot assigned during the handshake.
+              if (payload[4] & 255) == _MPPlatform_ToInt(p.slot, -1) then
+                active = _MPPlatform_PeerIngame(p)
+                justActivated = false
+                if not active then
+                  p.ingame = true
+                  justActivated = true
+                end if
+                p.lastSeenMs = _MPPlatform_ToInt(time.ticks(), 0)
+                p.gameInCount = _MPPlatform_ToInt(p.gameInCount, 0) + 1
+                _mp_host_peers[idx] = p
+                if justActivated then
+                  nm = p.name
+                  if typeof(nm) != "string" or nm == "" then nm = "Player" end if
+                  _MPPlatform_SetStatus(nm + " entered game")
+                  _MPPlatform_LogEvent("MPTEST PEER_ACTIVE slot=" + _MPPlatform_ToInt(p.slot, 0) + " name=" + _MPPlatform_SanitizeField(nm))
+                end if
+                _MPPlatform_QueueGamePacket(_MPPlatform_ToInt(p.slot, 0), gp)
               end if
-              p.lastSeenMs = _MPPlatform_ToInt(time.ticks(), 0)
-              _mp_host_peers[idx] = p
-              if justActivated then
-                nm = p.name
-                if typeof(nm) != "string" or nm == "" then nm = "Player" end if
-                _MPPlatform_SetStatus(nm + " entered game")
-              end if
-              p.gameInCount = _MPPlatform_ToInt(p.gameInCount, 0) + 1
-              _MPPlatform_QueueGamePacket(_MPPlatform_ToInt(p.slot, 0), gp)
             end if
           else if _mp_role == _MPPLAT_ROLE_CLIENT then
-            if peerIp == _mp_client_host and peerPort == _mp_client_port then
+            if peerIp == _mp_client_host and peerPort == _mp_client_port and (payload[4] & 255) == 0 then
+              firstHostFrame = _MPPlatform_ToInt(_mp_client_game_in, 0) == 0
               _mp_client_game_in = _MPPlatform_ToInt(_mp_client_game_in, 0) + 1
-              _MPPlatform_QueueGamePacket(1, gp)
+              _mp_client_last_seen_ms = _MPPlatform_ToInt(time.ticks(), 0)
+              _MPPlatform_QueueGamePacket(0, gp)
+              if firstHostFrame then
+                _MPPlatform_LogEvent("MPTEST CLIENT_ACTIVE slot=" + _MPPlatform_ToInt(_mp_client_slot, 1))
+              end if
             end if
           end if
         end if
@@ -1650,6 +1574,14 @@ function MP_PlatformPump()
 
   if _mp_role == _MPPLAT_ROLE_CLIENT then
     nowMs = _MPPlatform_ToInt(time.ticks(), 0)
+    if _mp_client_last_seen_ms > 0 and nowMs - _mp_client_last_seen_ms > _MPPLAT_CLIENT_HOST_TIMEOUT_MS then
+      reason = "Disconnected: host timed out."
+      _MPPlatform_SetError(reason)
+      _MPPlatform_SetStatus(reason)
+      _MPPlatform_LogEvent("MPTEST CLIENT_DISCONNECTED status=timeout reason=" + reason)
+      MP_PlatformShutdown()
+      return
+    end if
     if nowMs - _mp_client_last_ping_ms >= _MPPLAT_CLIENT_PING_INTERVAL_MS then
       _mp_client_ping_seq = _MPPlatform_ToInt(_mp_client_ping_seq, 0) + 1
       _mp_client_last_ping_tx_ms = nowMs
@@ -1677,6 +1609,7 @@ function MP_PlatformShutdown()
   global _mp_client_ping_seq
   global _mp_client_last_ping_tx_ms
   global _mp_client_last_pong_ms
+  global _mp_client_last_seen_ms
   global _mp_client_rtt_ms
   global _mp_client_ping_sent
   global _mp_client_pong_recv
@@ -1691,11 +1624,18 @@ function MP_PlatformShutdown()
   global _mp_game_queue_payloads
   global _mp_game_queue_head
   global _mp_game_queue_tail
-  global _mp_chat_queue
-  global _mp_chat_queue_head
   global _mp_game_queue_dropped
 
-  if _mp_role == _MPPLAT_ROLE_CLIENT and (typeof(_mp_sock) == "int" or typeof(_mp_sock) == "ptr") and _mp_client_host != "" and _mp_client_port > 0 then
+  if _mp_role == _MPPLAT_ROLE_HOST and (typeof(_mp_sock) == "int" or typeof(_mp_sock) == "ptr") then
+    i = 0
+    while i < len(_mp_host_peers)
+      p = _mp_host_peers[i]
+      if typeof(p) == "struct" and typeof(p.ip) == "string" and _MPPlatform_ToInt(p.port, 0) > 0 then
+        _MPPlatform_HostSendDeny(p.ip, _MPPlatform_ToInt(p.port, 0), 8, "Host shut down.", false)
+      end if
+      i = i + 1
+    end while
+  else if _mp_role == _MPPLAT_ROLE_CLIENT and (typeof(_mp_sock) == "int" or typeof(_mp_sock) == "ptr") and _mp_client_host != "" and _mp_client_port > 0 then
     _MPPlatform_SendFields(_mp_sock, _mp_client_host, _mp_client_port, [_MPPLAT_PROTO, _MPPLAT_LEAVE])
   end if
 
@@ -1712,6 +1652,7 @@ function MP_PlatformShutdown()
   _mp_client_ping_seq = 0
   _mp_client_last_ping_tx_ms = 0
   _mp_client_last_pong_ms = 0
+  _mp_client_last_seen_ms = 0
   _mp_client_rtt_ms = -1
   _mp_client_ping_sent = 0
   _mp_client_pong_recv = 0
@@ -1726,8 +1667,6 @@ function MP_PlatformShutdown()
   _mp_game_queue_payloads = []
   _mp_game_queue_head = 0
   _mp_game_queue_tail = 0
-  _mp_chat_queue = []
-  _mp_chat_queue_head = 0
   _mp_game_queue_dropped = 0
 end function
 
@@ -1756,6 +1695,10 @@ function MP_PlatformNetSend(node, payload)
 
   localSlot = MP_PlatformGetLocalPlayerSlot()
   frame = _MPPlatform_WrapGamePayload(localSlot, payload)
+  if typeof(frame) != "bytes" then
+    _mp_debug_send_err = _MPPlatform_ToInt(_mp_debug_send_err, 0) + 1
+    return false
+  end if
 
   if _mp_role == _MPPLAT_ROLE_HOST then
     idx = _MPPlatform_FindHostPeerBySlot(n)
@@ -1776,7 +1719,8 @@ function MP_PlatformNetSend(node, payload)
   end if
 
   if _mp_role == _MPPLAT_ROLE_CLIENT then
-    if n <= 0 then return false end if
+    // Clients use a star topology: Doom node 0 is always the host.
+    if n != 0 then return false end if
     sent = net.udpSendTo(_mp_sock, _mp_client_host, _mp_client_port, frame)
     if typeof(sent) != "error" then
       _mp_client_game_out = _MPPlatform_ToInt(_mp_client_game_out, 0) + 1
@@ -1844,6 +1788,7 @@ function MP_PlatformHostGame(port, mode, skill, mapname, maxPlayers, fragLimit, 
   global _mp_client_ping_seq
   global _mp_client_last_ping_tx_ms
   global _mp_client_last_pong_ms
+  global _mp_client_last_seen_ms
   global _mp_client_rtt_ms
   global _mp_client_ping_sent
   global _mp_client_pong_recv
@@ -1885,10 +1830,6 @@ function MP_PlatformHostGame(port, mode, skill, mapname, maxPlayers, fragLimit, 
   if mapToken == "" then mapToken = MP_GetSelectedMap() end if
 
   MP_PlatformShutdown()
-  if not _MPPlatform_CanBindUdpPort(p) then
-    _MPPlatform_SetError("MP host failed: UDP port " + p + " is unavailable.")
-    return false
-  end if
   s = net.udpOpen()
   if typeof(s) == "error" then
     _MPPlatform_SetError("MP host failed: udpOpen failed (" + net.lastError() + ")")
@@ -1929,6 +1870,7 @@ function MP_PlatformHostGame(port, mode, skill, mapname, maxPlayers, fragLimit, 
   _mp_client_ping_seq = 0
   _mp_client_last_ping_tx_ms = 0
   _mp_client_last_pong_ms = 0
+  _mp_client_last_seen_ms = 0
   _mp_client_rtt_ms = -1
   _mp_client_ping_sent = 0
   _mp_client_pong_recv = 0
@@ -1966,6 +1908,7 @@ function MP_PlatformJoinGame(host, port, playerName)
   global _mp_client_ping_seq
   global _mp_client_last_ping_tx_ms
   global _mp_client_last_pong_ms
+  global _mp_client_last_seen_ms
   global _mp_client_rtt_ms
   global _mp_client_ping_sent
   global _mp_client_pong_recv
@@ -1992,11 +1935,9 @@ function MP_PlatformJoinGame(host, port, playerName)
     return false
   end if
 
-  h = host
-  if typeof(h) != "string" then h = "" end if
-  h = str.trim(h)
+  h = _MPPlatform_NormalizeIPv4(host)
   if h == "" then
-    _MPPlatform_SetError("MP join failed: host address is empty.")
+    _MPPlatform_SetError("MP join failed: host must be a numeric IPv4 address.")
     return false
   end if
 
@@ -2063,6 +2004,10 @@ function MP_PlatformJoinGame(host, port, playerName)
     peerIp = pkt[1]
     peerPort = _MPPlatform_ToInt(pkt[2], 0)
     if typeof(payload) != "bytes" then continue end if
+    // std.net accepts numeric IPv4 only; ignore forged/stale replies from any
+    // endpoint other than the address to which this request was sent.
+    if peerIp != h or peerPort != p then continue end if
+    if len(payload) <= 0 or len(payload) > _MPPLAT_CONTROL_MAX then continue end if
 
     text = decode(payload)
     if typeof(text) != "string" or text == "" then continue end if
@@ -2072,6 +2017,7 @@ function MP_PlatformJoinGame(host, port, playerName)
 
     mtype = parts[1]
     if mtype == _MPPLAT_DEN then
+      if len(parts) != 4 and len(parts) != 5 then continue end if
       reason = "Join denied by host."
       if len(parts) >= 4 and typeof(parts[3]) == "string" and parts[3] != "" then reason = parts[3] end if
       if len(parts) >= 5 and typeof(parts[4]) == "string" and parts[4] != "" and parts[4] != mp_iwad_fnv1a_hex then
@@ -2083,7 +2029,7 @@ function MP_PlatformJoinGame(host, port, playerName)
     end if
 
     if mtype == _MPPLAT_ACC then
-      if len(parts) < 9 then
+      if len(parts) != 11 then
         net.close(s)
         _MPPlatform_SetError("MP join failed: malformed accept packet.")
         return false
@@ -2098,21 +2044,6 @@ function MP_PlatformJoinGame(host, port, playerName)
       part_time = 8
       part_host_name = 9
       part_hash = 10
-      if len(parts) < 11 then
-        part_host_name = -1
-        part_hash = 9
-      end if
-      if len(parts) < 10 then
-        // Legacy accept packet without explicit slot field.
-        part_slot = -1
-        part_mode = 3
-        part_map = 4
-        part_skill = 5
-        part_frag = 6
-        part_time = 7
-        part_host_name = -1
-        part_hash = 8
-      end if
 
       if parts[part_hash] != mp_iwad_fnv1a_hex then
         net.close(s)
@@ -2120,25 +2051,34 @@ function MP_PlatformJoinGame(host, port, playerName)
         return false
       end if
 
+      acceptedPeerId = _MPPlatform_ToInt(parts[part_peer], 0)
+      acceptedSlot = _MPPlatform_ToInt(parts[part_slot], 0)
+      acceptedMode = _MPPlatform_ToInt(parts[part_mode], -1)
+      acceptedSkill = _MPPlatform_ToInt(parts[part_skill], -1)
+      acceptedFrag = _MPPlatform_ToInt(parts[part_frag], -1)
+      acceptedTime = _MPPlatform_ToInt(parts[part_time], -1)
+      acceptedMap = _MPPlatform_SanitizeField(parts[part_map])
+      if acceptedPeerId < 2 or acceptedPeerId > 255 or acceptedSlot < 1 or acceptedSlot >= _MPPLAT_MAX_PLAYERS or (acceptedMode != MP_MODE_COOP and acceptedMode != MP_MODE_DEATHMATCH) or acceptedSkill < MP_SKILL_BABY or acceptedSkill > MP_SKILL_NIGHTMARE or acceptedFrag < 0 or acceptedTime < 0 or acceptedMap == "" then
+        net.close(s)
+        _MPPlatform_SetError("MP join failed: invalid values in accept packet.")
+        return false
+      end if
+
       _mp_sock = s
       _mp_role = _MPPLAT_ROLE_CLIENT
       _mp_client_host = peerIp
       _mp_client_host_name = "Host"
-      if part_host_name >= 0 and part_host_name < len(parts) then
-        hostName = MP_SanitizeName(parts[part_host_name])
-        if hostName != "" then _mp_client_host_name = hostName end if
-      end if
+      hostName = MP_SanitizeName(parts[part_host_name])
+      if hostName != "" then _mp_client_host_name = hostName end if
       _mp_client_port = peerPort
-      _mp_client_peer_id = _MPPlatform_ToInt(parts[part_peer], 0)
-      _mp_client_slot = 1
-      if part_slot >= 0 then
-        _mp_client_slot = _MPPlatform_ToInt(parts[part_slot], 1)
-      end if
-      if _mp_client_slot < 1 or _mp_client_slot >= _MPPLAT_MAX_PLAYERS then _mp_client_slot = 1 end if
-      _mp_client_last_ping_ms = _MPPlatform_ToInt(time.ticks(), 0)
+      _mp_client_peer_id = acceptedPeerId
+      _mp_client_slot = acceptedSlot
+      nowMs = _MPPlatform_ToInt(time.ticks(), 0)
+      _mp_client_last_ping_ms = nowMs
       _mp_client_ping_seq = 0
       _mp_client_last_ping_tx_ms = 0
       _mp_client_last_pong_ms = 0
+      _mp_client_last_seen_ms = nowMs
       _mp_client_rtt_ms = -1
       _mp_client_ping_sent = 0
       _mp_client_pong_recv = 0
@@ -2149,11 +2089,11 @@ function MP_PlatformJoinGame(host, port, playerName)
       _mp_debug_send_ok = 0
       _mp_debug_send_idxfail = 0
       _mp_debug_send_err = 0
-      _mp_host_mode_cfg = _MPPlatform_ToInt(parts[part_mode], MP_MODE_COOP)
-      _mp_host_map_cfg = _MPPlatform_SanitizeField(parts[part_map])
-      _mp_host_skill_cfg = _MPPlatform_ToInt(parts[part_skill], MP_SKILL_MEDIUM)
-      _mp_host_frag_limit_cfg = _MPPlatform_ToInt(parts[part_frag], 0)
-      _mp_host_time_limit_cfg = _MPPlatform_ToInt(parts[part_time], 0)
+      _mp_host_mode_cfg = acceptedMode
+      _mp_host_map_cfg = acceptedMap
+      _mp_host_skill_cfg = acceptedSkill
+      _mp_host_frag_limit_cfg = acceptedFrag
+      _mp_host_time_limit_cfg = acceptedTime
       _mp_game_queue_nodes = []
       _mp_game_queue_payloads = []
       _mp_game_queue_head = 0

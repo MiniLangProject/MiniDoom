@@ -14,7 +14,7 @@
   limitations under the License.
 
   Script: r_defs.ml
-  Purpose: Implements renderer data preparation and software rendering pipeline stages.
+  Purpose: Defines map/render geometry records and decodes Doom patch headers consumed by software rasterization.
 */
 import doomdef
 import m_fixed
@@ -30,7 +30,7 @@ const MAXDRAWSEGS = 256
 
 /*
 * Function: RDefs_U16LE
-* Purpose: Provides U16 little-endian helper behavior for the renderer.
+* Purpose: Decodes an unsigned 16-bit little-endian field from renderer resource bytes.
 */
 function inline RDefs_U16LE(b, off)
   return b[off] +(b[off + 1] * 256)
@@ -38,7 +38,7 @@ end function
 
 /*
 * Function: RDefs_I16LE
-* Purpose: Provides i16 little-endian helper behavior for the renderer.
+* Purpose: Decodes a two-byte little-endian field with signed 16-bit interpretation.
 */
 function inline RDefs_I16LE(b, off)
   x = RDefs_U16LE(b, off)
@@ -48,7 +48,7 @@ end function
 
 /*
 * Function: RDefs_U32LE
-* Purpose: Provides U32 little-endian helper behavior for the renderer.
+* Purpose: Decodes an unsigned 32-bit little-endian field from renderer resource bytes.
 */
 function inline RDefs_U32LE(b, off)
   return b[off] +(b[off + 1] * 256) +(b[off + 2] * 65536) +(b[off + 3] * 16777216)
@@ -56,7 +56,7 @@ end function
 
 /*
 * Function: RDefs_I32LE
-* Purpose: Provides i32 little-endian helper behavior for the renderer.
+* Purpose: Decodes a four-byte little-endian field with signed 32-bit interpretation.
 */
 function inline RDefs_I32LE(b, off)
   x = RDefs_U32LE(b, off)
@@ -66,7 +66,7 @@ end function
 
 /*
 * Function: Patch_Width
-* Purpose: Provides width helper behavior for the renderer.
+* Purpose: Returns the signed pixel width stored at the start of a Doom patch header.
 */
 function Patch_Width(patchBytes)
   return RDefs_I16LE(patchBytes, 0)
@@ -74,7 +74,7 @@ end function
 
 /*
 * Function: Patch_Height
-* Purpose: Provides height helper behavior for the renderer.
+* Purpose: Returns the signed pixel height stored in a Doom patch header.
 */
 function Patch_Height(patchBytes)
   return RDefs_I16LE(patchBytes, 2)
@@ -82,7 +82,7 @@ end function
 
 /*
 * Function: Patch_LeftOffset
-* Purpose: Provides left offset helper behavior for the renderer.
+* Purpose: Returns the signed horizontal origin offset used to place a Doom patch.
 */
 function inline Patch_LeftOffset(patchBytes)
   return RDefs_I16LE(patchBytes, 4)
@@ -90,7 +90,7 @@ end function
 
 /*
 * Function: Patch_TopOffset
-* Purpose: Provides top offset helper behavior for the renderer.
+* Purpose: Returns the signed vertical origin offset used to place a Doom patch.
 */
 function inline Patch_TopOffset(patchBytes)
   return RDefs_I16LE(patchBytes, 6)
@@ -98,7 +98,7 @@ end function
 
 /*
 * Function: Patch_ColumnOffset
-* Purpose: Provides column offset helper behavior for the renderer.
+* Purpose: Decodes the file-relative byte offset of one column stream from a Doom patch directory.
 */
 function inline Patch_ColumnOffset(patchBytes, colIndex)
 
@@ -116,7 +116,7 @@ end struct
 
 /*
 * Struct: degenmobj_t
-* Purpose: Stores degenmobj data used by the renderer system.
+* Purpose: Supplies a position-only pseudo-mobj used as a sector's spatial sound origin.
 */
 struct degenmobj_t
   thinker
@@ -165,7 +165,7 @@ end struct
 
 /*
 * Enum: slopetype_t
-* Purpose: Defines named constants for slopetype type.
+* Purpose: Classifies linedef direction as horizontal, vertical, positive slope, or negative slope for fast geometry tests.
 */
 enum slopetype_t
   ST_HORIZONTAL,
@@ -235,7 +235,7 @@ end struct
 
 /*
 * Struct: post_t
-* Purpose: Stores post data used by the renderer system.
+* Purpose: Represents a decoded Doom patch-column run by its starting row and pixel count.
 */
 struct post_t
   topdelta

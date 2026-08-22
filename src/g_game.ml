@@ -64,7 +64,7 @@ extern function G_GetEnvironmentVariableW(name as wstr, buffer as bytes, size as
 
 /*
 * Function: G_DeathMatchSpawnPlayer
-* Purpose: Creates and initializes runtime objects for the game flow.
+* Purpose: Tries random unoccupied deathmatch starts before falling back to the player's cooperative start.
 */
 function G_DeathMatchSpawnPlayer(playernum)
   if typeof(playernum) != "int" then return end if
@@ -114,7 +114,7 @@ end function
 
 /*
 * Function: G_InitNew
-* Purpose: Initializes state and dependencies for the game flow.
+* Purpose: Commits skill/map selection, resets player run state, and queues the selected level for loading.
 */
 function G_InitNew(skill, episode, map)
   global gameskill
@@ -178,7 +178,7 @@ end function
 
 /*
 * Function: G_DeferedInitNew
-* Purpose: Initializes state and dependencies for the game flow.
+* Purpose: Stores a requested skill/episode/map triple for execution at the next game-action boundary.
 */
 function G_DeferedInitNew(skill, episode, map)
   global _G_defSkill
@@ -194,7 +194,7 @@ end function
 
 /*
 * Function: G_DeferedPlayDemo
-* Purpose: Provides play demo helper behavior for the gameplay.
+* Purpose: Queues a named demo lump for playback on the next game-action pass.
 */
 function G_DeferedPlayDemo(demo)
   global _G_defDemo
@@ -206,7 +206,7 @@ end function
 
 /*
 * Function: G_LoadGame
-* Purpose: Reads game data for the gameplay.
+* Purpose: Records a save path and defers deserialization to the central game-action dispatcher.
 */
 function G_LoadGame(name)
   global _G_loadName
@@ -234,7 +234,7 @@ _G_cpars =[
 
 /*
 * Function: _G_ParTimeTics
-* Purpose: Provides time tics helper behavior for the gameplay.
+* Purpose: Looks up the vanilla par time for the active episode and map in game tics.
 */
 function _G_ParTimeTics(episode, map)
   if typeof(map) != "int" then return 0 end if
@@ -259,7 +259,7 @@ end function
 
 /*
 * Function: _G_CopyFrags
-* Purpose: Updates frags state for the gameplay.
+* Purpose: Copies a frag row into a fixed MAXPLAYERS array without retaining the caller's storage.
 */
 function _G_CopyFrags(fr)
   arr =[0, 0, 0, 0]
@@ -366,7 +366,7 @@ end function
 
 /*
 * Function: G_DoLoadGame
-* Purpose: Loads do Load Game resources used by the gameplay system.
+* Purpose: Validates a save header, rebuilds the map, and restores archived players, world, thinkers, and specials.
 */
 function G_DoLoadGame()
   global gameaction
@@ -435,7 +435,7 @@ end function
 
 /*
 * Function: G_CmdChecksum
-* Purpose: Finds cmd Checksum information for gameplay processing.
+* Purpose: Folds all serialized ticcmd fields into the consistency checksum used by demo/network checks.
 */
 function G_CmdChecksum(cmd)
   if cmd is void then return 0 end if
@@ -449,7 +449,7 @@ end function
 
 /*
 * Function: G_InitPlayer
-* Purpose: Initializes state and dependencies for the game flow.
+* Purpose: Resets one player's counters, view state, inventory defaults, and transient powers for a new run.
 */
 function G_InitPlayer(playernum)
   if typeof(players) != "array" then return end if
@@ -501,7 +501,7 @@ end function
 
 /*
 * Function: G_PlayerReborn
-* Purpose: Provides reborn helper behavior for the gameplay.
+* Purpose: Reinitializes a dead player loadout while preserving accumulated level/frags statistics.
 */
 function G_PlayerReborn(playernum)
   if typeof(players) != "array" then return end if
@@ -598,17 +598,43 @@ end function
 
 /*
 * Function: G_CheckSpot
-* Purpose: Finds check Spot information for gameplay processing.
+* Purpose: Rejects occupied multiplayer spawn points using the current player mobj as collision probe.
 */
 function G_CheckSpot(playernum, mthing)
-  playernum = playernum
-  mthing = mthing
+  if typeof(playernum) != "int" or playernum < 0 or playernum >= MAXPLAYERS then return false end if
+  if typeof(mthing) != "struct" then return false end if
+  x = mthing.x << FRACBITS
+  y = mthing.y << FRACBITS
+
+  probe = void
+  if typeof(players) == "array" and playernum < len(players) and typeof(players[playernum]) == "struct" then
+    probe = players[playernum].mo
+  end if
+  if typeof(probe) == "struct" and typeof(P_CheckPosition) == "function" then
+    return P_CheckPosition(probe, x, y)
+  end if
+
+  // A freshly joined player has no probe yet. Keep the spawn clear of existing
+  // player radii until P_SpawnPlayer creates the authoritative mobj.
+  i = 0
+  while i < MAXPLAYERS
+    if i != playernum and typeof(playeringame) == "array" and i < len(playeringame) and playeringame[i] and typeof(players) == "array" and i < len(players) and typeof(players[i]) == "struct" and typeof(players[i].mo) == "struct" then
+      other = players[i].mo
+      radius = other.radius + 16 * FRACUNIT
+      dx = other.x - x
+      dy = other.y - y
+      if dx < 0 then dx = -dx end if
+      if dy < 0 then dy = -dy end if
+      if dx < radius and dy < radius then return false end if
+    end if
+    i = i + 1
+  end while
   return true
 end function
 
 /*
 * Function: G_DoLoadLevel
-* Purpose: Loads do Load Level resources used by the gameplay system.
+* Purpose: Clears per-level player state, runs map setup, and starts the status bar, HUD, and renderer view.
 */
 function G_DoLoadLevel()
   global gamestate
@@ -627,7 +653,7 @@ end function
 
 /*
 * Function: _G_ShowLoadingFrame
-* Purpose: Loads show Loading Frame resources used by the gameplay system.
+* Purpose: Presents a loading label and forces one renderer/event pulse during synchronous map setup.
 */
 function _G_ShowLoadingFrame(text)
   if typeof(I_SetLoadingStatus) == "function" then
@@ -643,7 +669,7 @@ end function
 
 /*
 * Function: G_DoReborn
-* Purpose: Runs reborn behavior for the gameplay.
+* Purpose: Respawns a dead player at a valid deathmatch or cooperative start while preserving netgame rules.
 */
 function G_DoReborn(playernum)
   global gameaction
@@ -691,7 +717,7 @@ end function
 
 /*
 * Function: G_DoCompleted
-* Purpose: Runs completed behavior for the gameplay.
+* Purpose: Finalizes player totals, resolves the next map, builds wminfo, and enters intermission.
 */
 function G_DoCompleted()
   global players
@@ -824,7 +850,7 @@ end function
 
 /*
 * Function: G_DoWorldDone
-* Purpose: Runs world done behavior for the gameplay.
+* Purpose: Applies the intermission's next-map result and synchronously loads the destination level.
 */
 function G_DoWorldDone()
   global gamemap
@@ -904,7 +930,7 @@ end function
 
 /*
 * Function: G_DoNewGame
-* Purpose: Runs new game behavior for the gameplay.
+* Purpose: Consumes the deferred new-game parameters and clears the pending game action.
 */
 function G_DoNewGame()
   global gameaction
@@ -914,7 +940,7 @@ end function
 
 /*
 * Function: G_DoPlayDemo
-* Purpose: Runs play demo behavior for the gameplay.
+* Purpose: Parses a demo header, configures recorded game flags/players, and starts playback on its map.
 */
 function G_DoPlayDemo()
   global gameaction
@@ -990,7 +1016,7 @@ end function
 
 /*
 * Function: G_SaveGame
-* Purpose: Writes game data for the gameplay.
+* Purpose: Stores a slot/description pair and defers serialization to the central game-action dispatcher.
 */
 function G_SaveGame(slot, description)
   global _G_saveSlot
@@ -1004,7 +1030,7 @@ end function
 
 /*
 * Function: _G_DemoReadU8
-* Purpose: Reads demo Read U8 data from the gameplay data stream.
+* Purpose: Consumes one unsigned demo byte, returning zero past the buffer while keeping the cursor monotonic.
 */
 function inline _G_DemoReadU8()
   if typeof(demobuffer) != "bytes" or _G_demo_p < 0 or _G_demo_p >= len(demobuffer) then
@@ -1019,7 +1045,7 @@ end function
 
 /*
 * Function: _G_DemoWriteU8
-* Purpose: Writes demo Write U8 data for the gameplay data stream.
+* Purpose: Appends one masked byte to the bounded demo recording buffer and advances its cursor.
 */
 function inline _G_DemoWriteU8(v)
   if typeof(demobuffer) != "bytes" then return end if
@@ -1036,7 +1062,7 @@ end function
 
 /*
 * Function: G_ReadDemoTiccmd
-* Purpose: Reads demo tic command data for the gameplay.
+* Purpose: Decodes one four-byte Doom demo command or terminates playback at the marker/end of buffer.
 */
 function G_ReadDemoTiccmd(cmd)
   if cmd is void then return end if
@@ -1064,7 +1090,7 @@ end function
 
 /*
 * Function: G_WriteDemoTiccmd
-* Purpose: Writes demo tic command data for the gameplay.
+* Purpose: Encodes one ticcmd into the four-byte Doom demo format or stops cleanly near buffer capacity.
 */
 function G_WriteDemoTiccmd(cmd)
   if cmd is void then return end if
@@ -1088,7 +1114,7 @@ end function
 
 /*
 * Function: G_RecordDemo
-* Purpose: Runs demo lifecycle logic for the gameplay.
+* Purpose: Allocates a recording buffer, writes the Doom demo header, and marks play as non-user recording.
 */
 function G_RecordDemo(name)
   global usergame
@@ -1120,7 +1146,7 @@ end function
 
 /*
 * Function: G_BeginRecording
-* Purpose: Provides recording helper behavior for the gameplay.
+* Purpose: Writes the deterministic demo header and arms command recording for subsequent tics.
 */
 function G_BeginRecording()
   if typeof(demobuffer) != "bytes" or len(demobuffer) == 0 then
@@ -1150,7 +1176,7 @@ end function
 
 /*
 * Function: G_PlayDemo
-* Purpose: Runs demo lifecycle logic for the gameplay.
+* Purpose: Stores the requested demo lump and defers playback setup through the game-action dispatcher.
 */
 function G_PlayDemo(name)
   global demoplayback
@@ -1164,7 +1190,7 @@ end function
 
 /*
 * Function: G_TimeDemo
-* Purpose: Provides demo helper behavior for the gameplay.
+* Purpose: Starts timed demo playback with rendering/tic counters reset for benchmark reporting.
 */
 function G_TimeDemo(name)
   global nodrawers
@@ -1184,7 +1210,7 @@ end function
 
 /*
 * Function: G_CheckDemoStatus
-* Purpose: Finds check Demo Status information for gameplay processing.
+* Purpose: Ends active demo recording/playback flags and reports that the transition was handled.
 */
 function G_CheckDemoStatus()
   global demorecording
@@ -1197,7 +1223,7 @@ end function
 
 /*
 * Function: G_ExitLevel
-* Purpose: Runs level lifecycle logic for the gameplay.
+* Purpose: Queues normal map completion while clearing any previously selected secret-exit route.
 */
 function G_ExitLevel()
   global gameaction
@@ -1209,7 +1235,7 @@ end function
 
 /*
 * Function: G_SecretExitLevel
-* Purpose: Provides exit level helper behavior for the gameplay.
+* Purpose: Queues normal map completion and clears any pending secret-exit route.
 */
 function G_SecretExitLevel()
   global gameaction
@@ -1225,7 +1251,7 @@ end function
 
 /*
 * Function: G_WorldDone
-* Purpose: Provides done helper behavior for the gameplay.
+* Purpose: Advances from intermission to the next level or commercial finale route.
 */
 function G_WorldDone()
   global players
@@ -1293,7 +1319,7 @@ end function
 
 /*
 * Function: G_Ticker
-* Purpose: Advances ticker logic during the gameplay tick.
+* Purpose: Dispatches pending actions, net respawns, and exactly one subsystem ticker for the current gamestate.
 */
 function G_Ticker()
   global demoplayback
@@ -1329,7 +1355,7 @@ end function
 
 /*
 * Function: _G_EnsureInputState
-* Purpose: Builds input state data for the gameplay.
+* Purpose: Guarantees fixed keyboard, mouse, and joystick state buffers before responder or ticcmd access.
 */
 function _G_EnsureInputState()
   global _G_keydown
@@ -1351,7 +1377,7 @@ end function
 
 /*
 * Function: _G_IDiv
-* Purpose: Performs integer division with gameplay rounding and guard rules.
+* Purpose: Truncates movement/input quotients toward zero and returns zero for invalid divisors.
 */
 function inline _G_IDiv(a, b)
   if typeof(a) != "int" or typeof(b) != "int" or b == 0 then return 0 end if
@@ -1362,7 +1388,7 @@ end function
 
 /*
 * Function: _G_KeyIndex
-* Purpose: Provides index helper behavior for the gameplay.
+* Purpose: Rejects key codes outside the fixed input-state byte table.
 */
 function inline _G_KeyIndex(k)
   if typeof(k) != "int" then return -1 end if
@@ -1372,7 +1398,7 @@ end function
 
 /*
 * Function: _G_KeyIsDown
-* Purpose: Provides is down helper behavior for the gameplay.
+* Purpose: Reads one checked keyboard state bit from the current input snapshot.
 */
 function inline _G_KeyIsDown(k)
   _G_EnsureInputState()
@@ -1383,7 +1409,7 @@ end function
 
 /*
 * Function: _G_ButtonIsDown
-* Purpose: Provides is down helper behavior for the gameplay.
+* Purpose: Reads one checked mouse/joystick button from an arbitrary button sequence.
 */
 function inline _G_ButtonIsDown(arr, idx)
   if typeof(arr) != "array" then return false end if
@@ -1394,7 +1420,7 @@ end function
 
 /*
 * Function: _G_InitDevInputTweaks
-* Purpose: Initializes state and dependencies for the internal module support.
+* Purpose: Parses developer auto-input flags once and seeds their persistent movement/fire toggles.
 */
 function _G_InitDevInputTweaks()
   global _G_devInputInit
@@ -1433,7 +1459,7 @@ end function
 
 /*
 * Function: G_Responder
-* Purpose: Handles responder events for the gameplay system.
+* Purpose: Applies keyboard/mouse/joystick events and handles screenshot, pause, and spy controls.
 */
 function G_Responder(ev)
   global sendpause
@@ -1515,7 +1541,7 @@ function G_Responder(ev)
 
   /*
 * Function: G_ScreenShot
-* Purpose: Provides shot helper behavior for the gameplay.
+* Purpose: Queues a uniquely named PCX screenshot through the deferred action system.
   */
   function G_ScreenShot()
     global gameaction
@@ -1525,7 +1551,7 @@ function G_Responder(ev)
 
   /*
 * Function: G_BuildTiccmd
-* Purpose: Builds tic command data for the gameplay.
+* Purpose: Samples current controls into a bounded Doom ticcmd, including pause/save special commands.
   */
   function G_BuildTiccmd(cmd)
     global _G_turnheld

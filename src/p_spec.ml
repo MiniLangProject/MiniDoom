@@ -14,7 +14,7 @@
   limitations under the License.
 
   Script: p_spec.ml
-  Purpose: Implements core gameplay simulation: map logic, physics, AI, and world interaction.
+  Purpose: Defines and updates sector/line specials, animated surfaces, buttons, movers, environmental damage, and tag searches.
 */
 import doomdef
 import doomstat
@@ -43,7 +43,7 @@ const MO_TELEPORTMAN = 14
 
 /*
 * Struct: fireflicker_t
-* Purpose: Stores fireflicker data used by the special effects system.
+* Purpose: Couples a thinker and sector with countdown and min/max light levels for randomized fire flicker.
 */
 struct fireflicker_t
   thinker
@@ -55,7 +55,7 @@ end struct
 
 /*
 * Struct: lightflash_t
-* Purpose: Stores lightflash data used by the special effects system.
+* Purpose: Tracks randomized bright/dark sector flashes, including current delay and each phase's maximum duration.
 */
 struct lightflash_t
   thinker
@@ -69,7 +69,7 @@ end struct
 
 /*
 * Struct: strobe_t
-* Purpose: Stores strobe data used by the special effects system.
+* Purpose: Tracks a sector's alternating bright/dark levels and independent phase durations.
 */
 struct strobe_t
   thinker
@@ -83,7 +83,7 @@ end struct
 
 /*
 * Struct: glow_t
-* Purpose: Stores glow data used by the special effects system.
+* Purpose: Tracks a sector's smooth light oscillation between min/max levels and its current direction.
 */
 struct glow_t
   thinker
@@ -100,7 +100,7 @@ const SLOWDARK = 35
 
 /*
 * Struct: switchlist_t
-* Purpose: Stores switchlist data used by the special effects system.
+* Purpose: Pairs the two texture names that toggle when a wall switch is activated.
 */
 struct switchlist_t
   name1
@@ -110,7 +110,7 @@ end struct
 
 /*
 * Enum: bwhere_e
-* Purpose: Defines named constants for bwhere e.
+* Purpose: Identifies which top, middle, or bottom sidedef texture a timed button temporarily replaces.
 */
 enum bwhere_e
   top
@@ -120,7 +120,7 @@ end enum
 
 /*
 * Struct: button_t
-* Purpose: Stores button data used by the special effects system.
+* Purpose: Records a pressed switch's line, texture slot/original texture, reset timer, and sound origin.
 */
 struct button_t
   line
@@ -136,7 +136,7 @@ const BUTTONTIME = 35
 
 /*
 * Enum: plat_e
-* Purpose: Defines named constants for plat e.
+* Purpose: Names the moving, waiting, and suspended phases of a platform thinker.
 */
 enum plat_e
   up
@@ -147,7 +147,7 @@ end enum
 
 /*
 * Enum: plattype_e
-* Purpose: Defines named constants for plattype e.
+* Purpose: Selects the platform motion program used for perpetual, one-shot, blaze, raise, or lower actions.
 */
 enum plattype_e
   perpetualRaise
@@ -159,7 +159,7 @@ end enum
 
 /*
 * Struct: plat_t
-* Purpose: Stores plat data used by the special effects system.
+* Purpose: Holds a platform thinker's sector, bounds, speed, wait/count state, crush policy, tag, and motion program.
 */
 struct plat_t
   thinker
@@ -182,7 +182,7 @@ const MAXPLATS = 30
 
 /*
 * Enum: vldoor_e
-* Purpose: Defines named constants for vldoor e.
+* Purpose: Selects a vertical door program such as normal open/wait/close, delayed close/open, or fast variants.
 */
 enum vldoor_e
   normal
@@ -197,7 +197,7 @@ end enum
 
 /*
 * Struct: vldoor_t
-* Purpose: Stores vldoor data used by the special effects system.
+* Purpose: Holds a vertical door's sector, target height, speed, direction, wait counters, and selected motion program.
 */
 struct vldoor_t
   thinker
@@ -215,7 +215,7 @@ const VDOORWAIT = 150
 
 /*
 * Enum: ceiling_e
-* Purpose: Defines named constants for ceiling e.
+* Purpose: Selects crushing, lowering, raising, or silent ceiling movement behavior.
 */
 enum ceiling_e
   lowerToFloor
@@ -228,7 +228,7 @@ end enum
 
 /*
 * Struct: ceiling_t
-* Purpose: Stores ceiling data used by the special effects system.
+* Purpose: Holds an active ceiling's sector, movement bounds/speed/direction, crush policy, tag, and suspended direction.
 */
 struct ceiling_t
   thinker
@@ -249,7 +249,7 @@ const MAXCEILINGS = 30
 
 /*
 * Enum: floor_e
-* Purpose: Defines named constants for floor e.
+* Purpose: Selects a floor motion target and any texture/special transfer performed on arrival.
 */
 enum floor_e
   lowerFloor
@@ -269,7 +269,7 @@ end enum
 
 /*
 * Enum: stair_e
-* Purpose: Defines named constants for stair e.
+* Purpose: Selects the standard 8-unit or turbo 16-unit staircase build profile.
 */
 enum stair_e
   build8
@@ -278,7 +278,7 @@ end enum
 
 /*
 * Struct: floormove_t
-* Purpose: Stores floormove data used by the special effects system.
+* Purpose: Holds a floor thinker's sector, direction, destination, speed, crush flag, and post-move texture/special values.
 */
 struct floormove_t
   thinker
@@ -296,7 +296,7 @@ const FLOORSPEED = 65536
 
 /*
 * Enum: result_e
-* Purpose: Defines named constants for result e.
+* Purpose: Reports whether a plane movement completed, continues normally, or encountered a crushing obstruction.
 */
 enum result_e
   ok
@@ -306,7 +306,7 @@ end enum
 
 /*
 * Struct: ps_anim_t
-* Purpose: Stores ps anim data used by the special effects system.
+* Purpose: Stores a resolved flat/texture animation's base index, frame count, and tic speed.
 */
 struct ps_anim_t
   istexture
@@ -318,7 +318,7 @@ end struct
 
 /*
 * Struct: ps_animdef_t
-* Purpose: Stores ps animdef data used by the special effects system.
+* Purpose: Describes an animation by surface kind, first/last lump names, and tics per frame before WAD resolution.
 */
 struct ps_animdef_t
   istexture
@@ -363,7 +363,7 @@ ps_animdef_t(-1, "", "", 0)
 
 /*
 * Function: _PS_ParseInt
-* Purpose: Parses parse Int input into special effects runtime data.
+* Purpose: Parses an integer or numeric string with truncation toward zero, returning void when conversion fails.
 */
 function _PS_ParseInt(v)
   if typeof(v) == "int" then return v end if
@@ -386,7 +386,7 @@ end function
 
 /*
 * Function: _PS_IDiv
-* Purpose: Performs integer division with special effects rounding and guard rules.
+* Purpose: Returns a signed quotient truncated toward zero, or zero for invalid operands and a zero divisor.
 */
 function inline _PS_IDiv(a, b)
   if typeof(a) != "int" or typeof(b) != "int" or b == 0 then return 0 end if
@@ -397,7 +397,7 @@ end function
 
 /*
 * Function: _PS_IsSeq
-* Purpose: Provides is sequence helper behavior for the play simulation.
+* Purpose: Recognizes array and list containers used by level geometry and animation tables.
 */
 function inline _PS_IsSeq(v)
   t = typeof(v)
@@ -406,7 +406,7 @@ end function
 
 /*
 * Function: _PS_IsProjectileType
-* Purpose: Provides is projectile type helper behavior for the play simulation.
+* Purpose: Identifies player and monster missile types allowed to trigger projectile-sensitive line specials.
 */
 function inline _PS_IsProjectileType(t)
   return t == mobjtype_t.MT_ROCKET or t == mobjtype_t.MT_PLASMA or t == mobjtype_t.MT_BFG or
@@ -415,7 +415,7 @@ end function
 
 /*
 * Function: _PS_ResetButtons
-* Purpose: Clears reset Buttons state before the next special effects update.
+* Purpose: Reinitializes the fixed timed-button registry or clears existing entries when the helper is unavailable.
 */
 function _PS_ResetButtons()
   if typeof(_InitButtonList) == "function" then
@@ -432,7 +432,7 @@ end function
 
 /*
 * Function: P_InitPicAnims
-* Purpose: Initializes state and dependencies for the gameplay and world simulation.
+* Purpose: Resolves built-in flat/texture animation name ranges, validates contiguity, and records runtime frame cycles.
 */
 function P_InitPicAnims()
   global anims
@@ -481,7 +481,7 @@ end function
 
 /*
 * Function: P_SpawnSpecials
-* Purpose: Creates and initializes runtime objects for the gameplay and world simulation.
+* Purpose: Parses the level timer, spawns sector lighting/door effects, collects scrolling lines, and resets active movers/buttons.
 */
 function P_SpawnSpecials()
   global levelTimer
@@ -595,7 +595,7 @@ end function
 
 /*
 * Function: P_UpdateSpecials
-* Purpose: Updates specials state for the play simulation.
+* Purpose: Advances level timeout, surface animation translations, scrolling walls, and timed button restoration each tic.
 */
 function P_UpdateSpecials()
   global levelTimer
@@ -663,7 +663,7 @@ end function
 
 /*
 * Function: P_ShootSpecialLine
-* Purpose: Runs special line behavior for the play simulation.
+* Purpose: Dispatches gun-triggered line types to floor, door, or switch actions while enforcing monster restrictions.
 */
 function P_ShootSpecialLine(thing, line)
   if thing is void or line is void then return end if
@@ -692,7 +692,7 @@ end function
 
 /*
 * Function: P_CrossSpecialLine
-* Purpose: Provides special line helper behavior for the play simulation.
+* Purpose: Dispatches one-shot and repeatable walkover specials after validating line index, side, actor, and projectile rules.
 */
 function P_CrossSpecialLine(linenum, side, thing)
   if thing is void then return end if
@@ -978,7 +978,7 @@ end function
 
 /*
 * Function: _PSpec_PowerIndex
-* Purpose: Provides power index helper behavior for the play simulation.
+* Purpose: Maps a supported player-power enum or integer to its powers-array slot.
 */
 function _PSpec_PowerIndex(pw)
   if typeof(pw) == "int" then
@@ -1001,7 +1001,7 @@ end function
 
 /*
 * Function: _PSpec_GetPower
-* Purpose: Returns pSpec Get Power information from special effects state.
+* Purpose: Reads a validated player power duration/value, treating legacy booleans as zero or one.
 */
 function _PSpec_GetPower(player, pw)
   if player is void then return 0 end if
@@ -1021,7 +1021,7 @@ end function
 
 /*
 * Function: P_PlayerInSpecialSector
-* Purpose: Provides in special sector helper behavior for the play simulation.
+* Purpose: Applies floor-contact damage, secret discovery, and exit effects for the player's current sector special.
 */
 function P_PlayerInSpecialSector(player)
   if player is void or player.mo is void then return end if
@@ -1072,7 +1072,7 @@ end function
 
 /*
 * Function: _P_NumSectors
-* Purpose: Provides sectors helper behavior for the play simulation.
+* Purpose: Returns the loaded sector count for either supported sequence representation.
 */
 function inline _P_NumSectors()
   if typeof(sectors) == "array" then return len(sectors) end if
@@ -1083,7 +1083,7 @@ end function
 
 /*
 * Function: _P_NumLines
-* Purpose: Provides lines helper behavior for the play simulation.
+* Purpose: Returns the loaded linedef count for either supported sequence representation.
 */
 function inline _P_NumLines()
   if typeof(lines) == "array" then return len(lines) end if
@@ -1094,7 +1094,7 @@ end function
 
 /*
 * Function: _PS_SectorIndex
-* Purpose: Provides sector index helper behavior for the play simulation.
+* Purpose: Finds a sector by object identity in the loaded sector table, returning -1 when absent.
 */
 function _PS_SectorIndex(sec)
   if sec is void then return -1 end if
@@ -1109,7 +1109,7 @@ end function
 
 /*
 * Function: _PS_LineSideSector
-* Purpose: Provides line side sector helper behavior for the play simulation.
+* Purpose: Resolves a line's requested side to its front/back sector through direct references or sidedef indices.
 */
 function _PS_LineSideSector(line, side)
   if line is void then return void end if
@@ -1130,7 +1130,7 @@ end function
 
 /*
 * Function: twoSided
-* Purpose: Provides sided helper behavior for the play simulation.
+* Purpose: Tests whether a sector-owned line index references a valid ML_TWOSIDED linedef.
 */
 function twoSided(sectorIndex, lineIndex)
   if not _PS_IsSeq(sectors) then return 0 end if
@@ -1146,7 +1146,7 @@ end function
 
 /*
 * Function: getSide
-* Purpose: Reads side data for the play simulation.
+* Purpose: Resolves a sector-local line and side number to the corresponding sidedef with index validation.
 */
 function getSide(currentSector, lineIndex, side)
   if not _PS_IsSeq(sectors) then return void end if
@@ -1170,7 +1170,7 @@ end function
 
 /*
 * Function: getSector
-* Purpose: Reads sector data for the play simulation.
+* Purpose: Returns the sector referenced by a resolved sidedef, or void when the side is missing.
 */
 function getSector(currentSector, lineIndex, side)
   sd = getSide(currentSector, lineIndex, side)
@@ -1180,7 +1180,7 @@ end function
 
 /*
 * Function: getNextSector
-* Purpose: Reads next sector data for the play simulation.
+* Purpose: Given one sector on a two-sided line, returns the opposite adjacent sector.
 */
 function getNextSector(line, sec)
   if line is void or sec is void then return void end if
@@ -1212,7 +1212,7 @@ end function
 
 /*
 * Function: P_FindLowestFloorSurrounding
-* Purpose: Computes lowest floor surrounding values for the play simulation.
+* Purpose: Returns the minimum floor height among all valid sectors adjacent to the supplied sector.
 */
 function P_FindLowestFloorSurrounding(sec)
   if sec is void then return 0 end if
@@ -1237,7 +1237,7 @@ end function
 
 /*
 * Function: P_FindHighestFloorSurrounding
-* Purpose: Computes highest floor surrounding values for the play simulation.
+* Purpose: Returns the maximum floor height among all valid sectors adjacent to the supplied sector.
 */
 function P_FindHighestFloorSurrounding(sec)
   if sec is void then return 0 end if
@@ -1262,7 +1262,7 @@ end function
 
 /*
 * Function: P_FindNextHighestFloor
-* Purpose: Computes next highest floor values for the play simulation.
+* Purpose: Returns the lowest adjacent floor strictly above currentheight, or currentheight when none exists.
 */
 function P_FindNextHighestFloor(sec, currentheight)
   if sec is void then return currentheight end if
@@ -1291,7 +1291,7 @@ end function
 
 /*
 * Function: P_FindLowestCeilingSurrounding
-* Purpose: Computes lowest ceiling surrounding values for the play simulation.
+* Purpose: Returns the minimum ceiling height among all valid sectors adjacent to the supplied sector.
 */
 function P_FindLowestCeilingSurrounding(sec)
   if sec is void then return 0 end if
@@ -1316,7 +1316,7 @@ end function
 
 /*
 * Function: P_FindHighestCeilingSurrounding
-* Purpose: Computes highest ceiling surrounding values for the play simulation.
+* Purpose: Returns the maximum ceiling height among all valid sectors adjacent to the supplied sector.
 */
 function P_FindHighestCeilingSurrounding(sec)
   if sec is void then return 0 end if
@@ -1341,7 +1341,7 @@ end function
 
 /*
 * Function: P_FindSectorFromLineTag
-* Purpose: Computes sector from line tag values for the play simulation.
+* Purpose: Continues a linear search after start for the next sector whose tag matches the triggering line.
 */
 function P_FindSectorFromLineTag(line, start)
   if line is void then return -1 end if
@@ -1359,7 +1359,7 @@ end function
 
 /*
 * Function: P_FindMinSurroundingLight
-* Purpose: Computes minimum surrounding light values for the play simulation.
+* Purpose: Finds the lowest adjacent sector light level without exceeding the caller-provided starting maximum.
 */
 function P_FindMinSurroundingLight(sector, max)
   if sector is void then return 0 end if
@@ -1384,7 +1384,7 @@ end function
 
 /*
 * Function: EV_DoDonut
-* Purpose: Provides do donut helper behavior for the play simulation.
+* Purpose: Starts the coupled donut action: lower the tagged pillar while raising its surrounding ring to the outer sector.
 */
 function EV_DoDonut(line)
   if line is void then return 0 end if

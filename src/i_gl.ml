@@ -71,21 +71,21 @@ const GL_PACK_ALIGNMENT = 0x0D05
 /*
  * Function: ChoosePixelFormat
  *
- * Purpose: Maps the external ChoosePixelFormat binding used for OpenGL rendering.
+ * Purpose: Asks GDI for the closest window pixel format matching the requested OpenGL framebuffer descriptor.
  */
 
 extern function ChoosePixelFormat(hdc as ptr, pfd as bytes) from "gdi32.dll" symbol "ChoosePixelFormat" returns int
 /*
  * Function: SetPixelFormat
  *
- * Purpose: Maps the external SetPixelFormat binding used for OpenGL rendering.
+ * Purpose: Installs the selected immutable pixel format on the window device context before WGL context creation.
  */
 
 extern function SetPixelFormat(hdc as ptr, format as int, pfd as bytes) from "gdi32.dll" symbol "SetPixelFormat" returns bool
 /*
  * Function: SwapBuffers
  *
- * Purpose: Maps the external SwapBuffers binding used for OpenGL rendering.
+ * Purpose: Presents the device context's back buffer to the window after a rendered frame.
  */
 
 extern function SwapBuffers(hdc as ptr) from "gdi32.dll" symbol "SwapBuffers" returns bool
@@ -93,21 +93,21 @@ extern function SwapBuffers(hdc as ptr) from "gdi32.dll" symbol "SwapBuffers" re
 /*
  * Function: wglCreateContext
  *
- * Purpose: Maps the external wglCreateContext binding used for OpenGL rendering.
+ * Purpose: Creates a legacy WGL rendering context for the configured window device context.
  */
 
 extern function wglCreateContext(hdc as ptr) from "opengl32.dll" symbol "wglCreateContext" returns ptr
 /*
  * Function: wglMakeCurrent
  *
- * Purpose: Maps the external wglMakeCurrent binding used for OpenGL rendering.
+ * Purpose: Associates a WGL context with the calling thread and its window device context.
  */
 
 extern function wglMakeCurrent(hdc as ptr, hglrc as ptr) from "opengl32.dll" symbol "wglMakeCurrent" returns bool
 /*
  * Function: wglDeleteContext
  *
- * Purpose: Maps the external wglDeleteContext binding used for OpenGL rendering.
+ * Purpose: Releases a WGL rendering context after it has been detached from the calling thread.
  */
 
 extern function wglDeleteContext(hglrc as ptr) from "opengl32.dll" symbol "wglDeleteContext" returns bool
@@ -115,203 +115,203 @@ extern function wglDeleteContext(hglrc as ptr) from "opengl32.dll" symbol "wglDe
 /*
  * Function: glViewport
  *
- * Purpose: Maps the external glViewport binding used for OpenGL rendering.
+ * Purpose: Maps normalized device coordinates into the requested framebuffer rectangle.
  */
 
 extern function glViewport(x as int, y as int, width as int, height as int) from "opengl32.dll" symbol "glViewport" returns void
 /*
  * Function: glClear
  *
- * Purpose: Maps the external glClear binding used for OpenGL rendering.
+ * Purpose: Clears the framebuffer attachments selected by the caller's OpenGL mask.
  */
 
 extern function glClear(mask as u32) from "opengl32.dll" symbol "glClear" returns void
 /*
  * Function: glClearDepth
  *
- * Purpose: Maps the external glClearDepth binding used for OpenGL rendering.
+ * Purpose: Selects the depth value subsequently written by depth-buffer clears.
  */
 
 extern function glClearDepth(depth as double) from "opengl32.dll" symbol "glClearDepth" returns void
 /*
  * Function: glEnable
  *
- * Purpose: Maps the external glEnable binding used for OpenGL rendering.
+ * Purpose: Enables one fixed-function OpenGL capability for subsequent draw calls.
  */
 
 extern function glEnable(cap as u32) from "opengl32.dll" symbol "glEnable" returns void
 /*
  * Function: glDisable
  *
- * Purpose: Maps the external glDisable binding used for OpenGL rendering.
+ * Purpose: Disables one fixed-function OpenGL capability for subsequent draw calls.
  */
 
 extern function glDisable(cap as u32) from "opengl32.dll" symbol "glDisable" returns void
 /*
  * Function: glDepthMask
  *
- * Purpose: Maps the external glDepthMask binding used for OpenGL rendering.
+ * Purpose: Controls whether rasterized fragments may write to the depth buffer.
  */
 
 extern function glDepthMask(flag as bool) from "opengl32.dll" symbol "glDepthMask" returns void
 /*
  * Function: glColorMask
  *
- * Purpose: Maps the external glColorMask binding used for OpenGL rendering.
+ * Purpose: Controls framebuffer writes independently for red, green, blue, and alpha channels.
  */
 
 extern function glColorMask(red as bool, green as bool, blue as bool, alpha as bool) from "opengl32.dll" symbol "glColorMask" returns void
 /*
  * Function: glDepthFunc
  *
- * Purpose: Maps the external glDepthFunc binding used for OpenGL rendering.
+ * Purpose: Selects the comparison applied between fragment depth and stored depth.
  */
 
 extern function glDepthFunc(func as u32) from "opengl32.dll" symbol "glDepthFunc" returns void
 /*
  * Function: glMatrixMode
  *
- * Purpose: Maps the external glMatrixMode binding used for OpenGL rendering.
+ * Purpose: Selects the fixed-function matrix stack modified by following matrix operations.
  */
 
 extern function glMatrixMode(mode as u32) from "opengl32.dll" symbol "glMatrixMode" returns void
 /*
  * Function: glLoadIdentity
  *
- * Purpose: Maps the external glLoadIdentity binding used for OpenGL rendering.
+ * Purpose: Replaces the current fixed-function matrix with the identity transform.
  */
 
 extern function glLoadIdentity() from "opengl32.dll" symbol "glLoadIdentity" returns void
 /*
  * Function: glFrustum
  *
- * Purpose: Maps the external glFrustum binding used for OpenGL rendering.
+ * Purpose: Multiplies the current matrix by an asymmetric perspective projection frustum.
  */
 
 extern function glFrustum(left as double, right as double, bottom as double, top as double, zNear as double, zFar as double) from "opengl32.dll" symbol "glFrustum" returns void
 /*
  * Function: glRotated
  *
- * Purpose: Maps the external glRotated binding used for OpenGL rendering.
+ * Purpose: Multiplies the current matrix by a double-precision axis-angle rotation.
  */
 
 extern function glRotated(angle as double, x as double, y as double, z as double) from "opengl32.dll" symbol "glRotated" returns void
 /*
  * Function: glTranslated
  *
- * Purpose: Maps the external glTranslated binding used for OpenGL rendering.
+ * Purpose: Multiplies the current matrix by a double-precision translation.
  */
 
 extern function glTranslated(x as double, y as double, z as double) from "opengl32.dll" symbol "glTranslated" returns void
 /*
  * Function: glScaled
  *
- * Purpose: Maps the external glScaled binding used for scaled OpenGL client-array rendering.
+ * Purpose: Multiplies the current matrix by independent double-precision axis scales.
  */
 
 extern function glScaled(x as double, y as double, z as double) from "opengl32.dll" symbol "glScaled" returns void
 /*
  * Function: glPushMatrix
  *
- * Purpose: Maps the external glPushMatrix binding used for temporary OpenGL matrix transforms.
+ * Purpose: Saves the current transform on the active fixed-function matrix stack.
  */
 
 extern function glPushMatrix() from "opengl32.dll" symbol "glPushMatrix" returns void
 /*
  * Function: glPopMatrix
  *
- * Purpose: Maps the external glPopMatrix binding used for temporary OpenGL matrix transforms.
+ * Purpose: Restores the previous transform from the active fixed-function matrix stack.
  */
 
 extern function glPopMatrix() from "opengl32.dll" symbol "glPopMatrix" returns void
 /*
  * Function: glBegin
  *
- * Purpose: Maps the external glBegin binding used for OpenGL rendering.
+ * Purpose: Opens an immediate-mode primitive stream with the requested topology.
  */
 
 extern function glBegin(mode as u32) from "opengl32.dll" symbol "glBegin" returns void
 /*
  * Function: glEnd
  *
- * Purpose: Maps the external glEnd binding used for OpenGL rendering.
+ * Purpose: Closes the active immediate-mode primitive stream and submits its vertices.
  */
 
 extern function glEnd() from "opengl32.dll" symbol "glEnd" returns void
 /*
  * Function: glGenLists
  *
- * Purpose: Maps the external glGenLists binding used for OpenGL display-list rendering.
+ * Purpose: Reserves a contiguous range of OpenGL display-list identifiers.
  */
 
 extern function glGenLists(range as int) from "opengl32.dll" symbol "glGenLists" returns u32
 /*
  * Function: glNewList
  *
- * Purpose: Maps the external glNewList binding used for OpenGL display-list rendering.
+ * Purpose: Begins compiling commands into a selected OpenGL display list.
  */
 
 extern function glNewList(list as u32, mode as u32) from "opengl32.dll" symbol "glNewList" returns void
 /*
  * Function: glEndList
  *
- * Purpose: Maps the external glEndList binding used for OpenGL display-list rendering.
+ * Purpose: Finishes compilation of the currently open OpenGL display list.
  */
 
 extern function glEndList() from "opengl32.dll" symbol "glEndList" returns void
 /*
  * Function: glCallList
  *
- * Purpose: Maps the external glCallList binding used for OpenGL display-list rendering.
+ * Purpose: Executes the commands compiled under one OpenGL display-list identifier.
  */
 
 extern function glCallList(list as u32) from "opengl32.dll" symbol "glCallList" returns void
 /*
  * Function: glDeleteLists
  *
- * Purpose: Maps the external glDeleteLists binding used for OpenGL display-list rendering.
+ * Purpose: Releases a contiguous range of compiled OpenGL display lists.
  */
 
 extern function glDeleteLists(list as u32, range as int) from "opengl32.dll" symbol "glDeleteLists" returns void
 /*
  * Function: glEnableClientState
  *
- * Purpose: Maps the external glEnableClientState binding used for OpenGL client-array rendering.
+ * Purpose: Enables one legacy vertex-array attribute source for subsequent array draws.
  */
 
 extern function glEnableClientState(array as u32) from "opengl32.dll" symbol "glEnableClientState" returns void
 /*
  * Function: glDisableClientState
  *
- * Purpose: Maps the external glDisableClientState binding used for OpenGL client-array rendering.
+ * Purpose: Disables one legacy vertex-array attribute source after array drawing.
  */
 
 extern function glDisableClientState(array as u32) from "opengl32.dll" symbol "glDisableClientState" returns void
 /*
  * Function: glVertexPointer
  *
- * Purpose: Maps the external glVertexPointer binding used for OpenGL client-array rendering.
+ * Purpose: Describes the component layout and storage of the active position array.
  */
 
 extern function glVertexPointer(size as int, typ as u32, stride as int, pointer as bytes) from "opengl32.dll" symbol "glVertexPointer" returns void
 /*
  * Function: glTexCoordPointer
  *
- * Purpose: Maps the external glTexCoordPointer binding used for OpenGL client-array rendering.
+ * Purpose: Describes the component layout and storage of the active texture-coordinate array.
  */
 
 extern function glTexCoordPointer(size as int, typ as u32, stride as int, pointer as bytes) from "opengl32.dll" symbol "glTexCoordPointer" returns void
 /*
  * Function: glColorPointer
  *
- * Purpose: Maps the external glColorPointer binding used for OpenGL client-array rendering.
+ * Purpose: Describes the component layout and storage of the active per-vertex color array.
  */
 
 extern function glColorPointer(size as int, typ as u32, stride as int, pointer as bytes) from "opengl32.dll" symbol "glColorPointer" returns void
 /*
  * Function: glDrawArrays
  *
- * Purpose: Maps the external glDrawArrays binding used for OpenGL client-array rendering.
+ * Purpose: Emits a primitive range from the currently enabled legacy client arrays.
  */
 
 extern function glDrawArrays(mode as u32, first as int, count as int) from "opengl32.dll" symbol "glDrawArrays" returns void
@@ -343,6 +343,11 @@ extern function MGL_TimeMicroseconds() from "MiniDoomGL.dll" symbol "MGL_TimeMic
  */
 
 extern function MGL_FramePace(targetFps as int, leadUs as int) from "MiniDoomGL.dll" symbol "MGL_FramePace" returns void
+/*
+ * Function: MGL_FramePaceMark
+ *
+ * Purpose: Marks the actual completion time of a successful presentation as the anchor for the next native pacing deadline.
+ */
 extern function MGL_FramePaceMark() from "MiniDoomGL.dll" symbol "MGL_FramePaceMark" returns void
 /*
  * Function: MGL_CreateArrayBuffer
@@ -400,8 +405,23 @@ extern function MGL_DrawDynamicLightSurfaces(geomData as bytes, geomSize as int,
  */
 
 extern function MGL_BeginSpriteBatch(lightData as bytes, lightCount as int, viewX as double, viewY as double, rightX as double, rightZ as double, worldScale as double, footLift as double) from "MiniDoomGL.dll" symbol "MGL_BeginSpriteBatch" returns bool
+/*
+ * Function: MGL_SubmitSprite
+ *
+ * Purpose: Streams one packed world sprite into the active native batch, including lighting, flip, and fuzz-shadow flags.
+ */
 extern function MGL_SubmitSprite(texid as u32, flags as int, baseLight as int, fixedX as int, fixedY as int, fixedZ as int, width as int, height as int, yOffset as int) from "MiniDoomGL.dll" symbol "MGL_SubmitSprite" returns void
+/*
+ * Function: MGL_DrawSpriteRecords
+ *
+ * Purpose: Validates and renders a complete packed sprite-record buffer through one native call.
+ */
 extern function MGL_DrawSpriteRecords(records as bytes, recordsSize as int, recordCount as int) from "MiniDoomGL.dll" symbol "MGL_DrawSpriteRecords" returns bool
+/*
+ * Function: MGL_EndSpriteBatch
+ *
+ * Purpose: Closes the native sprite stream and restores fixed-function state for subsequent renderer passes.
+ */
 extern function MGL_EndSpriteBatch() from "MiniDoomGL.dll" symbol "MGL_EndSpriteBatch" returns void
 /*
  * Function: MGL_GetLastDrawnBatches
@@ -424,96 +444,106 @@ extern function MGL_GetLastDrawnVertices() from "MiniDoomGL.dll" symbol "MGL_Get
  */
 
 extern function MGL_DrawIndexedOverlay(texid as u32, data as bytes, mask as bytes, palette as bytes, width as int, height as int) from "MiniDoomGL.dll" symbol "MGL_DrawIndexedOverlay" returns bool
+/*
+ * Function: MGL_DrawIndexedLogicalOverlay
+ *
+ * Purpose: Converts the scaled status area plus dirty logical-mask bounds to one minimal native RGBA overlay draw.
+ */
 extern function MGL_DrawIndexedLogicalOverlay(texid as u32, data as bytes, dataSize as int, mask as bytes, maskSize as int, palette as bytes, logicalW as int, logicalH as int, scale as int, statusY as int, minX as int, minY as int, maxX as int, maxY as int) from "MiniDoomGL.dll" symbol "MGL_DrawIndexedLogicalOverlay" returns bool
+/*
+ * Function: MGL_DrawIndexedOverlayRect
+ *
+ * Purpose: Converts and draws only the caller-specified dirty rectangle of a masked indexed overlay.
+ */
 extern function MGL_DrawIndexedOverlayRect(texid as u32, data as bytes, dataSize as int, mask as bytes, maskSize as int, palette as bytes, width as int, height as int, minX as int, minY as int, maxX as int, maxY as int) from "MiniDoomGL.dll" symbol "MGL_DrawIndexedOverlayRect" returns bool
 /*
  * Function: glVertex3d
  *
- * Purpose: Maps the external glVertex3d binding used for OpenGL rendering.
+ * Purpose: Appends one double-precision position to the active immediate-mode primitive.
  */
 
 extern function glVertex3d(x as double, y as double, z as double) from "opengl32.dll" symbol "glVertex3d" returns void
 /*
  * Function: glTexCoord2d
  *
- * Purpose: Maps the external glTexCoord2d binding used for OpenGL rendering.
+ * Purpose: Sets the texture coordinate attached to following immediate-mode vertices.
  */
 
 extern function glTexCoord2d(s as double, t as double) from "opengl32.dll" symbol "glTexCoord2d" returns void
 /*
  * Function: glColor3ub
  *
- * Purpose: Maps the external glColor3ub binding used for OpenGL rendering.
+ * Purpose: Sets the opaque byte RGB color attached to following vertices.
  */
 
 extern function glColor3ub(r as int, g as int, b as int) from "opengl32.dll" symbol "glColor3ub" returns void
 /*
  * Function: glColor4ub
  *
- * Purpose: Maps the external glColor4ub binding used for OpenGL rendering.
+ * Purpose: Sets the byte RGBA color attached to following vertices.
  */
 
 extern function glColor4ub(r as int, g as int, b as int, a as int) from "opengl32.dll" symbol "glColor4ub" returns void
 /*
  * Function: glBlendFunc
  *
- * Purpose: Maps the external glBlendFunc binding used for OpenGL rendering.
+ * Purpose: Selects source and destination factors for fixed-function color blending.
  */
 
 extern function glBlendFunc(sfactor as u32, dfactor as u32) from "opengl32.dll" symbol "glBlendFunc" returns void
 /*
  * Function: glAlphaFunc
  *
- * Purpose: Maps the external glAlphaFunc binding used for OpenGL rendering.
+ * Purpose: Selects the comparison and threshold used by fixed-function alpha testing.
  */
 
 extern function glAlphaFunc(func as u32, ref as double) from "opengl32.dll" symbol "glAlphaFunc" returns void
 /*
  * Function: glGenTextures
  *
- * Purpose: Maps the external glGenTextures binding used for OpenGL rendering.
+ * Purpose: Allocates caller-requested OpenGL texture object identifiers.
  */
 
 extern function glGenTextures(n as int, textures as bytes) from "opengl32.dll" symbol "glGenTextures" returns void
 /*
  * Function: glBindTexture
  *
- * Purpose: Maps the external glBindTexture binding used for OpenGL rendering.
+ * Purpose: Makes a texture object current for operations on the selected texture target.
  */
 
 extern function glBindTexture(target as u32, texture as u32) from "opengl32.dll" symbol "glBindTexture" returns void
 /*
  * Function: glTexParameteri
  *
- * Purpose: Maps the external glTexParameteri binding used for OpenGL rendering.
+ * Purpose: Sets an integer sampling or wrapping parameter on the current texture target.
  */
 
 extern function glTexParameteri(target as u32, pname as u32, param as int) from "opengl32.dll" symbol "glTexParameteri" returns void
 /*
  * Function: glTexImage2D
  *
- * Purpose: Maps the external glTexImage2D binding used for OpenGL rendering.
+ * Purpose: Defines one two-dimensional texture image from caller-supplied pixel storage.
  */
 
 extern function glTexImage2D(target as u32, level as int, internalFormat as int, width as int, height as int, border as int, format as u32, typ as u32, pixels as bytes) from "opengl32.dll" symbol "glTexImage2D" returns void
 /*
  * Function: glPixelStorei
  *
- * Purpose: Maps the external glPixelStorei binding used for OpenGL rendering.
+ * Purpose: Configures byte-row alignment for texture uploads or framebuffer readback.
  */
 
 extern function glPixelStorei(pname as u32, param as int) from "opengl32.dll" symbol "glPixelStorei" returns void
 /*
  * Function: glReadPixels
  *
- * Purpose: Maps the external glReadPixels binding used for OpenGL rendering.
+ * Purpose: Copies a framebuffer rectangle into caller-provided pixel storage with format conversion.
  */
 
 extern function glReadPixels(x as int, y as int, width as int, height as int, format as u32, typ as u32, pixels as bytes) from "opengl32.dll" symbol "glReadPixels" returns void
 /*
  * Function: glReadBuffer
  *
- * Purpose: Maps the external glReadBuffer binding used for OpenGL rendering.
+ * Purpose: Selects the color buffer used by subsequent framebuffer readback.
  */
 
 extern function glReadBuffer(mode as u32) from "opengl32.dll" symbol "glReadBuffer" returns void
@@ -546,7 +576,7 @@ igl_frame_limit = 0
 
 /*
 * Function: IGL_WriteU16
-* Purpose: Writes U16 data for the OpenGL backend.
+* Purpose: Encodes the low 16 bits of a value at a byte-buffer offset in little-endian order.
 */
 function inline IGL_WriteU16(buf, off, value)
   v = value & 0xffff
@@ -556,7 +586,7 @@ end function
 
 /*
 * Function: IGL_WriteU32
-* Purpose: Writes U32 data for the OpenGL backend.
+* Purpose: Encodes the low 32 bits of a value at a byte-buffer offset in little-endian order.
 */
 function inline IGL_WriteU32(buf, off, value)
   v = value
@@ -568,7 +598,7 @@ end function
 
 /*
 * Function: IGL_ReadU32
-* Purpose: Reads U32 data for the OpenGL backend.
+* Purpose: Decodes one unsigned 32-bit little-endian value from a byte buffer offset.
 */
 function inline IGL_ReadU32(buf, off)
   return buf[off] +(buf[off + 1] << 8) +(buf[off + 2] << 16) +(buf[off + 3] << 24)
@@ -576,7 +606,7 @@ end function
 
 /*
 * Function: IGL_WantsOpenGL
-* Purpose: Checks open OpenGL conditions for the OpenGL backend.
+* Purpose: Detects OpenGL command-line aliases, records the corresponding renderer request, and reports the selection.
 */
 function IGL_WantsOpenGL()
   if typeof(M_CheckParm) != "function" then return false end if
@@ -762,7 +792,7 @@ end function
 
 /*
 * Function: IGL_Resize
-* Purpose: Provides resize helper behavior for the OpenGL backend.
+* Purpose: Updates cached drawable dimensions and the OpenGL viewport, ignoring invalid or unchanged sizes.
 */
 function IGL_Resize(width, height)
   global igl_width
@@ -777,7 +807,7 @@ end function
 
 /*
 * Function: IGL_Begin3D
-* Purpose: Provides begin3 d helper behavior for the OpenGL backend.
+* Purpose: Makes the context current, clears the frame, and installs the perspective projection and depth state for world rendering.
 */
 function IGL_Begin3D()
   global igl_frame_ready
@@ -806,7 +836,7 @@ end function
 
 /*
 * Function: IGL_MarkFrameReady
-* Purpose: Reads mark Frame Ready data from the OpenGL backend data stream.
+* Purpose: Records that the active renderer completed a frame eligible for presentation.
 */
 function IGL_MarkFrameReady()
   global igl_frame_ready
@@ -815,7 +845,7 @@ end function
 
 /*
 * Function: IGL_HasFrameReady
-* Purpose: Reads has Frame Ready data from the OpenGL backend data stream.
+* Purpose: Reports whether an active OpenGL context currently has an unpresented completed frame.
 */
 function IGL_HasFrameReady()
   return IGL_IsActive() and igl_frame_ready
@@ -823,7 +853,7 @@ end function
 
 /*
 * Function: IGL_Swap
-* Purpose: Provides swap helper behavior for the OpenGL backend.
+* Purpose: Paces a ready frame, presents it through SwapBuffers, marks the real presentation time, and clears readiness only on success.
 */
 function IGL_Swap()
   global igl_frame_ready
@@ -846,7 +876,7 @@ end function
 
 /*
 * Function: IGL_SetPalette
-* Purpose: Updates palette state for the OpenGL backend.
+* Purpose: Copies a 256-color palette into render and conversion tables, invalidates nearest-color lookup, and bumps its revision.
 */
 function IGL_SetPalette(palette)
   global igl_palette
@@ -865,7 +895,7 @@ end function
 
 /*
 * Function: IGL_SetPaletteFlash
-* Purpose: Updates palette flash state for the OpenGL backend.
+* Purpose: Converts Doom damage, bonus, and radiation palette indices into an RGBA fullscreen tint.
 */
 function IGL_SetPaletteFlash(paletteIndex)
   global igl_flash_r
@@ -903,7 +933,7 @@ end function
 
 /*
 * Function: IGL_NearestPaletteIndex
-* Purpose: Provides nearest palette index helper behavior for the OpenGL backend.
+* Purpose: Finds the closest RGB entry in the active 256-color palette and caches the result by quantized source color.
 */
 function IGL_NearestPaletteIndex(r, g, b)
   global igl_nearest_cache
@@ -943,7 +973,7 @@ end function
 
 /*
 * Function: IGL_CaptureLogicalIndexed
-* Purpose: Reads logical indexed data for the OpenGL backend.
+* Purpose: Reads back the GL framebuffer, downsamples it to logical dimensions, and quantizes each pixel to the nearest base-palette index.
 */
 function IGL_CaptureLogicalIndexed(dest, logicalW, logicalH)
   global igl_capture_rgba
@@ -985,7 +1015,7 @@ end function
 
 /*
 * Function: IGL_CaptureRGBA
-* Purpose: Reads RGBA data for the OpenGL backend.
+* Purpose: Reads the selected GL color buffer, flips its bottom-up rows, and nearest-neighbor resizes RGBA pixels into the destination.
 */
 function IGL_CaptureRGBA(dest, outW, outH, front)
   global igl_capture_rgba
@@ -1143,7 +1173,7 @@ end function
 
 /*
 * Function: IGL_EnsureOverlayTexture
-* Purpose: Provides ensure overlay texture helper behavior for the OpenGL backend.
+* Purpose: Lazily allocates the reusable overlay texture and configures nearest filtering plus edge clamping.
 */
 function IGL_EnsureOverlayTexture()
   global igl_overlay_tex
@@ -1163,7 +1193,7 @@ end function
 
 /*
 * Function: IGL_EnsureFrameTexture
-* Purpose: Provides ensure frame texture helper behavior for the OpenGL backend.
+* Purpose: Lazily allocates the reusable full-frame texture and configures pixel-exact sampling for software-frame presentation.
 */
 function IGL_EnsureFrameTexture()
   global igl_frame_tex
@@ -1183,7 +1213,7 @@ end function
 
 /*
 * Function: IGL_Begin2D
-* Purpose: Provides begin2 d helper behavior for the OpenGL backend.
+* Purpose: Replaces the world matrices with identity clip-space transforms and disables depth testing for screen-aligned overlays.
 */
 function IGL_Begin2D()
   if not igl_active then return false end if
@@ -1201,7 +1231,7 @@ end function
 
 /*
 * Function: IGL_DrawTextureRect
-* Purpose: Draws texture rect output for the OpenGL backend.
+* Purpose: Draws a textured clip-space quad with caller-supplied bounds and resets the vertex color afterward.
 */
 function IGL_DrawTextureRect(texid, x, y, width, height, flipped)
   if texid <= 0 or not IGL_Begin2D() then return false end if
@@ -1234,7 +1264,7 @@ end function
 
 /*
 * Function: IGL_DrawIndexedFrame
-* Purpose: Draws indexed frame output for the OpenGL backend.
+* Purpose: Expands a palette-indexed software frame to RGBA, uploads it to the frame texture, and covers the complete output surface.
 */
 function IGL_DrawIndexedFrame(data, width, height)
   global igl_frame_rgba
@@ -1296,7 +1326,7 @@ end function
 
 /*
 * Function: IGL_DrawRGBAFrame
-* Purpose: Draws RGBA frame output for the OpenGL backend.
+* Purpose: Uploads a validated RGBA frame directly to the reusable frame texture and presents it as a full-screen quad.
 */
 function IGL_DrawRGBAFrame(data, width, height)
   if not igl_active then return false end if
@@ -1337,7 +1367,7 @@ end function
 
 /*
 * Function: IGL_DrawPaletteFlash
-* Purpose: Draws palette flash output for the OpenGL backend.
+* Purpose: Blends the active damage, bonus, or radiation palette tint over the finished frame without affecting depth.
 */
 function IGL_DrawPaletteFlash()
   if not igl_active then return false end if
@@ -1359,7 +1389,7 @@ end function
 
 /*
 * Function: IGL_DrawIndexedOverlay
-* Purpose: Draws indexed overlay output for the OpenGL backend.
+* Purpose: Converts and draws masked indexed HUD pixels through the native dirty-rectangle path, falling back safely when no pixels are visible.
 */
 function IGL_DrawIndexedOverlay(data, mask, width, height)
   if not igl_active then return false end if
@@ -1407,7 +1437,7 @@ end function
 
 /*
 * Function: IGL_Shutdown
-* Purpose: Shuts down shutdown resources owned by the OpenGL backend system.
+* Purpose: Detaches and destroys the WGL context, clears backend handles, and returns renderer selection to classic software mode.
 */
 function IGL_Shutdown()
   global igl_active

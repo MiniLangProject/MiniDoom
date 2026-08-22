@@ -12,7 +12,7 @@ $p = $null
 
 if (-not (Test-Path $hdwad)) {
     try {
-        $p = Start-MiniDoomForTest -RepoRoot $RepoRoot -Arguments @('-iwad', $Iwad, '-opengl', '-warp', '1', '-nomonsters') -WindowTimeoutSeconds 240
+        $p = Start-MiniDoomForTest -RepoRoot $RepoRoot -Arguments @('-iwad', $Iwad, '-windowed', '-opengl', '-warp', '1', '-nomonsters') -WindowTimeoutSeconds 240
         $deadline = (Get-Date).AddMinutes(6)
         while ((Get-Date) -lt $deadline -and -not (Test-Path $hdwad)) {
             Assert-MiniDoomHealthy -Process $p
@@ -30,7 +30,7 @@ $info | ConvertTo-Json | Set-Content -Encoding UTF8 (Join-Path $ArtifactDir 'hdw
 
 $p = $null
 try {
-    $p = Start-MiniDoomForTest -RepoRoot $RepoRoot -Arguments @('-iwad', $Iwad, '-opengl', '-warp', '1', '-nomonsters') -WindowTimeoutSeconds 45
+    $p = Start-MiniDoomForTest -RepoRoot $RepoRoot -Arguments @('-iwad', $Iwad, '-windowed', '-opengl', '-warp', '1', '-nomonsters') -WindowTimeoutSeconds 45
     Start-Sleep -Seconds 4
     Assert-MiniDoomHealthy -Process $p
     $shot = Join-Path $ArtifactDir 'opengl_with_hdwad.png'

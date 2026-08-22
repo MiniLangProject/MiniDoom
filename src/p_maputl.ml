@@ -14,7 +14,7 @@
   limitations under the License.
 
   Script: p_maputl.ml
-  Purpose: Implements core gameplay simulation: map logic, physics, AI, and world interaction.
+  Purpose: Supplies fixed-point geometry tests, blockmap linking, opening calculations, and ordered path traversal.
 */
 import m_bbox
 import doomdef
@@ -25,7 +25,7 @@ import m_argv
 
 /*
 * Function: _abs
-* Purpose: Provides absolute-value helper behavior for the map utility.
+* Purpose: Returns an integer magnitude for distance and side-of-line calculations.
 */
 function inline _abs(x)
   if x < 0 then return - x end if
@@ -34,7 +34,7 @@ end function
 
 /*
 * Function: _PMU_U32
-* Purpose: Provides U32 helper behavior for the map utility.
+* Purpose: Normalizes an integer to unsigned 32-bit form for sign-bit tests that emulate Doom C arithmetic.
 */
 function inline _PMU_U32(v)
   if typeof(v) != "int" then return 0 end if
@@ -43,7 +43,7 @@ end function
 
 /*
 * Function: _PMU_HasSignBit
-* Purpose: Provides has sign bit helper behavior for the map utility.
+* Purpose: Tests bit 31 of a value after unsigned 32-bit normalization.
 */
 function inline _PMU_HasSignBit(v)
   return (_PMU_U32(v) & 0x80000000) != 0
@@ -51,7 +51,7 @@ end function
 
 /*
 * Function: _PMU_IsSeq
-* Purpose: Provides is sequence helper behavior for the map utility.
+* Purpose: Accepts arrays and byte buffers as the indexable sequence forms used by compatibility helpers.
 */
 function inline _PMU_IsSeq(v)
   t = typeof(v)
@@ -64,7 +64,7 @@ _pmuDiagUseCount = 0
 
 /*
 * Function: _PMU_DiagUseEnabled
-* Purpose: Provides diag use enabled helper behavior for the map utility.
+* Purpose: Caches whether path/use diagnostic output was requested on the command line.
 */
 function inline _PMU_DiagUseEnabled()
   global _pmuDiagUseInit
@@ -85,7 +85,7 @@ end function
 
 /*
 * Function: _PMU_DiagUseLog
-* Purpose: Provides diag use log helper behavior for the map utility.
+* Purpose: Emits a map-use diagnostic only when the cached diagnostic option is active.
 */
 function inline _PMU_DiagUseLog(msg)
   global _pmuDiagUseCount
@@ -98,7 +98,7 @@ end function
 
 /*
 * Function: P_AproxDistance
-* Purpose: Provides distance helper behavior for the map utility.
+* Purpose: Computes Doom's inexpensive fixed-point distance approximation from horizontal and vertical deltas.
 */
 function inline P_AproxDistance(dx, dy)
   dx = _abs(dx)
@@ -111,7 +111,7 @@ end function
 
 /*
 * Function: P_PointOnLineSide
-* Purpose: Provides on line side helper behavior for the map utility.
+* Purpose: Classifies a fixed-point point against a partition line while preserving Doom's vertical, horizontal, and sign-bit shortcuts.
 */
 function inline P_PointOnLineSide(x, y, line)
   if line is void then return 0 end if
@@ -142,7 +142,7 @@ end function
 
 /*
 * Function: P_BoxOnLineSide
-* Purpose: Provides on line side helper behavior for the map utility.
+* Purpose: Classifies an axis-aligned bounding box against a line, returning -1 when the box straddles both sides.
 */
 function inline P_BoxOnLineSide(tmbox, ld)
   if tmbox is void or ld is void then return 0 end if
@@ -178,7 +178,7 @@ end function
 
 /*
 * Function: P_PointOnDivlineSide
-* Purpose: Performs integer division with map utility rounding and guard rules.
+* Purpose: Classifies a fixed-point point against an infinite divline using overflow-safe sign tests and scaled cross products.
 */
 function inline P_PointOnDivlineSide(x, y, line)
   if line is void then return 0 end if
@@ -216,7 +216,7 @@ end function
 
 /*
 * Function: P_MakeDivline
-* Purpose: Performs integer division with map utility rounding and guard rules.
+* Purpose: Copies a linedef's first vertex and direction into the lightweight divline form used by trace calculations.
 */
 function inline P_MakeDivline(li, dl)
   if li is void or dl is void then return end if
@@ -228,7 +228,7 @@ end function
 
 /*
 * Function: P_InterceptVector
-* Purpose: Provides vector helper behavior for the map utility.
+* Purpose: Computes the fixed-point fraction where one divline intersects another, returning zero for parallel traces.
 */
 function inline P_InterceptVector(v2, v1)
   den = FixedMul(v1.dy >> 8, v2.dx) - FixedMul(v1.dx >> 8, v2.dy)
@@ -242,7 +242,7 @@ end function
 
 /*
 * Function: P_LineOpening
-* Purpose: Provides opening helper behavior for the map utility.
+* Purpose: Computes the vertical opening, top, bottom, and low-floor values across a two-sided line into shared trace globals.
 */
 function P_LineOpening(linedef)
   global opentop
@@ -296,7 +296,7 @@ end function
 
 /*
 * Function: P_UnsetThingPosition
-* Purpose: Provides thing position helper behavior for the map utility.
+* Purpose: Unlinks a mobj from sector and blockmap chains before movement, honoring no-sector and no-blockmap flags.
 */
 function P_UnsetThingPosition(thing)
   if thing is void then return end if
@@ -344,7 +344,7 @@ end function
 
 /*
 * Function: P_SetThingPosition
-* Purpose: Updates thing position state for the map utility.
+* Purpose: Finds a thing's subsector and links it into sector and blockmap lists unless its flags suppress either index.
 */
 function P_SetThingPosition(thing)
   if thing is void then return end if
@@ -393,7 +393,7 @@ end function
 
 /*
 * Function: P_BlockLinesIterator
-* Purpose: Provides lines iterator helper behavior for the map utility.
+* Purpose: Visits each valid line in one blockmap cell once per traversal and stops immediately when the callback rejects it.
 */
 function P_BlockLinesIterator(x, y, func)
   global validcount
@@ -443,7 +443,7 @@ end function
 
 /*
 * Function: P_BlockThingsIterator
-* Purpose: Provides things iterator helper behavior for the map utility.
+* Purpose: Walks the mobj chain for one blockmap cell and stops when the callback returns false.
 */
 function P_BlockThingsIterator(x, y, func)
   if func is void then return true end if
@@ -475,7 +475,7 @@ ptflags = 0
 
 /*
 * Function: _EnsureIntercepts
-* Purpose: Builds intercepts data for the map utility.
+* Purpose: Lazily allocates the reusable baseline intercept records required before path traversal begins.
 */
 function inline _EnsureIntercepts()
   global intercepts
@@ -490,7 +490,7 @@ end function
 
 /*
 * Function: _PT_EnsureInterceptCapacity
-* Purpose: Provides ensure intercept capacity helper behavior for the map utility.
+* Purpose: Lazily allocates and geometrically grows the reusable intercept array required by path traversal.
 */
 function _PT_EnsureInterceptCapacity(need)
   global intercepts
@@ -521,7 +521,7 @@ end function
 
 /*
 * Function: _PT_AddLineIntercept
-* Purpose: Provides add line intercept helper behavior for the map utility.
+* Purpose: Tests one line against the active trace and appends its in-range fractional crossing to the intercept buffer.
 */
 function _PT_AddLineIntercept(ld)
   global intercept_p
@@ -564,7 +564,7 @@ end function
 
 /*
 * Function: _PT_AddThingIntercept
-* Purpose: Provides add thing intercept helper behavior for the map utility.
+* Purpose: Approximates a thing as a trace-facing diagonal and appends an in-range crossing intercept.
 */
 function _PT_AddThingIntercept(thing)
   global intercept_p
@@ -614,7 +614,7 @@ end function
 
 /*
 * Function: PIT_AddLineIntercepts
-* Purpose: Provides add line intercepts helper behavior for the map utility.
+* Purpose: Adapts blockmap line iteration to the current path-traversal intercept collector.
 */
 function PIT_AddLineIntercepts(ld)
   return _PT_AddLineIntercept(ld)
@@ -622,7 +622,7 @@ end function
 
 /*
 * Function: PIT_AddThingIntercepts
-* Purpose: Provides add thing intercepts helper behavior for the map utility.
+* Purpose: Adapts blockmap thing iteration to the current path-traversal intercept collector.
 */
 function PIT_AddThingIntercepts(thing)
   return _PT_AddThingIntercept(thing)
@@ -668,7 +668,7 @@ end function
 
 /*
 * Function: P_PathTraverse
-* Purpose: Provides traverse helper behavior for the map utility.
+* Purpose: Steps a trace through blockmap cells, collects requested line and thing crossings, sorts them by fraction, and invokes the traverser in order.
 */
 function P_PathTraverse(x1, y1, x2, y2, flags, trav)
   global intercept_p

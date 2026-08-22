@@ -14,7 +14,7 @@
   limitations under the License.
 
   Script: d_net.ml
-  Purpose: Defines core Doom data types, shared state, and bootstrap flow.
+  Purpose: Runs legacy lockstep networking and host-authoritative input, snapshot, phase, stats, and chat replication.
 */
 import d_player
 import m_menu
@@ -48,7 +48,7 @@ const NCMD_CHECKSUM = 0x0fffffff
 
 /*
 * Enum: command_t
-* Purpose: Defines named constants for command type.
+* Purpose: Selects whether the platform driver transmits the current packet or polls for one received packet.
 */
 enum command_t
   CMD_SEND = 1
@@ -57,7 +57,7 @@ end enum
 
 /*
 * Struct: doomdata_t
-* Purpose: Stores doomdata data used by the network game system.
+* Purpose: Holds one legacy lockstep packet header plus its bounded ring of tic commands.
 */
 struct doomdata_t
   checksum
@@ -70,7 +70,7 @@ end struct
 
 /*
 * Struct: doomcom_t
-* Purpose: Stores doomcom data used by the network game system.
+* Purpose: Mirrors the classic network-driver control block and negotiated session metadata.
 */
 struct doomcom_t
   id
@@ -134,6 +134,7 @@ const _DNET_MPMSG_WISTATS_REQ = 6
 const _DNET_MPMSG_CHAT = 7
 const _DNET_MPMSG_SOUND = 201
 const _DNET_MP_CHAT_BROADCAST = 5
+const _DNET_MP_CHAT_COOLDOWN_TICS = 4
 const _DNET_MP_SNAPSHOT_INTERVAL = 1
 const _DNET_MP_FULL_SNAPSHOT_PERIOD = 35
 const _DNET_MP_INPUT_KEEPALIVE_TICS = 1
@@ -142,6 +143,7 @@ const _DNET_MP_REMOTE_CMD_STALE_TICS = 6
 const _DNET_MP_PHASE_INTERVAL = 4
 const _DNET_MP_WISTATS_RETRY_TICS = 12
 const _DNET_MP_WISTATS_MAX_RETRIES = 3
+const _DNET_MP_WISTATS_REQ_COOLDOWN_TICS = 4
 const _DNET_MP_WISTATS_BASE_ROW_BYTES = 24
 const _DNET_MP_NAME_BYTES = 26
 const _DNET_MP_WISTATS_ROW_BYTES = _DNET_MP_WISTATS_BASE_ROW_BYTES + _DNET_MP_NAME_BYTES
@@ -181,16 +183,20 @@ _dnet_mp_remote_cmds = []
 _dnet_mp_remote_cmd_valid = []
 _dnet_mp_remote_cmd_tic = []
 _dnet_mp_remote_input_last_seq = []
+_dnet_mp_host_input_active_logged = []
 _dnet_mp_last_phase_tic = 0
 _dnet_mp_host_last_phase_key = void
 _dnet_mp_host_last_wistats_tic = 0
+_dnet_mp_host_last_wistats_req_tic = []
 _dnet_mp_client_last_phase_tick = 0
 _dnet_mp_host_last_frags = []
+_dnet_mp_host_last_chat_tic = []
 _dnet_mp_host_actor_ids = []
 _dnet_mp_host_actor_nodes = []
 _dnet_mp_host_actor_refs = []
 _dnet_mp_host_last_actor_sig = []
 _dnet_mp_host_actor_miss = []
+_dnet_mp_host_actor_seen = bytes(0, 0)
 _dnet_mp_host_actor_active_count = 0
 _dnet_mp_host_removed_ids = []
 _dnet_mp_host_next_actor_id = 1
@@ -240,6 +246,10 @@ _dnet_mp_client_wistats_req_count = 0
 _dnet_mp_client_wistats_error = ""
 _dnet_mp_client_cached_wistats = void
 _dnet_mp_client_local_pickups_armed = false
+_dnet_mp_client_seen_players = bytes(MAXPLAYERS, 0)
+_dnet_mp_client_claimed_actors = bytes(0, 0)
+_dnet_mp_was_authoritative = false
+_dnet_mp_was_client = false
 _dnet_mp_dbg_snap_calls = 0
 _dnet_mp_dbg_snap_skip_not_host = 0
 _dnet_mp_dbg_snap_skip_not_level = 0
@@ -260,7 +270,7 @@ _dnet_mp_snap_cache_side_rows = []
 
 /*
 * Function: _DNet_DefaultCmds
-* Purpose: Provides default commands helper behavior for the network game.
+* Purpose: Allocates a full BACKUPTICS command ring initialized to neutral input.
 */
 function inline _DNet_DefaultCmds()
   a = array(BACKUPTICS)
@@ -274,7 +284,7 @@ end function
 
 /*
 * Function: _DNet_IsSeq
-* Purpose: Provides is sequence helper behavior for the network game.
+* Purpose: Accepts arrays and lists wherever network codecs require indexed sequence access.
 */
 function inline _DNet_IsSeq(v)
   t = typeof(v)
@@ -323,7 +333,7 @@ end function
 
 /*
 * Function: _DNet_IDiv
-* Purpose: Performs integer division with network game rounding and guard rules.
+* Purpose: Returns a quotient truncated toward zero for tic math, with invalid operands mapped to zero.
 */
 function inline _DNet_IDiv(a, b)
   ai = _DNet_ToInt(a, 0)
@@ -375,7 +385,7 @@ end function
 
 /*
 * Function: _DNet_EnsureStateArrays
-* Purpose: Provides ensure state arrays helper behavior for the network game.
+* Purpose: Restores all legacy lockstep rings to protocol sizes before packet/tic access.
 */
 function _DNet_EnsureStateArrays()
   global localcmds
@@ -415,7 +425,7 @@ end function
 
 /*
 * Function: _DNet_CopyCmd
-* Purpose: Provides copy command helper behavior for the network game.
+* Purpose: Copies a tic command by value so ring-buffer reuse cannot mutate queued input.
 */
 function inline _DNet_CopyCmd(src)
   if src is void then return ticcmd_t(0, 0, 0, 0, 0, 0) end if
@@ -583,16 +593,20 @@ function _DNet_MPResetRuntime()
   global _dnet_mp_remote_cmd_valid
   global _dnet_mp_remote_cmd_tic
   global _dnet_mp_remote_input_last_seq
+  global _dnet_mp_host_input_active_logged
   global _dnet_mp_last_phase_tic
   global _dnet_mp_host_last_phase_key
   global _dnet_mp_host_last_wistats_tic
+  global _dnet_mp_host_last_wistats_req_tic
   global _dnet_mp_client_last_phase_tick
   global _dnet_mp_host_last_frags
+  global _dnet_mp_host_last_chat_tic
   global _dnet_mp_host_actor_ids
   global _dnet_mp_host_actor_nodes
   global _dnet_mp_host_actor_refs
   global _dnet_mp_host_last_actor_sig
   global _dnet_mp_host_actor_miss
+  global _dnet_mp_host_actor_seen
   global _dnet_mp_host_actor_active_count
   global _dnet_mp_host_removed_ids
   global _dnet_mp_host_next_actor_id
@@ -642,6 +656,10 @@ function _DNet_MPResetRuntime()
   global _dnet_mp_client_wistats_error
   global _dnet_mp_client_cached_wistats
   global _dnet_mp_client_local_pickups_armed
+  global _dnet_mp_client_seen_players
+  global _dnet_mp_client_claimed_actors
+  global _dnet_mp_was_authoritative
+  global _dnet_mp_was_client
   global _dnet_mp_dbg_snap_calls
   global _dnet_mp_dbg_snap_skip_not_host
   global _dnet_mp_dbg_snap_skip_not_level
@@ -668,11 +686,14 @@ function _DNet_MPResetRuntime()
   _dnet_mp_remote_cmd_valid = array(MAXPLAYERS, false)
   _dnet_mp_remote_cmd_tic = array(MAXPLAYERS, 0)
   _dnet_mp_remote_input_last_seq = array(MAXPLAYERS, -1)
+  _dnet_mp_host_input_active_logged = array(MAXPLAYERS, false)
   _dnet_mp_last_phase_tic = 0
   _dnet_mp_host_last_phase_key = void
   _dnet_mp_host_last_wistats_tic = 0
+  _dnet_mp_host_last_wistats_req_tic = array(MAXPLAYERS, -1000000)
   _dnet_mp_client_last_phase_tick = 0
   _dnet_mp_host_last_frags = array(MAXPLAYERS)
+  _dnet_mp_host_last_chat_tic = array(MAXPLAYERS, -1000000)
   _dnet_mp_host_slot_fullsync_burst = array(MAXPLAYERS, 0)
   i = 0
   while i < MAXPLAYERS
@@ -686,6 +707,7 @@ function _DNet_MPResetRuntime()
   _dnet_mp_host_actor_refs = []
   _dnet_mp_host_last_actor_sig = []
   _dnet_mp_host_actor_miss = []
+  _dnet_mp_host_actor_seen = bytes(0, 0)
   _dnet_mp_host_actor_active_count = 0
   _dnet_mp_host_removed_ids = []
   _dnet_mp_host_next_actor_id = 1
@@ -734,6 +756,10 @@ function _DNet_MPResetRuntime()
   _dnet_mp_client_wistats_error = ""
   _dnet_mp_client_cached_wistats = void
   _dnet_mp_client_local_pickups_armed = false
+  _dnet_mp_client_seen_players = bytes(MAXPLAYERS, 0)
+  _dnet_mp_client_claimed_actors = bytes(0, 0)
+  _dnet_mp_was_authoritative = false
+  _dnet_mp_was_client = false
   _dnet_mp_dbg_snap_calls = 0
   _dnet_mp_dbg_snap_skip_not_host = 0
   _dnet_mp_dbg_snap_skip_not_level = 0
@@ -1274,15 +1300,41 @@ end function
 * Purpose: Handles one client request for intermission stats retransmission.
 */
 function inline _DNet_MPHostHandleWIStatsRequest(node, payload)
+  global _dnet_mp_host_last_wistats_req_tic
   if not _DNet_MPIsHost() then return end if
+  if typeof(payload) != "bytes" or len(payload) != 6 then return end if
+  if (payload[0] & 255) != _DNET_MPMSG_WISTATS_REQ then return end if
   slot = _DNet_ToInt(node, -1)
-  if slot < 1 or slot >= MAXPLAYERS then
-    if typeof(payload) == "bytes" and len(payload) >= 2 then
-      slot = _DNet_ToInt(payload[1] & 255, -1)
-    end if
-  end if
   if slot < 1 or slot >= MAXPLAYERS then return end if
+  if (payload[1] & 255) != slot then return end if
+  nowtic = _DNet_ToInt(gametic, 0)
+  if _DNet_IsSeq(_dnet_mp_host_last_wistats_req_tic) and slot < len(_dnet_mp_host_last_wistats_req_tic) then
+    if nowtic - _DNet_ToInt(_dnet_mp_host_last_wistats_req_tic[slot], -1000000) < _DNET_MP_WISTATS_REQ_COOLDOWN_TICS then return end if
+    _dnet_mp_host_last_wistats_req_tic[slot] = nowtic
+  end if
   _DNet_MPHostSendWIStatsTo(slot)
+end function
+
+/*
+* Function: _DNet_MPReturnToOffline
+* Purpose: Collapses stale multiplayer clocks/slots after transport loss and returns to a defined title state.
+*/
+function _DNet_MPReturnToOffline(wasClient)
+  global usergame
+  global paused
+  role = "HOST"
+  if wasClient then role = "CLIENT" end if
+  if typeof(D_NetInitSinglePlayer) == "function" then D_NetInitSinglePlayer() end if
+  usergame = false
+  paused = false
+  if typeof(M_ClearMenus) == "function" then M_ClearMenus() end if
+  if typeof(D_StartTitle) == "function" then D_StartTitle() end if
+  line = "MPTEST " + role + "_OFFLINE active=0 console=0 state=title"
+  if typeof(_MMENU_MPStatus) == "function" then
+    _MMENU_MPStatus(line)
+  else
+    print line
+  end if
 end function
 
 /*
@@ -1296,7 +1348,7 @@ function inline _DNet_MPSendWIStatsRequest()
   payload[0] = _DNET_MPMSG_WISTATS_REQ
   payload[1] = _DNet_ToInt(consoleplayer, 0) & 255
   _DNet_MPWriteU32(payload, 2, _DNet_ToInt(gametic, 0))
-  return MP_PlatformNetSend(1, payload)
+  return MP_PlatformNetSend(0, payload)
 end function
 
 /*
@@ -1327,9 +1379,9 @@ function _DNet_MPClientApplyWIStats(payload)
   needOldLegacy = 32 + rowCount * _DNET_MP_WISTATS_BASE_ROW_BYTES
   needNewLegacy = 36 + rowCount * _DNET_MP_WISTATS_BASE_ROW_BYTES
   needNewNamed = 36 + rowCount * _DNET_MP_WISTATS_ROW_BYTES
-  hasNamedRows = len(payload) >= needNewNamed
-  hasNew = len(payload) >= needNewLegacy
-  if (not hasNew) and len(payload) < needOldLegacy then return end if
+  hasNamedRows = len(payload) == needNewNamed
+  hasNew = len(payload) == needNewLegacy or hasNamedRows
+  if (not hasNew) and len(payload) != needOldLegacy then return end if
   rowBytes = _DNET_MP_WISTATS_BASE_ROW_BYTES
   if hasNamedRows then rowBytes = _DNET_MP_WISTATS_ROW_BYTES end if
 
@@ -1575,13 +1627,56 @@ function inline _DNet_MPClientApplyChat(payload)
   if typeof(payload) != "bytes" or len(payload) < 4 then return end if
   if (payload[0] & 255) != _DNET_MPMSG_CHAT then return end if
   sender = payload[1] & 255
+  dest = payload[2] & 255
   n = payload[3] & 255
-  if n > len(payload) - 4 then n = len(payload) - 4 end if
+  if n > 120 or len(payload) != 4 + n then return end if
+  localSlot = _DNet_ToInt(consoleplayer, 0)
+  recipient = dest - 1
+  if dest != _DNET_MP_CHAT_BROADCAST and sender != localSlot and recipient != localSlot then return end if
   if n <= 0 then return end if
-  txt = _DNet_MPNormalizeChatText(decode(slice(payload, 4, 4 + n)))
+  txt = _DNet_MPNormalizeChatText(decode(slice(payload, 4, n)))
   if txt == "" then return end if
+  if typeof(_MPPlatform_LogEvent) == "function" then
+    _MPPlatform_LogEvent("MPTEST CHAT_RECEIVED sender=" + sender + " dest=" + dest + " length=" + len(bytes(txt)))
+  end if
   msg = _DNet_MPPlayerName(sender) + ": " + txt
   HU_NetAddMessage(msg)
+end function
+
+/*
+* Function: _DNet_MPHostRelayChat
+* Purpose: Displays and routes a validated chat line to its sender and optional private recipient.
+*/
+function _DNet_MPHostRelayChat(sender, dest, txt)
+  if not _DNet_MPIsHost() then return false end if
+  if sender < 0 or sender >= MAXPLAYERS then return false end if
+  recipient = dest - 1
+  if dest != _DNET_MP_CHAT_BROADCAST and (recipient < 0 or recipient >= MAXPLAYERS) then return false end if
+  clean = _DNet_MPNormalizeChatText(txt)
+  if clean == "" then return false end if
+  if typeof(_MPPlatform_LogEvent) == "function" then
+    _MPPlatform_LogEvent("MPTEST CHAT_RELAY sender=" + sender + " dest=" + dest + " length=" + len(bytes(clean)))
+  end if
+
+  localSlot = _DNet_ToInt(consoleplayer, 0)
+  if dest == _DNET_MP_CHAT_BROADCAST or sender == localSlot or recipient == localSlot then
+    HU_NetAddMessage(_DNet_MPPlayerName(sender) + ": " + clean)
+  end if
+
+  if typeof(MP_PlatformNetSend) != "function" then return true end if
+  outp = _DNet_MPBuildChatPacket(sender, dest, clean)
+  slots = _DNet_MPActiveSlots()
+  i = 0
+  while i < len(slots)
+    s = _DNet_ToInt(slots[i], -1)
+    if s > 0 and s < MAXPLAYERS then
+      if dest == _DNET_MP_CHAT_BROADCAST or s == sender or s == recipient then
+        MP_PlatformNetSend(s, outp)
+      end if
+    end if
+    i = i + 1
+  end while
+  return true
 end function
 
 /*
@@ -1589,33 +1684,63 @@ end function
 * Purpose: Validates and relays one client chat packet as authoritative chat event.
 */
 function _DNet_MPHostHandleChatPacket(node, payload)
+  global _dnet_mp_host_last_chat_tic
+  payloadSender = -1
+  payloadDest = -1
+  payloadLength = -1
+  if typeof(payload) == "bytes" then
+    if len(payload) > 1 then payloadSender = payload[1] & 255 end if
+    if len(payload) > 2 then payloadDest = payload[2] & 255 end if
+    if len(payload) > 3 then payloadLength = payload[3] & 255 end if
+  end if
+  if typeof(_MPPlatform_LogEvent) == "function" then
+    _MPPlatform_LogEvent("MPTEST CHAT_HOST_RX node=" + _DNet_ToInt(node, -1) + " payload_sender=" + payloadSender + " dest=" + payloadDest + " length=" + payloadLength)
+  end if
   if not _DNet_MPIsHost() then return end if
   if typeof(payload) != "bytes" or len(payload) < 4 then return end if
   if (payload[0] & 255) != _DNET_MPMSG_CHAT then return end if
 
   sender = _DNet_ToInt(node, -1)
-  if sender < 0 or sender >= MAXPLAYERS then
-    sender = _DNet_ToInt(payload[1] & 255, -1)
-  end if
-  if sender < 0 or sender >= MAXPLAYERS then return end if
+  if sender < 1 or sender >= MAXPLAYERS then return end if
+  if (payload[1] & 255) != sender then return end if
 
   dest = payload[2] & 255
   n = payload[3] & 255
-  if n > len(payload) - 4 then n = len(payload) - 4 end if
+  if n > 120 or len(payload) != 4 + n then return end if
   if n <= 0 then return end if
-  txt = _DNet_MPNormalizeChatText(decode(slice(payload, 4, 4 + n)))
+  txt = _DNet_MPNormalizeChatText(decode(slice(payload, 4, n)))
   if txt == "" then return end if
+  nowtic = _DNet_ToInt(gametic, 0)
+  if _DNet_IsSeq(_dnet_mp_host_last_chat_tic) and sender < len(_dnet_mp_host_last_chat_tic) then
+    if nowtic - _DNet_ToInt(_dnet_mp_host_last_chat_tic[sender], -1000000) < _DNET_MP_CHAT_COOLDOWN_TICS then return end if
+    _dnet_mp_host_last_chat_tic[sender] = nowtic
+  end if
+  _DNet_MPHostRelayChat(sender, dest, txt)
+end function
 
-  msg = _DNet_MPPlayerName(sender) + ": " + txt
-  HU_NetAddMessage(msg)
-
-  if typeof(MP_PlatformNetSend) != "function" then return end if
-  outp = _DNet_MPBuildChatPacket(sender, _DNET_MP_CHAT_BROADCAST, txt)
-  s = 0
-  while s < MAXPLAYERS
-    MP_PlatformNetSend(s, outp)
-    s = s + 1
-  end while
+/*
+* Function: D_NetMPSendChat
+* Purpose: Sends local HUD chat through the authoritative packet channel, preserving private destinations.
+*/
+function D_NetMPSendChat(dest, msg)
+  if not _DNet_MPIsAuthoritative() then return false end if
+  sender = _DNet_ToInt(consoleplayer, 0)
+  if sender < 0 or sender >= MAXPLAYERS then return false end if
+  clean = _DNet_MPNormalizeChatText(msg)
+  if clean == "" then return false end if
+  recipient = _DNet_ToInt(dest, _DNET_MP_CHAT_BROADCAST) - 1
+  if dest != _DNET_MP_CHAT_BROADCAST and (recipient < 0 or recipient >= MAXPLAYERS) then return false end if
+  if _DNet_MPIsHost() then
+    return _DNet_MPHostRelayChat(sender, dest, clean)
+  end if
+  if typeof(MP_PlatformNetSend) != "function" then return false end if
+  sent = MP_PlatformNetSend(0, _DNet_MPBuildChatPacket(sender, dest, clean))
+  ok = 0
+  if sent then ok = 1 end if
+  if typeof(_MPPlatform_LogEvent) == "function" then
+    _MPPlatform_LogEvent("MPTEST CHAT_SENT sender=" + sender + " dest=" + dest + " length=" + len(bytes(clean)) + " ok=" + ok)
+  end if
+  return sent
 end function
 
 /*
@@ -1949,6 +2074,7 @@ function _DNet_MPHostRefreshActorRegistry()
   global _dnet_mp_host_actor_refs
   global _dnet_mp_host_last_actor_sig
   global _dnet_mp_host_actor_miss
+  global _dnet_mp_host_actor_seen
   global _dnet_mp_host_actor_active_count
   global _dnet_mp_host_removed_ids
   global _dnet_mp_host_actor_cursor
@@ -1975,7 +2101,17 @@ function _DNet_MPHostRefreshActorRegistry()
     _dnet_mp_host_actor_miss = _dnet_mp_host_actor_miss + array(needHostActors - len(_dnet_mp_host_actor_miss), 0)
   end if
 
-  seen = bytes(len(_dnet_mp_host_actor_ids), 0)
+  seenCount = len(_dnet_mp_host_actor_ids)
+  if typeof(_dnet_mp_host_actor_seen) != "bytes" or len(_dnet_mp_host_actor_seen) < seenCount then
+    _dnet_mp_host_actor_seen = bytes(seenCount, 0)
+  else
+    si = 0
+    while si < seenCount
+      _dnet_mp_host_actor_seen[si] = 0
+      si = si + 1
+    end while
+  end if
+  seen = _dnet_mp_host_actor_seen
 
   cur = thinkercap.next
   guard = 0
@@ -2372,24 +2508,51 @@ function _DNet_MPHostPopRemovedIds(maxCount)
   if not _DNet_IsSeq(_dnet_mp_host_removed_ids) then return removed end if
 
   total = len(_dnet_mp_host_removed_ids)
+  if total <= 0 then return removed end if
   take = maxCount
   if take > total then take = total end if
   removed = array(take, 0)
+  keep = array(total, 0)
+  removedUsed = 0
+  keepUsed = 0
   i = 0
-  while i < take
-    removed[i] = _DNet_ToInt(_dnet_mp_host_removed_ids[i], 0)
+  while i < total
+    rid = _DNet_ToInt(_dnet_mp_host_removed_ids[i], 0)
+    alreadyEmitted = false
+    j = 0
+    while j < removedUsed
+      if _DNet_ToInt(removed[j], 0) == rid then
+        alreadyEmitted = true
+        break
+      end if
+      j = j + 1
+    end while
+    // At most one copy of an id belongs in a datagram. Remaining copies stay
+    // queued so the removal is repeated in later UDP snapshots.
+    if rid > 0 and (not alreadyEmitted) and removedUsed < take then
+      removed[removedUsed] = rid
+      removedUsed = removedUsed + 1
+    else if rid > 0 then
+      keep[keepUsed] = rid
+      keepUsed = keepUsed + 1
+    end if
     i = i + 1
   end while
 
-  keepCount = total - take
-  keep = array(keepCount)
-  j = 0
-  while j < keepCount
-    keep[j] = _dnet_mp_host_removed_ids[take + j]
-    j = j + 1
+  trimmedRemoved = array(removedUsed, 0)
+  i = 0
+  while i < removedUsed
+    trimmedRemoved[i] = removed[i]
+    i = i + 1
   end while
-  _dnet_mp_host_removed_ids = keep
-  return removed
+  trimmedKeep = array(keepUsed, 0)
+  i = 0
+  while i < keepUsed
+    trimmedKeep[i] = keep[i]
+    i = i + 1
+  end while
+  _dnet_mp_host_removed_ids = trimmedKeep
+  return trimmedRemoved
 end function
 
 /*
@@ -3691,7 +3854,7 @@ function _DNet_MPSendInputCmd(cmd)
   _DNet_MPWriteU16(payload, 12, _DNet_ToInt(cmd.buttons, 0))
   _DNet_MPWriteI16(payload, 14, _DNet_ToInt(cmd.consistancy, 0))
   _DNet_MPWriteI16(payload, 16, _DNet_ToInt(cmd.chatchar, 0))
-  if MP_PlatformNetSend(1, payload) then
+  if MP_PlatformNetSend(0, payload) then
     activeCmd = false
     if _DNet_ToInt(cmd.forwardmove, 0) != 0 then activeCmd = true end if
     if _DNet_ToInt(cmd.sidemove, 0) != 0 then activeCmd = true end if
@@ -3701,7 +3864,7 @@ function _DNet_MPSendInputCmd(cmd)
     if activeCmd and _DNET_MP_INPUT_ACTIVE_REDUNDANT_COPIES > 1 then
       dup = 1
       while dup < _DNET_MP_INPUT_ACTIVE_REDUNDANT_COPIES
-        MP_PlatformNetSend(1, payload)
+        MP_PlatformNetSend(0, payload)
         dup = dup + 1
       end while
     end if
@@ -3719,13 +3882,14 @@ function _DNet_MPHostHandleInputPacket(node, payload)
   global _dnet_mp_remote_cmd_valid
   global _dnet_mp_remote_cmd_tic
   global _dnet_mp_remote_input_last_seq
+  global _dnet_mp_host_input_active_logged
 
-  if len(payload) < 18 then return end if
+  if typeof(payload) != "bytes" or len(payload) != 18 then return end if
   slot = _DNet_ToInt(node, -1)
-  if slot < 1 or slot >= MAXPLAYERS then
-    slot = _DNet_ToInt(payload[1] & 255, 0)
-  end if
+  // The transport-assigned node is the authenticated player slot. Never fall
+  // back to the untrusted slot byte carried by the client payload.
   if slot < 1 or slot >= MAXPLAYERS then return end if
+  if (payload[1] & 255) != slot then return end if
   seq = _DNet_MPReadU32(payload, 2)
   lastSeq = -1
   if _DNet_IsSeq(_dnet_mp_remote_input_last_seq) and slot < len(_dnet_mp_remote_input_last_seq) then
@@ -3733,14 +3897,29 @@ function _DNet_MPHostHandleInputPacket(node, payload)
   end if
   if not _DNet_MPSeqIsNewer(seq, lastSeq) then return end if
 
+  forward = _DNet_MPReadI16(payload, 6)
+  side = _DNet_MPReadI16(payload, 8)
+  if forward > MAXPLMOVE then forward = MAXPLMOVE end if
+  if forward < -MAXPLMOVE then forward = -MAXPLMOVE end if
+  if side > MAXPLMOVE then side = MAXPLMOVE end if
+  if side < -MAXPLMOVE then side = -MAXPLMOVE end if
+  // Remote peers may attack/use/change weapons, but cannot issue local-only
+  // pause/save commands through BT_SPECIAL.
+  buttons = _DNet_MPReadU16(payload, 12) & 127
   cmd = ticcmd_t(
-  _DNet_MPReadI16(payload, 6),
-  _DNet_MPReadI16(payload, 8),
+  forward,
+  side,
   _DNet_MPReadI16(payload, 10),
   _DNet_MPReadI16(payload, 14),
   _DNet_MPReadI16(payload, 16),
-  _DNet_MPReadU16(payload, 12)
-)
+  buttons
+ )
+
+  nonNeutral = forward != 0 or side != 0 or _DNet_ToInt(cmd.angleturn, 0) != 0 or buttons != 0 or _DNet_ToInt(cmd.chatchar, 0) != 0
+  if nonNeutral and _DNet_IsSeq(_dnet_mp_host_input_active_logged) and slot < len(_dnet_mp_host_input_active_logged) and not _dnet_mp_host_input_active_logged[slot] then
+    _dnet_mp_host_input_active_logged[slot] = true
+    if typeof(_MPPlatform_LogEvent) == "function" then _MPPlatform_LogEvent("MPTEST INPUT_ACTIVE slot=" + slot) end if
+  end if
 
   if _DNet_IsSeq(_dnet_mp_remote_input_last_seq) and slot < len(_dnet_mp_remote_input_last_seq) then
     _dnet_mp_remote_input_last_seq[slot] = seq
@@ -3957,7 +4136,7 @@ end function
 * Function: _DNet_MPBuildSnapshotPacket
 * Purpose: Builds one server snapshot payload for client replication.
 */
-function _DNet_MPBuildSnapshotPacket(forceAll, snapshotTick, targetSlot, targetFullsync)
+function _DNet_MPBuildSnapshotPacket(forceAll, snapshotTick)
   global _dnet_mp_host_last_player_sig
   global _dnet_mp_host_removed_ids
   global _dnet_mp_host_last_sector_floor
@@ -4216,7 +4395,9 @@ function _DNet_MPBuildSnapshotPacket(forceAll, snapshotTick, targetSlot, targetF
   // One actor row uses 34 bytes:
   // id(4), type(2), x/y/z/angle(16), sprite/frame/state(6), health(2), flags(4)
   // One player row uses _DNET_MP_PLAYER_ROW_BYTES bytes.
-  size = 11 + playerCount * _DNET_MP_PLAYER_ROW_BYTES + actorCount * 34 + removedCount * 4 + sectorCount * 14 + sideCount * 8
+  // Counts retain their fixed offsets (6..10); leveltime follows them so the
+  // client receives the map-local clock independently from global gametic.
+  size = 15 + playerCount * _DNET_MP_PLAYER_ROW_BYTES + actorCount * 34 + removedCount * 4 + sectorCount * 14 + sideCount * 8
   minSideKeep = 0
   if sideCount > 0 then minSideKeep = 1 end if
   if forceAll then
@@ -4409,6 +4590,8 @@ function _DNet_MPBuildSnapshotPacket(forceAll, snapshotTick, targetSlot, targetF
   off = off + 1
   payload[off] = sideCount & 255
   off = off + 1
+  _DNet_MPWriteU32(payload, off, _DNet_ToInt(leveltime, 0))
+  off = off + 4
 
   i = 0
   while i < playerCount
@@ -4744,15 +4927,22 @@ function _DNet_MPHostMaybeSendSnapshot(forceAll)
   payloadFull = void
   payloadDelta = void
   if anyNeedFull then
-    payloadFull = _DNet_MPBuildSnapshotPacket(true, gt, 0, true)
+    payloadFull = _DNet_MPBuildSnapshotPacket(true, gt)
     if typeof(payloadFull) == "bytes" then
       _dnet_mp_dbg_snap_built = _DNet_ToInt(_dnet_mp_dbg_snap_built, 0) + 1
     end if
   end if
   if (not forceAll) and (not allNeedFull) then
-    payloadDelta = _DNet_MPBuildSnapshotPacket(false, gt, 0, false)
-    if typeof(payloadDelta) == "bytes" then
-      _dnet_mp_dbg_snap_built = _DNet_ToInt(_dnet_mp_dbg_snap_built, 0) + 1
+    if anyNeedFull then
+      // Building a full packet consumes the global delta caches. Reuse that
+      // packet for established clients during a join burst so they cannot miss
+      // changes removed from a subsequently built delta packet.
+      payloadDelta = payloadFull
+    else
+      payloadDelta = _DNet_MPBuildSnapshotPacket(false, gt)
+      if typeof(payloadDelta) == "bytes" then
+        _dnet_mp_dbg_snap_built = _DNet_ToInt(_dnet_mp_dbg_snap_built, 0) + 1
+      end if
     end if
   end if
 
@@ -5006,10 +5196,13 @@ function _DNet_MPClientApplySnapshot(payload)
   global _dnet_mp_client_actor_ids
   global _dnet_mp_client_actor_refs
   global _dnet_mp_client_local_pickups_armed
+  global _dnet_mp_client_seen_players
+  global _dnet_mp_client_claimed_actors
   global gametic
   global leveltime
   global gamestate
-  if typeof(payload) != "bytes" or len(payload) < 11 then return end if
+  if typeof(payload) != "bytes" or len(payload) < 15 then return end if
+  if len(payload) > _DNET_MP_PAYLOAD_BUDGET then return end if
   if (payload[0] & 255) != _DNET_MPMSG_SNAPSHOT then return end if
   if gamestate != gamestate_t.GS_LEVEL then
     _dnet_mp_client_pending_snapshot = payload
@@ -5023,40 +5216,51 @@ function _DNet_MPClientApplySnapshot(payload)
 
   flags = payload[1] & 255
   snapTick = _DNet_MPReadU32(payload, 2)
-  if snapTick <= _DNet_ToInt(_dnet_mp_client_last_snapshot_tick, 0) then return end if
-  _dnet_mp_client_last_snapshot_tick = snapTick
-  curgt = _DNet_ToInt(gametic, 0)
-  if snapTick > curgt then
-    gametic = snapTick
-  else
-    gametic = curgt + 1
-  end if
-  if typeof(leveltime) == "int" then
-    if snapTick > leveltime then
-      leveltime = snapTick
-    else
-      leveltime = leveltime + 1
-    end if
-  end if
-
   pcount = payload[6] & 255
   acount = payload[7] & 255
   rcount = payload[8] & 255
   scount = payload[9] & 255
   sdcount = payload[10] & 255
   // Keep in sync with _DNet_MPBuildSnapshotPacket row sizes.
-  need = 11 + pcount * _DNET_MP_PLAYER_ROW_BYTES + acount * 34 + rcount * 4 + scount * 14 + sdcount * 8
-  if len(payload) < need then return end if
+  need = 15 + pcount * _DNET_MP_PLAYER_ROW_BYTES + acount * 34 + rcount * 4 + scount * 14 + sdcount * 8
+  // Datagram payloads are exact-sized. Reject malformed trailing/truncated
+  // snapshots before advancing clocks, otherwise one corrupt high tick can
+  // make all later valid snapshots appear stale.
+  if len(payload) != need then return end if
+  if snapTick <= _DNet_ToInt(_dnet_mp_client_last_snapshot_tick, 0) then return end if
+  hostLevelTime = _DNet_MPReadU32(payload, 11)
+  _dnet_mp_client_last_snapshot_tick = snapTick
+  gametic = snapTick
+  leveltime = hostLevelTime
 
   if (not _dnet_mp_client_world_bootstrapped) and(acount > 0 or rcount > 0) then
     _DNet_MPClientBootstrapWorld()
     _dnet_mp_client_world_bootstrapped = true
   end if
 
-  seenPlayers = bytes(MAXPLAYERS, 0)
-  claimedActors = bytes(len(_dnet_mp_client_actor_ids) + acount + 4, 0)
+  if typeof(_dnet_mp_client_seen_players) != "bytes" or len(_dnet_mp_client_seen_players) < MAXPLAYERS then
+    _dnet_mp_client_seen_players = bytes(MAXPLAYERS, 0)
+  else
+    i = 0
+    while i < MAXPLAYERS
+      _dnet_mp_client_seen_players[i] = 0
+      i = i + 1
+    end while
+  end if
+  claimedNeed = len(_dnet_mp_client_actor_ids) + acount + 4
+  if typeof(_dnet_mp_client_claimed_actors) != "bytes" or len(_dnet_mp_client_claimed_actors) < claimedNeed then
+    _dnet_mp_client_claimed_actors = bytes(claimedNeed, 0)
+  else
+    i = 0
+    while i < claimedNeed
+      _dnet_mp_client_claimed_actors[i] = 0
+      i = i + 1
+    end while
+  end if
+  seenPlayers = _dnet_mp_client_seen_players
+  claimedActors = _dnet_mp_client_claimed_actors
 
-  off = 11
+  off = 15
   i = 0
   while i < pcount
     slot = payload[off] & 255
@@ -5670,7 +5874,7 @@ end function
 
 /*
 * Function: _DNet_MakeStoreFromBuffer
-* Purpose: Provides make store from buffer helper behavior for the network game.
+* Purpose: Takes an atomic value-copy snapshot of the mutable legacy netbuffer.
 */
 function _DNet_MakeStoreFromBuffer()
   if netbuffer is void then return doomdata_t(0, 0, 0, 0, 0, _DNet_DefaultCmds()) end if
@@ -5694,7 +5898,7 @@ end function
 
 /*
 * Function: _DNet_CopyStoreToBuffer
-* Purpose: Provides copy store to buffer helper behavior for the network game.
+* Purpose: Commits a decoded packet store into netbuffer only after validation succeeds.
 */
 function _DNet_CopyStoreToBuffer(src)
   if src is void or netbuffer is void then return end if
@@ -5719,8 +5923,8 @@ end function
 
 /*
 * Function: D_NetInitSinglePlayer
-* Purpose: Initializes state and dependencies for the core game definitions.
-*/
+ * Purpose: Rebuilds Doom networking, slot ownership, and tic queues as one local player after startup or transport loss.
+ */
 function D_NetInitSinglePlayer()
   global doomcom
   global netbuffer
@@ -5736,6 +5940,9 @@ function D_NetInitSinglePlayer()
   global _dnet_oldnettics
   global _dnet_frameon
   global _dnet_frameskip
+  global consoleplayer
+  global displayplayer
+  global localcmds
 
   d = doomdata_t(0, 0, 0, 0, 0, _DNet_DefaultCmds())
   c = doomcom_t(
@@ -5766,6 +5973,28 @@ function D_NetInitSinglePlayer()
   netbuffer = doomcom.data
   _DNet_EnsureStateArrays()
 
+  // Slot zero is the only valid owner offline; clearing all peer state prevents a
+  // disconnected client slot from leaking into the next title/menu-launched game.
+  consoleplayer = 0
+  displayplayer = 0
+  i = 0
+  while i < MAXPLAYERS
+    if _DNet_IsSeq(playeringame) and i < len(playeringame) then playeringame[i] = (i == 0) end if
+    if _DNet_IsSeq(nodeforplayer) and i < len(nodeforplayer) then nodeforplayer[i] = 0 end if
+    if _DNet_IsSeq(netcmds) and i < len(netcmds) then netcmds[i] = _DNet_DefaultCmds() end if
+    i = i + 1
+  end while
+  i = 0
+  while i < MAXNETNODES
+    if _DNet_IsSeq(nettics) and i < len(nettics) then nettics[i] = 0 end if
+    if _DNet_IsSeq(nodeingame) and i < len(nodeingame) then nodeingame[i] = (i == 0) end if
+    if _DNet_IsSeq(remoteresend) and i < len(remoteresend) then remoteresend[i] = false end if
+    if _DNet_IsSeq(resendto) and i < len(resendto) then resendto[i] = 0 end if
+    if _DNet_IsSeq(resendcount) and i < len(resendcount) then resendcount[i] = 0 end if
+    i = i + 1
+  end while
+  localcmds = _DNet_DefaultCmds()
+
   maketic = 0
   lastnettic = 0
   skiptics = 0
@@ -5786,7 +6015,7 @@ end function
 
 /*
 * Function: D_CheckNetGame
-* Purpose: Finds check Net Game information for network game processing.
+* Purpose: Resets legacy/authoritative network clocks and initializes the platform network driver once.
 */
 function D_CheckNetGame()
   global consoleplayer
@@ -5850,7 +6079,7 @@ end function
 
 /*
 * Function: D_QuitNetGame
-* Purpose: Runs network game lifecycle logic for the network game.
+* Purpose: Repeats a legacy exit notification to every active remote node before local shutdown.
 */
 function D_QuitNetGame()
   if (not netgame) or(not usergame) or consoleplayer == -1 or demoplayback then
@@ -5881,7 +6110,7 @@ end function
 
 /*
 * Function: NetUpdate
-* Purpose: Advances net Update logic during the network game tick.
+* Purpose: Pumps authoritative packets, samples local input, and fills per-player ticcmd rings without simulating clients.
 */
 function NetUpdate()
   global gametime
@@ -5889,13 +6118,35 @@ function NetUpdate()
   global skiptics
   global netgame
   global deathmatch
+  global _dnet_mp_was_authoritative
+  global _dnet_mp_was_client
 
   _DNet_EnsureStateArrays()
 
-  mpAuth = _DNet_MPIsAuthoritative()
+  isClientNow = _DNet_MPIsClient()
+  mpAuth = _DNet_MPIsHost() or isClientNow
+  if (not mpAuth) and _dnet_mp_was_authoritative then
+    disconnectedClient = _dnet_mp_was_client
+    _dnet_mp_was_authoritative = false
+    _dnet_mp_was_client = false
+    _DNet_MPReturnToOffline(disconnectedClient)
+    return
+  else if mpAuth then
+    _dnet_mp_was_authoritative = true
+    _dnet_mp_was_client = isClientNow
+  end if
   if mpAuth then
     netgame = true
     _DNet_MPDrainAuthoritativePackets()
+    // The pump may close a timed-out transport synchronously. Transition now,
+    // before stale MP globals feed another input/simulation pass.
+    if not _DNet_MPIsAuthoritative() then
+      disconnectedClient = _dnet_mp_was_client
+      _dnet_mp_was_authoritative = false
+      _dnet_mp_was_client = false
+      _DNet_MPReturnToOffline(disconnectedClient)
+      return
+    end if
     modeFallback = 0
     if deathmatch then modeFallback = 1 end if
     if typeof(MP_PlatformGetSessionMode) == "function" then
@@ -6000,7 +6251,9 @@ function NetUpdate()
               if rslot < len(_dnet_mp_remote_cmds) and rslot < len(_dnet_mp_remote_cmd_valid) and _dnet_mp_remote_cmd_valid[rslot] then
                 cmdAge = 0
                 if _DNet_IsSeq(_dnet_mp_remote_cmd_tic) and rslot < len(_dnet_mp_remote_cmd_tic) then
-                  cmdAge = _DNet_ToInt(maketic, 0) - _DNet_ToInt(_dnet_mp_remote_cmd_tic[rslot], 0)
+                  // Reception stamps are in authoritative gametic units; using
+                  // maketic here makes valid input expire early after stalls.
+                  cmdAge = _DNet_ToInt(gametic, 0) - _DNet_ToInt(_dnet_mp_remote_cmd_tic[rslot], 0)
                 end if
                 if cmdAge < 0 then cmdAge = 0 end if
                 if cmdAge <= _DNET_MP_REMOTE_CMD_STALE_TICS then
@@ -6047,6 +6300,13 @@ function NetUpdate()
 
   if mpAuth then
     _DNet_MPDrainAuthoritativePackets()
+    if not _DNet_MPIsAuthoritative() then
+      disconnectedClient = _dnet_mp_was_client
+      _dnet_mp_was_authoritative = false
+      _dnet_mp_was_client = false
+      _DNet_MPReturnToOffline(disconnectedClient)
+      return
+    end if
   end if
 
   if singletics then return end if
@@ -6097,7 +6357,7 @@ end function
 
 /*
 * Function: _DNet_RunGameTics
-* Purpose: Provides run game tics helper behavior for the network game.
+* Purpose: Runs a bounded number of host/legacy simulation tics and emits host snapshots after each authoritative tic.
 */
 function _DNet_RunGameTics(counts)
   global gametic
@@ -6141,7 +6401,7 @@ end function
 
 /*
 * Function: _DNet_TryRunTicsUncapped
-* Purpose: Computes movement/collision behavior in the internal module support.
+* Purpose: Drains every locally available tic for uncapped single-player rendering while preserving network clocks.
 */
 function _DNet_TryRunTicsUncapped()
   global _dnet_oldentertics
@@ -6184,7 +6444,7 @@ end function
 
 /*
 * Function: TryRunTics
-* Purpose: Computes movement/collision behavior in the engine module behavior.
+* Purpose: Schedules host/legacy simulation or client-only UI/interpolation ticks from wall-clock and network availability.
 */
 function TryRunTics()
   global _dnet_oldentertics
@@ -6382,7 +6642,7 @@ end function
 
 /*
 * Function: NetbufferSize
-* Purpose: Provides size helper behavior for the network game.
+* Purpose: Computes the encoded byte count for the current bounded legacy packet.
 */
 function inline NetbufferSize()
   if netbuffer is void then return 0 end if
@@ -6395,7 +6655,7 @@ end function
 
 /*
 * Function: NetbufferChecksum
-* Purpose: Finds netbuffer Checksum information for network game processing.
+* Purpose: Computes the legacy Doom packet checksum over header fields and the transmitted ticcmd rows.
 */
 function NetbufferChecksum()
   if netbuffer is void then return 0 end if
@@ -6425,7 +6685,7 @@ end function
 
 /*
 * Function: ExpandTics
-* Purpose: Provides tics helper behavior for the network game.
+* Purpose: Expands an 8-bit wire tic into the closest plausible absolute game tic.
 */
 function ExpandTics(low)
   if typeof(low) != "int" then return 0 end if
@@ -6472,7 +6732,7 @@ end function
 
 /*
 * Function: HGetPacket
-* Purpose: Provides get packet helper behavior for the network game.
+* Purpose: Receives one legacy packet, verifies checksum/length, and exposes its source node.
 */
 function HGetPacket()
   if reboundpacket then
@@ -6500,7 +6760,7 @@ end function
 
 /*
 * Function: GetPackets
-* Purpose: Reads packets data for the network game.
+* Purpose: Drains validated legacy packets, updates resend windows, and copies new remote commands into rings.
 */
 function GetPackets()
   while HGetPacket()
@@ -6579,7 +6839,7 @@ end function
 
 /*
 * Function: CheckAbort
-* Purpose: Finds check Abort information for network game processing.
+* Purpose: Pumps input during net-start waits and aborts synchronization when Escape is pressed.
 */
 function CheckAbort()
   stoptic = 0
@@ -6602,7 +6862,7 @@ end function
 
 /*
 * Function: D_ArbitrateNetStart
-* Purpose: Starts runtime behavior in the core game definitions.
+* Purpose: Exchanges legacy startup settings so every node begins with the console node's map and rules.
 */
 function D_ArbitrateNetStart()
   autostart = true

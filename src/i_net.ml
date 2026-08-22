@@ -14,7 +14,7 @@
   limitations under the License.
 
   Script: i_net.ml
-  Purpose: Implements platform integration for input, timing, video, audio, and OS services.
+  Purpose: Bridges Doom's doomcom/ticcmd packets to the validated multiplayer UDP transport.
 */
 import i_system
 import d_event
@@ -128,14 +128,20 @@ function _INet_DecodeToNetbuffer(payload)
   end if
   if netbuffer is void then return false end if
 
-  netbuffer.checksum = _INet_ReadI32LE(payload, 4)
-  netbuffer.retransmitfrom = _INet_ReadI32LE(payload, 8)
-  netbuffer.starttic = _INet_ReadI32LE(payload, 12)
-  netbuffer.player = _INet_ReadI32LE(payload, 16)
+  // Validate the complete shape before mutating the shared netbuffer.  A bad
+  // datagram must not leave a partially updated checksum or tic window behind.
+  checksum = _INet_ReadI32LE(payload, 4)
+  retransmitfrom = _INet_ReadI32LE(payload, 8)
+  starttic = _INet_ReadI32LE(payload, 12)
+  player = _INet_ReadI32LE(payload, 16)
   n = _INet_ReadI32LE(payload, 20)
-  if n < 0 then n = 0 end if
-  if n > BACKUPTICS then n = BACKUPTICS end if
-  if len(payload) < 24 + n * 24 then return false end if
+  if n < 0 or n > BACKUPTICS then return false end if
+  if len(payload) != 24 + n * 24 then return false end if
+
+  netbuffer.checksum = checksum
+  netbuffer.retransmitfrom = retransmitfrom
+  netbuffer.starttic = starttic
+  netbuffer.player = player
   netbuffer.numtics = n
 
   if typeof(netbuffer.cmds) != "array" or len(netbuffer.cmds) != BACKUPTICS then
@@ -252,6 +258,9 @@ function _INet_SyncRuntimeFromPlatform()
   global resendcount
   global remoteresend
   global maketic
+  global consoleplayer
+  global displayplayer
+  global netgame
   if typeof(doomcom) != "struct" then return end if
 
   if typeof(MP_PlatformPump) == "function" then MP_PlatformPump() end if
@@ -290,9 +299,10 @@ function _INet_SyncRuntimeFromPlatform()
 
   prevNodes = []
   if typeof(nodeingame) == "array" then
+    prevNodes = array(len(nodeingame), false)
     i = 0
     while i < len(nodeingame)
-      prevNodes = prevNodes + [nodeingame[i]]
+      prevNodes[i] = nodeingame[i]
       i = i + 1
     end while
   end if
@@ -347,7 +357,7 @@ end function
 
 /*
 * Function: I_InitNetwork
-* Purpose: Initializes state and dependencies for the platform layer.
+* Purpose: Resets doomcom and tic queues to deterministic single-player defaults before any MP role starts.
 */
 function I_InitNetwork()
 
@@ -358,7 +368,7 @@ end function
 
 /*
 * Function: I_NetCmd
-* Purpose: Provides command helper behavior for the network backend.
+* Purpose: Executes one Doom CMD_GET/CMD_SEND operation through the validated platform packet queue.
 */
 function I_NetCmd()
   _INet_SyncRuntimeFromPlatform()
@@ -368,10 +378,13 @@ function I_NetCmd()
   if cmd == command_t.CMD_GET then
     pkt = void
     if typeof(MP_PlatformNetRecv) == "function" then pkt = MP_PlatformNetRecv() end if
-    if typeof(pkt) == "array" and len(pkt) >= 2 and _INet_DecodeToNetbuffer(pkt[1]) then
-      doomcom.remotenode = _INet_ToInt(pkt[0], -1)
-      doomcom.datalength = NetbufferSize()
-      return
+    if typeof(pkt) == "array" and len(pkt) >= 2 then
+      remoteNode = _INet_ToInt(pkt[0], -1)
+      if remoteNode >= 0 and remoteNode < MAXNETNODES and _INet_DecodeToNetbuffer(pkt[1]) then
+        doomcom.remotenode = remoteNode
+        doomcom.datalength = NetbufferSize()
+        return
+      end if
     end if
     doomcom.remotenode = -1
     doomcom.datalength = 0
@@ -380,7 +393,7 @@ function I_NetCmd()
 
   if cmd == command_t.CMD_SEND then
     node = _INet_ToInt(doomcom.remotenode, -1)
-    if node >= 0 and typeof(MP_PlatformNetSend) == "function" and typeof(doomcom.data) == "struct" then
+    if node >= 0 and node < MAXNETNODES and typeof(MP_PlatformNetSend) == "function" and typeof(doomcom.data) == "struct" then
       payload = _INet_EncodeDoomData(doomcom.data)
       MP_PlatformNetSend(node, payload)
     end if
@@ -390,7 +403,7 @@ end function
 
 /*
 * Function: UDPsocket
-* Purpose: Provides psocket helper behavior for the network backend.
+* Purpose: Legacy compatibility stub; sockets are owned exclusively by mp_platform and no raw handle is exposed.
 */
 function UDPsocket()
   return -1
@@ -398,7 +411,7 @@ end function
 
 /*
 * Function: BindToLocalPort
-* Purpose: Runs to local port lifecycle logic for the network backend.
+* Purpose: Legacy compatibility stub that rejects external bind attempts to preserve mp_platform socket ownership.
 */
 function BindToLocalPort(sock, port)
   sock = sock
@@ -408,7 +421,7 @@ end function
 
 /*
 * Function: PacketSend
-* Purpose: Controls packet Send transitions in the network backend system.
+* Purpose: Legacy compatibility stub; callers must submit structured Doom packets through I_NetCmd.
 */
 function PacketSend(sock, node, data, length)
   sock = sock
@@ -420,7 +433,7 @@ end function
 
 /*
 * Function: PacketGet
-* Purpose: Provides get helper behavior for the network backend.
+* Purpose: Legacy compatibility stub that returns an empty receive result without touching caller payload storage.
 */
 function PacketGet(sock, nodeOut, dataOut, lengthOut)
   sock = sock
@@ -432,7 +445,7 @@ end function
 
 /*
 * Function: GetLocalAddress
-* Purpose: Reads local address data for the network backend.
+* Purpose: Returns the IPv4 loopback identity used by the legacy single-host API surface.
 */
 function GetLocalAddress()
   return "127.0.0.1"

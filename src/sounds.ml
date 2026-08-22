@@ -14,12 +14,12 @@
   limitations under the License.
 
   Script: sounds.ml
-  Purpose: Contains Doom engine module logic for this subsystem.
+  Purpose: Defines sound-effect and music metadata records plus the canonical Doom audio identifier tables.
 */
 
 /*
 * Struct: sfxinfo_t
-* Purpose: Stores sfxinfo data used by the sound definition system.
+* Purpose: Defines one sound effect's lump name, priority, singularity, pitch, volume, cached data, and channel usage count.
 */
 struct sfxinfo_t
   name
@@ -35,7 +35,7 @@ end struct
 
 /*
 * Struct: musicinfo_t
-* Purpose: Stores musicinfo data used by the sound definition system.
+* Purpose: Defines one music track's lump name together with its resolved lump number and backend playback handle.
 */
 struct musicinfo_t
   name
@@ -229,7 +229,7 @@ musicinfo_t("dm2int", 0, void, 0)
 
 /*
 * Enum: musicenum_t
-* Purpose: Defines named constants for musicenum type.
+* Purpose: Assigns stable identifiers to level, intermission, finale, and title music tracks.
 */
 enum musicenum_t
   mus_None
@@ -305,7 +305,7 @@ end enum
 
 /*
 * Enum: sfxenum_t
-* Purpose: Defines named constants for sfxenum type.
+* Purpose: Assigns stable identifiers to every weapon, actor, world, and UI sound effect.
 */
 enum sfxenum_t
   sfx_None

@@ -14,7 +14,7 @@
   limitations under the License.
 
   Script: minidoom_gl_helper.c
-  Purpose: Provides tiny WGL-loaded OpenGL VBO helpers for MiniLang.
+  Purpose: Bridges MiniLang to performance-critical WGL timing, VBO submission, sprite batching, dynamic-light, and indexed-overlay operations.
 */
 
 #define WIN32_LEAN_AND_MEAN
@@ -76,6 +76,10 @@ static int64_t g_framePaceLastUs = 0;
 /* Kept for the DLL lifetime to avoid creating a kernel object every frame. */
 static HANDLE g_framePaceTimer = NULL;
 
+/*
+ * Function: mgl_time_microseconds
+ * Purpose: Reads a monotonic microsecond clock from QPC, falling back to GetTickCount64 when high-resolution timing is unavailable.
+ */
 static int64_t mgl_time_microseconds(void) {
   LARGE_INTEGER now;
   if (!g_qpcReady) {
@@ -91,10 +95,18 @@ static int64_t mgl_time_microseconds(void) {
                        g_qpcFrequency.QuadPart);
 }
 
+/*
+ * Function: MGL_TimeMicroseconds
+ * Purpose: Exposes the helper's monotonic microsecond clock to MiniLang profiling and frame-pacing code.
+ */
 __declspec(dllexport) int64_t __stdcall MGL_TimeMicroseconds(void) {
   return mgl_time_microseconds();
 }
 
+/*
+ * Function: MGL_FramePace
+ * Purpose: Waits until the next presentation deadline using a reusable high-resolution timer and a short final spin; an optional lead lets VSync enter the driver before VBlank.
+ */
 __declspec(dllexport) void __stdcall MGL_FramePace(int targetFps, int leadUs) {
   int64_t frameUs;
   int64_t now;
@@ -149,12 +161,20 @@ __declspec(dllexport) void __stdcall MGL_FramePace(int targetFps, int leadUs) {
 
 }
 
+/*
+ * Function: MGL_FramePaceMark
+ * Purpose: Anchors the next pacing deadline at the actual completion time of a successful presentation so late frames cannot trigger catch-up frames.
+ */
 __declspec(dllexport) void __stdcall MGL_FramePaceMark(void) {
   /* Called immediately after a successful presentation.  Anchoring at the
      real completion time prevents late frames from shortening the next one. */
   g_framePaceLastUs = mgl_time_microseconds();
 }
 
+/*
+ * Function: mgl_load_proc
+ * Purpose: Resolves an OpenGL extension entry point through WGL and falls back to opengl32 exports while rejecting WGL's sentinel failure values.
+ */
 static PROC mgl_load_proc(const char *name) {
   PROC p = wglGetProcAddress(name);
   if (p == NULL || p == (PROC)1 || p == (PROC)2 || p == (PROC)3 || p == (PROC)-1) {
@@ -166,6 +186,10 @@ static PROC mgl_load_proc(const char *name) {
   return p;
 }
 
+/*
+ * Function: MGL_InitVBO
+ * Purpose: Resolves the OpenGL buffer-object API once, caches availability, and reports whether VBO-backed rendering can be used.
+ */
 __declspec(dllexport) BOOL __stdcall MGL_InitVBO(void) {
   if (g_vboInitTried) {
     return g_vboAvailable ? TRUE : FALSE;
@@ -181,6 +205,10 @@ __declspec(dllexport) BOOL __stdcall MGL_InitVBO(void) {
   return g_vboAvailable ? TRUE : FALSE;
 }
 
+/*
+ * Function: MGL_SetSwapInterval
+ * Purpose: Requests the WGL swap interval for the current context and reports failure when the extension is absent or rejects the value.
+ */
 __declspec(dllexport) BOOL __stdcall MGL_SetSwapInterval(int interval) {
   PFNWGLSWAPINTERVALEXTPROC pSwapInterval =
       (PFNWGLSWAPINTERVALEXTPROC)mgl_load_proc("wglSwapIntervalEXT");
@@ -190,6 +218,10 @@ __declspec(dllexport) BOOL __stdcall MGL_SetSwapInterval(int interval) {
   return pSwapInterval(interval);
 }
 
+/*
+ * Function: MGL_CreateArrayBuffer
+ * Purpose: Uploads an opaque byte range to a static GL_ARRAY_BUFFER and returns zero when validation, extension loading, or allocation fails.
+ */
 __declspec(dllexport) GLuint __stdcall MGL_CreateArrayBuffer(const void *data, int size) {
   GLuint id = 0;
   if (data == NULL || size <= 0) {
@@ -208,6 +240,10 @@ __declspec(dllexport) GLuint __stdcall MGL_CreateArrayBuffer(const void *data, i
   return id;
 }
 
+/*
+ * Function: MGL_CreateInterleavedGeomBuffer
+ * Purpose: Converts packed 16.16 position/UV geometry plus RGBA bytes into the float interleaved layout consumed by cached renderer batches, then uploads it to a VBO.
+ */
 __declspec(dllexport) GLuint __stdcall MGL_CreateInterleavedGeomBuffer(const void *data, int size) {
   const int inStride = 24;
   const int outStride = 24;
@@ -257,6 +293,10 @@ __declspec(dllexport) GLuint __stdcall MGL_CreateInterleavedGeomBuffer(const voi
   return id;
 }
 
+/*
+ * Function: MGL_DeleteArrayBuffer
+ * Purpose: Releases one nonzero OpenGL buffer name when the buffer-object API is available.
+ */
 __declspec(dllexport) void __stdcall MGL_DeleteArrayBuffer(GLuint id) {
   if (id == 0 || !MGL_InitVBO()) {
     return;
@@ -264,6 +304,10 @@ __declspec(dllexport) void __stdcall MGL_DeleteArrayBuffer(GLuint id) {
   pglDeleteBuffers(1, &id);
 }
 
+/*
+ * Function: MGL_DrawArrayBatch
+ * Purpose: Binds separate fixed-point vertex, texture-coordinate, and color VBOs to the active client arrays and submits one draw call.
+ */
 __declspec(dllexport) void __stdcall MGL_DrawArrayBatch(GLenum mode, GLuint vertexBuffer, GLuint texcoordBuffer, GLuint colorBuffer, int count) {
   if (count <= 0 || vertexBuffer == 0 || texcoordBuffer == 0 || colorBuffer == 0 || !MGL_InitVBO()) {
     return;
@@ -283,6 +327,10 @@ __declspec(dllexport) void __stdcall MGL_DrawArrayBatch(GLenum mode, GLuint vert
   pglBindBuffer(GL_ARRAY_BUFFER, 0);
 }
 
+/*
+ * Function: MGL_DrawInterleavedBatch
+ * Purpose: Submits one cached 24-byte-stride geometry buffer whose float position/UV and byte color fields are already interleaved.
+ */
 __declspec(dllexport) void __stdcall MGL_DrawInterleavedBatch(GLenum mode, GLuint buffer, int count) {
   const int stride = 24;
   if (count <= 0 || buffer == 0 || !MGL_InitVBO()) {
@@ -297,14 +345,26 @@ __declspec(dllexport) void __stdcall MGL_DrawInterleavedBatch(GLenum mode, GLuin
   pglBindBuffer(GL_ARRAY_BUFFER, 0);
 }
 
+/*
+ * Function: MGL_GetLastDrawnBatches
+ * Purpose: Returns the number of geometry records accepted by the most recent native visibility-batch draw.
+ */
 __declspec(dllexport) int __stdcall MGL_GetLastDrawnBatches(void) {
   return g_lastDrawnBatches;
 }
 
+/*
+ * Function: MGL_GetLastDrawnVertices
+ * Purpose: Returns the aggregate vertex count submitted by the most recent native visibility-batch draw.
+ */
 __declspec(dllexport) int __stdcall MGL_GetLastDrawnVertices(void) {
   return g_lastDrawnVertices;
 }
 
+/*
+ * Function: MGL_DrawVisibleGeomBatches
+ * Purpose: Frustum-culls packed geometry records against the camera, minimizes texture and alpha-state changes, draws visible VBOs, and updates profiling counters.
+ */
 __declspec(dllexport) BOOL __stdcall MGL_DrawVisibleGeomBatches(
     GLenum mode,
     const void *records,
@@ -404,6 +464,10 @@ __declspec(dllexport) BOOL __stdcall MGL_DrawVisibleGeomBatches(
   return TRUE;
 }
 
+/*
+ * Function: mgl_read_i32
+ * Purpose: Decodes a signed little-endian 32-bit field from an already validated packed record.
+ */
 static int32_t mgl_read_i32(const unsigned char *p) {
   return (int32_t)((uint32_t)p[0] |
                    ((uint32_t)p[1] << 8) |
@@ -411,10 +475,18 @@ static int32_t mgl_read_i32(const unsigned char *p) {
                    ((uint32_t)p[3] << 24));
 }
 
+/*
+ * Function: mgl_read_geom
+ * Purpose: Decodes a packed little-endian 16.16 geometry field into a double-precision world coordinate.
+ */
 static double mgl_read_geom(const unsigned char *p) {
   return (double)mgl_read_i32(p) / 65536.0;
 }
 
+/*
+ * Function: mgl_clamp_color
+ * Purpose: Saturates a floating-point light component to the unsigned byte range expected by fixed-function OpenGL colors.
+ */
 static GLubyte mgl_clamp_color(double value) {
   if (value <= 0.0) {
     return 0;
@@ -425,6 +497,10 @@ static GLubyte mgl_clamp_color(double value) {
   return (GLubyte)value;
 }
 
+/*
+ * Function: mgl_emit_sprite_quad
+ * Purpose: Emits one vertical billboard quad into an open GL_QUADS stream, reversing only the horizontal UV order for flipped sprite frames.
+ */
 static void mgl_emit_sprite_quad(
     double x0,
     double y0,
@@ -454,6 +530,10 @@ static void mgl_emit_sprite_quad(
   }
 }
 
+/*
+ * Function: mgl_sprite_color
+ * Purpose: Computes distance falloff plus packed dynamic-light contributions at a sprite center and installs the resulting opaque vertex color.
+ */
 static void mgl_sprite_color(
     int base,
     double x,
@@ -512,6 +592,10 @@ static void mgl_sprite_color(
   glColor4ub(mgl_clamp_color(r), mgl_clamp_color(g), mgl_clamp_color(b), 255);
 }
 
+/*
+ * Struct: mgl_sprite_batch_state_s
+ * Purpose: Retains camera axes, copied light records, scale constants, texture binding, and open-primitive state across streamed sprite submissions.
+ */
 typedef struct mgl_sprite_batch_state_s {
   int active;
   int quadOpen;
@@ -528,6 +612,10 @@ typedef struct mgl_sprite_batch_state_s {
 
 static mgl_sprite_batch_state_t g_mgl_sprite_batch;
 
+/*
+ * Function: mgl_finish_sprite_batch
+ * Purpose: Closes any open sprite primitive, restores depth/alpha/color state, and marks the native sprite stream inactive.
+ */
 static void mgl_finish_sprite_batch(void) {
   if (!g_mgl_sprite_batch.active) {
     return;
@@ -542,6 +630,10 @@ static void mgl_finish_sprite_batch(void) {
   g_mgl_sprite_batch.quadOpen = 0;
 }
 
+/*
+ * Function: MGL_BeginSpriteBatch
+ * Purpose: Validates and snapshots frame-local camera and light data, then configures cutout OpenGL state for a sequence of streamed world sprites.
+ */
 __declspec(dllexport) BOOL __stdcall MGL_BeginSpriteBatch(
     const unsigned char *lightData,
     int lightCount,
@@ -580,6 +672,10 @@ __declspec(dllexport) BOOL __stdcall MGL_BeginSpriteBatch(
   return TRUE;
 }
 
+/*
+ * Function: MGL_SubmitSprite
+ * Purpose: Converts one packed sprite placement to a camera-facing billboard, batches ordinary cutouts by texture, and renders shadow sprites through the fuzz multipass path.
+ */
 __declspec(dllexport) void __stdcall MGL_SubmitSprite(
     GLuint texid,
     int flags,
@@ -694,6 +790,10 @@ __declspec(dllexport) void __stdcall MGL_SubmitSprite(
   glEnd();
 }
 
+/*
+ * Function: MGL_DrawSpriteRecords
+ * Purpose: Decodes and renders an entire packed sprite-record buffer in one native call, including per-sprite lighting, texture reuse, flipping, and fuzz shadows.
+ */
 __declspec(dllexport) BOOL __stdcall MGL_DrawSpriteRecords(
     const unsigned char *records,
     int recordsSize,
@@ -790,10 +890,18 @@ __declspec(dllexport) BOOL __stdcall MGL_DrawSpriteRecords(
   return TRUE;
 }
 
+/*
+ * Function: MGL_EndSpriteBatch
+ * Purpose: Finalizes a streamed sprite batch and restores the fixed-function state expected by subsequent renderer passes.
+ */
 __declspec(dllexport) void __stdcall MGL_EndSpriteBatch(void) {
   mgl_finish_sprite_batch();
 }
 
+/*
+ * Function: mgl_light_alpha
+ * Purpose: Evaluates radial dynamic-light attenuation at one vertex and clamps the resulting additive alpha to the renderer's glow ceiling.
+ */
 static unsigned char mgl_light_alpha(
     const int32_t *light,
     double x,
@@ -831,6 +939,10 @@ static unsigned char mgl_light_alpha(
   return (unsigned char)alpha;
 }
 
+/*
+ * Function: mgl_light_intersects_bounds
+ * Purpose: Rejects a spherical light when its closest point to an axis-aligned primitive bound lies outside the light radius.
+ */
 static int mgl_light_intersects_bounds(
     const int32_t *light,
     double minX,
@@ -860,6 +972,10 @@ static int mgl_light_intersects_bounds(
   return dx * dx + dy * dy + dz * dz < radius * radius;
 }
 
+/*
+ * Function: mgl_light_vertex_alpha
+ * Purpose: Emits one dynamic-light vertex with packed RGB channels clamped to bytes and the caller-supplied radial alpha.
+ */
 static void mgl_light_vertex_alpha(
     const int32_t *light,
     double x,
@@ -874,6 +990,10 @@ static void mgl_light_vertex_alpha(
   glVertex3d(x, y, z);
 }
 
+/*
+ * Function: MGL_DrawDynamicLightSurfaces
+ * Purpose: Validates the packed geometry cache, culls lights per primitive bound, and overlays additive vertex-lit wall and flat contributions while restoring GL state on success.
+ */
 __declspec(dllexport) BOOL __stdcall MGL_DrawDynamicLightSurfaces(
     const unsigned char *geomData,
     int geomSize,
@@ -1060,6 +1180,10 @@ __declspec(dllexport) BOOL __stdcall MGL_DrawDynamicLightSurfaces(
   return TRUE;
 }
 
+/*
+ * Function: mgl_ensure_overlay_rgba
+ * Purpose: Grows the DLL-lifetime RGBA scratch buffer to hold a validated overlay rectangle without reallocating smaller subsequent draws.
+ */
 static BOOL mgl_ensure_overlay_rgba(int boxW, int boxH) {
   int bytesNeeded;
   unsigned char *newBuf;
@@ -1081,6 +1205,10 @@ static BOOL mgl_ensure_overlay_rgba(int boxW, int boxH) {
   return TRUE;
 }
 
+/*
+ * Function: mgl_draw_overlay_box
+ * Purpose: Uploads the prepared scratch rectangle to an OpenGL texture and draws it over the corresponding normalized output bounds.
+ */
 static BOOL mgl_draw_overlay_box(
     GLuint texid,
     int outputW,
@@ -1131,6 +1259,10 @@ static BOOL mgl_draw_overlay_box(
   return TRUE;
 }
 
+/*
+ * Function: mgl_write_scaled_overlay_pixel
+ * Purpose: Expands one palette-indexed logical pixel into an opaque scale-by-scale RGBA block inside the current scratch rectangle.
+ */
 static __inline void mgl_write_scaled_overlay_pixel(
     const unsigned char *palette,
     unsigned char color,
@@ -1158,6 +1290,10 @@ static __inline void mgl_write_scaled_overlay_pixel(
   }
 }
 
+/*
+ * Function: MGL_DrawIndexedLogicalOverlay
+ * Purpose: Composes the scaled status region and masked logical pixels into the minimal RGBA bounding box, then uploads and draws that overlay.
+ */
 __declspec(dllexport) BOOL __stdcall MGL_DrawIndexedLogicalOverlay(
     GLuint texid,
     const unsigned char *data,
@@ -1267,6 +1403,10 @@ __declspec(dllexport) BOOL __stdcall MGL_DrawIndexedLogicalOverlay(
   return mgl_draw_overlay_box(texid, outputW, outputH, minX, minY, maxX, maxY);
 }
 
+/*
+ * Function: MGL_DrawIndexedOverlayRect
+ * Purpose: Converts a caller-bounded masked palette region to RGBA and draws only that validated rectangle over the output surface.
+ */
 __declspec(dllexport) BOOL __stdcall MGL_DrawIndexedOverlayRect(
     GLuint texid,
     const unsigned char *data,
@@ -1330,6 +1470,10 @@ __declspec(dllexport) BOOL __stdcall MGL_DrawIndexedOverlayRect(
   return mgl_draw_overlay_box(texid, width, height, minX, minY, maxX, maxY);
 }
 
+/*
+ * Function: MGL_DrawIndexedOverlay
+ * Purpose: Finds the nonzero mask bounds of a full indexed overlay, converts only covered pixels to RGBA, and draws the minimal texture rectangle.
+ */
 __declspec(dllexport) BOOL __stdcall MGL_DrawIndexedOverlay(
     GLuint texid,
     const unsigned char *data,

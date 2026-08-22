@@ -14,7 +14,7 @@
   limitations under the License.
 
   Script: hu_stuff.ml
-  Purpose: Implements in-game HUD text and messaging behaviors.
+  Purpose: Owns level-title/message widgets, localized chat entry, and authoritative directed-chat submission.
 */
 import d_event
 import doomdef
@@ -136,7 +136,7 @@ _hu_local_chat_dest = HU_BROADCAST
 
 /*
 * Function: _HU_ToInt
-* Purpose: Converts int values for the heads-up display.
+* Purpose: Normalizes numeric HUD fields to truncating integers or a caller-supplied fallback.
 */
 function inline _HU_ToInt(v, fallback)
   if typeof(v) == "int" then return v end if
@@ -151,7 +151,7 @@ end function
 
 /*
 * Function: _HU_SetMessageOn
-* Purpose: Updates message on state for the heads-up display.
+* Purpose: Keeps the HUD message visibility flag and HUlib's shared boolean reference in lockstep.
 */
 function inline _HU_SetMessageOn(v)
   global message_on
@@ -164,7 +164,7 @@ end function
 
 /*
 * Function: _HU_SetChatOn
-* Purpose: Updates chat on state for the heads-up display.
+* Purpose: Keeps chat-entry visibility synchronized with the mutable reference consumed by HUlib.
 */
 function inline _HU_SetChatOn(v)
   global chat_on
@@ -177,7 +177,7 @@ end function
 
 /*
 * Function: _HU_FontHeight
-* Purpose: Provides height helper behavior for the heads-up display.
+* Purpose: Returns the loaded HUD font height with an eight-pixel fallback.
 */
 function inline _HU_FontHeight()
   if typeof(hu_font) == "array" and len(hu_font) > 0 and hu_font[0] is not void then
@@ -188,7 +188,7 @@ end function
 
 /*
 * Function: _HU_KeyCodeFromString
-* Purpose: Provides code from string helper behavior for the heads-up display.
+* Purpose: Extracts the first byte used by localized one-character chat key bindings.
 */
 function inline _HU_KeyCodeFromString(s)
   if typeof(s) != "string" or len(s) == 0 then return 0 end if
@@ -199,7 +199,7 @@ end function
 
 /*
 * Function: _HU_ShowMessagesEnabled
-* Purpose: Provides messages enabled helper behavior for the heads-up display.
+* Purpose: Normalizes the integer showMessages setting to a HUD visibility decision.
 */
 function inline _HU_ShowMessagesEnabled()
   if typeof(showMessages) == "int" then return showMessages != 0 end if
@@ -208,28 +208,30 @@ end function
 
 /*
 * Function: _HU_MPUsePacketChat
-* Purpose: Returns true when chat should use dedicated multiplayer packets.
+* Purpose: Enables chat only for the host-authoritative platform session that owns D_Net routing.
 */
 function inline _HU_MPUsePacketChat()
-  return netgame
+  if typeof(MP_PlatformIsHosting) == "function" and MP_PlatformIsHosting() then return true end if
+  if typeof(MP_PlatformIsClientConnected) == "function" and MP_PlatformIsClientConnected() then return true end if
+  return false
 end function
 
 /*
 * Function: _HU_MPSendChatMessage
-* Purpose: Sends one complete chat line to the host as one packet.
+* Purpose: Submits one complete HUD chat line to the authoritative channel, including private destination.
 */
 function inline _HU_MPSendChatMessage(dest, msg)
   if not _HU_MPUsePacketChat() then return false end if
   if typeof(msg) != "string" then return false end if
   m = str.trim(msg)
   if m == "" then return false end if
-  if typeof(MP_PlatformSendChatMessage) != "function" then return false end if
-  return MP_PlatformSendChatMessage(m)
+  if typeof(D_NetMPSendChat) != "function" then return false end if
+  return D_NetMPSendChat(dest, m)
 end function
 
 /*
 * Function: _HU_PlayerName
-* Purpose: Provides name helper behavior for the heads-up display.
+* Purpose: Resolves a checked local player-name entry for directed chat prompts.
 */
 function inline _HU_PlayerName(idx)
   if idx >= 0 and idx < len(player_names) then return player_names[idx] end if
@@ -238,7 +240,7 @@ end function
 
 /*
 * Function: _HU_ITextString
-* Purpose: Provides text string helper behavior for the heads-up display.
+* Purpose: Copies the live HU input widget bytes into an immutable chat string.
 */
 function inline _HU_ITextString(it)
   if it is void or it.l is void then return "" end if
@@ -251,7 +253,7 @@ end function
 
 /*
 * Function: _HU_BuildBaseShiftMap
-* Purpose: Builds base shift map data for the heads-up display.
+* Purpose: Creates the ASCII chat transform with identity punctuation and uppercase alphabetic keys.
 */
 function _HU_BuildBaseShiftMap()
   m =[]
@@ -270,7 +272,7 @@ end function
 
 /*
 * Function: _HU_BuildEnglishShiftMap
-* Purpose: Builds english shift map data for the heads-up display.
+* Purpose: Adds US-keyboard shifted punctuation and digits to the common chat transform.
 */
 function _HU_BuildEnglishShiftMap()
   m = _HU_BuildBaseShiftMap()
@@ -302,7 +304,7 @@ end function
 
 /*
 * Function: _HU_BuildFrenchShiftMap
-* Purpose: Builds french shift map data for the heads-up display.
+* Purpose: Adds the French layout's supported shifted punctuation to the common chat transform.
 */
 function _HU_BuildFrenchShiftMap()
   m = _HU_BuildBaseShiftMap()
@@ -322,7 +324,7 @@ end function
 
 /*
 * Function: _HU_ShiftChar
-* Purpose: Provides char helper behavior for the heads-up display.
+* Purpose: Applies the active keyboard shift map to one printable chat byte.
 */
 function inline _HU_ShiftChar(c)
   if typeof(c) != "int" then return c end if
@@ -334,7 +336,7 @@ end function
 
 /*
 * Function: _HU_CurrentPlayer
-* Purpose: Provides player helper behavior for the heads-up display.
+* Purpose: Resolves and caches the console player's current HUD message source.
 */
 function inline _HU_CurrentPlayer()
   if typeof(players) != "array" then return void end if
@@ -374,7 +376,7 @@ end function
 
 /*
 * Function: _HU_MapTitle
-* Purpose: Provides title helper behavior for the heads-up display.
+* Purpose: Selects the localized automap title for the current episode/map marker.
 */
 function _HU_MapTitle()
   if gamemode == GameMode_t.shareware or gamemode == GameMode_t.registered or gamemode == GameMode_t.retail then
@@ -398,7 +400,7 @@ end function
 
 /*
 * Function: _HU_InitDestinationKeys
-* Purpose: Initializes state and dependencies for the internal module support.
+* Purpose: Maps the four localized player-color destination keys to responder key codes.
 */
 function inline _HU_InitDestinationKeys()
   destination_keys =[
@@ -412,7 +414,7 @@ end function
 
 /*
 * Function: _HU_EnsureInputBuffers
-* Purpose: Builds input buffers data for the heads-up display.
+* Purpose: Allocates one bounded HUlib input widget per possible remote chat sender.
 */
 function _HU_EnsureInputBuffers()
   global w_inputbuffer
@@ -428,7 +430,7 @@ end function
 
 /*
 * Function: HU_Init
-* Purpose: Initializes state and dependencies for the HUD subsystem.
+* Purpose: Builds keyboard shift maps, shared visibility references, and the STCFN font-lump cache.
 */
 function HU_Init()
   global hu_font
@@ -466,7 +468,7 @@ end function
 
 /*
 * Function: HU_Stop
-* Purpose: Stops or tears down runtime behavior in the HUD subsystem.
+* Purpose: Deactivates level HUD rendering and cancels any partially entered chat line.
 */
 function HU_Stop()
   global headsupactive
@@ -478,7 +480,7 @@ end function
 
 /*
 * Function: HU_Start
-* Purpose: Starts runtime behavior in the HUD subsystem.
+* Purpose: Rebinds HUD widgets to the current player and clears messages/chat buffers for the new level.
 */
 function HU_Start()
   global w_message
@@ -528,7 +530,7 @@ end function
 
 /*
 * Function: HU_Drawer
-* Purpose: Provides drawer helper behavior for the heads-up display.
+* Purpose: Draws message history, map title, and active chat input when the HUD is visible.
 */
 function HU_Drawer()
   if not headsupactive then return end if
@@ -539,7 +541,7 @@ end function
 
 /*
 * Function: HU_Erase
-* Purpose: Draws erase output for the heads-up display.
+* Purpose: Restores view-border pixels previously occupied by HUD text in reduced-screen mode.
 */
 function HU_Erase()
   HUlib_eraseSText(w_message)
@@ -583,7 +585,7 @@ end function
 
 /*
 * Function: HU_Ticker
-* Purpose: Advances ticker logic during the heads-up display tick.
+* Purpose: Ages the current HUD message and consumes one authoritative player message per UI tic.
 */
 function HU_Ticker()
   global message_counter
@@ -612,21 +614,11 @@ function HU_Ticker()
     end if
   end if
 
-  if _HU_MPUsePacketChat() and typeof(MP_PlatformPollChatLine) == "function" then
-    loops = 0
-    while loops < 8
-      line = MP_PlatformPollChatLine()
-      if typeof(line) != "string" or line == "" then break end if
-      HU_NetAddMessage(line)
-      loops = loops + 1
-    end while
-  end if
-
 end function
 
 /*
 * Function: ForeignTranslation
-* Purpose: Provides translation helper behavior for the heads-up display.
+* Purpose: Maps one key byte through the French keyboard table while preserving other languages.
 */
 function ForeignTranslation(ch)
   if language != Language_t.french then return ch end if
@@ -638,7 +630,7 @@ end function
 
 /*
 * Function: HU_Responder
-* Purpose: Handles responder events for the heads-up display system.
+* Purpose: Owns chat activation, destination selection, macros, editing, and final packet submission.
 */
 function HU_Responder(ev)
   global shiftdown

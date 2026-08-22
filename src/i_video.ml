@@ -14,7 +14,7 @@
   limitations under the License.
 
   Script: i_video.ml
-  Purpose: Implements platform integration for input, timing, video, audio, and OS services.
+  Purpose: Owns the Win32 game window, keyboard/mouse polling, indexed-frame presentation, HD overlays, wipes, and screenshots.
 */
 import doomtype
 import doomstat
@@ -66,14 +66,14 @@ const _I_GWL_STYLE = -16
 
 /*
 * Function: CreateWindowExW
-* Purpose: Creates and initializes runtime objects for the engine module behavior.
+* Purpose: Creates the native game window with the requested client style, placement, and dimensions.
 */
 extern function CreateWindowExW(exStyle as u32, className as wstr, windowName as wstr, style as u32, x as int, y as int, width as int, height as int, parent as ptr, menu as ptr, instance as ptr, param as ptr) from "user32.dll" symbol "CreateWindowExW" returns ptr
 
 /*
  * Function: AdjustWindowRect
  *
- * Purpose: Maps the external AdjustWindowRect binding used for windowing and video output.
+ * Purpose: Expands a desired client rectangle to include the selected non-client window borders.
  */
 
 extern function AdjustWindowRect(rect as bytes, style as u32, hasMenu as bool) from "user32.dll" symbol "AdjustWindowRect" returns bool
@@ -81,7 +81,7 @@ extern function AdjustWindowRect(rect as bytes, style as u32, hasMenu as bool) f
 /*
  * Function: ShowWindow
  *
- * Purpose: Maps the external ShowWindow binding used for windowing and video output.
+ * Purpose: Applies the requested visibility state to the native game window.
  */
 
 extern function ShowWindow(hwnd as ptr, cmdShow as int) from "user32.dll" symbol "ShowWindow" returns bool
@@ -89,7 +89,7 @@ extern function ShowWindow(hwnd as ptr, cmdShow as int) from "user32.dll" symbol
 /*
  * Function: UpdateWindow
  *
- * Purpose: Maps the external UpdateWindow binding used for windowing and video output.
+ * Purpose: Forces pending client-area painting for a shown native window.
  */
 
 extern function UpdateWindow(hwnd as ptr) from "user32.dll" symbol "UpdateWindow" returns bool
@@ -103,7 +103,7 @@ extern function ValidateRect(hwnd as ptr, rect as ptr) from "user32.dll" symbol 
 /*
  * Function: DestroyWindow
  *
- * Purpose: Maps the external DestroyWindow binding used for windowing and video output.
+ * Purpose: Destroys a game window owned by this video backend.
  */
 
 extern function DestroyWindow(hwnd as ptr) from "user32.dll" symbol "DestroyWindow" returns bool
@@ -111,7 +111,7 @@ extern function DestroyWindow(hwnd as ptr) from "user32.dll" symbol "DestroyWind
 /*
  * Function: GetDC
  *
- * Purpose: Maps the external GetDC binding used for windowing and video output.
+ * Purpose: Acquires the client device context used for software StretchDIBits presentation.
  */
 
 extern function GetDC(hwnd as ptr) from "user32.dll" symbol "GetDC" returns ptr
@@ -119,7 +119,7 @@ extern function GetDC(hwnd as ptr) from "user32.dll" symbol "GetDC" returns ptr
 /*
  * Function: ReleaseDC
  *
- * Purpose: Maps the external ReleaseDC binding used for windowing and video output.
+ * Purpose: Releases a client device context previously acquired for software presentation.
  */
 
 extern function ReleaseDC(hwnd as ptr, hdc as ptr) from "user32.dll" symbol "ReleaseDC" returns int
@@ -127,7 +127,7 @@ extern function ReleaseDC(hwnd as ptr, hdc as ptr) from "user32.dll" symbol "Rel
 /*
  * Function: GetClientRect
  *
- * Purpose: Maps the external GetClientRect binding used for windowing and video output.
+ * Purpose: Reads the current drawable client dimensions for OpenGL resize or GDI scaling.
  */
 
 extern function GetClientRect(hwnd as ptr, rect as bytes) from "user32.dll" symbol "GetClientRect" returns bool
@@ -135,7 +135,7 @@ extern function GetClientRect(hwnd as ptr, rect as bytes) from "user32.dll" symb
 /*
  * Function: PeekMessageW
  *
- * Purpose: Maps the external PeekMessageW binding used for windowing and video output.
+ * Purpose: Retrieves and optionally removes queued Win32 messages without blocking the game loop.
  */
 
 extern function PeekMessageW(msg as bytes, hwnd as ptr, minMsg as u32, maxMsg as u32, removeMsg as u32) from "user32.dll" symbol "PeekMessageW" returns bool
@@ -143,7 +143,7 @@ extern function PeekMessageW(msg as bytes, hwnd as ptr, minMsg as u32, maxMsg as
 /*
  * Function: TranslateMessage
  *
- * Purpose: Maps the external TranslateMessage binding used for windowing and video output.
+ * Purpose: Generates character messages from a retrieved keyboard message before dispatch.
  */
 
 extern function TranslateMessage(msg as bytes) from "user32.dll" symbol "TranslateMessage" returns bool
@@ -151,7 +151,7 @@ extern function TranslateMessage(msg as bytes) from "user32.dll" symbol "Transla
 /*
  * Function: DispatchMessageW
  *
- * Purpose: Maps the external DispatchMessageW binding used for windowing and video output.
+ * Purpose: Dispatches a retrieved Win32 message to the target window procedure.
  */
 
 extern function DispatchMessageW(msg as bytes) from "user32.dll" symbol "DispatchMessageW" returns ptr
@@ -159,7 +159,7 @@ extern function DispatchMessageW(msg as bytes) from "user32.dll" symbol "Dispatc
 /*
  * Function: GetAsyncKeyState
  *
- * Purpose: Maps the external GetAsyncKeyState binding used for windowing and video output.
+ * Purpose: Polls a virtual key's current high-bit down state for edge-based Doom input events.
  */
 
 extern function GetAsyncKeyState(vkey as int) from "user32.dll" symbol "GetAsyncKeyState" returns int
@@ -167,7 +167,7 @@ extern function GetAsyncKeyState(vkey as int) from "user32.dll" symbol "GetAsync
 /*
  * Function: SetWindowTextW
  *
- * Purpose: Maps the external SetWindowTextW binding used for windowing and video output.
+ * Purpose: Updates the game window caption with loading or FPS status.
  */
 
 extern function SetWindowTextW(hwnd as ptr, text as wstr) from "user32.dll" symbol "SetWindowTextW" returns bool
@@ -175,7 +175,7 @@ extern function SetWindowTextW(hwnd as ptr, text as wstr) from "user32.dll" symb
 /*
  * Function: GetCursorPos
  *
- * Purpose: Maps the external GetCursorPos binding used for windowing and video output.
+ * Purpose: Reads screen-space cursor coordinates used to derive relative mouse movement.
  */
 
 extern function GetCursorPos(point as bytes) from "user32.dll" symbol "GetCursorPos" returns bool
@@ -183,7 +183,7 @@ extern function GetCursorPos(point as bytes) from "user32.dll" symbol "GetCursor
 /*
  * Function: GetForegroundWindow
  *
- * Purpose: Maps the external GetForegroundWindow binding used for windowing and video output.
+ * Purpose: Identifies the foreground window so input is released when the game loses focus.
  */
 
 extern function GetForegroundWindow() from "user32.dll" symbol "GetForegroundWindow" returns ptr
@@ -197,7 +197,7 @@ extern function ShowCursor(show as bool) from "user32.dll" symbol "ShowCursor" r
 /*
  * Function: GetSystemMetrics
  *
- * Purpose: Maps the external GetSystemMetrics binding used for windowing and video output.
+ * Purpose: Reads desktop dimensions used to size the borderless fullscreen window.
  */
 
 extern function GetSystemMetrics(index as int) from "user32.dll" symbol "GetSystemMetrics" returns int
@@ -205,7 +205,7 @@ extern function GetSystemMetrics(index as int) from "user32.dll" symbol "GetSyst
 /*
  * Function: SetWindowPos
  *
- * Purpose: Maps the external SetWindowPos binding used for windowing and video output.
+ * Purpose: Repositions or resizes the game window while changing fullscreen/windowed presentation.
  */
 
 extern function SetWindowPos(hwnd as ptr, insertAfter as ptr, x as int, y as int, width as int, height as int, flags as u32) from "user32.dll" symbol "SetWindowPos" returns bool
@@ -213,7 +213,7 @@ extern function SetWindowPos(hwnd as ptr, insertAfter as ptr, x as int, y as int
 /*
  * Function: GetWindowLongPtrW
  *
- * Purpose: Maps the external GetWindowLongPtrW binding used for windowing and video output.
+ * Purpose: Reads native window style data needed when updating presentation mode.
  */
 
 extern function GetWindowLongPtrW(hwnd as ptr, index as int) from "user32.dll" symbol "GetWindowLongPtrW" returns ptr
@@ -221,7 +221,7 @@ extern function GetWindowLongPtrW(hwnd as ptr, index as int) from "user32.dll" s
 /*
  * Function: SetWindowLongPtrW
  *
- * Purpose: Maps the external SetWindowLongPtrW binding used for windowing and video output.
+ * Purpose: Replaces native window style data when updating presentation mode.
  */
 
 extern function SetWindowLongPtrW(hwnd as ptr, index as int, newLong as ptr) from "user32.dll" symbol "SetWindowLongPtrW" returns ptr
@@ -229,7 +229,7 @@ extern function SetWindowLongPtrW(hwnd as ptr, index as int, newLong as ptr) fro
 /*
  * Function: SetForegroundWindow
  *
- * Purpose: Maps the external SetForegroundWindow binding used for windowing and video output.
+ * Purpose: Requests foreground keyboard focus for the newly created game window.
  */
 
 extern function SetForegroundWindow(hwnd as ptr) from "user32.dll" symbol "SetForegroundWindow" returns bool
@@ -237,7 +237,7 @@ extern function SetForegroundWindow(hwnd as ptr) from "user32.dll" symbol "SetFo
 /*
  * Function: BringWindowToTop
  *
- * Purpose: Maps the external BringWindowToTop binding used for windowing and video output.
+ * Purpose: Raises the game window above other top-level windows during activation.
  */
 
 extern function BringWindowToTop(hwnd as ptr) from "user32.dll" symbol "BringWindowToTop" returns bool
@@ -245,7 +245,7 @@ extern function BringWindowToTop(hwnd as ptr) from "user32.dll" symbol "BringWin
 /*
  * Function: SetActiveWindow
  *
- * Purpose: Maps the external SetActiveWindow binding used for windowing and video output.
+ * Purpose: Activates the game window within the current input thread.
  */
 
 extern function SetActiveWindow(hwnd as ptr) from "user32.dll" symbol "SetActiveWindow" returns ptr
@@ -253,7 +253,7 @@ extern function SetActiveWindow(hwnd as ptr) from "user32.dll" symbol "SetActive
 /*
  * Function: IsWindow
  *
- * Purpose: Maps the external IsWindow binding used for windowing and video output.
+ * Purpose: Validates that the stored native handle still names a live window.
  */
 
 extern function IsWindow(hwnd as ptr) from "user32.dll" symbol "IsWindow" returns bool
@@ -261,7 +261,7 @@ extern function IsWindow(hwnd as ptr) from "user32.dll" symbol "IsWindow" return
 /*
  * Function: StretchDIBits
  *
- * Purpose: Maps the external StretchDIBits binding used for windowing and video output.
+ * Purpose: Scales and copies the indexed DIB presentation buffer into the window client area.
  */
 
 extern function StretchDIBits(hdc as ptr, xDest as int, yDest as int, destWidth as int, destHeight as int, xSrc as int, ySrc as int, srcWidth as int, srcHeight as int, bits as bytes, bmi as bytes, usage as u32, rop as u32) from "gdi32.dll" symbol "StretchDIBits" returns int
@@ -269,21 +269,21 @@ extern function StretchDIBits(hdc as ptr, xDest as int, yDest as int, destWidth 
 /*
  * Function: SetStretchBltMode
  *
- * Purpose: Maps the external SetStretchBltMode binding used for windowing and video output.
+ * Purpose: Selects COLORONCOLOR scaling for crisp software framebuffer presentation.
  */
 
 extern function SetStretchBltMode(hdc as ptr, mode as int) from "gdi32.dll" symbol "SetStretchBltMode" returns int
 
 /*
 * Function: CreateDirectoryW
-* Purpose: Creates and initializes runtime objects for the engine module behavior.
+* Purpose: Creates the auto-screenshot output directory when it does not yet exist.
 */
 extern function CreateDirectoryW(path as wstr, security as ptr) from "kernel32.dll" symbol "CreateDirectoryW" returns bool
 
 /*
  * Function: GetConsoleWindow
  *
- * Purpose: Maps the external GetConsoleWindow binding used for windowing and video output.
+ * Purpose: Retrieves the process console window so startup can reuse or coordinate native window state.
  */
 
 extern function GetConsoleWindow() from "kernel32.dll" symbol "GetConsoleWindow" returns ptr
@@ -342,7 +342,7 @@ const _I_STATUSBAR_HEIGHT = 32
 
 /*
 * Function: _I_ToIntOr
-* Purpose: Converts int or values for the windowing and video backend.
+* Purpose: Coerces numeric values to truncation-toward-zero integers and returns fallback on failure.
 */
 function _I_ToIntOr(v, fallback)
   if typeof(v) == "int" then return v end if
@@ -361,7 +361,7 @@ end function
 
 /*
 * Function: _I_IDiv
-* Purpose: Performs integer division with video backend rounding and guard rules.
+* Purpose: Coerces numeric operands and returns their signed quotient truncated toward zero, using zero for a zero divisor.
 */
 function inline _I_IDiv(a, b)
   a = _I_ToIntOr(a, 0)
@@ -374,7 +374,7 @@ end function
 
 /*
 * Function: _I_SetWindowTitle
-* Purpose: Updates window title state for the windowing and video backend.
+* Purpose: Applies a changed caption once and clears STATIC-class repaint requests caused by title updates.
 */
 function inline _I_SetWindowTitle(title)
   global _i_titleLast
@@ -389,7 +389,7 @@ end function
 
 /*
 * Function: I_SetForceSoftwarePresent
-* Purpose: Draws set Force Software Present output for the video backend renderer.
+* Purpose: Forces the next presentation path to use a nearest-scaled logical framebuffer instead of native OpenGL world output.
 */
 function I_SetForceSoftwarePresent(v)
   global _i_forceSoftwarePresent
@@ -442,7 +442,7 @@ end function
 
 /*
 * Function: _I_SaveLastPresentFrame
-* Purpose: Writes last present frame data for the windowing and video backend.
+* Purpose: Caches the latest full-size indexed frame and its palette-expanded RGBA copy for capture and wipe fallback.
 */
 function _I_SaveLastPresentFrame(src)
   global _i_lastPresentFrame
@@ -479,7 +479,7 @@ end function
 
 /*
 * Function: _I_IndexedToRGBA
-* Purpose: Converts source to RGBA values for the windowing and video backend.
+* Purpose: Expands validated indexed pixels through the active RGB palette into opaque RGBA output.
 */
 function _I_IndexedToRGBA(src, dst, width, height)
   if typeof(src) != "bytes" or typeof(dst) != "bytes" then return false end if
@@ -504,7 +504,7 @@ end function
 
 /*
 * Function: _I_HDWIPE_Rand
-* Purpose: Provides rand helper behavior for the windowing and video backend.
+* Purpose: Produces deterministic 15-bit randomness for high-resolution melt-column delays.
 */
 function inline _I_HDWIPE_Rand()
   global _i_hdWipeSeed
@@ -515,7 +515,7 @@ end function
 
 /*
 * Function: I_BeginHDWipe
-* Purpose: Provides hd wipe helper behavior for the windowing and video backend.
+* Purpose: Captures the current high-resolution start frame from OpenGL, the last RGBA frame, or a nearest logical fallback.
 */
 function I_BeginHDWipe()
   global _i_hdWipeStart
@@ -548,7 +548,7 @@ end function
 
 /*
 * Function: I_PrepareHDWipeEnd
-* Purpose: Controls prepare HDWipe End transitions in the video backend system.
+* Purpose: Captures the destination frame and initializes correlated delayed melt positions for two-logical-pixel column groups.
 */
 function I_PrepareHDWipeEnd()
   global _i_hdWipeEnd
@@ -608,7 +608,7 @@ end function
 
 /*
 * Function: _I_ComposeHDWipeFrame
-* Purpose: Provides hd wipe frame helper behavior for the windowing and video backend.
+* Purpose: Composes one RGBA melt frame from the start/end captures and each column group's vertical frontier.
 */
 function _I_ComposeHDWipeFrame()
   if typeof(_i_hdWipeStart) != "bytes" or typeof(_i_hdWipeEnd) != "bytes" or typeof(_i_hdWipeFrame) != "bytes" then return false end if
@@ -656,7 +656,7 @@ end function
 
 /*
 * Function: I_HDScreenWipe
-* Purpose: Provides screen wipe helper behavior for the windowing and video backend.
+* Purpose: Advances, draws, and swaps the high-resolution melt transition, returning true after every column reaches the bottom.
 */
 function I_HDScreenWipe(tics)
   if not _i_hdWipeActive then return true end if
@@ -706,7 +706,7 @@ end function
 
 /*
 * Function: _I_IntToString
-* Purpose: Converts source to string values for the windowing and video backend.
+* Purpose: Formats an integer as decimal text without relying on platform string conversion.
 */
 function _I_IntToString(v)
   n = _I_ToIntOr(v, 0)
@@ -739,7 +739,7 @@ end function
 
 /*
 * Function: _I_FpsTitle
-* Purpose: Provides title helper behavior for the windowing and video backend.
+* Purpose: Formats the base window caption with the most recently measured non-negative FPS value.
 */
 function inline _I_FpsTitle()
   v = _I_ToIntOr(_i_fpsValue, 0)
@@ -749,7 +749,7 @@ end function
 
 /*
 * Function: _I_UpdateWindowTitle
-* Purpose: Updates window title state for the windowing and video backend.
+* Purpose: Counts presented frames over one-second windows and updates the caption unless a loading status owns it.
 */
 function _I_UpdateWindowTitle()
   global _i_fpsWindowStart
@@ -875,7 +875,7 @@ end function
 
 /*
 * Function: _I_AddKeyMap
-* Purpose: Adds key map entries to the windowing and video backend.
+* Purpose: Appends a Win32 virtual-key to Doom-key mapping with an initially released edge-tracking cell.
 */
 function inline _I_AddKeyMap(vk, doomKey)
   global _i_keyVk
@@ -889,7 +889,7 @@ end function
 
 /*
 * Function: _I_InitKeyMap
-* Purpose: Initializes state and dependencies for the internal module support.
+* Purpose: Lazily builds the complete navigation, function, digit, numpad, punctuation, and lowercase-letter key map.
 */
 function _I_InitKeyMap()
   global _i_keyVk
@@ -988,7 +988,7 @@ end function
 
 /*
 * Function: _I_WriteU16
-* Purpose: Writes U16 data for the windowing and video backend.
+* Purpose: Encodes the low 16 bits of a value into a little-endian Win32 structure buffer.
 */
 function inline _I_WriteU16(buf, off, value)
   if value < 0 then value = value + 65536 end if
@@ -998,7 +998,7 @@ end function
 
 /*
 * Function: _I_WriteU32
-* Purpose: Writes U32 data for the windowing and video backend.
+* Purpose: Encodes the low 32 bits of a value into a little-endian Win32 structure buffer.
 */
 function inline _I_WriteU32(buf, off, value)
   if value < 0 then value = value + 4294967296 end if
@@ -1010,7 +1010,7 @@ end function
 
 /*
 * Function: _I_ReadU32
-* Purpose: Reads U32 data for the windowing and video backend.
+* Purpose: Decodes an unsigned 32-bit little-endian field from a Win32 structure buffer.
 */
 function inline _I_ReadU32(buf, off)
   return buf[off] +(buf[off + 1] << 8) +(buf[off + 2] << 16) +(buf[off + 3] << 24)
@@ -1018,7 +1018,7 @@ end function
 
 /*
 * Function: _I_ReadS32
-* Purpose: Reads s32 data for the windowing and video backend.
+* Purpose: Decodes a signed 32-bit little-endian field from a Win32 structure buffer.
 */
 function inline _I_ReadS32(buf, off)
   v = _I_ReadU32(buf, off)
@@ -1028,7 +1028,7 @@ end function
 
 /*
 * Function: _I_InitDefaultPalette
-* Purpose: Initializes state and dependencies for the internal module support.
+* Purpose: Seeds the 256-entry RGB palette with a grayscale ramp before PLAYPAL is applied.
 */
 function _I_InitDefaultPalette()
   if typeof(_i_paletteRgb) != "bytes" then return end if
@@ -1042,7 +1042,7 @@ end function
 
 /*
 * Function: _I_UpdateBitmapColorTable
-* Purpose: Updates bitmap color table state for the windowing and video backend.
+* Purpose: Converts the active RGB palette into the BGR0 color table embedded in the 8-bit BITMAPINFO.
 */
 function _I_UpdateBitmapColorTable()
   if typeof(_i_paletteRgb) != "bytes" then return end if
@@ -1059,7 +1059,7 @@ end function
 
 /*
 * Function: _I_InitBitmapInfo
-* Purpose: Initializes state and dependencies for the internal module support.
+* Purpose: Builds a top-down 8-bit BITMAPINFO for the physical presentation size and forwards its initial palette to OpenGL.
 */
 function _I_InitBitmapInfo()
   if typeof(_i_bmi) != "bytes" then return end if
@@ -1082,7 +1082,7 @@ end function
 
 /*
 * Function: _I_CreateWindow
-* Purpose: Creates and initializes runtime objects for the internal module support.
+* Purpose: Creates, sizes, activates, and acquires a device context for the fullscreen or windowed native game window.
 */
 function _I_CreateWindow()
   global _i_hwnd
@@ -1155,7 +1155,7 @@ end function
 
 /*
 * Function: _I_PumpMessages
-* Purpose: Provides messages helper behavior for the windowing and video backend.
+* Purpose: Drains queued Win32 messages, handles Alt+G directly, and quits if the stored game window was destroyed.
 */
 function _I_PumpMessages()
   if _i_hwnd is not void and not IsWindow(_i_hwnd) then
@@ -1188,7 +1188,7 @@ end function
 
 /*
 * Function: _I_EnsureScreenshotDir
-* Purpose: Builds screenshot directory data for the windowing and video backend.
+* Purpose: Creates the screenshot directory once and caches success so periodic captures avoid repeated filesystem work.
 */
 function _I_EnsureScreenshotDir()
   global _i_screenshotDirReady
@@ -1522,7 +1522,7 @@ end function
 
 /*
 * Function: _I_EnsureGLOOverlay
-* Purpose: Builds glo overlay data for the windowing and video backend.
+* Purpose: Ensures the OpenGL UI overlay color and alpha-mask buffers match the physical presentation dimensions.
 */
 function _I_EnsureGLOOverlay()
   global _i_glOverlayBuffer
@@ -1543,7 +1543,7 @@ end function
 
 /*
 * Function: _I_GLOverlayLogicalPixel
-* Purpose: Provides overlay logical pixel helper behavior for the windowing and video backend.
+* Purpose: Expands one logical indexed pixel into its physical-scale overlay block and marks those destination pixels opaque.
 */
 function _I_GLOverlayLogicalPixel(src, sx, sy)
   s = _i_presentScale
@@ -1566,7 +1566,7 @@ end function
 
 /*
 * Function: _I_GLOverlayLogicalRect
-* Purpose: Provides overlay logical rect helper behavior for the windowing and video backend.
+* Purpose: Clips and expands a logical indexed rectangle into the OpenGL overlay buffers.
 */
 function _I_GLOverlayLogicalRect(src, x, y, w, h)
   if typeof(src) != "bytes" or len(src) < SCREENWIDTH * SCREENHEIGHT then return false end if
@@ -1596,7 +1596,7 @@ end function
 
 /*
 * Function: _I_GLOverlayLogicalMask
-* Purpose: Provides overlay logical mask helper behavior for the windowing and video backend.
+* Purpose: Expands only mask-selected logical indexed pixels into the OpenGL overlay buffers.
 */
 function _I_GLOverlayLogicalMask(src, mask)
   if typeof(src) != "bytes" or len(src) < SCREENWIDTH * SCREENHEIGHT then return false end if
@@ -1632,7 +1632,7 @@ end function
 
 /*
 * Function: _I_GLOverlayHighresPatches
-* Purpose: Provides overlay highres patches helper behavior for the windowing and video backend.
+* Purpose: Merges prepared native-resolution patch pixels and their mask into the OpenGL overlay buffers.
 */
 function _I_GLOverlayHighresPatches()
   if typeof(v_hioverlay) != "bytes" or typeof(v_hioverlaymask) != "bytes" then return false end if
@@ -1671,7 +1671,7 @@ end function
 
 /*
 * Function: _I_DrawGLOverlayFrame
-* Purpose: Draws OpenGL overlay frame output for the windowing and video backend.
+* Purpose: Composes status bar, marked logical UI, and prepared HD patches, then submits the masked overlay to OpenGL.
 */
 function _I_DrawGLOverlayFrame()
   if typeof(screens) != "array" or len(screens) == 0 or typeof(screens[0]) != "bytes" then return false end if
@@ -1845,7 +1845,7 @@ end function
 
 /*
 * Function: _I_BuildBmpFromFrame
-* Purpose: Builds bmp from frame data for the windowing and video backend.
+* Purpose: Encodes the currently selected presentation framebuffer as an 8-bit BMP.
 */
 function _I_BuildBmpFromFrame()
   src = _I_BuildPresentFrame()
@@ -1895,7 +1895,7 @@ end function
 
 /*
 * Function: _I_WriteAutoScreenshot
-* Purpose: Writes auto screenshot data for the windowing and video backend.
+* Purpose: Captures the current presentation selection and delegates indexed BMP creation and numbered file output.
 */
 function _I_WriteAutoScreenshot()
   _I_WriteAutoScreenshotFromFrame(_I_BuildPresentFrame(), _i_presentWidth, _i_presentHeight)
@@ -1951,7 +1951,7 @@ end function
 
 /*
 * Function: _I_MaybeAutoScreenshot
-* Purpose: Provides auto screenshot helper behavior for the windowing and video backend.
+* Purpose: Writes the current presentation frame only when the one-second automatic capture deadline has elapsed.
 */
 function _I_MaybeAutoScreenshot()
   if _I_ShouldAutoScreenshot() then _I_WriteAutoScreenshot() end if
@@ -1967,7 +1967,7 @@ end function
 
 /*
 * Function: _I_ReleaseKeyboard
-* Purpose: Provides keyboard helper behavior for the windowing and video backend.
+* Purpose: Clears all remembered key-down edges and optionally posts matching Doom key-up events on focus loss.
 */
 function _I_ReleaseKeyboard(postEvents)
   global _i_altGPrev
@@ -1994,7 +1994,7 @@ end function
 
 /*
 * Function: _I_PollKeyboard
-* Purpose: Provides keyboard helper behavior for the windowing and video backend.
+* Purpose: Polls mapped virtual keys while focused, posts edge-triggered Doom events, and handles the Alt+G renderer toggle.
 */
 function _I_PollKeyboard()
   global _i_altGPrev
@@ -2053,7 +2053,7 @@ end function
 
 /*
 * Function: _I_MouseButtonsNow
-* Purpose: Provides buttons now helper behavior for the windowing and video backend.
+* Purpose: Packs the current left, right, and middle Win32 button states into Doom's three-bit mouse mask.
 */
 function inline _I_MouseButtonsNow()
   b = 0
@@ -2065,7 +2065,7 @@ end function
 
 /*
 * Function: _I_PollMouse
-* Purpose: Provides mouse helper behavior for the windowing and video backend.
+* Purpose: Converts focused cursor deltas and button changes into Doom mouse events while synchronizing cursor visibility.
 */
 function _I_PollMouse()
   global _i_mouseInited
@@ -2116,7 +2116,7 @@ end function
 
 /*
 * Function: I_InitGraphics
-* Purpose: Initializes state and dependencies for the platform layer.
+* Purpose: Allocates video/input buffers, parses display and screenshot options, creates the window, and initializes presentation state.
 */
 function I_InitGraphics()
   global _i_inited
@@ -2219,7 +2219,7 @@ end function
 
 /*
 * Function: I_ShutdownGraphics
-* Purpose: Shuts down shutdown Graphics resources owned by the video backend system.
+* Purpose: Restores the cursor, shuts down OpenGL, releases the device context, and destroys the owned native window.
 */
 function I_ShutdownGraphics()
   global _i_inited
@@ -2248,7 +2248,7 @@ end function
 
 /*
 * Function: I_SetPalette
-* Purpose: Updates palette state for the windowing and video backend.
+* Purpose: Applies the selected gamma table to a 256-color palette and updates both GDI and OpenGL palette consumers.
 */
 function I_SetPalette(palette)
   if typeof(_i_paletteRgb) != "bytes" then return end if
@@ -2281,7 +2281,7 @@ end function
 
 /*
 * Function: I_UpdateNoBlit
-* Purpose: Draws update No Blit output for the video backend renderer.
+* Purpose: Services the Win32 message queue without presenting or modifying a framebuffer.
 */
 function I_UpdateNoBlit()
   _I_PumpMessages()
@@ -2289,7 +2289,7 @@ end function
 
 /*
 * Function: I_CaptureGLFrameToScreen
-* Purpose: Reads OpenGL frame to screen data for the windowing and video backend.
+* Purpose: Composes the current OpenGL world and UI, then reads a logical indexed capture into screen zero.
 */
 function I_CaptureGLFrameToScreen()
   if not _i_inited then return false end if
@@ -2314,8 +2314,8 @@ function I_CaptureGLFrameToScreen()
 end function
 
 /*
-* Function: _I_PresentIndexedFrameGL
-* Purpose: Draws present Indexed Frame GL output for the video backend renderer.
+* Function: _I_PresentIndexedFrameGLSized
+* Purpose: Palette-expands an arbitrary indexed frame, resizes the GL viewport, submits it as RGBA, and swaps buffers.
 */
 function _I_PresentIndexedFrameGLSized(src, srcW, srcH)
   if typeof(src) != "bytes" then return false end if
@@ -2364,7 +2364,7 @@ end function
 
 /*
 * Function: I_SetLoadingStatus
-* Purpose: Loads set Loading Status resources used by the video backend system.
+* Purpose: Sets or clears loading text in the window caption, resets animation when cleared, and pumps messages immediately.
 */
 function I_SetLoadingStatus(text)
   global _i_loadingStatusText
@@ -2402,7 +2402,7 @@ end function
 
 /*
 * Function: I_PollInput
-* Purpose: Provides input helper behavior for the windowing and video backend.
+* Purpose: Pumps native messages and posts current keyboard and mouse edge/motion events to Doom.
 */
 function I_PollInput()
   _I_PumpMessages()
@@ -2412,7 +2412,7 @@ end function
 
 /*
 * Function: I_FinishUpdate
-* Purpose: Advances finish Update logic during the video backend tick.
+* Purpose: Presents one completed frame through native OpenGL, indexed GL fallback, or GDI and performs FPS/screenshot bookkeeping.
 */
 function I_FinishUpdate()
   if not _i_inited then return end if
@@ -2499,7 +2499,7 @@ end function
 
 /*
 * Function: I_ReadScreen
-* Purpose: Reads screen data for the windowing and video backend.
+* Purpose: Copies the complete 320x200 logical framebuffer from screen zero into a caller-provided capture buffer.
 */
 function I_ReadScreen(scr)
   if typeof(scr) != "bytes" then return end if
@@ -2509,7 +2509,7 @@ end function
 
 /*
 * Function: createnullcursor
-* Purpose: Creates and initializes runtime objects for the engine module behavior.
+* Purpose: Preserves the legacy cursor-construction hook; cursor hiding is handled through ShowCursor instead.
 */
 function createnullcursor()
 
@@ -2517,7 +2517,7 @@ end function
 
 /*
 * Function: grabsharedmemory
-* Purpose: Provides grabsharedmemory helper behavior for the windowing and video backend.
+* Purpose: Preserves the legacy shared-framebuffer allocation hook; this backend owns byte buffers directly and returns void.
 */
 function grabsharedmemory(size)
   size = size
@@ -2526,21 +2526,21 @@ end function
 
 /*
 * Function: InitExpand
-* Purpose: Initializes state and dependencies for the engine module behavior.
+* Purpose: Preserves the legacy indexed expansion initializer; physical scaling is performed by current presentation paths.
 */
 function InitExpand()
 end function
 
 /*
 * Function: InitExpand2
-* Purpose: Initializes state and dependencies for the engine module behavior.
+* Purpose: Preserves the second legacy expansion initializer; no precomputed expansion tables are required.
 */
 function InitExpand2()
 end function
 
 /*
 * Function: Expand4
-* Purpose: Provides expand4 helper behavior for the windowing and video backend.
+* Purpose: Retains the legacy expansion entry point as a bounded raw byte copy into the destination buffer.
 */
 function Expand4(src, dst, count)
   if typeof(src) != "bytes" or typeof(dst) != "bytes" then return end if
@@ -2549,7 +2549,7 @@ end function
 
 /*
 * Function: UploadNewPalette
-* Purpose: Loads upload New Palette resources used by the video backend system.
+* Purpose: Compatibility entry point that applies a newly selected Doom palette through the active gamma-aware path.
 */
 function UploadNewPalette(pal)
   I_SetPalette(pal)
@@ -2557,7 +2557,7 @@ end function
 
 /*
 * Function: xlatekey
-* Purpose: Provides xlatekey helper behavior for the windowing and video backend.
+* Purpose: Translates a Win32 virtual key to its Doom code, with direct digit and lowercase-letter fallbacks.
 */
 function xlatekey(vk)
   _I_InitKeyMap()
@@ -2578,7 +2578,7 @@ end function
 
 /*
 * Function: I_GetEvent
-* Purpose: Reads event data for the windowing and video backend.
+* Purpose: Pumps native messages and posts all currently observed keyboard and mouse input changes.
 */
 function I_GetEvent()
   _I_PumpMessages()
@@ -2588,7 +2588,7 @@ end function
 
 /*
 * Function: I_StartFrame
-* Purpose: Starts runtime behavior in the platform layer.
+* Purpose: Services native window messages at the start of a rendered frame.
 */
 function I_StartFrame()
   _I_PumpMessages()
@@ -2596,7 +2596,7 @@ end function
 
 /*
 * Function: I_StartTic
-* Purpose: Starts runtime behavior in the platform layer.
+* Purpose: Polls and posts platform input events at the start of a simulation tic.
 */
 function I_StartTic()
   I_GetEvent()

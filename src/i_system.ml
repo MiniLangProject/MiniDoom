@@ -14,7 +14,7 @@
   limitations under the License.
 
   Script: i_system.ml
-  Purpose: Implements platform integration for input, timing, video, audio, and OS services.
+  Purpose: Supplies Win32 timing, sleep, shutdown, fatal-error, low-memory allocation, and base command services to the engine.
 */
 import d_ticcmd
 import d_event
@@ -33,7 +33,7 @@ const _ISYS_MB_ICONERROR = 0x00000010
 
 /*
 * Function: _IS_IDiv
-* Purpose: Performs integer division with platform rounding and guard rules.
+* Purpose: Returns a signed quotient truncated toward zero, or zero for invalid operands and a zero divisor.
 */
 function inline _IS_IDiv(a, b)
   if typeof(a) != "int" or typeof(b) != "int" or b == 0 then return 0 end if
@@ -97,7 +97,7 @@ end function
 
 /*
 * Function: I_Init
-* Purpose: Initializes state and dependencies for the platform layer.
+* Purpose: Brings up the platform audio backend after core engine globals are available.
 */
 function I_Init()
 
@@ -107,7 +107,7 @@ end function
 
 /*
 * Function: I_ZoneBase
-* Purpose: Provides base helper behavior for the platform backend.
+* Purpose: Allocates the requested zone heap, reports its actual size through the reference argument, and retains the buffer for engine-wide lifetime.
 */
 function I_ZoneBase(sizeOut)
   size = I_GetHeapSize()
@@ -120,7 +120,7 @@ end function
 
 /*
 * Function: I_GetTime
-* Purpose: Reads time data for the platform backend.
+* Purpose: Converts elapsed Win32 milliseconds since the first call into whole 35 Hz game tics.
 */
 function I_GetTime()
   global _I_basetime
@@ -135,7 +135,7 @@ end function
 
 /*
 * Function: I_GetTimeFrac
-* Purpose: Reads time frac data for the platform backend.
+* Purpose: Returns the clamped fractional progress through the current 35 Hz tic for uncapped interpolation.
 */
 function I_GetTimeFrac()
   global _I_basetime
@@ -157,7 +157,7 @@ end function
 
 /*
 * Function: I_BaseTiccmd
-* Purpose: Provides tic command helper behavior for the platform backend.
+* Purpose: Returns a reusable zeroed tic-command record that platform input code may populate for the current game tic.
 */
 function I_BaseTiccmd()
   global _I_emptycmd
@@ -170,7 +170,7 @@ end function
 
 /*
 * Function: I_Quit
-* Purpose: Runs quit lifecycle logic for the platform backend.
+* Purpose: Leaves the netgame, closes platform, audio, and graphics services, saves defaults, then exits successfully.
 */
 function I_Quit()
 
@@ -186,7 +186,7 @@ end function
 
 /*
 * Function: I_AllocLow
-* Purpose: Builds low data for the platform backend.
+* Purpose: Allocates a zeroed byte buffer for legacy callers that expect low-memory storage.
 */
 function I_AllocLow(length)
 
@@ -195,7 +195,7 @@ end function
 
 /*
 * Function: I_Tactile
-* Purpose: Provides tactile helper behavior for the platform backend.
+* Purpose: Accepts legacy force-feedback parameters; this backend deliberately performs no tactile output.
 */
 function I_Tactile(on, off, total)
 
@@ -206,7 +206,7 @@ end function
 
 /*
 * Function: I_Error
-* Purpose: Provides error helper behavior for the platform backend.
+* Purpose: Performs one-shot fatal shutdown, prints the diagnostic, releases subsystems, and terminates with a nonzero exit code.
 */
 function I_Error(msg)
   shown = ""
@@ -246,7 +246,7 @@ mb_used = 6
 
 /*
 * Function: I_GetHeapSize
-* Purpose: Reads heap size data for the platform backend.
+* Purpose: Converts the configured zone-heap size from mebibytes to bytes.
 */
 function I_GetHeapSize()
   return mb_used * 1024 * 1024
@@ -254,7 +254,7 @@ end function
 
 /*
 * Function: I_WaitVBL
-* Purpose: Provides vbl helper behavior for the platform backend.
+* Purpose: Sleeps for the requested number of 70 Hz vertical-blank intervals using millisecond platform timing.
 */
 function I_WaitVBL(count)
 
@@ -264,14 +264,14 @@ end function
 
 /*
 * Function: I_BeginRead
-* Purpose: Reads begin Read data from the platform data stream.
+* Purpose: Preserves the legacy disk-read activity hook; this backend requires no begin notification.
 */
 function I_BeginRead()
 end function
 
 /*
 * Function: I_EndRead
-* Purpose: Reads end Read data from the platform data stream.
+* Purpose: Preserves the legacy disk-read activity hook; this backend requires no end notification.
 */
 function I_EndRead()
 end function
@@ -279,7 +279,7 @@ end function
 /*
  * Function: GetTickCount
  *
- * Purpose: Maps the external GetTickCount binding used for platform integration.
+ * Purpose: Returns Win32's millisecond count since system startup for Doom tic timing.
  */
 
 extern function GetTickCount() from "kernel32.dll" returns u32
@@ -287,7 +287,7 @@ extern function GetTickCount() from "kernel32.dll" returns u32
 /*
  * Function: Sleep
  *
- * Purpose: Maps the external Sleep binding used for platform integration.
+ * Purpose: Suspends the calling thread for at least the requested Win32 millisecond interval.
  */
 
 extern function Sleep(ms as int) from "kernel32.dll" returns int
@@ -295,7 +295,7 @@ extern function Sleep(ms as int) from "kernel32.dll" returns int
 /*
  * Function: ExitProcess
  *
- * Purpose: Maps the external ExitProcess binding used for platform integration.
+ * Purpose: Terminates the process immediately with the supplied operating-system exit code.
  */
 
 extern function ExitProcess(code as int) from "kernel32.dll" returns int
@@ -305,7 +305,7 @@ _I_emptycmd = void
 
 /*
 * Function: _I_GetTickCount
-* Purpose: Reads tick count data for the platform backend.
+* Purpose: Isolates the Win32 millisecond clock behind the engine's internal timing wrapper.
 */
 function inline _I_GetTickCount()
   return GetTickCount()
@@ -313,7 +313,7 @@ end function
 
 /*
 * Function: _I_Sleep
-* Purpose: Provides sleep helper behavior for the platform backend.
+* Purpose: Suspends the current thread for a non-negative millisecond duration through the Win32 scheduler.
 */
 function inline _I_Sleep(ms)
   if typeof(ms) != "int" then return end if
@@ -323,7 +323,7 @@ end function
 
 /*
 * Function: _I_ExitProcess
-* Purpose: Runs process lifecycle logic for the platform backend.
+* Purpose: Normalizes a non-integer exit status to failure and terminates through Win32.
 */
 function inline _I_ExitProcess(code)
   if typeof(code) != "int" then code = 1 end if

@@ -14,7 +14,7 @@
   limitations under the License.
 
   Script: dstrings.ml
-  Purpose: Contains Doom engine module logic for this subsystem.
+  Purpose: Selects the active localized Doom text constants and defines savegame/developer resource names.
 */
 import d_englsh
 import dstrings

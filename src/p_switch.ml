@@ -14,7 +14,7 @@
   limitations under the License.
 
   Script: p_switch.ml
-  Purpose: Implements core gameplay simulation: map logic, physics, AI, and world interaction.
+  Purpose: Resolves switch texture pairs, manages timed buttons, and dispatches player-use line specials.
 */
 import i_system
 import doomdef
@@ -89,7 +89,7 @@ switchlist_t("", "", 0)
 
 /*
 * Function: _PSW_IsSeq
-* Purpose: Provides is sequence helper behavior for the play simulation.
+* Purpose: Tests whether an arbitrary value is an indexable array or byte sequence.
 */
 function inline _PSW_IsSeq(v)
   t = typeof(v)
@@ -98,7 +98,7 @@ end function
 
 /*
 * Function: _InitButtonList
-* Purpose: Initializes state and dependencies for the internal module support.
+* Purpose: Lazily creates the fixed set of reusable timed-button records with inactive timers.
 */
 function _InitButtonList()
   global buttonlist
@@ -114,7 +114,7 @@ end function
 
 /*
 * Function: _PSW_Side0
-* Purpose: Provides side0 helper behavior for the play simulation.
+* Purpose: Resolves a line's front sidedef while rejecting absent or out-of-range side indices.
 */
 function inline _PSW_Side0(line)
   if line is void then return void end if
@@ -127,7 +127,7 @@ end function
 
 /*
 * Function: _PSW_StartSound
-* Purpose: Starts runtime behavior in the internal module support.
+* Purpose: Emits a switch sound from a valid positional origin when audio support is available.
 */
 function inline _PSW_StartSound(origin, sound)
   if origin is void then return end if
@@ -138,7 +138,7 @@ end function
 
 /*
 * Function: _PSW_DiagUseEnabled
-* Purpose: Provides diag use enabled helper behavior for the play simulation.
+* Purpose: Caches whether switch-use diagnostic logging was enabled on the command line.
 */
 function _PSW_DiagUseEnabled()
   global _pswDiagUseInit
@@ -159,7 +159,7 @@ end function
 
 /*
 * Function: _PSW_DiagUseLog
-* Purpose: Provides diag use log helper behavior for the play simulation.
+* Purpose: Emits a switch-use diagnostic only when the cached diagnostic option is active.
 */
 function inline _PSW_DiagUseLog(msg)
   global _pswDiagUseCount
@@ -172,7 +172,7 @@ end function
 
 /*
 * Function: P_InitSwitchList
-* Purpose: Initializes state and dependencies for the gameplay and world simulation.
+* Purpose: Resolves texture pairs allowed by the current game edition and terminates the list with a sentinel.
 */
 function P_InitSwitchList()
   global switchlist
@@ -212,7 +212,7 @@ end function
 
 /*
 * Function: _PSW_Idiv
-* Purpose: Performs integer division with play simulation rounding and guard rules.
+* Purpose: Returns a signed quotient truncated toward zero, using zero when the divisor is zero.
 */
 function inline _PSW_Idiv(a, b)
   if b == 0 then return 0 end if
@@ -223,7 +223,7 @@ end function
 
 /*
 * Function: P_StartButton
-* Purpose: Starts runtime behavior in the gameplay and world simulation.
+* Purpose: Reserves a timer for a reusable switch texture, avoiding duplicate records for the same linedef.
 */
 function P_StartButton(line, w, texture, time)
   _InitButtonList()
@@ -258,7 +258,7 @@ end function
 
 /*
 * Function: P_ChangeSwitchTexture
-* Purpose: Runs switch texture behavior for the play simulation.
+* Purpose: Finds the activated sidedef texture's paired switch image, plays its sound, and optionally schedules restoration.
 */
 function P_ChangeSwitchTexture(line, useAgain)
   if line is void then return end if
@@ -320,7 +320,7 @@ end function
 
 /*
 * Function: P_UpdateButtons
-* Purpose: Updates buttons state for the play simulation.
+* Purpose: Counts down reusable switches, restores their original sidedef texture at expiry, and frees their timer records.
 */
 function P_UpdateButtons()
   _InitButtonList()
@@ -356,7 +356,7 @@ end function
 
 /*
 * Function: P_UseSpecialLine
-* Purpose: Runs special line behavior for the play simulation.
+* Purpose: Enforces side and monster-use restrictions, dispatches a linedef's manual special, and changes its switch texture on success.
 */
 function P_UseSpecialLine(thing, line, side)
   if line is void then return false end if

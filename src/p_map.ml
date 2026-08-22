@@ -14,7 +14,7 @@
   limitations under the License.
 
   Script: p_map.ml
-  Purpose: Implements core gameplay simulation: map logic, physics, AI, and world interaction.
+  Purpose: Resolves mobj/line collision, movement and sliding, use traces, hitscan attacks, and sector crushing.
 */
 import m_bbox
 import m_fixed
@@ -52,7 +52,7 @@ numspechit = 0
 
 /*
 * Function: _MapAbs
-* Purpose: Provides absolute-value helper behavior for the map collision.
+* Purpose: Returns an integer magnitude for fixed-point distance and intercept comparisons.
 */
 function inline _MapAbs(x)
   if x < 0 then return - x end if
@@ -61,7 +61,7 @@ end function
 
 /*
 * Function: _PMAP_IDiv
-* Purpose: Performs integer division with map collision rounding and guard rules.
+* Purpose: Truncates fixed-point geometry quotients toward zero and maps invalid divisors to zero.
 */
 function inline _PMAP_IDiv(a, b)
   if typeof(a) != "int" or typeof(b) != "int" or b == 0 then return 0 end if
@@ -72,7 +72,7 @@ end function
 
 /*
 * Function: _PMAP_S32
-* Purpose: Provides s32 helper behavior for the map collision.
+* Purpose: Reinterprets an arithmetic result with signed 32-bit wrap semantics used by blockmap math.
 */
 function inline _PMAP_S32(v)
   if typeof(v) != "int" then return 0 end if
@@ -83,7 +83,7 @@ end function
 
 /*
 * Function: _SetTMBox
-* Purpose: Updates tm box state for the map collision.
+* Purpose: Fills the shared candidate bounding box from a center and collision radius.
 */
 function inline _SetTMBox(x, y, radius)
   tmbbox[BOXTOP] = y + radius
@@ -94,7 +94,7 @@ end function
 
 /*
 * Function: _LineIndex
-* Purpose: Provides index helper behavior for the map collision.
+* Purpose: Resolves a line reference to its stable map-line index for validcount de-duplication.
 */
 function _LineIndex(ld)
   if ld is void then return -1 end if
@@ -136,7 +136,7 @@ _pmDiagUseCount = 0
 
 /*
 * Function: _PM_TryMoveDiagEnabled
-* Purpose: Computes movement/collision behavior in the internal module support.
+* Purpose: Caches whether command-line try-move diagnostics are enabled for this process.
 */
 function inline _PM_TryMoveDiagEnabled()
   global _pmDiagMoveInit
@@ -157,7 +157,7 @@ end function
 
 /*
 * Function: _PM_DiagMovePrint
-* Purpose: Computes movement/collision behavior in the internal module support.
+* Purpose: Emits a try-move trace only when the cached diagnostic flag permits it.
 */
 function inline _PM_DiagMovePrint(msg)
   if not _PM_TryMoveDiagEnabled() then return end if
@@ -167,7 +167,7 @@ end function
 
 /*
 * Function: _PM_UseDiagEnabled
-* Purpose: Provides use diag enabled helper behavior for the map collision.
+* Purpose: Caches whether command-line use-line traversal diagnostics are enabled.
 */
 function inline _PM_UseDiagEnabled()
   global _pmDiagUseInit
@@ -188,7 +188,7 @@ end function
 
 /*
 * Function: _PM_UseDiagLog
-* Purpose: Provides use diag log helper behavior for the map collision.
+* Purpose: Emits a use-line trace only under the explicit diagnostic flag.
 */
 function inline _PM_UseDiagLog(msg)
   global _pmDiagUseCount
@@ -202,7 +202,7 @@ end function
 
 /*
 * Function: PIT_StompThing
-* Purpose: Provides stomp thing helper behavior for the map collision.
+* Purpose: Telefrags shootable occupants overlapping the teleport destination, excluding the mover itself.
 */
 function PIT_StompThing(thing)
   if thing is void then return true end if
@@ -225,7 +225,7 @@ end function
 
 /*
 * Function: PIT_CheckLine
-* Purpose: Finds check Line information for map collision processing.
+* Purpose: Rejects blocking crossed lines and narrows candidate floor, ceiling, and dropoff openings.
 */
 function PIT_CheckLine(ld)
   global tmfloorz
@@ -288,7 +288,7 @@ end function
 
 /*
 * Function: PIT_CheckThing
-* Purpose: Finds check Thing information for map collision processing.
+* Purpose: Resolves mobj overlap as blocking, missile impact, skull charge, or player pickup contact.
 */
 function PIT_CheckThing(thing)
   if thing is void then return true end if
@@ -360,7 +360,7 @@ end function
 
 /*
 * Function: P_CheckPosition
-* Purpose: Finds check Position information for map collision processing.
+* Purpose: Probes a candidate origin, populating shared opening globals without committing the mobj position.
 */
 function P_CheckPosition(thing, x, y)
   global tmthing
@@ -448,7 +448,7 @@ end function
 
 /*
 * Function: P_TryMove
-* Purpose: Computes movement/collision behavior in the gameplay and world simulation.
+* Purpose: Validates step/dropoff/ceiling constraints and commits a legal XY move with sector relinking.
 */
 function P_TryMove(thing, x, y)
   global floatok
@@ -555,7 +555,7 @@ end function
 
 /*
 * Function: P_TeleportMove
-* Purpose: Computes movement/collision behavior in the gameplay and world simulation.
+* Purpose: Telefrags destination occupants and relocates the mobj without ordinary wall/step restrictions.
 */
 function P_TeleportMove(thing, x, y)
   global tmthing
@@ -609,7 +609,7 @@ end function
 
 /*
 * Function: P_ThingHeightClip
-* Purpose: Provides height clip helper behavior for the map collision.
+* Purpose: Recomputes floor/ceiling bounds after sector motion and clamps a grounded mobj to its new floor.
 */
 function P_ThingHeightClip(thing)
   if thing is void then return false end if
@@ -634,7 +634,7 @@ end function
 
 /*
 * Function: P_HitSlideLine
-* Purpose: Computes movement/collision behavior in the gameplay and world simulation.
+* Purpose: Projects the pending slide vector along the wall axis or clears it on horizontal/vertical walls.
 */
 function P_HitSlideLine(ld)
   global tmxmove
@@ -686,7 +686,7 @@ end function
 
 /*
 * Function: PTR_SlideTraverse
-* Purpose: Computes movement/collision behavior in the engine module behavior.
+* Purpose: Records the nearest blocking line intercept for the current slide trace.
 */
 function PTR_SlideTraverse(inter)
   global bestslidefrac
@@ -733,7 +733,7 @@ end function
 
 /*
 * Function: PTR_UseTraverse
-* Purpose: Provides use traverse helper behavior for the map collision.
+* Purpose: Activates the first usable special line on a use trace or stops at a closed non-special line.
 */
 function PTR_UseTraverse(inter)
   global usething
@@ -774,7 +774,7 @@ end function
 
 /*
 * Function: P_SlideMove
-* Purpose: Computes movement/collision behavior in the gameplay and world simulation.
+* Purpose: Traces leading corners, clips momentum at the nearest wall, and retries up to three slide bumps.
 */
 function P_SlideMove(mo)
   global slidemo
@@ -868,7 +868,7 @@ function P_SlideMove(mo)
 
   /*
 * Function: P_UseLines
-* Purpose: Runs lines behavior for the map collision.
+* Purpose: Casts the player's short use ray and activates the first eligible crossed line.
   */
   function P_UseLines(player)
     global usething
@@ -888,7 +888,7 @@ function P_SlideMove(mo)
 
   /*
 * Function: PIT_ChangeSector
-* Purpose: Provides change sector helper behavior for the map collision.
+* Purpose: Reclips one resident mobj after sector motion and applies crush damage when it no longer fits.
   */
   function PIT_ChangeSector(thing)
     global nofit
@@ -936,7 +936,7 @@ function P_SlideMove(mo)
 
   /*
 * Function: P_ChangeSector
-* Purpose: Runs sector behavior for the map collision.
+* Purpose: Visits all blockmap things touching a moving sector and reports whether any were crushed.
   */
   function P_ChangeSector(sector, crunch)
     global nofit
@@ -963,7 +963,7 @@ function P_SlideMove(mo)
 
   /*
 * Function: PIT_RadiusAttack
-* Purpose: Provides radius attack helper behavior for the map collision.
+* Purpose: Applies distance-falloff splash damage to one shootable thing with line-of-sight to the blast.
   */
   function PIT_RadiusAttack(thing)
     if thing is void then return true end if
@@ -990,7 +990,7 @@ function P_SlideMove(mo)
 
   /*
 * Function: P_RadiusAttack
-* Purpose: Provides attack helper behavior for the map collision.
+* Purpose: Walks blast-radius blockmap cells and damages visible shootable occupants around an explosion.
   */
   function P_RadiusAttack(spot, source, damage)
     if spot is void then return end if
@@ -1025,7 +1025,7 @@ function P_SlideMove(mo)
 
   /*
 * Function: PTR_AimTraverse
-* Purpose: Provides aim traverse helper behavior for the map collision.
+* Purpose: Narrows the vertical aiming window through lines and locks onto the first shootable intercept.
   */
   function PTR_AimTraverse(inter)
     global linetarget
@@ -1096,7 +1096,7 @@ function P_SlideMove(mo)
 
   /*
 * Function: PTR_ShootTraverse
-* Purpose: Provides shoot traverse helper behavior for the map collision.
+* Purpose: Activates shoot specials and spawns wall puffs or target blood at the first hitscan impact.
   */
   function PTR_ShootTraverse(inter)
     global linetarget
@@ -1235,7 +1235,7 @@ function P_SlideMove(mo)
 
   /*
 * Function: P_LineAttack
-* Purpose: Provides attack helper behavior for the map collision.
+* Purpose: Configures a hitscan ray and traverses intercepts to apply damage at the supplied slope.
   */
   function P_LineAttack(t1, angle, distance, slope, damage)
     global shootthing

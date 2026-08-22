@@ -14,7 +14,7 @@
   limitations under the License.
 
   Script: p_plats.ml
-  Purpose: Implements core gameplay simulation: map logic, physics, AI, and world interaction.
+  Purpose: Drives lift and perpetual-platform thinkers with active-slot tracking, waits, stasis, and sounds.
 */
 import i_system
 import z_zone
@@ -30,7 +30,7 @@ activeplats =[]
 
 /*
 * Function: _InitActivePlats
-* Purpose: Initializes state and dependencies for the internal module support.
+* Purpose: Lazily creates the fixed-size active-platform slot table expected by tagged control operations.
 */
 function _InitActivePlats()
   global activeplats
@@ -46,7 +46,7 @@ end function
 
 /*
 * Function: _PlatMakeThinker
-* Purpose: Provides make thinker helper behavior for the play simulation.
+* Purpose: Creates a platform thinker with list links, movement callback, direction, speed, and wait-state defaults.
 */
 function inline _PlatMakeThinker(fn)
   return thinker_t(void, void, actionf_t(fn, void, void), void)
@@ -54,7 +54,7 @@ end function
 
 /*
 * Function: _PlatStartSound
-* Purpose: Starts runtime behavior in the internal module support.
+* Purpose: Emits a positional platform sound only when the sound subsystem is available.
 */
 function inline _PlatStartSound(origin, snd)
   if typeof(S_StartSound) == "function" then
@@ -64,7 +64,7 @@ end function
 
 /*
 * Function: _PlatSoundOrg
-* Purpose: Provides sound origin helper behavior for the play simulation.
+* Purpose: Selects the sector's positional sound origin, falling back to the sector when no dedicated origin exists.
 */
 function inline _PlatSoundOrg(sec)
   if sec is void then return void end if
@@ -73,7 +73,7 @@ end function
 
 /*
 * Function: _PlatSetSlot
-* Purpose: Updates slot state for the platform thinker.
+* Purpose: Rebuilds the active-platform sequence with one validated slot replaced, preserving list compatibility.
 */
 function _PlatSetSlot(idx, v)
   global activeplats
@@ -97,7 +97,7 @@ end function
 
 /*
 * Function: _PlatFrontSector
-* Purpose: Provides front sector helper behavior for the play simulation.
+* Purpose: Resolves the sector on a line's front side for platform trigger calculations.
 */
 function inline _PlatFrontSector(line)
   if line is void then return void end if
@@ -111,7 +111,7 @@ end function
 
 /*
 * Function: P_AddActivePlat
-* Purpose: Adds active plat entries to the play simulation.
+* Purpose: Places a platform mover in the first free active slot, failing explicitly when the fixed table is exhausted.
 */
 function P_AddActivePlat(plat)
   _InitActivePlats()
@@ -130,7 +130,7 @@ end function
 
 /*
 * Function: P_RemoveActivePlat
-* Purpose: Computes movement/collision behavior in the gameplay and world simulation.
+* Purpose: Clears a completed platform's sector ownership, removes its thinker, and frees its active slot.
 */
 function P_RemoveActivePlat(plat)
   _InitActivePlats()
@@ -155,7 +155,7 @@ end function
 
 /*
 * Function: P_ActivateInStasis
-* Purpose: Runs in stasis behavior for the play simulation.
+* Purpose: Resumes tagged platforms in stasis by restoring their previous status and movement callback.
 */
 function P_ActivateInStasis(tag)
   _InitActivePlats()
@@ -177,7 +177,7 @@ end function
 
 /*
 * Function: EV_StopPlat
-* Purpose: Stops or tears down runtime behavior in the engine module behavior.
+* Purpose: Puts every moving platform with the trigger tag into stasis while preserving its status for later resume.
 */
 function EV_StopPlat(line)
   if line is void then return end if
@@ -201,7 +201,7 @@ end function
 
 /*
 * Function: T_PlatRaise
-* Purpose: Provides plat raise helper behavior for the play simulation.
+* Purpose: Advances a platform through upward, downward, waiting, and stationary states and emits movement or stop sounds.
 */
 function T_PlatRaise(plat)
   if plat is void or plat.sector is void then return end if
@@ -266,7 +266,7 @@ end function
 
 /*
 * Function: EV_DoPlat
-* Purpose: Provides do plat helper behavior for the play simulation.
+* Purpose: Starts the requested platform behavior in each tagged inactive sector and records it in the active-platform set.
 */
 function EV_DoPlat(line, type, amount)
   if line is void then return 0 end if

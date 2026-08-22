@@ -14,7 +14,7 @@
   limitations under the License.
 
   Script: m_misc.ml
-  Purpose: Provides shared math, utility, and low-level helper routines.
+  Purpose: Handles configuration defaults, screenshots, file buffers, and Doom patch-backed utility output.
 */
 import doomtype
 import doomdef
@@ -35,7 +35,7 @@ import std.fs as fs
 
 /*
 * Function: _M_u16le
-* Purpose: Provides u16le helper behavior for the utility.
+* Purpose: Decodes one unsigned little-endian 16-bit value from a byte buffer with bounds checks.
 */
 function inline _M_u16le(b, off)
   return b[off] +(b[off + 1] << 8)
@@ -43,7 +43,7 @@ end function
 
 /*
 * Function: _M_patchWidth
-* Purpose: Provides width helper behavior for the utility.
+* Purpose: Reads a Doom patch's little-endian width field, returning zero for malformed data.
 */
 function inline _M_patchWidth(patch)
   if typeof(patch) != "bytes" then return 0 end if
@@ -52,7 +52,7 @@ end function
 
 /*
 * Function: _M_UpperAscii
-* Purpose: Converts ascii values for the utility.
+* Purpose: Folds one lowercase ASCII byte to uppercase while leaving all other bytes unchanged.
 */
 function inline _M_UpperAscii(c)
   if c >= 97 and c <= 122 then return c - 32 end if
@@ -61,7 +61,7 @@ end function
 
 /*
 * Function: _MMISC_IDiv
-* Purpose: Performs integer division with utility rounding and guard rules.
+* Purpose: Returns a signed quotient truncated toward zero, or zero for invalid operands and a zero divisor.
 */
 function inline _MMISC_IDiv(a, b)
   if typeof(a) != "int" or typeof(b) != "int" or b == 0 then return 0 end if
@@ -72,7 +72,7 @@ end function
 
 /*
 * Function: _M_WriteU16LE
-* Purpose: Writes U16 little-endian data for the utility.
+* Purpose: Encodes the low 16 bits of a value at a byte-buffer offset in little-endian order.
 */
 function inline _M_WriteU16LE(buf, off, value)
   if value < 0 then value = value + 65536 end if
@@ -82,7 +82,7 @@ end function
 
 /*
 * Function: _M_MakeShotName
-* Purpose: Builds shot name data for the utility.
+* Purpose: Formats a two-digit screenshot slot as the classic DOOMnn.pcx filename.
 */
 function inline _M_MakeShotName(i)
   b = bytes("DOOM00.pcx")
@@ -93,7 +93,7 @@ end function
 
 /*
 * Function: _M_WritePCXfile
-* Purpose: Writes pc xfile data for the utility.
+* Purpose: Validates indexed pixels and palette, RLE-encodes a complete 8-bit PCX image, and saves it to disk.
 */
 function _M_WritePCXfile(filename, data, width, height, palette)
   if typeof(filename) != "string" then return false end if
@@ -152,7 +152,7 @@ end function
 
 /*
 * Function: WritePCXfile
-* Purpose: Writes pc xfile data for the utility.
+* Purpose: Exposes the validated 8-bit PCX encoder through Doom's public screenshot-writing entry point.
 */
 function WritePCXfile(filename, data, width, height, palette)
   return _M_WritePCXfile(filename, data, width, height, palette)
@@ -160,7 +160,7 @@ end function
 
 /*
 * Function: _M_IsSpaceByte
-* Purpose: Checks space byte conditions for the utility.
+* Purpose: Recognizes the space and horizontal-tab delimiters accepted in configuration lines.
 */
 function inline _M_IsSpaceByte(c)
   return c == 32 or c == 9
@@ -168,7 +168,7 @@ end function
 
 /*
 * Function: _M_Trim
-* Purpose: Converts trim values for the utility.
+* Purpose: Removes leading and trailing configuration whitespace without altering embedded spaces.
 */
 function _M_Trim(s0)
   if typeof(s0) != "string" then return "" end if
@@ -266,7 +266,7 @@ end function
 
 /*
 * Function: _M_ApplyDefaultKV
-* Purpose: Provides default kv helper behavior for the utility.
+* Purpose: Parses one configuration key/value pair and assigns the converted value to the matching registered default.
 */
 function _M_ApplyDefaultKV(key, val)
   global mouseSensitivity
@@ -377,7 +377,7 @@ end function
 
 /*
 * Function: _M_GetDefaultFilePath
-* Purpose: Reads default file path data for the utility.
+* Purpose: Chooses the configuration path from -config, the -cdrom legacy location, an existing base override, or default.cfg.
 */
 function _M_GetDefaultFilePath()
   i = M_CheckParm("-config")
@@ -425,7 +425,7 @@ end function
 
 /*
 * Function: _M_ParentDirExists
-* Purpose: Provides directory exists helper behavior for the utility.
+* Purpose: Determines whether a target path can be written by verifying that its parent directory exists.
 */
 function _M_ParentDirExists(path)
   if typeof(path) != "string" then return false end if
@@ -449,7 +449,7 @@ end function
 
 /*
 * Function: M_WriteFile
-* Purpose: Writes file data for the utility.
+* Purpose: Persists exactly the requested byte prefix and returns false when validation or filesystem output fails.
 */
 function M_WriteFile(name, source, length)
   if typeof(name) != "string" then return false end if
@@ -472,7 +472,7 @@ end function
 
 /*
 * Function: M_ReadFile
-* Purpose: Reads file data for the utility.
+* Purpose: Loads an entire file into an output reference, returning its byte count and routing failures through I_Error.
 */
 function M_ReadFile(name, bufferOut)
   if typeof(bufferOut) == "array" and len(bufferOut) > 0 then
@@ -499,7 +499,7 @@ end function
 
 /*
 * Function: M_ScreenShot
-* Purpose: Provides shot helper behavior for the utility.
+* Purpose: Chooses the next unused DOOMxx screenshot name and writes the current framebuffer as a PCX image.
 */
 function M_ScreenShot()
   linear = 0
@@ -547,7 +547,7 @@ end function
 
 /*
 * Function: M_LoadDefaults
-* Purpose: Reads defaults data for the utility.
+* Purpose: Restores built-in settings, parses recognized configuration keys, applies CLI multiplayer overrides, and clamps the result.
 */
 function M_LoadDefaults()
   global defaultfile
@@ -604,7 +604,7 @@ end function
 
 /*
 * Function: M_SaveDefaults
-* Purpose: Writes defaults data for the utility.
+* Purpose: Serializes current input, audio, message, and multiplayer settings to the selected configuration file.
 */
 function M_SaveDefaults()
   global defaultfile
@@ -648,7 +648,7 @@ end function
 
 /*
 * Function: M_DrawText
-* Purpose: Draws text output for the utility.
+* Purpose: Draws an uppercase patch-font string at logical screen coordinates and returns the x position after the final glyph.
 */
 function M_DrawText(x, y, direct, string)
   b = 0
@@ -703,7 +703,7 @@ defaultfile = void
 
 /*
 * Struct: default_t
-* Purpose: Stores default data used by the utility system.
+* Purpose: Binds a configuration key to its mutable runtime reference, default value, and numeric range metadata.
 */
 struct default_t
   name

@@ -14,14 +14,14 @@
   limitations under the License.
 
   Script: m_swap.ml
-  Purpose: Provides shared math, utility, and low-level helper routines.
+  Purpose: Normalizes signed 16-bit values and byte-swaps 16- and 32-bit integers across host endianness.
 */
 
 const __BIG_ENDIAN__ = false
 
 /*
 * Function: SwapSHORT
-* Purpose: Converts short values for the utility.
+* Purpose: Reverses the two bytes in the low 16 bits of an integer.
 */
 function SwapSHORT(x)
   u = x & 0xFFFF
@@ -30,7 +30,7 @@ end function
 
 /*
 * Function: SwapLONG
-* Purpose: Converts long values for the utility.
+* Purpose: Reverses all four bytes of an integer's low 32-bit representation.
 */
 function SwapLONG(x)
   u = x & 0xFFFFFFFF
@@ -42,7 +42,7 @@ end function
 
 /*
 * Function: SHORT
-* Purpose: Provides short helper behavior for the utility.
+* Purpose: Byte-swaps the low 16 bits and returns the result with signed 16-bit interpretation.
 */
 function SHORT(x)
   if __BIG_ENDIAN__ then return SwapSHORT(x) end if
@@ -51,7 +51,7 @@ end function
 
 /*
 * Function: LONG
-* Purpose: Provides long helper behavior for the utility.
+* Purpose: Reverses all four bytes of a 32-bit value and returns the signed result.
 */
 function LONG(x)
   if __BIG_ENDIAN__ then return SwapLONG(x) end if

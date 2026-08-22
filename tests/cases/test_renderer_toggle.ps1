@@ -9,7 +9,7 @@ Import-Module (Join-Path (Split-Path -Parent $PSScriptRoot) 'lib\MiniDoomTest.ps
 
 $p = $null
 try {
-    $p = Start-MiniDoomForTest -RepoRoot $RepoRoot -Arguments @('-iwad', $Iwad, '-opengl', '-warp', '1', '-nomonsters') -WindowTimeoutSeconds 45
+    $p = Start-MiniDoomForTest -RepoRoot $RepoRoot -Arguments @('-iwad', $Iwad, '-windowed', '-opengl', '-warp', '1', '-nomonsters') -WindowTimeoutSeconds 45
     Start-Sleep -Seconds 5
     Assert-MiniDoomHealthy -Process $p
 

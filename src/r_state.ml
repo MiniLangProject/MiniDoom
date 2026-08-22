@@ -14,7 +14,7 @@
   limitations under the License.
 
   Script: r_state.ml
-  Purpose: Implements renderer data preparation and software rendering pipeline stages.
+  Purpose: Owns mutable texture/sprite metrics, view geometry, clipping, lighting, and camera state shared by renderer passes.
 */
 import d_player
 import r_data

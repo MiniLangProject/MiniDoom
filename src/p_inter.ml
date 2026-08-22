@@ -14,7 +14,7 @@
   limitations under the License.
 
   Script: p_inter.ml
-  Purpose: Implements core gameplay simulation: map logic, physics, AI, and world interaction.
+  Purpose: Applies pickups, armor and damage, resolves deaths, and maintains player frag attribution.
 */
 import doomdef
 import dstrings
@@ -35,7 +35,7 @@ import s_sound
 
 /*
 * Function: P_GivePower
-* Purpose: Provides power helper behavior for the play simulation.
+* Purpose: Grants or refreshes a player powerup while respecting permanent berserk strength.
 */
 function P_GivePower(player, power)
   if player is void then return false end if
@@ -93,7 +93,7 @@ _piDiagHitCount = 0
 
 /*
 * Function: _PI_DiagHitEnabled
-* Purpose: Provides diag hit enabled helper behavior for the play simulation.
+* Purpose: Enables bounded hit diagnostics only for explicit developer runs.
 */
 function _PI_DiagHitEnabled()
   global _piDiagHitInit
@@ -114,7 +114,7 @@ end function
 
 /*
 * Function: _PI_DiagHitLog
-* Purpose: Provides diag hit log helper behavior for the play simulation.
+* Purpose: Emits rate-limited damage diagnostics without flooding normal gameplay output.
 */
 function inline _PI_DiagHitLog(msg)
   global _piDiagHitCount
@@ -127,7 +127,7 @@ end function
 
 /*
 * Function: _PI_AmmoIndex
-* Purpose: Provides ammo index helper behavior for the play simulation.
+* Purpose: Converts an ammo enum/value into a checked inventory index.
 */
 function inline _PI_AmmoIndex(a)
   if typeof(a) == "int" then
@@ -143,7 +143,7 @@ end function
 
 /*
 * Function: _PI_WeaponIndex
-* Purpose: Provides weapon index helper behavior for the play simulation.
+* Purpose: Converts a weapon enum/value into a checked ownership-table index.
 */
 function _PI_WeaponIndex(w)
   if typeof(w) == "int" then
@@ -164,7 +164,7 @@ end function
 
 /*
 * Function: _PI_PowerIndex
-* Purpose: Provides power index helper behavior for the play simulation.
+* Purpose: Converts a power enum/value into a checked powers-array index.
 */
 function _PI_PowerIndex(pw)
   if typeof(pw) == "int" then
@@ -187,7 +187,7 @@ end function
 
 /*
 * Function: _PI_CardIndex
-* Purpose: Provides card index helper behavior for the play simulation.
+* Purpose: Converts a key/card enum/value into a checked cards-array index.
 */
 function _PI_CardIndex(card)
   if typeof(card) == "int" then
@@ -216,7 +216,7 @@ end function
 
 /*
 * Function: _PI_HasCard
-* Purpose: Provides has card helper behavior for the play simulation.
+* Purpose: Tests whether a player already owns a checked key/card inventory entry.
 */
 function inline _PI_HasCard(player, card)
   if player is void then return false end if
@@ -228,7 +228,7 @@ end function
 
 /*
 * Function: _PI_IDiv
-* Purpose: Performs integer division with play simulation rounding and guard rules.
+* Purpose: Truncates damage and ammo scaling quotients toward zero, returning zero for invalid divisors.
 */
 function inline _PI_IDiv(a, b)
   if typeof(a) != "int" or typeof(b) != "int" or b == 0 then return 0 end if
@@ -239,7 +239,7 @@ end function
 
 /*
 * Function: _PI_WeaponInfo
-* Purpose: Provides weapon info helper behavior for the play simulation.
+* Purpose: Resolves immutable weapon metadata after validating the weapon index.
 */
 function inline _PI_WeaponInfo(weapon)
   wi = _PI_WeaponIndex(weapon)
@@ -251,7 +251,7 @@ end function
 
 /*
 * Function: _PI_HasWeapon
-* Purpose: Provides has weapon helper behavior for the play simulation.
+* Purpose: Tests a checked weapon ownership bit on a possibly incomplete player record.
 */
 function inline _PI_HasWeapon(player, weapon)
   if player is void then return false end if
@@ -264,7 +264,7 @@ end function
 
 /*
 * Function: _PI_PlayerIndex
-* Purpose: Provides player index helper behavior for the play simulation.
+* Purpose: Resolves a player struct to its authoritative slot for frag/pickup commits.
 */
 function _PI_PlayerIndex(player)
   if player is void then return -1 end if
@@ -332,7 +332,7 @@ end function
 
 /*
 * Function: P_GiveAmmo
-* Purpose: Provides ammo helper behavior for the play simulation.
+* Purpose: Adds clip-scaled ammunition, clamps capacity, and selects a newly usable weapon.
 */
 function P_GiveAmmo(player, ammo, num)
   if player is void then return false end if
@@ -398,7 +398,7 @@ end function
 
 /*
 * Function: P_GiveWeapon
-* Purpose: Provides weapon helper behavior for the play simulation.
+* Purpose: Applies Doom coop/deathmatch weapon-stay and ammo pickup rules.
 */
 function P_GiveWeapon(player, weapon, dropped)
   if player is void then return false end if
@@ -451,7 +451,7 @@ end function
 
 /*
 * Function: P_GiveBody
-* Purpose: Provides body helper behavior for the play simulation.
+* Purpose: Heals a player and mirrors the clamped health into the owned mobj.
 */
 function P_GiveBody(player, num)
   if player is void then return false end if
@@ -464,7 +464,7 @@ end function
 
 /*
 * Function: P_GiveArmor
-* Purpose: Provides armor helper behavior for the play simulation.
+* Purpose: Replaces armor only when the requested class provides more effective points.
 */
 function P_GiveArmor(player, armortype)
   if player is void then return false end if
@@ -477,7 +477,7 @@ end function
 
 /*
 * Function: P_GiveCard
-* Purpose: Provides card helper behavior for the play simulation.
+* Purpose: Grants a key/card once and triggers the pickup flash.
 */
 function P_GiveCard(player, card)
   if player is void then return false end if
@@ -492,7 +492,7 @@ end function
 
 /*
 * Function: P_TouchSpecialThing
-* Purpose: Provides special thing helper behavior for the play simulation.
+* Purpose: Resolves one pickup collision, mutates authoritative inventory, and removes consumable actors.
 */
 function P_TouchSpecialThing(special, toucher)
   if special is void or toucher is void then return end if
@@ -735,7 +735,7 @@ end function
 
 /*
 * Function: P_KillMobj
-* Purpose: Provides mobile-object helper behavior for the play simulation.
+* Purpose: Finalizes an actor death, including Doom frag semantics, corpse state, drops, and player rebirth state.
 */
 function P_KillMobj(source, target)
   if target is void then return end if
@@ -754,6 +754,8 @@ function P_KillMobj(source, target)
     if target.player is not void then
       pidx = _PI_PlayerIndex(target.player)
       if pidx >= 0 and typeof(source.player.frags) == "array" and pidx < len(source.player.frags) then
+        // Doom stores self-kills as positive diagonal matrix entries; score
+        // totals subtract that diagonal in WI_fragSum/status displays.
         source.player.frags[pidx] = source.player.frags[pidx] + 1
       end if
     end if
@@ -766,9 +768,10 @@ function P_KillMobj(source, target)
   end if
 
   if target.player is not void then
-    if source is void then
+    if source is void or source.player is void then
       pidx = _PI_PlayerIndex(target.player)
       if pidx >= 0 and typeof(target.player.frags) == "array" and pidx < len(target.player.frags) then
+        // Environmental deaths use the same positive diagonal representation.
         target.player.frags[pidx] = target.player.frags[pidx] + 1
       end if
     end if
@@ -822,7 +825,7 @@ end function
 
 /*
 * Function: P_DamageMobj
-* Purpose: Provides mobile-object helper behavior for the play simulation.
+* Purpose: Applies armor, thrust, pain, death, and attacker attribution for one damage event.
 */
 function P_DamageMobj(target, inflictor, source, damage)
   if target is void then return end if

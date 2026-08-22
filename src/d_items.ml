@@ -14,14 +14,14 @@
   limitations under the License.
 
   Script: d_items.ml
-  Purpose: Defines core Doom data types, shared state, and bootstrap flow.
+  Purpose: Defines weapon state-machine metadata and the canonical table describing every player weapon.
 */
 import doomdef
 import info
 
 /*
 * Struct: weaponinfo_t
-* Purpose: Stores weaponinfo data used by the Doom core system.
+* Purpose: Describes a weapon's ammo type and ready, fire, lower, and raise states for the player weapon state machine.
 */
 struct weaponinfo_t
   ammo

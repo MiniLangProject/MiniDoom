@@ -14,7 +14,7 @@
   limitations under the License.
 
   Script: hu_lib.ml
-  Purpose: Implements in-game HUD text and messaging behaviors.
+  Purpose: Implements HUD scrolling text, editable input lines, font drawing, and dirty-region erasure for classic view borders.
 */
 import r_defs
 import doomdef
@@ -43,7 +43,7 @@ end struct
 
 /*
 * Struct: hu_stext_t
-* Purpose: Stores stext data used by the heads-up display system.
+* Purpose: Implements a circular stack of HUD text lines with height, current-line index, and externally referenced visibility state.
 */
 struct hu_stext_t
   l
@@ -55,7 +55,7 @@ end struct
 
 /*
 * Struct: hu_itext_t
-* Purpose: Stores itext data used by the heads-up display system.
+* Purpose: Holds one editable HUD input line, its immutable prefix boundary, and externally referenced visibility state.
 */
 struct hu_itext_t
   l
@@ -66,7 +66,7 @@ end struct
 
 /*
 * Function: HUlib_init
-* Purpose: Initializes state and dependencies for the engine module behavior.
+* Purpose: Preserves the original HUD-library initialization hook; this implementation has no module-wide resources to allocate.
 */
 function HUlib_init()
 
@@ -74,7 +74,7 @@ end function
 
 /*
 * Function: _HUlib_toByte
-* Purpose: Provides ulib to byte helper behavior for the heads-up display.
+* Purpose: Normalizes an integer or one-character string to the byte value stored in HUD text buffers.
 */
 function inline _HUlib_toByte(ch)
   if typeof(ch) == "int" then
@@ -89,7 +89,7 @@ end function
 
 /*
 * Function: _HUlib_refBool
-* Purpose: Provides ulib ref boolean helper behavior for the heads-up display.
+* Purpose: Resolves direct or single-element referenced values to the truth value used by HUD visibility toggles.
 */
 function inline _HUlib_refBool(v)
   if typeof(v) == "array" and len(v) > 0 then v = v[0] end if
@@ -100,7 +100,7 @@ end function
 
 /*
 * Function: _HUlib_patchWidth
-* Purpose: Provides ulib patch width helper behavior for the heads-up display.
+* Purpose: Reads a validated font patch's signed little-endian width, returning zero for absent data.
 */
 function inline _HUlib_patchWidth(p)
   if typeof(p) != "bytes" then return 0 end if
@@ -109,7 +109,7 @@ end function
 
 /*
 * Function: _HUlib_patchHeight
-* Purpose: Provides ulib patch height helper behavior for the heads-up display.
+* Purpose: Reads a validated font patch's signed little-endian height, returning zero for absent data.
 */
 function inline _HUlib_patchHeight(p)
   if typeof(p) != "bytes" then return 0 end if
@@ -118,7 +118,7 @@ end function
 
 /*
 * Function: _HUlib_patchAt
-* Purpose: Provides ulib patch at helper behavior for the heads-up display.
+* Purpose: Safely retrieves one glyph patch from a font array without exposing out-of-range indexing.
 */
 function inline _HUlib_patchAt(font, idx)
   if typeof(font) != "array" then return void end if
@@ -128,7 +128,7 @@ end function
 
 /*
 * Function: _HUlib_upper
-* Purpose: Provides ulib upper helper behavior for the heads-up display.
+* Purpose: Converts lowercase ASCII glyph codes to the uppercase range used by Doom's HUD font.
 */
 function inline _HUlib_upper(c)
   if c >= 97 and c <= 122 then return c - 32 end if
@@ -137,7 +137,7 @@ end function
 
 /*
 * Function: _HUlib_needsVal
-* Purpose: Provides ulib needs val helper behavior for the heads-up display.
+* Purpose: Normalizes numeric or boolean dirty-line state to the integer redraw count consumed by erase logic.
 */
 function inline _HUlib_needsVal(v)
   if typeof(v) == "int" or typeof(v) == "float" then return v end if
@@ -167,7 +167,7 @@ end function
 
 /*
 * Function: HUlib_initTextLine
-* Purpose: Initializes state and dependencies for the engine module behavior.
+* Purpose: Assigns position and font metadata, allocates a bounded text buffer, and marks a HUD line dirty.
 */
 function HUlib_initTextLine(t, x, y, f, sc)
   if t == 0 then return end if
@@ -182,7 +182,7 @@ end function
 
 /*
 * Function: HUlib_addCharToTextLine
-* Purpose: Provides ulib add char to text line helper behavior for the heads-up display.
+* Purpose: Appends one normalized byte when capacity permits, maintains the zero terminator, and schedules four redraws.
 */
 function HUlib_addCharToTextLine(t, ch)
   if t == 0 then return false end if
@@ -197,7 +197,7 @@ end function
 
 /*
 * Function: HUlib_delCharFromTextLine
-* Purpose: Provides ulib del char from text line helper behavior for the heads-up display.
+* Purpose: Removes the final byte from a nonempty HUD line, restores termination, and schedules redraws.
 */
 function HUlib_delCharFromTextLine(t)
   if t == 0 then return false end if
@@ -210,7 +210,7 @@ end function
 
 /*
 * Function: HUlib_drawTextLine
-* Purpose: Draws hUlib draw Text Line output for the heads-up display renderer.
+* Purpose: Renders a HUD text buffer with patch-font glyph widths, optional cursor, spaces, and right-edge clipping.
 */
 function HUlib_drawTextLine(l, drawcursor)
   if l == 0 then return end if
@@ -244,7 +244,7 @@ end function
 
 /*
 * Function: HUlib_eraseTextLine
-* Purpose: Provides ulib erase text line helper behavior for the heads-up display.
+* Purpose: Restores border regions covered by a dirty HUD line and decrements its multi-frame redraw counter.
 */
 function HUlib_eraseTextLine(l)
   if l == 0 then return end if
@@ -275,7 +275,7 @@ end function
 
 /*
 * Function: HUlib_initSText
-* Purpose: Initializes state and dependencies for the engine module behavior.
+* Purpose: Builds a fixed-height circular message stack whose lines are vertically spaced from the font height.
 */
 function HUlib_initSText(s, x, y, h, font, startchar, on)
   if s == 0 then return end if
@@ -299,7 +299,7 @@ end function
 
 /*
 * Function: HUlib_addLineToSText
-* Purpose: Provides ulib add line to s text helper behavior for the heads-up display.
+* Purpose: Advances the circular message cursor, clears the reused line, and marks every visible stack line dirty.
 */
 function HUlib_addLineToSText(s)
   if s == 0 then return end if
@@ -316,7 +316,7 @@ end function
 
 /*
 * Function: _HUlib_appendBytes
-* Purpose: Controls hUlib append Bytes transitions in the heads-up display system.
+* Purpose: Appends an entire byte sequence through the text-line capacity and dirty-state rules.
 */
 function _HUlib_appendBytes(tl, b)
   if tl == 0 or b == 0 then return end if
@@ -327,7 +327,7 @@ end function
 
 /*
 * Function: HUlib_addMessageToSText
-* Purpose: Provides ulib add message to s text helper behavior for the heads-up display.
+* Purpose: Opens a new stack line and concatenates an optional prefix with the message text.
 */
 function HUlib_addMessageToSText(s, prefix, msg)
   if s == 0 then return end if
@@ -339,7 +339,7 @@ end function
 
 /*
 * Function: HUlib_drawSText
-* Purpose: Draws hUlib draw SText output for the heads-up display renderer.
+* Purpose: Draws visible stack lines newest-first by walking backward through the circular buffer.
 */
 function HUlib_drawSText(s)
   if s == 0 then return end if
@@ -356,7 +356,7 @@ end function
 
 /*
 * Function: HUlib_eraseSText
-* Purpose: Provides ulib erase s text helper behavior for the heads-up display.
+* Purpose: Marks lines dirty on visibility transitions, erases every stack line, and remembers the current visibility state.
 */
 function HUlib_eraseSText(s)
   if s == 0 then return end if
@@ -375,7 +375,7 @@ end function
 
 /*
 * Function: HUlib_initIText
-* Purpose: Initializes state and dependencies for the engine module behavior.
+* Purpose: Creates an editable HUD line, clears its protected-prefix boundary, and attaches its visibility reference.
 */
 function HUlib_initIText(it, x, y, font, startchar, on)
   if it == 0 then return end if
@@ -388,7 +388,7 @@ end function
 
 /*
 * Function: HUlib_delCharFromIText
-* Purpose: Provides ulib del char from i text helper behavior for the heads-up display.
+* Purpose: Deletes one input byte only when it lies after the protected prefix boundary.
 */
 function HUlib_delCharFromIText(it)
   if it == 0 then return false end if
@@ -398,7 +398,7 @@ end function
 
 /*
 * Function: HUlib_eraseLineFromIText
-* Purpose: Provides ulib erase line from i text helper behavior for the heads-up display.
+* Purpose: Removes all editable input while retaining the protected prefix bytes.
 */
 function HUlib_eraseLineFromIText(it)
   if it == 0 then return end if
@@ -419,7 +419,7 @@ end function
 
 /*
 * Function: HUlib_addPrefixToIText
-* Purpose: Provides ulib add prefix to i text helper behavior for the heads-up display.
+* Purpose: Appends a fixed prompt prefix and advances the deletion boundary to protect it from backspace.
 */
 function HUlib_addPrefixToIText(it, str)
   if it == 0 then return end if
@@ -430,7 +430,7 @@ end function
 
 /*
 * Function: HUlib_keyInIText
-* Purpose: Initializes state and dependencies for the engine module behavior.
+* Purpose: Applies printable, backspace, or enter input to an editable HUD line and reports whether the key was consumed.
 */
 function HUlib_keyInIText(it, ch)
   if it == 0 then return false end if
@@ -449,7 +449,7 @@ end function
 
 /*
 * Function: HUlib_drawIText
-* Purpose: Draws hUlib draw IText output for the heads-up display renderer.
+* Purpose: Draws a visible editable line with the cursor glyph placed after its current text.
 */
 function HUlib_drawIText(it)
   if it == 0 then return end if
@@ -459,7 +459,7 @@ end function
 
 /*
 * Function: HUlib_eraseIText
-* Purpose: Provides ulib erase i text helper behavior for the heads-up display.
+* Purpose: Erases a dirty input line, forcing redraws when its externally controlled visibility turns off.
 */
 function HUlib_eraseIText(it)
   if it == 0 then return end if

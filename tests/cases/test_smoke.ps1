@@ -10,7 +10,7 @@ Import-Module (Join-Path (Split-Path -Parent $PSScriptRoot) 'lib\MiniDoomTest.ps
 $classic = $null
 $gl = $null
 try {
-    $classic = Start-MiniDoomForTest -RepoRoot $RepoRoot -Arguments @('-iwad', $Iwad, '-warp', '1', '-nomonsters') -WindowTimeoutSeconds 20
+    $classic = Start-MiniDoomForTest -RepoRoot $RepoRoot -Arguments @('-iwad', $Iwad, '-windowed', '-warp', '1', '-nomonsters') -WindowTimeoutSeconds 20
     Start-Sleep -Seconds 4
     Assert-MiniDoomHealthy -Process $classic
     $classicShot = Join-Path $ArtifactDir 'classic_warp1.png'
@@ -22,7 +22,7 @@ finally {
 }
 
 try {
-    $gl = Start-MiniDoomForTest -RepoRoot $RepoRoot -Arguments @('-iwad', $Iwad, '-opengl', '-warp', '1', '-nomonsters') -WindowTimeoutSeconds 45
+    $gl = Start-MiniDoomForTest -RepoRoot $RepoRoot -Arguments @('-iwad', $Iwad, '-windowed', '-opengl', '-warp', '1', '-nomonsters') -WindowTimeoutSeconds 45
     Start-Sleep -Seconds 5
     Assert-MiniDoomHealthy -Process $gl
     $glShot = Join-Path $ArtifactDir 'opengl_warp1.png'

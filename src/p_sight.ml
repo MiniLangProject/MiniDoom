@@ -14,7 +14,7 @@
   limitations under the License.
 
   Script: p_sight.ml
-  Purpose: Implements core gameplay simulation: map logic, physics, AI, and world interaction.
+  Purpose: Tests monster line of sight through reject tables, BSP crossings, and vertical portal slopes.
 */
 import doomdef
 import i_system
@@ -36,7 +36,7 @@ sightcounts =[0, 0]
 
 /*
 * Function: _PSI_SectorIndex
-* Purpose: Provides sector index helper behavior for the play simulation.
+* Purpose: Resolves a sector object to its map index for REJECT-table visibility lookup.
 */
 function _PSI_SectorIndex(sec)
   if sec is void then return -1 end if
@@ -51,7 +51,7 @@ end function
 
 /*
 * Function: _PSI_GetRejectByte
-* Purpose: Provides get reject byte helper behavior for the play simulation.
+* Purpose: Reads one REJECT lump byte safely, supporting both direct byte storage and wrapped lump data.
 */
 function _PSI_GetRejectByte(idx)
   if idx < 0 then return 0 end if
@@ -72,7 +72,7 @@ end function
 
 /*
 * Function: P_DivlineSide
-* Purpose: Performs integer division with play simulation rounding and guard rules.
+* Purpose: Classifies a point against a divline, returning two for an exact collinear hit and using scaled products to avoid overflow.
 */
 function inline P_DivlineSide(x, y, node)
   if node is void then return 0 end if
@@ -108,7 +108,7 @@ end function
 
 /*
 * Function: P_InterceptVector2
-* Purpose: Provides vector2 helper behavior for the play simulation.
+* Purpose: Computes where the current sight trace intersects a partition line as a fixed-point fraction.
 */
 function inline P_InterceptVector2(v2, v1)
   den = FixedMul(v1.dy >> 8, v2.dx) - FixedMul(v1.dx >> 8, v2.dy)
@@ -121,7 +121,7 @@ end function
 
 /*
 * Function: P_CrossSubsector
-* Purpose: Provides subsector helper behavior for the play simulation.
+* Purpose: Clips the sight slope window against every blocking seg in a subsector and rejects fully occluded traces.
 */
 function P_CrossSubsector(num)
   if typeof(subsectors) != "array" or typeof(segs) != "array" then return false end if
@@ -190,7 +190,7 @@ end function
 
 /*
 * Function: P_CrossBSPNode
-* Purpose: Provides BSP node helper behavior for the play simulation.
+* Purpose: Traverses the BSP front-to-back along the sight trace, stopping as soon as either child proves occlusion.
 */
 function P_CrossBSPNode(bspnum)
   if (bspnum & NF_SUBSECTOR) != 0 then
@@ -225,7 +225,7 @@ end function
 
 /*
 * Function: P_CheckSight
-* Purpose: Finds check Sight information for play simulation processing.
+* Purpose: Rejects impossible sector pairs early, then traces BSP portals and vertical slopes to decide whether two mobjs see each other.
 */
 function P_CheckSight(t1, t2)
   global sightzstart

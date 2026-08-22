@@ -14,12 +14,12 @@
   limitations under the License.
 
   Script: stdlib.ml
-  Purpose: Contains Doom engine module logic for this subsystem.
+  Purpose: Supplies the small numeric and string compatibility helpers expected by translated Doom modules.
 */
 
 /*
 * Function: abs
-* Purpose: Provides absolute-value helper behavior for the engine.
+* Purpose: Returns a numeric magnitude while preserving integer or floating-point representation.
 */
 function inline abs(x)
   if x < 0 then return - x end if

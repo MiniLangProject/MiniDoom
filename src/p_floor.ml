@@ -14,7 +14,7 @@
   limitations under the License.
 
   Script: p_floor.ml
-  Purpose: Implements core gameplay simulation: map logic, physics, AI, and world interaction.
+  Purpose: Moves sector planes with collision handling and drives tagged floor-change thinkers.
 */
 import z_zone
 import doomdef
@@ -26,7 +26,7 @@ import sounds
 
 /*
 * Function: _FloorMakeThinker
-* Purpose: Provides make thinker helper behavior for the play simulation.
+* Purpose: Creates a floor-mover thinker with canonical links, callback, direction, speed, and destination defaults.
 */
 function inline _FloorMakeThinker(fn)
   return thinker_t(void, void, actionf_t(fn, void, void), void)
@@ -34,7 +34,7 @@ end function
 
 /*
 * Function: _FloorAddThinkerIfPossible
-* Purpose: Provides add thinker if possible helper behavior for the play simulation.
+* Purpose: Registers a floor thinker only when the thinker API is available, preserving compatibility with reduced test harnesses.
 */
 function inline _FloorAddThinkerIfPossible(th)
   if typeof(P_AddThinker) == "function" then P_AddThinker(th) end if
@@ -42,7 +42,7 @@ end function
 
 /*
 * Function: _FloorStartSound
-* Purpose: Starts runtime behavior in the internal module support.
+* Purpose: Emits a positional floor-movement sound only when the sound subsystem is available.
 */
 function inline _FloorStartSound(origin, snd)
   if typeof(S_StartSound) == "function" then
@@ -52,7 +52,7 @@ end function
 
 /*
 * Function: _FloorSoundOrg
-* Purpose: Provides sound origin helper behavior for the play simulation.
+* Purpose: Returns a sector sound origin when present, otherwise uses the sector itself as the positional sound source.
 */
 function inline _FloorSoundOrg(sec)
   if sec is void then return void end if
@@ -61,7 +61,7 @@ end function
 
 /*
 * Function: _FloorSectorIndex
-* Purpose: Provides sector index helper behavior for the play simulation.
+* Purpose: Resolves a sector object to its map-array index for neighbor and tag traversal.
 */
 function _FloorSectorIndex(sec)
   if sec is void then return -1 end if
@@ -76,7 +76,7 @@ end function
 
 /*
 * Function: _FloorTextureHeight
-* Purpose: Provides texture height helper behavior for the play simulation.
+* Purpose: Looks up a floor texture's pixel height and converts it to fixed-point movement units, with a 64-unit fallback.
 */
 function inline _FloorTextureHeight(tex)
   if typeof(textureheight) != "array" then return 0 end if
@@ -86,7 +86,7 @@ end function
 
 /*
 * Function: T_MovePlane
-* Purpose: Computes movement/collision behavior in the engine module behavior.
+* Purpose: Steps a floor or ceiling toward a destination, rolls back blocked non-crushing moves, and reports progress, arrival, or crushing.
 */
 function T_MovePlane(sector, speed, dest, crush, floorOrCeiling, direction)
   if sector is void then return result_e.pastdest end if
@@ -197,7 +197,7 @@ end function
 
 /*
 * Function: T_MoveFloor
-* Purpose: Computes movement/collision behavior in the engine module behavior.
+* Purpose: Advances one floor thinker, applies endpoint texture/special changes, emits movement sounds, and removes it at the destination.
 */
 function T_MoveFloor(floor)
   if floor is void or floor.sector is void then return end if
@@ -241,7 +241,7 @@ end function
 
 /*
 * Function: EV_DoFloor
-* Purpose: Provides do floor helper behavior for the play simulation.
+* Purpose: Configures and starts the selected floor movement for all sectors matching a trigger tag.
 */
 function EV_DoFloor(line, floortype)
   if line is void then return 0 end if
@@ -414,7 +414,7 @@ function EV_DoFloor(line, floortype)
 
   /*
 * Function: EV_BuildStairs
-* Purpose: Provides build stairs helper behavior for the play simulation.
+* Purpose: Chains adjacent sectors with the same floor texture into progressively offset stair movers.
   */
   function EV_BuildStairs(line, type)
     if line is void then return 0 end if

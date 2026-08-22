@@ -14,7 +14,7 @@
   limitations under the License.
 
   Script: r_data.ml
-  Purpose: Implements renderer data preparation and software rendering pipeline stages.
+  Purpose: Parses texture definitions and exposes cached flat, wall-column, sprite, colormap, and level-precache data to renderers.
 */
 import r_defs
 import r_state
@@ -70,7 +70,7 @@ _r_allSpritesPrecached = false
 
 /*
 * Struct: rd_texpatch_t
-* Purpose: Describes rd texpatch geometry or asset data used by the renderer data system.
+* Purpose: Places one source patch lump at a signed origin inside a composite wall texture.
 */
 struct rd_texpatch_t
   originx
@@ -80,7 +80,7 @@ end struct
 
 /*
 * Struct: rd_texture_t
-* Purpose: Describes rd texture geometry or asset data used by the renderer data system.
+* Purpose: Holds a normalized wall-texture name, logical dimensions, and its ordered patch placements.
 */
 struct rd_texture_t
   name
@@ -91,7 +91,7 @@ end struct
 
 /*
 * Function: _allocIntArray
-* Purpose: Builds int array data for the renderer.
+* Purpose: Allocates a filled array after normalizing invalid or negative requested lengths to zero.
 */
 function inline _allocIntArray(n, fill)
   nn = n
@@ -102,7 +102,7 @@ end function
 
 /*
 * Function: _rd_isSeq
-* Purpose: Provides is sequence helper behavior for the renderer.
+* Purpose: Recognizes both array and list containers accepted by renderer resource tables.
 */
 function inline _rd_isSeq(v)
   t = typeof(v)
@@ -111,7 +111,7 @@ end function
 
 /*
 * Function: _rd_clamp
-* Purpose: Clamps rd clamp values to the supported renderer data range.
+* Purpose: Restricts a texture dimension, index, or allocation size to caller-supplied inclusive bounds.
 */
 function inline _rd_clamp(v, lo, hi)
   if v < lo then return lo end if
@@ -132,7 +132,7 @@ end function
 
 /*
 * Function: _rd_wrapColumn
-* Purpose: Provides wrap column helper behavior for the renderer.
+* Purpose: Wraps a requested wall column through its width mask and corrects non-power-of-two or negative results.
 */
 function inline _rd_wrapColumn(col, mask, width)
   c = col
@@ -152,7 +152,7 @@ end function
 
 /*
 * Function: _nameTo8
-* Purpose: Provides to8 helper behavior for the renderer.
+* Purpose: Truncates a resource name to Doom's eight-character lookup limit while leaving shorter names unchanged.
 */
 function inline _nameTo8(name)
 
@@ -168,7 +168,7 @@ end function
 
 /*
 * Function: _rd_upperName8
-* Purpose: Provides upper name8 helper behavior for the renderer.
+* Purpose: Normalizes string or byte resource names to uppercase, zero-terminated, at-most-eight-character text.
 */
 function _rd_upperName8(v)
   s = v
@@ -194,7 +194,7 @@ end function
 
 /*
 * Function: _rd_i16
-* Purpose: Provides i16 helper behavior for the renderer.
+* Purpose: Delegates signed 16-bit little-endian decoding for texture directory fields.
 */
 function inline _rd_i16(b, off)
   return RDefs_I16LE(b, off)
@@ -202,7 +202,7 @@ end function
 
 /*
 * Function: _rd_i32
-* Purpose: Provides i32 helper behavior for the renderer.
+* Purpose: Delegates signed 32-bit little-endian decoding for texture counts and offsets.
 */
 function inline _rd_i32(b, off)
   return RDefs_I32LE(b, off)
@@ -210,7 +210,7 @@ end function
 
 /*
 * Function: _rd_markPresent
-* Purpose: Draws rd mark Present output for the renderer data renderer.
+* Purpose: Sets one validated resource-usage bitmap entry without risking malformed map indices.
 */
 function inline _rd_markPresent(arr, idx)
   if not _rd_isSeq(arr) then return end if
@@ -221,7 +221,7 @@ end function
 
 /*
 * Function: _rd_enumIndex
-* Purpose: Provides enum index helper behavior for the renderer.
+* Purpose: Converts integer-like or enum metadata to a validated zero-based index below a caller limit.
 */
 function inline _rd_enumIndex(v, limit)
   if typeof(v) == "int" then
@@ -261,7 +261,7 @@ end function
 
 /*
 * Function: _rd_parseTextureLump
-* Purpose: Parses rd parse Texture Lump input into renderer data runtime data.
+* Purpose: Decodes one optional TEXTURE directory into normalized definitions and resolves each PNAMES patch reference to a lump.
 */
 function _rd_parseTextureLump(lumpname, patchlookup)
   result =[]
@@ -318,7 +318,7 @@ end function
 
 /*
 * Function: _rd_drawPatchColumnToCanvas
-* Purpose: Draws rd draw Patch Column To Canvas output for the renderer data renderer.
+* Purpose: Decodes a patch column's transparent posts into one clipped x position of a row-major composite canvas.
 */
 function _rd_drawPatchColumnToCanvas(patchBytes, colOff, canvas, texW, texH, dstX, originY)
   off = colOff
@@ -344,7 +344,7 @@ end function
 
 /*
 * Function: _rd_generateTextureComposite
-* Purpose: Provides generate texture composite helper behavior for the renderer.
+* Purpose: Overlays every placed patch into a row-major wall canvas and caches independent vertical columns for fallback sampling.
 */
 function _rd_generateTextureComposite(texnum)
   global texturecomposite
@@ -408,7 +408,7 @@ end function
 
 /*
 * Function: R_DrawColumnInCache
-* Purpose: Retrieves and caches data for the renderer.
+* Purpose: Decodes a patch-column post stream into a clipped vertical cache at the requested texture y origin.
 */
 function R_DrawColumnInCache(patch, cache, originy, cacheheight)
   if typeof(patch) != "bytes" or typeof(cache) != "bytes" then return end if
@@ -444,7 +444,7 @@ end function
 
 /*
 * Function: _rd_drawColumnInCacheAt
-* Purpose: Retrieves and caches data for the internal module support.
+* Purpose: Decodes a patch column from an explicit lump offset into a selected vertical region of a shared composite buffer.
 */
 function _rd_drawColumnInCacheAt(patchBytes, colOff, cache, cacheOff, originy, cacheheight)
   if typeof(patchBytes) != "bytes" or typeof(cache) != "bytes" then return end if
@@ -482,7 +482,7 @@ end function
 
 /*
 * Function: R_GenerateComposite
-* Purpose: Provides composite helper behavior for the renderer.
+* Purpose: Materializes only columns requiring multiple patch overlays into the packed composite layout computed by the lookup pass.
 */
 function R_GenerateComposite(texnum)
   global texturecomposite
@@ -542,7 +542,7 @@ end function
 
 /*
 * Function: R_GenerateLookup
-* Purpose: Finds generate Lookup information for renderer data processing.
+* Purpose: Classifies each texture column as direct single-patch data or composite storage and assigns its lump and byte offset.
 */
 function R_GenerateLookup(texnum)
   global texturecolumnlump
@@ -631,7 +631,7 @@ end function
 
 /*
 * Function: R_InitFlats
-* Purpose: Initializes state and dependencies for the renderer.
+* Purpose: Resolves the F_START/F_END flat range and seeds an identity animation-translation table.
 */
 function R_InitFlats()
   global firstflat
@@ -653,7 +653,7 @@ end function
 
 /*
 * Function: R_FlatNumForName
-* Purpose: Provides number for name helper behavior for the renderer.
+* Purpose: Resolves an eight-character flat name to its range-relative index and treats missing required flats as fatal.
 */
 function R_FlatNumForName(name)
 
@@ -669,7 +669,7 @@ end function
 
 /*
 * Function: R_GetFlat
-* Purpose: Reads flat data for the renderer.
+* Purpose: Applies flat animation translation, validates the resulting range, and returns the cached lump bytes.
 */
 function R_GetFlat(flatnum)
   if typeof(flatnum) != "int" then return void end if
@@ -683,7 +683,7 @@ end function
 
 /*
 * Function: R_InitSpriteLumps
-* Purpose: Initializes state and dependencies for the renderer.
+* Purpose: Resolves the sprite lump range and precomputes fixed-point width, left offset, and top offset for every patch.
 */
 function R_InitSpriteLumps()
   global firstspritelump
@@ -718,7 +718,7 @@ end function
 
 /*
 * Function: R_InitColormaps
-* Purpose: Initializes state and dependencies for the renderer.
+* Purpose: Pins the COLORMAP lump as the renderer's static light-remapping table.
 */
 function R_InitColormaps()
   global colormaps
@@ -730,7 +730,7 @@ end function
 
 /*
 * Function: R_InitTextures
-* Purpose: Initializes state and dependencies for the renderer.
+* Purpose: Resolves PNAMES and texture directories, allocates animation/column caches, and classifies every wall-texture column.
 */
 function R_InitTextures()
   global numtextures
@@ -835,7 +835,7 @@ end function
 
 /*
 * Function: _rd_ensureColumnCache
-* Purpose: Retrieves and caches data for the internal module support.
+* Purpose: Returns a texture's correctly sized lazy column-cache array, replacing malformed storage when necessary.
 */
 function inline _rd_ensureColumnCache(tex, width)
   if not _rd_isSeq(texturecolumncache) then return void end if
@@ -910,7 +910,7 @@ end function
 
 /*
 * Function: R_GetColumn
-* Purpose: Reads column data for the renderer.
+* Purpose: Returns a wrapped wall column from HD data, the lazy cache, a direct patch post, or a generated composite in that order.
 */
 function R_GetColumn(tex, col)
   global rd_column_source_scale
@@ -983,7 +983,7 @@ end function
 
 /*
 * Function: R_GetMaskedColumnRaw
-* Purpose: Reads masked column raw data for the renderer.
+* Purpose: Returns the source patch bytes and post-stream offset for a wrapped direct masked column, rejecting composite columns.
 */
 function R_GetMaskedColumnRaw(tex, col)
   if not _rd_isSeq(textures) then return void end if
@@ -1019,7 +1019,7 @@ end function
 
 /*
 * Function: R_CheckTextureNumForName
-* Purpose: Finds check Texture Num For Name information for renderer data processing.
+* Purpose: Resolves a normalized wall-texture name without failure, treating Doom's '-' no-texture marker as index zero.
 */
 function R_CheckTextureNumForName(name)
   n = _rd_upperName8(name)
@@ -1041,7 +1041,7 @@ end function
 
 /*
 * Function: R_TextureNumForName
-* Purpose: Provides number for name helper behavior for the renderer.
+* Purpose: Resolves a required wall texture and falls back to index zero while optionally logging missing names in developer mode.
 */
 function R_TextureNumForName(name)
   n = R_CheckTextureNumForName(name)
@@ -1056,7 +1056,7 @@ end function
 
 /*
 * Function: R_PrecacheLevel
-* Purpose: Retrieves and caches data for the renderer.
+* Purpose: Marks flats, textures, patches, and sprite frames referenced by the current level, caches them, and totals their memory use.
 */
 function R_PrecacheLevel()
   global flatmemory
@@ -1259,7 +1259,7 @@ end function
 
 /*
 * Function: R_InitData
-* Purpose: Initializes state and dependencies for the renderer.
+* Purpose: Initializes wall textures, flats, sprite metrics, colormaps, and sky identifiers in dependency-safe order.
 */
 function R_InitData()
   R_InitTextures()
