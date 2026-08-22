@@ -350,6 +350,27 @@ extern function MGL_FramePace(targetFps as int, leadUs as int) from "MiniDoomGL.
  */
 extern function MGL_FramePaceMark() from "MiniDoomGL.dll" symbol "MGL_FramePaceMark" returns void
 /*
+ * Function: MGL_RasterColumn8
+ *
+ * Purpose: Rasterizes one clipped 8-bit software column in native code and rejects malformed buffer ranges.
+ */
+
+extern function MGL_RasterColumn8(dest as bytes, destBytes as int, destIndex as int, destStride as int, count as int, source as bytes, sourceBytes as int, sourceOffset as int, sourceLength as int, colormap as bytes, colormapLength as int, frac as int, fracStep as int, sourceClamp as int) from "MiniDoomGL.dll" symbol "MGL_RasterColumn8" returns bool
+/*
+ * Function: MGL_RasterSpan8
+ *
+ * Purpose: Rasterizes one clipped 8-bit software floor or ceiling span in native code and rejects malformed buffer ranges.
+ */
+
+extern function MGL_RasterSpan8(dest as bytes, destBytes as int, destIndex as int, count as int, source as bytes, sourceBytes as int, colormap as bytes, colormapLength as int, sourceWidth as int, sourceHeight as int, xFrac as int, yFrac as int, xStep as int, yStep as int) from "MiniDoomGL.dll" symbol "MGL_RasterSpan8" returns bool
+/*
+ * Function: MGL_ExpandIndexed8
+ *
+ * Purpose: Expands an indexed software frame through its RGB palette into opaque RGBA bytes in native code.
+ */
+
+extern function MGL_ExpandIndexed8(source as bytes, sourceBytes as int, dest as bytes, destBytes as int, palette as bytes, paletteBytes as int, pixels as int) from "MiniDoomGL.dll" symbol "MGL_ExpandIndexed8" returns bool
+/*
  * Function: MGL_CreateArrayBuffer
  *
  * Purpose: Uploads raw bytes to an OpenGL array buffer through the MiniDoom GL helper.

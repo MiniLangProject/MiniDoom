@@ -14,7 +14,7 @@
   limitations under the License.
 
   Script: minidoom_gl_helper.c
-  Purpose: Bridges MiniLang to performance-critical WGL timing, VBO submission, sprite batching, dynamic-light, and indexed-overlay operations.
+  Purpose: Bridges MiniLang to performance-critical WGL timing, software rasterization, VBO submission, sprite batching, dynamic-light, and indexed-overlay operations.
 */
 
 #define WIN32_LEAN_AND_MEAN
@@ -169,6 +169,190 @@ __declspec(dllexport) void __stdcall MGL_FramePaceMark(void) {
   /* Called immediately after a successful presentation.  Anchoring at the
      real completion time prevents late frames from shortening the next one. */
   g_framePaceLastUs = mgl_time_microseconds();
+}
+
+/*
+ * Function: MGL_RasterColumn8
+ * Purpose: Draws one validated palette-indexed software-renderer column with Doom fixed-point texture stepping and optional clamping.
+ */
+__declspec(dllexport) BOOL __stdcall MGL_RasterColumn8(
+    unsigned char *dest,
+    int destBytes,
+    int destIndex,
+    int destStride,
+    int count,
+    const unsigned char *source,
+    int sourceBytes,
+    int sourceOffset,
+    int sourceLength,
+    const unsigned char *colormap,
+    int colormapLength,
+    int frac,
+    int fracStep,
+    int sourceClamp) {
+  int64_t lastDest;
+  int64_t sourceEnd;
+  int sourcePow2;
+  int sourceMask;
+  int64_t fracValue;
+  int i;
+
+  if (dest == NULL || source == NULL || colormap == NULL ||
+      destBytes <= 0 || destIndex < 0 || destStride <= 0 || count <= 0 ||
+      sourceBytes <= 0 || sourceOffset < 0 || sourceLength <= 0 ||
+      colormapLength <= 0) {
+    return FALSE;
+  }
+  lastDest = (int64_t)destIndex + (int64_t)(count - 1) * destStride;
+  sourceEnd = (int64_t)sourceOffset + sourceLength;
+  if (lastDest < destIndex || lastDest >= destBytes ||
+      sourceEnd > sourceBytes) {
+    return FALSE;
+  }
+
+  sourcePow2 = (sourceLength & (sourceLength - 1)) == 0 && !sourceClamp;
+  sourceMask = sourceLength - 1;
+  fracValue = frac;
+  for (i = 0; i < count; ++i) {
+    int textureIndex = (int)(fracValue >> 16);
+    unsigned int texel;
+    if (sourcePow2) {
+      textureIndex &= sourceMask;
+    } else if (sourceClamp) {
+      if (textureIndex < 0) {
+        textureIndex = 0;
+      } else if (textureIndex >= sourceLength) {
+        textureIndex = sourceLength - 1;
+      }
+    } else {
+      textureIndex %= sourceLength;
+      if (textureIndex < 0) {
+        textureIndex += sourceLength;
+      }
+    }
+    texel = source[sourceOffset + textureIndex];
+    if (texel >= (unsigned int)colormapLength) {
+      texel %= (unsigned int)colormapLength;
+    }
+    dest[destIndex + i * destStride] = colormap[texel];
+    fracValue += fracStep;
+  }
+  return TRUE;
+}
+
+/*
+ * Function: MGL_RasterSpan8
+ * Purpose: Draws one validated palette-indexed floor or ceiling span with Doom's repeating 64-unit fixed-point texture coordinates.
+ */
+__declspec(dllexport) BOOL __stdcall MGL_RasterSpan8(
+    unsigned char *dest,
+    int destBytes,
+    int destIndex,
+    int count,
+    const unsigned char *source,
+    int sourceBytes,
+    const unsigned char *colormap,
+    int colormapLength,
+    int sourceWidth,
+    int sourceHeight,
+    int xFrac,
+    int yFrac,
+    int xStep,
+    int yStep) {
+  const int period = 64 << 16;
+  const unsigned int periodMask = (unsigned int)period - 1u;
+  int64_t sourcePixels;
+  int scaled64;
+  int xScale;
+  int yScale;
+  int64_t xFracValue;
+  int64_t yFracValue;
+  int i;
+
+  if (dest == NULL || source == NULL || colormap == NULL ||
+      destBytes <= 0 || destIndex < 0 || count <= 0 ||
+      sourceBytes <= 0 || colormapLength <= 0 ||
+      sourceWidth <= 0 || sourceHeight <= 0) {
+    return FALSE;
+  }
+  sourcePixels = (int64_t)sourceWidth * sourceHeight;
+  if ((int64_t)destIndex + count > destBytes || sourcePixels > sourceBytes) {
+    return FALSE;
+  }
+
+  scaled64 = (sourceWidth & 63) == 0 && (sourceHeight & 63) == 0;
+  xScale = sourceWidth >> 6;
+  yScale = sourceHeight >> 6;
+  xFracValue = xFrac;
+  yFracValue = yFrac;
+  for (i = 0; i < count; ++i) {
+    int sourceX;
+    int sourceY;
+    unsigned int texel;
+    if (scaled64) {
+      sourceX = (int)((((uint64_t)xFracValue & periodMask) * (unsigned int)xScale) >> 16);
+      sourceY = (int)((((uint64_t)yFracValue & periodMask) * (unsigned int)yScale) >> 16);
+    } else {
+      int64_t xCoord = xFracValue % period;
+      int64_t yCoord = yFracValue % period;
+      if (xCoord < 0) {
+        xCoord += period;
+      }
+      if (yCoord < 0) {
+        yCoord += period;
+      }
+      sourceX = (int)(xCoord * sourceWidth / period);
+      sourceY = (int)(yCoord * sourceHeight / period);
+      if (sourceX >= sourceWidth) {
+        sourceX = sourceWidth - 1;
+      }
+      if (sourceY >= sourceHeight) {
+        sourceY = sourceHeight - 1;
+      }
+    }
+    texel = source[sourceY * sourceWidth + sourceX];
+    if (texel >= (unsigned int)colormapLength) {
+      texel %= (unsigned int)colormapLength;
+    }
+    dest[destIndex + i] = colormap[texel];
+    xFracValue += xStep;
+    yFracValue += yStep;
+  }
+  return TRUE;
+}
+
+/*
+ * Function: MGL_ExpandIndexed8
+ * Purpose: Expands a validated 8-bit indexed frame through a 256-entry RGB palette into opaque RGBA pixels without per-byte MiniLang dispatch.
+ */
+__declspec(dllexport) BOOL __stdcall MGL_ExpandIndexed8(
+    const unsigned char *source,
+    int sourceBytes,
+    unsigned char *dest,
+    int destBytes,
+    const unsigned char *palette,
+    int paletteBytes,
+    int pixels) {
+  int64_t requiredDest;
+  int i;
+
+  if (source == NULL || dest == NULL || palette == NULL ||
+      sourceBytes < 0 || destBytes < 0 || paletteBytes < 768 || pixels <= 0) {
+    return FALSE;
+  }
+  requiredDest = (int64_t)pixels * 4;
+  if (pixels > sourceBytes || requiredDest > destBytes) {
+    return FALSE;
+  }
+  for (i = 0; i < pixels; ++i) {
+    unsigned int paletteOffset = (unsigned int)source[i] * 3u;
+    int destOffset = i * 4;
+    dest[destOffset] = palette[paletteOffset];
+    dest[destOffset + 1] = palette[paletteOffset + 1];
+    dest[destOffset + 2] = palette[paletteOffset + 2];
+    dest[destOffset + 3] = 255;
+  }
+  return TRUE;
 }
 
 /*

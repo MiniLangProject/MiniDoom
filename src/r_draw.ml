@@ -24,6 +24,7 @@ import r_local
 import v_video
 import doomstat
 import r_hires
+import i_gl
 import std.math
 
 dc_colormap = 0
@@ -381,6 +382,16 @@ function R_DrawColumn()
   srcPow2 = _RD_IsPow2(srcLen) and(not srcClamp)
   srcMask = srcLen - 1
 
+  // The GL helper remains loaded after Alt+G switches to the classic renderer.
+  // Use its bounds-checked CPU loop for the per-pixel work while retaining this
+  // MiniLang path as the standalone classic-renderer fallback.
+  if typeof(IGL_IsAvailable) == "function" and IGL_IsAvailable() then
+    clampFlag = 0
+    if srcClamp then clampFlag = 1 end if
+    di = ylookup[yl] + x
+    if MGL_RasterColumn8(dest, len(dest), di, _RD_TargetWidth(), count + 1, srcBase, len(srcBase), srcOff, srcLen, dc_colormap, cmapLen, frac, fracstep, clampFlag) then return end if
+  end if
+
   if srcPow2 and cmapLen >= 256 then
     for y = yl to yh
       ti =(frac >> FRACBITS) & srcMask
@@ -707,6 +718,10 @@ function R_DrawSpan()
   if _rd_prof_enabled then
     _rd_prof_span_calls = _rd_prof_span_calls + 1
     _rd_prof_span_pixels = _rd_prof_span_pixels +(count + 1)
+  end if
+
+  if typeof(IGL_IsAvailable) == "function" and IGL_IsAvailable() then
+    if MGL_RasterSpan8(dest, len(dest), di, count + 1, ds_source, len(ds_source), ds_colormap, len(ds_colormap), srcW, srcH, xf, yf, ds_xstep, ds_ystep) then return end if
   end if
 
   if (srcW & 63) == 0 and(srcH & 63) == 0 then

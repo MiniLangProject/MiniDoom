@@ -1478,18 +1478,26 @@ end function
 
 /*
 * Function: RGL_LineMayMoveGeometry
-* Purpose: Returns true for Doom line specials that can move floors, ceilings, doors, or platforms.
+* Purpose: Returns true for Doom line specials that start, resume, or stop moving floors, ceilings, doors, or platforms.
 */
 function RGL_LineMayMoveGeometry(li)
   if li is void or typeof(li.special) != "int" then return false end if
   switch li.special
-    case 1, 2, 3, 4, 5, 6, 10, 16, 19, 22, 25, 26, 27, 28, 30, 31, 32, 33, 34, 36, 37, 38, 40, 44
+    // Include manual, walk-over, gun, repeatable, and stop-controller variants.
+    // A sector must be excluded from the static cache before its mover starts.
+    case 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 14, 15, 16, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30
       return true
     end case
-    case 46, 47, 53, 56, 58, 59, 72, 73, 75, 76, 77, 82, 83, 84, 86, 87, 88, 90, 91, 92, 93
+    case 31, 32, 33, 34, 36, 37, 38, 40, 41, 42, 43, 44, 45, 46, 47, 49, 50, 53, 54, 55, 56, 57, 58, 59
       return true
     end case
-    case 94, 95, 96, 98, 105, 106, 107, 108, 109, 110, 117, 118, 119, 120, 121, 128, 129, 130, 141
+    case 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 82, 83, 84, 86, 87, 88, 89
+      return true
+    end case
+    case 90, 91, 92, 93, 94, 95, 96, 98, 99, 100, 101, 102, 103, 105, 106, 107, 108, 109, 110, 111, 112, 113
+      return true
+    end case
+    case 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 127, 128, 129, 130, 131, 132, 133, 134, 135, 136, 137, 140, 141
       return true
     end case
   end switch

@@ -488,6 +488,9 @@ function _I_IndexedToRGBA(src, dst, width, height)
   if pixels <= 0 or len(src) < pixels or len(dst) < pixels * 4 then return false end if
   pal = _i_paletteRgb
   if typeof(pal) != "bytes" or len(pal) < 768 then return false end if
+  if typeof(IGL_IsAvailable) == "function" and IGL_IsAvailable() then
+    if MGL_ExpandIndexed8(src, len(src), dst, len(dst), pal, len(pal), pixels) then return true end if
+  end if
   i = 0
   while i < pixels
     c = src[i]
@@ -2449,6 +2452,17 @@ function I_FinishUpdate()
     end if
     IGL_Swap()
     return
+  end if
+
+  // Classic, menu, and automap frames already contain the complete 320x200 image.
+  // Let GL_NEAREST scale that small texture instead of expanding and palette-
+  // converting the physical 3x buffer on the CPU before every presentation.
+  if (not _i_forceSoftwarePresent) and typeof(IGL_IsAvailable) == "function" and IGL_IsAvailable() and(typeof(IGL_IsActive) != "function" or not IGL_IsActive()) then
+    if typeof(screens) == "array" and len(screens) > 0 and typeof(screens[0]) == "bytes" then
+      _I_MaybeAutoScreenshot()
+      _I_UpdateWindowTitle()
+      if _I_PresentIndexedFrameGLSized(screens[0], SCREENWIDTH, SCREENHEIGHT) then return end if
+    end if
   end if
 
   src = void
