@@ -52,6 +52,7 @@ v_hioverlay_cached_y = 0
 v_hioverlay_cached_flipped = false
 v_hioverlay_cached_scale = 0
 v_hioverlay_cached_valid = false
+v_highres_patch_overlay_enabled = true
 
 gammatable =[
 [
@@ -405,6 +406,15 @@ function V_ClearHighresOverlayRect(x, y, width, height)
 end function
 
 /*
+* Function: V_SetHighresPatchOverlayEnabled
+* Purpose: Lets dense logical UI batches skip redundant per-glyph HD preparation while preserving normal HUD assets by default.
+*/
+function V_SetHighresPatchOverlayEnabled(enabled)
+  global v_highres_patch_overlay_enabled
+  if typeof(enabled) == "bool" then v_highres_patch_overlay_enabled = enabled end if
+end function
+
+/*
 * Function: V_MarkHighresOverlayPixel
 * Purpose: Marks one prepared high-resolution overlay pixel as valid.
 */
@@ -668,7 +678,7 @@ function V_DrawPatch(x, y, scrn, patch)
 
   if scrn == 0 then
     V_MarkRect(x, y, width, height)
-    V_DrawUpscaledPatchOverlay(x, y, patch, false)
+    if v_highres_patch_overlay_enabled then V_DrawUpscaledPatchOverlay(x, y, patch, false) end if
   end if
 
   destscreen = screens[scrn]
@@ -741,6 +751,97 @@ function V_DrawBlock(x, y, scrn, width, height, src)
   if scrn == 0 then
     V_MarkRect(x, y, width, height)
   end if
+end function
+
+/*
+* Function: V_DrawDitheredOverlayRect
+* Purpose: Draws a clipped checkerboard shade whose unmarked pixels preserve the world as palette-safe transparency.
+*/
+function V_DrawDitheredOverlayRect(x, y, width, height, color)
+  global v_overlay_minx
+  global v_overlay_miny
+  global v_overlay_maxx
+  global v_overlay_maxy
+
+  if typeof(screens) != "array" or len(screens) <= 0 or typeof(screens[0]) != "bytes" then return end if
+  if width <= 0 or height <= 0 then return end if
+
+  x0 = x
+  y0 = y
+  x1 = x + width
+  y1 = y + height
+  if x0 < 0 then x0 = 0 end if
+  if y0 < 0 then y0 = 0 end if
+  if x1 > SCREENWIDTH then x1 = SCREENWIDTH end if
+  if y1 > SCREENHEIGHT then y1 = SCREENHEIGHT end if
+  if x1 <= x0 or y1 <= y0 then return end if
+
+  dest = screens[0]
+  yy = y0
+  while yy < y1
+    xx = x0 +((x0 + yy) & 1)
+    while xx < x1
+      idx = yy * SCREENWIDTH + xx
+      dest[idx] = color & 255
+      if v_overlay_active and typeof(v_overlaymask) == "bytes" then v_overlaymask[idx] = 1 end if
+      xx = xx + 2
+    end while
+    yy = yy + 1
+  end while
+
+  if v_overlay_active then
+    if x0 < v_overlay_minx then v_overlay_minx = x0 end if
+    if y0 < v_overlay_miny then v_overlay_miny = y0 end if
+    if x1 - 1 > v_overlay_maxx then v_overlay_maxx = x1 - 1 end if
+    if y1 - 1 > v_overlay_maxy then v_overlay_maxy = y1 - 1 end if
+  end if
+
+  V_MarkRect(x0, y0, x1 - x0, y1 - y0)
+  V_ClearHighresOverlayRect(x0, y0, x1 - x0, y1 - y0)
+end function
+
+/*
+* Function: V_DrawSolidOverlayRect
+* Purpose: Fills and marks a clipped opaque late-overlay rectangle, primarily for UI borders and separators.
+*/
+function V_DrawSolidOverlayRect(x, y, width, height, color)
+  global v_overlay_minx
+  global v_overlay_miny
+  global v_overlay_maxx
+  global v_overlay_maxy
+
+  if typeof(screens) != "array" or len(screens) <= 0 or typeof(screens[0]) != "bytes" then return end if
+  if width <= 0 or height <= 0 then return end if
+
+  x0 = x
+  y0 = y
+  x1 = x + width
+  y1 = y + height
+  if x0 < 0 then x0 = 0 end if
+  if y0 < 0 then y0 = 0 end if
+  if x1 > SCREENWIDTH then x1 = SCREENWIDTH end if
+  if y1 > SCREENHEIGHT then y1 = SCREENHEIGHT end if
+  if x1 <= x0 or y1 <= y0 then return end if
+
+  dest = screens[0]
+  yy = y0
+  while yy < y1
+    off = yy * SCREENWIDTH + x0
+    fillBytes(dest, off, x1 - x0, color & 255)
+    if v_overlay_active and typeof(v_overlaymask) == "bytes" then fillBytes(v_overlaymask, off, x1 - x0, 1) end if
+    yy = yy + 1
+  end while
+
+
+  if v_overlay_active then
+    if x0 < v_overlay_minx then v_overlay_minx = x0 end if
+    if y0 < v_overlay_miny then v_overlay_miny = y0 end if
+    if x1 - 1 > v_overlay_maxx then v_overlay_maxx = x1 - 1 end if
+    if y1 - 1 > v_overlay_maxy then v_overlay_maxy = y1 - 1 end if
+  end if
+
+  V_MarkRect(x0, y0, x1 - x0, y1 - y0)
+  V_ClearHighresOverlayRect(x0, y0, x1 - x0, y1 - y0)
 end function
 
 /*

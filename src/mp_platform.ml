@@ -451,14 +451,30 @@ end function
 
 /*
 * Function: MP_PlatformSetPlayerNameBySlot
-* Purpose: Updates one authoritative slot name pushed by host snapshots/intermission packets.
+* Purpose: Updates one checked slot name in the host peer table or client-side authoritative cache.
 */
 function MP_PlatformSetPlayerNameBySlot(slot, name)
   global _mp_client_slot_names
+  global _mp_host_peers
   s = _MPPlatform_ToInt(slot, -1)
   if s < 0 or s >= _MPPLAT_MAX_PLAYERS then return false end if
   nm = MP_SanitizeName(name)
   if nm == "" then return false end if
+
+  if _mp_role == _MPPLAT_ROLE_HOST then
+    if s == 0 then
+      MP_SetPlayerName(nm)
+      return true
+    end if
+    idx = _MPPlatform_FindHostPeerBySlot(s)
+    if idx < 0 or idx >= len(_mp_host_peers) then return false end if
+    peer = _mp_host_peers[idx]
+    if typeof(peer) != "struct" then return false end if
+    peer.name = nm
+    _mp_host_peers[idx] = peer
+    return true
+  end if
+
   if typeof(_mp_client_slot_names) != "array" or len(_mp_client_slot_names) != _MPPLAT_MAX_PLAYERS then
     _MPPlatform_InitClientSlotNames(MP_GetPlayerName())
   end if

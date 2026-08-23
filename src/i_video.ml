@@ -301,6 +301,7 @@ _i_keyVk =[]
 _i_keyDoom =[]
 _i_keyPrev =[]
 _i_altGPrev = false
+_i_consoleTildePrev = false
 _i_screenshotEnabled = false
 _i_screenshotDir = "render_output"
 _i_screenshotDirReady = false
@@ -751,6 +752,14 @@ function inline _I_FpsTitle()
 end function
 
 /*
+* Function: I_GetFPS
+* Purpose: Exposes the last completed one-second presentation sample to in-game UI overlays.
+*/
+function I_GetFPS()
+  return _I_ToIntOr(_i_fpsValue, 0)
+end function
+
+/*
 * Function: _I_UpdateWindowTitle
 * Purpose: Counts presented frames over one-second windows and updates the caption unless a loading status owns it.
 */
@@ -914,6 +923,13 @@ function _I_InitKeyMap()
   _I_AddKeyMap(0x09, KEY_TAB)
   _I_AddKeyMap(0x08, KEY_BACKSPACE)
   _I_AddKeyMap(0x13, KEY_PAUSE)
+  // VK_OEM_3 carries tilde on US layouts and O-umlaut on the active German layout.
+  // VK_OEM_1 is an O-umlaut fallback; VK_OEM_5 is the German caret/dead-key left of 1.
+  _I_AddKeyMap(0xC0, KEY_CONSOLE)
+  _I_AddKeyMap(0xBA, KEY_CONSOLE)
+  _I_AddKeyMap(0xDC, KEY_CONSOLE)
+  _I_AddKeyMap(0x21, KEY_PAGEUP)
+  _I_AddKeyMap(0x22, KEY_PAGEDOWN)
   _I_AddKeyMap(0x10, KEY_RSHIFT)
   _I_AddKeyMap(0x11, KEY_RCTRL)
   _I_AddKeyMap(0x12, KEY_RALT)
@@ -1673,15 +1689,27 @@ function _I_GLOverlayHighresPatches()
 end function
 
 /*
+* Function: _I_StatusOverlayY
+* Purpose: Returns the logical start row of a visible status bar, or screen height when fullscreen rendering must remain unobscured.
+*/
+function inline _I_StatusOverlayY()
+  if typeof(_D_StatusBarVisible) == "function" and _D_StatusBarVisible() then
+    y = SCREENHEIGHT - _I_STATUSBAR_HEIGHT
+    if y < 0 then return 0 end if
+    return y
+  end if
+  return SCREENHEIGHT
+end function
+
+/*
 * Function: _I_DrawGLOverlayFrame
-* Purpose: Composes status bar, marked logical UI, and prepared HD patches, then submits the masked overlay to OpenGL.
+* Purpose: Composes a visible status bar, marked logical UI, and prepared HD patches, then submits the masked overlay to OpenGL.
 */
 function _I_DrawGLOverlayFrame()
   if typeof(screens) != "array" or len(screens) == 0 or typeof(screens[0]) != "bytes" then return false end if
 
   logical = screens[0]
-  statusY = SCREENHEIGHT - _I_STATUSBAR_HEIGHT
-  if statusY < 0 then statusY = 0 end if
+  statusY = _I_StatusOverlayY()
 
   if typeof(IGL_DrawIndexedOverlayLayers) == "function" and typeof(v_overlaymask) == "bytes" then
     logicalMinX = SCREENWIDTH
@@ -1766,8 +1794,7 @@ function _I_BuildHighresGameFrame()
   end if
 
   copyBytes(_i_presentBuffer, 0, hi, 0, expected)
-  statusY = SCREENHEIGHT - _I_STATUSBAR_HEIGHT
-  if statusY < 0 then statusY = 0 end if
+  statusY = _I_StatusOverlayY()
   _I_OverlayLogicalRectNearest(logical, 0, statusY, SCREENWIDTH, SCREENHEIGHT - statusY)
   usedMask = false
   if typeof(v_overlaymask) == "bytes" then
@@ -1974,6 +2001,7 @@ end function
 */
 function _I_ReleaseKeyboard(postEvents)
   global _i_altGPrev
+  global _i_consoleTildePrev
 
   _I_InitKeyMap()
 
@@ -1981,6 +2009,7 @@ function _I_ReleaseKeyboard(postEvents)
   if typeof(_i_keyDoom) != "array" then return end if
 
   _i_altGPrev = false
+  _i_consoleTildePrev = false
 
   n = len(_i_keyPrev)
   i = 0
@@ -2001,6 +2030,7 @@ end function
 */
 function _I_PollKeyboard()
   global _i_altGPrev
+  global _i_consoleTildePrev
 
   _I_InitKeyMap()
 
@@ -2027,6 +2057,19 @@ function _I_PollKeyboard()
   end if
   _i_altGPrev = altGDown
 
+  // On German keyboards the printed tilde is AltGr+Plus, represented by
+  // simultaneous Ctrl, Alt, and VK_OEM_PLUS states rather than VK_OEM_3.
+  ctrlDown =((GetAsyncKeyState(0x11) & 32768) != 0)
+  plusDown =((GetAsyncKeyState(0xBB) & 32768) != 0)
+  consoleTildeDown = ctrlDown and altDown and plusDown
+  if consoleTildeDown and not _i_consoleTildePrev then
+    if typeof(D_PostEvent) == "function" then
+      D_PostEvent(event_t(evtype_t.ev_keydown, KEY_CONSOLE, 0, 0))
+      D_PostEvent(event_t(evtype_t.ev_keyup, KEY_CONSOLE, 0, 0))
+    end if
+  end if
+  _i_consoleTildePrev = consoleTildeDown
+
   n = len(_i_keyVk)
   i = 0
   while i < n
@@ -2034,6 +2077,7 @@ function _I_PollKeyboard()
     doomKey = _i_keyDoom[i]
     st = GetAsyncKeyState(vk)
     down =((st & 32768) != 0)
+    pressedSincePoll =((st & 1) != 0)
     prev =(_i_keyPrev[i] != 0)
 
     if down != prev then
@@ -2047,6 +2091,12 @@ function _I_PollKeyboard()
         if typeof(D_PostEvent) == "function" then
           D_PostEvent(event_t(evtype_t.ev_keyup, doomKey, 0, 0))
         end if
+      end if
+    else if pressedSincePoll and(not down) and(not prev) then
+      // Preserve taps shorter than one 35 Hz input poll by emitting their complete edge pair.
+      if typeof(D_PostEvent) == "function" then
+        D_PostEvent(event_t(evtype_t.ev_keydown, doomKey, 0, 0))
+        D_PostEvent(event_t(evtype_t.ev_keyup, doomKey, 0, 0))
       end if
     end if
 

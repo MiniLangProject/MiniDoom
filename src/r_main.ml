@@ -103,6 +103,18 @@ _r_interp_cur_z = 0
 _r_interp_cur_angle = 0
 
 /*
+* Function: R_ResetViewInterpolation
+* Purpose: Discards the previous camera sample so a spawn or level transition cannot interpolate from stale world coordinates.
+*/
+function R_ResetViewInterpolation()
+  global _r_interp_player
+  global _r_interp_last_tic
+
+  _r_interp_player = void
+  _r_interp_last_tic = -1
+end function
+
+/*
 * Function: _R_TimeMs
 * Purpose: Returns the platform tick counter as an integer millisecond timestamp for render profiling.
 */

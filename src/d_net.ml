@@ -132,6 +132,7 @@ const _DNET_MPMSG_FEED = 4
 const _DNET_MPMSG_WISTATS = 5
 const _DNET_MPMSG_WISTATS_REQ = 6
 const _DNET_MPMSG_CHAT = 7
+const _DNET_MPMSG_NAME = 8
 const _DNET_MPMSG_SOUND = 201
 const _DNET_MP_CHAT_BROADCAST = 5
 const _DNET_MP_CHAT_COOLDOWN_TICS = 4
@@ -250,6 +251,7 @@ _dnet_mp_client_seen_players = bytes(MAXPLAYERS, 0)
 _dnet_mp_client_claimed_actors = bytes(0, 0)
 _dnet_mp_was_authoritative = false
 _dnet_mp_was_client = false
+_dnet_mp_local_name_announced = false
 _dnet_mp_dbg_snap_calls = 0
 _dnet_mp_dbg_snap_skip_not_host = 0
 _dnet_mp_dbg_snap_skip_not_level = 0
@@ -660,6 +662,7 @@ function _DNet_MPResetRuntime()
   global _dnet_mp_client_claimed_actors
   global _dnet_mp_was_authoritative
   global _dnet_mp_was_client
+  global _dnet_mp_local_name_announced
   global _dnet_mp_dbg_snap_calls
   global _dnet_mp_dbg_snap_skip_not_host
   global _dnet_mp_dbg_snap_skip_not_level
@@ -760,6 +763,7 @@ function _DNet_MPResetRuntime()
   _dnet_mp_client_claimed_actors = bytes(0, 0)
   _dnet_mp_was_authoritative = false
   _dnet_mp_was_client = false
+  _dnet_mp_local_name_announced = false
   _dnet_mp_dbg_snap_calls = 0
   _dnet_mp_dbg_snap_skip_not_host = 0
   _dnet_mp_dbg_snap_skip_not_level = 0
@@ -1741,6 +1745,156 @@ function D_NetMPSendChat(dest, msg)
     _MPPlatform_LogEvent("MPTEST CHAT_SENT sender=" + sender + " dest=" + dest + " length=" + len(bytes(clean)) + " ok=" + ok)
   end if
   return sent
+end function
+
+/*
+* Function: _DNet_MPBuildNamePacket
+* Purpose: Encodes one sanitized player-name update in a compact fixed-protocol packet.
+*/
+function _DNet_MPBuildNamePacket(slot, name)
+  clean = MP_SanitizeName(name)
+  nb = bytes(clean)
+  n = len(nb)
+  if n > MP_MAX_NAME_LEN then n = MP_MAX_NAME_LEN end if
+  payload = bytes(3 + n, 0)
+  payload[0] = _DNET_MPMSG_NAME
+  payload[1] = _DNet_ToInt(slot, 0) & 255
+  payload[2] = n & 255
+  i = 0
+  while i < n
+    payload[3 + i] = nb[i]
+    i = i + 1
+  end while
+  return payload
+end function
+
+/*
+* Function: _DNet_MPReadNamePacket
+* Purpose: Validates a name packet's declared length and returns its canonical player name.
+*/
+function _DNet_MPReadNamePacket(payload)
+  if typeof(payload) != "bytes" or len(payload) < 4 then return "" end if
+  if (payload[0] & 255) != _DNET_MPMSG_NAME then return "" end if
+  n = payload[2] & 255
+  if n <= 0 or n > MP_MAX_NAME_LEN or len(payload) != 3 + n then return "" end if
+  return MP_SanitizeName(decode(slice(payload, 3, n)))
+end function
+
+/*
+* Function: _DNet_MPHostBroadcastName
+* Purpose: Broadcasts one host-approved slot name to every connected multiplayer client.
+*/
+function _DNet_MPHostBroadcastName(slot, name)
+  if not _DNet_MPIsHost() or typeof(MP_PlatformNetSend) != "function" then return false end if
+  payload = _DNet_MPBuildNamePacket(slot, name)
+  slots = _DNet_MPActiveSlots()
+  sentAny = false
+  i = 0
+  while i < len(slots)
+    s = _DNet_ToInt(slots[i], -1)
+    if s > 0 and s < MAXPLAYERS then
+      if MP_PlatformNetSend(s, payload) then sentAny = true end if
+    end if
+    i = i + 1
+  end while
+  return sentAny
+end function
+
+/*
+* Function: _DNet_MPHostBroadcastAllNames
+* Purpose: Refreshes the complete small slot-name table so newly joined clients learn existing peers immediately.
+*/
+function _DNet_MPHostBroadcastAllNames()
+  if not _DNet_MPIsHost() then return end if
+  _DNet_MPHostBroadcastName(0, _DNet_MPPlayerName(0))
+  slots = _DNet_MPActiveSlots()
+  i = 0
+  while i < len(slots)
+    slot = _DNet_ToInt(slots[i], -1)
+    if slot > 0 and slot < MAXPLAYERS then
+      _DNet_MPHostBroadcastName(slot, _DNet_MPPlayerName(slot))
+    end if
+    i = i + 1
+  end while
+end function
+
+/*
+* Function: _DNet_MPClientApplyName
+* Purpose: Applies one authoritative rename and reports changes made by another player.
+*/
+function _DNet_MPClientApplyName(payload)
+  if not _DNet_MPIsClient() then return end if
+  clean = _DNet_MPReadNamePacket(payload)
+  if clean == "" then return end if
+  slot = payload[1] & 255
+  if slot < 0 or slot >= MAXPLAYERS then return end if
+  old = _DNet_MPPlayerName(slot)
+  if typeof(MP_PlatformSetPlayerNameBySlot) == "function" then
+    MP_PlatformSetPlayerNameBySlot(slot, clean)
+  end if
+  if slot == _DNet_ToInt(consoleplayer, 0) then MP_SetPlayerName(clean) end if
+  if typeof(_MPPlatform_LogEvent) == "function" then
+    _MPPlatform_LogEvent("MPTEST NAME_RECEIVED slot=" + slot + " name=" + clean)
+  end if
+  if slot != _DNet_ToInt(consoleplayer, 0) and old != clean and typeof(HU_NetAddMessage) == "function" then
+    HU_NetAddMessage(old + " is now " + clean)
+  end if
+end function
+
+/*
+* Function: _DNet_MPHostHandleNamePacket
+* Purpose: Authenticates a client rename by its transport slot, updates the peer table, and relays it.
+*/
+function _DNet_MPHostHandleNamePacket(node, payload)
+  if not _DNet_MPIsHost() then return end if
+  sender = _DNet_ToInt(node, -1)
+  if sender < 1 or sender >= MAXPLAYERS then return end if
+  if typeof(payload) != "bytes" or len(payload) < 4 then return end if
+  if (payload[1] & 255) != sender then return end if
+  clean = _DNet_MPReadNamePacket(payload)
+  if clean == "" then return end if
+
+  old = _DNet_MPPlayerName(sender)
+  if typeof(MP_PlatformSetPlayerNameBySlot) != "function" then return end if
+  if not MP_PlatformSetPlayerNameBySlot(sender, clean) then return end if
+  if typeof(_MPPlatform_LogEvent) == "function" then
+    _MPPlatform_LogEvent("MPTEST NAME_RELAY slot=" + sender + " name=" + clean)
+  end if
+  if old != clean and typeof(HU_NetAddMessage) == "function" then
+    HU_NetAddMessage(old + " is now " + clean)
+  end if
+  _DNet_MPHostBroadcastAllNames()
+end function
+
+/*
+* Function: D_NetMPSetPlayerName
+* Purpose: Changes the local persistent name and propagates it through an active authoritative session.
+*/
+function D_NetMPSetPlayerName(name)
+  clean = MP_SanitizeName(name)
+  MP_SetPlayerName(clean)
+
+  if not _DNet_MPIsAuthoritative() then return clean end if
+  slot = _DNet_ToInt(consoleplayer, 0)
+  if slot < 0 or slot >= MAXPLAYERS then slot = 0 end if
+  if typeof(MP_PlatformSetPlayerNameBySlot) == "function" then
+    MP_PlatformSetPlayerNameBySlot(slot, clean)
+  end if
+
+  if _DNet_MPIsHost() then
+    _DNet_MPHostBroadcastAllNames()
+    if typeof(_MPPlatform_LogEvent) == "function" then
+      _MPPlatform_LogEvent("MPTEST NAME_RELAY slot=" + slot + " name=" + clean)
+    end if
+  else if _DNet_MPIsClient() and typeof(MP_PlatformNetSend) == "function" then
+    sent = MP_PlatformNetSend(0, _DNet_MPBuildNamePacket(slot, clean))
+    ok = 0
+    if sent then ok = 1 end if
+    if typeof(_MPPlatform_LogEvent) == "function" then
+      _MPPlatform_LogEvent("MPTEST NAME_SENT slot=" + slot + " name=" + clean + " ok=" + ok)
+    end if
+  end if
+  return clean
 end function
 
 /*
@@ -5822,7 +5976,8 @@ function _DNet_MPDrainAuthoritativePackets()
       if kind == _DNET_MPMSG_INPUT then _DNet_MPHostHandleInputPacket(node, payload) end if
       if kind == _DNET_MPMSG_WISTATS_REQ then _DNet_MPHostHandleWIStatsRequest(node, payload) end if
       if kind == _DNET_MPMSG_CHAT then _DNet_MPHostHandleChatPacket(node, payload) end if
-      if kind != _DNET_MPMSG_INPUT and kind != _DNET_MPMSG_WISTATS_REQ and kind != _DNET_MPMSG_CHAT then
+      if kind == _DNET_MPMSG_NAME then _DNet_MPHostHandleNamePacket(node, payload) end if
+      if kind != _DNET_MPMSG_INPUT and kind != _DNET_MPMSG_WISTATS_REQ and kind != _DNET_MPMSG_CHAT and kind != _DNET_MPMSG_NAME then
         _dnet_mp_dbg_unknown_payload_drop = _DNet_ToInt(_dnet_mp_dbg_unknown_payload_drop, 0) + 1
       end if
     else if _DNet_MPIsClient() then
@@ -5852,10 +6007,11 @@ function _DNet_MPDrainAuthoritativePackets()
       if kind == _DNET_MPMSG_PHASE then latestPhase = payload end if
       if kind == _DNET_MPMSG_FEED then _DNet_MPClientApplyFeed(payload) end if
       if kind == _DNET_MPMSG_CHAT then _DNet_MPClientApplyChat(payload) end if
+      if kind == _DNET_MPMSG_NAME then _DNet_MPClientApplyName(payload) end if
       if kind == _DNET_MPMSG_WISTATS then latestWIStats = payload end if
       if kind == _DNET_MPMSG_SOUND then
         if typeof(S_NetRecvPacket) == "function" then S_NetRecvPacket(payload) end if
-      else if kind != _DNET_MPMSG_SNAPSHOT and kind != _DNET_MPMSG_PHASE and kind != _DNET_MPMSG_FEED and kind != _DNET_MPMSG_CHAT and kind != _DNET_MPMSG_WISTATS then
+      else if kind != _DNET_MPMSG_SNAPSHOT and kind != _DNET_MPMSG_PHASE and kind != _DNET_MPMSG_FEED and kind != _DNET_MPMSG_CHAT and kind != _DNET_MPMSG_NAME and kind != _DNET_MPMSG_WISTATS then
         _dnet_mp_dbg_unknown_payload_drop = _DNet_ToInt(_dnet_mp_dbg_unknown_payload_drop, 0) + 1
       end if
     end if
@@ -6120,6 +6276,7 @@ function NetUpdate()
   global deathmatch
   global _dnet_mp_was_authoritative
   global _dnet_mp_was_client
+  global _dnet_mp_local_name_announced
 
   _DNet_EnsureStateArrays()
 
@@ -6161,6 +6318,12 @@ function NetUpdate()
     if localSlot >= MAXPLAYERS then localSlot = 0 end if
     consoleplayer = localSlot
     displayplayer = localSlot
+    // Announce once after the authoritative slot is known. Besides filling the
+    // initial cache, this uses the same host-validated path as the NAME command.
+    if not _dnet_mp_local_name_announced then
+      D_NetMPSetPlayerName(MP_GetPlayerName())
+      _dnet_mp_local_name_announced = true
+    end if
     if _DNet_MPIsHost() then _DNet_MPHostApplyActiveSlots() end if
     if typeof(doomcom) == "struct" then
       doomcom.numnodes = 1

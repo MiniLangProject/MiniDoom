@@ -254,6 +254,11 @@ const KEY_F12 = 0x80 + 0x58
 const KEY_BACKSPACE = 127
 const KEY_PAUSE = 0xff
 
+// Private UI key codes live above the legacy 8-bit gameplay-key table.
+const KEY_CONSOLE = 0x100
+const KEY_PAGEUP = 0x101
+const KEY_PAGEDOWN = 0x102
+
 const KEY_EQUALS = 0x3d
 const KEY_MINUS = 0x2d
 

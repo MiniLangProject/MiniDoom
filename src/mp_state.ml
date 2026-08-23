@@ -155,7 +155,8 @@ function MP_SanitizeName(name)
   i = 0
   while i < len(src) and oi < MP_MAX_NAME_LEN
     c = src[i]
-    if _MP_IsAllowedNameByte(c) then
+    // Skip leading spaces even when invalid bytes preceded them.
+    if _MP_IsAllowedNameByte(c) and(c != 32 or oi > 0) then
       namebuf[oi] = c
       oi = oi + 1
     end if

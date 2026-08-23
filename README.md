@@ -264,6 +264,38 @@ OpenGL uses VSync by default to avoid tearing and uneven presentation. Runtime o
 
 If the graphics driver does not expose swap-interval control, MiniDoom falls back to a 60 FPS high-resolution limiter.
 
+### Drop-Down Console and Classic Cheats
+
+Open or close the in-game console with `~`, `Ö`, or `^` (depending on the active keyboard layout; German `AltGr`+`+` is also supported). The console slides over the upper third of the screen, pauses the current single-player game, and captures all movement and fire input while it is open. HUD notices, multiplayer chat, errors, and command results are mirrored into its scrollback.
+
+Console controls:
+
+- `Enter`: execute the current command.
+- `Up` / `Down`: navigate command history.
+- `Page Up` / `Page Down`: scroll the log.
+- `Escape`: close the console.
+
+Available commands:
+
+| Command | Effect |
+| --- | --- |
+| `help` | Show console controls and utility commands. |
+| `cheats` | List all gameplay cheats. |
+| `iddqd` | Toggle god mode. |
+| `idkfa` | Give all weapons, full ammo, armor, and all keys. |
+| `idfa` | Give all weapons, full ammo, and armor without keys. |
+| `idclip` | Toggle wall collision. |
+| `idclev <NN>` | Warp to `MAPNN`, or to episode/map `ExMy` for episodic DOOM. |
+| `invisible` | Toggle persistent notarget mode; monsters do not react to the player. |
+| `freeze` | Freeze monsters, animations, and world specials while leaving player movement active. |
+| `kill monsters` | Kill all active monsters in the current level. |
+| `name [Player Name]` | Show or change the local player name. Active multiplayer sessions receive the change immediately. |
+| `fps` | Toggle the on-screen FPS display. |
+| `clear` | Clear console scrollback. |
+| `quit` | Exit MiniDoom. |
+
+Gameplay-changing cheats are single-player only to prevent multiplayer desynchronization. The original quick-warp form also works without opening the console: type `idclev12` during normal play for DOOM II `MAP12`, or `idclev23` for DOOM `E2M3`. These typed cheat keys do not block ordinary movement controls.
+
 ## Optional Upscaled Graphics
 
 MiniDoom can load an optional sidecar graphics package next to the original WAD:
@@ -298,7 +330,7 @@ MiniDoom includes an in-game UDP multiplayer mode with host-authoritative simula
 - Up to 4 players total (slots 0..3).
 - Modes: `Coop` and `Deathmatch`.
 - Host-configurable map, skill, max players, frag limit, and time limit.
-- Player names (max 25 characters).
+- Player names (max 25 characters), including host-authoritative runtime renaming through `name <Player Name>` in the console.
 - HUD join/leave/kill messages and chat relay.
 - Intermission/state synchronization between peers.
 
@@ -372,6 +404,9 @@ Practical recommendation: all players should use the same IWAD/PWAD files in the
 - Send with `Enter`.
 - Messages are relayed host-authoritatively and shown as:
   - `<PlayerName>: <message>`
+- Use `name <Player Name>` in the drop-down console to rename yourself while connected. The host validates the sender slot and distributes the refreshed name table to every client, including late joiners.
+
+Player names accept ASCII letters, digits, spaces, hyphens, and underscores. Leading/trailing spaces are removed and names are limited to 25 characters.
 
 ### Networking Model (High Level)
 

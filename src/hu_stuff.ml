@@ -464,6 +464,9 @@ function HU_Init()
     end if
     i = i + 1
   end while
+
+  // The console shares these exact cached STCFN patches with the one-line HUD.
+  if typeof(CUI_SetFont) == "function" then CUI_SetFont(hu_font, HU_FONTSTART) end if
 end function
 
 /*
@@ -562,6 +565,7 @@ function HU_NetAddMessage(msg)
 
   if headsupactive then
     HUlib_addMessageToSText(w_message, 0, msg)
+    if typeof(CUI_Log) == "function" then CUI_Log(msg) end if
     _HU_SetMessageOn(true)
     message_counter = HU_MSGTIMEOUT
     message_nottobefuckedwith = true
@@ -607,6 +611,7 @@ function HU_Ticker()
     msg = _HU_PopCurrentPlayerMessage()
     if msg is not void then
       HUlib_addMessageToSText(w_message, 0, msg)
+      if typeof(CUI_Log) == "function" then CUI_Log(msg) end if
       _HU_SetMessageOn(true)
       message_counter = HU_MSGTIMEOUT
       message_nottobefuckedwith = message_dontfuckwithme

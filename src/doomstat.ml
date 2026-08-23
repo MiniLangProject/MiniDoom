@@ -40,6 +40,9 @@ deathmatch = false
 
 menuactive = false
 paused = false
+// Console utility toggles are session state rather than renderer or parser state.
+consolefreeze = false
+console_show_fps = false
 usergame = true
 demoplayback = false
 demorecording = false

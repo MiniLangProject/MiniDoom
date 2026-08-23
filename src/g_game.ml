@@ -1419,6 +1419,31 @@ function inline _G_ButtonIsDown(arr, idx)
 end function
 
 /*
+* Function: G_ClearInputState
+* Purpose: Releases every latched gameplay control when an exclusive UI captures input.
+*/
+function G_ClearInputState()
+  global _G_keydown
+  global _G_mousebuttons
+  global _G_joybuttons
+  global _G_mousex
+  global _G_mousey
+  global _G_joyxmove
+  global _G_joyymove
+  global _G_turnheld
+
+  _G_EnsureInputState()
+  fillBytes(_G_keydown, 0, len(_G_keydown), 0)
+  _G_mousebuttons =[0, 0, 0]
+  _G_joybuttons =[0, 0, 0, 0]
+  _G_mousex = 0
+  _G_mousey = 0
+  _G_joyxmove = 0
+  _G_joyymove = 0
+  _G_turnheld = 0
+end function
+
+/*
 * Function: _G_InitDevInputTweaks
 * Purpose: Parses developer auto-input flags once and seeds their persistent movement/fire toggles.
 */
@@ -1493,6 +1518,9 @@ function G_Responder(ev)
 
     if gamestate == gamestate_t.GS_LEVEL then
       if typeof(HU_Responder) == "function" and HU_Responder(ev) then return true end if
+      // Classic cheats observe gameplay keys after chat had first refusal, but
+      // before automap/status responders can consume otherwise harmless letters.
+      if typeof(CCMD_DirectCheatResponder) == "function" then CCMD_DirectCheatResponder(ev) end if
       if typeof(ST_Responder) == "function" and ST_Responder(ev) then return true end if
       if typeof(AM_Responder) == "function" and AM_Responder(ev) then return true end if
     end if

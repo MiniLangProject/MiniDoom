@@ -34,6 +34,15 @@ import info
 import s_sound
 
 /*
+* Function: _PI_IsNoTargetPlayerMobj
+* Purpose: Reports whether a damage source is a player whose persistent notarget cheat forbids monster retaliation.
+*/
+function inline _PI_IsNoTargetPlayerMobj(mo)
+  if mo is void or mo.player is void then return false end if
+  return (mo.player.cheats & cheat_t.CF_NOTARGET) != 0
+end function
+
+/*
 * Function: P_GivePower
 * Purpose: Grants or refreshes a player powerup while respecting permanent berserk strength.
 */
@@ -930,7 +939,8 @@ function P_DamageMobj(target, inflictor, source, damage)
 
   target.reactiontime = 0
 
-  if source is not void and source != target and target.info is not void then
+  // Hidden players still deal normal damage, pain, and death, but never become retaliation targets.
+  if source is not void and source != target and target.info is not void and not _PI_IsNoTargetPlayerMobj(source) then
     if ((not target.threshold) or target.type == mobjtype_t.MT_VILE) and source.type != mobjtype_t.MT_VILE then
       target.target = source
       target.threshold = BASETHRESHOLD

@@ -796,6 +796,13 @@ function P_SpawnPlayer(mthing)
   p.extralight = 0
   p.fixedcolormap = 0
   p.viewheight = VIEWHEIGHT
+  p.deltaviewheight = 0
+  p.bob = 0
+  // The wipe destination is rendered before the first gameplay tic. Seed the
+  // real eye position now instead of leaving P_SetupLevel's sentinel viewz=1.
+  p.viewz = mobj.z + p.viewheight
+  viewCeiling = mobj.ceilingz - 4 * FRACUNIT
+  if p.viewz > viewCeiling then p.viewz = viewCeiling end if
 
   if typeof(P_SetupPsprites) == "function" then
     P_SetupPsprites(p)
@@ -810,6 +817,10 @@ function P_SpawnPlayer(mthing)
   end if
 
   players[pnum] = p
+
+  if pnum == displayplayer and typeof(R_ResetViewInterpolation) == "function" then
+    R_ResetViewInterpolation()
+  end if
 
   if pnum == consoleplayer then
     if typeof(ST_Start) == "function" then ST_Start() end if

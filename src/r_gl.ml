@@ -38,7 +38,7 @@ const RGL_WORLD_SPRITE_FOOT_LIFT = 4.0
 const RGL_BASEYCENTER = 100
 const RGL_DYNAMIC_SETTLE_FRAMES = 3
 const RGL_GEOM_FIX_SCALE = 65536.0
-const RGL_GEOM_VERSION = 8
+const RGL_GEOM_VERSION = 9
 const RGL_CAMERA_BACK_OFFSET = 0.0
 
 rgl_tex_keys =[]
@@ -3338,9 +3338,9 @@ end function
 
 /*
 * Function: RGL_AddCachedWallQuad
-* Purpose: Converts a wall span to a lit textured quad and appends it to the active wall, masked, or sky-boundary cache.
+* Purpose: Converts a wall span to a lit textured quad, preserving its BSP-seg texture origin, and appends it to the active wall, masked, or sky-boundary cache.
 */
-function RGL_AddCachedWallQuad(v1, v2, z0, z1, texnum, side, transparent, texturemid)
+function RGL_AddCachedWallQuad(v1, v2, z0, z1, texnum, side, transparent, texturemid, wallOffset)
   global rgl_boundary_quads
   global rgl_wall_quads
   global rgl_masked_quads
@@ -3358,6 +3358,7 @@ function RGL_AddCachedWallQuad(v1, v2, z0, z1, texnum, side, transparent, textur
   if side is not void then
     if typeof(side.textureoffset) == "int" then xoff = RGL_FixedToFloat(side.textureoffset) end if
   end if
+  if typeof(wallOffset) == "float" or typeof(wallOffset) == "int" then xoff = xoff + wallOffset end if
   s0 = xoff / tw
   s1 =(xoff + dist) / tw
   t0 =(RGL_FixedToFloat(texturemid) - RGL_FixedToFloat(z1)) / th
@@ -3470,14 +3471,14 @@ end function
 
 /*
 * Function: RGL_DrawWallQuadTexMid
-* Purpose: Caches or immediately draws a wall span with distance-based horizontal UVs and an explicit vertical texture origin.
+* Purpose: Caches or immediately draws a wall span with its sidedef-plus-seg horizontal origin and an explicit vertical texture origin.
 */
-function RGL_DrawWallQuadTexMid(v1, v2, z0, z1, texnum, side, transparent, texturemid)
+function RGL_DrawWallQuadTexMid(v1, v2, z0, z1, texnum, side, transparent, texturemid, wallOffset)
   if v1 is void or v2 is void then return end if
   if z1 <= z0 then return end if
   if typeof(texnum) != "int" or texnum == 0 then return end if
   if rgl_building_cache then
-    RGL_AddCachedWallQuad(v1, v2, z0, z1, texnum, side, transparent, texturemid)
+    RGL_AddCachedWallQuad(v1, v2, z0, z1, texnum, side, transparent, texturemid, wallOffset)
     return
   end if
   texid = RGL_TextureIdForTexnum(texnum)
@@ -3497,6 +3498,7 @@ function RGL_DrawWallQuadTexMid(v1, v2, z0, z1, texnum, side, transparent, textu
   if side is not void then
     if typeof(side.textureoffset) == "int" then xoff = RGL_FixedToFloat(side.textureoffset) end if
   end if
+  if typeof(wallOffset) == "float" or typeof(wallOffset) == "int" then xoff = xoff + wallOffset end if
   s0 = xoff / tw
   s1 =(xoff + dist) / tw
   t0 =(RGL_FixedToFloat(texturemid) - RGL_FixedToFloat(z1)) / th
@@ -3518,7 +3520,15 @@ end function
 * Purpose: Draws an opaque or cutout wall span using the default top-plus-row-offset texture origin.
 */
 function RGL_DrawWallQuadEx(v1, v2, z0, z1, texnum, side, transparent)
-  RGL_DrawWallQuadTexMid(v1, v2, z0, z1, texnum, side, transparent, RGL_DefaultTextureMid(z1, side))
+  RGL_DrawWallQuadTexMid(v1, v2, z0, z1, texnum, side, transparent, RGL_DefaultTextureMid(z1, side), 0.0)
+end function
+
+/*
+* Function: RGL_DrawWallQuadOffset
+* Purpose: Draws a generic wall quad while adding an oriented BSP-seg distance to the sidedef texture offset.
+*/
+function RGL_DrawWallQuadOffset(v1, v2, z0, z1, texnum, side, wallOffset)
+  RGL_DrawWallQuadTexMid(v1, v2, z0, z1, texnum, side, false, RGL_DefaultTextureMid(z1, side), wallOffset)
 end function
 
 /*
@@ -3531,9 +3541,9 @@ end function
 
 /*
 * Function: RGL_DrawMaskedMidtexture
-* Purpose: Computes a two-sided middle texture's pegged top/bottom and draws it as a cutout quad.
+* Purpose: Computes a two-sided middle texture's pegged bounds and draws it as an offset-preserving cutout quad.
 */
-function RGL_DrawMaskedMidtexture(v1, v2, linedef, side, front, back)
+function RGL_DrawMaskedMidtexture(v1, v2, linedef, side, front, back, wallOffset)
   if v1 is void or v2 is void or side is void or front is void or back is void then return end if
   if typeof(side.midtexture) != "int" or side.midtexture == 0 then return end if
 
@@ -3541,7 +3551,27 @@ function RGL_DrawMaskedMidtexture(v1, v2, linedef, side, front, back)
   texh = RGL_TextureHeightFixed(texnum)
   top = RGL_MidTextureMid(linedef, texnum, side, front, back)
   bottom = top - texh
-  RGL_DrawWallQuadTexMid(v1, v2, bottom, top, texnum, side, true, top)
+  RGL_DrawWallQuadTexMid(v1, v2, bottom, top, texnum, side, true, top, wallOffset)
+end function
+
+/*
+* Function: RGL_SegTextureOffset
+* Purpose: Returns a seg's map-authored texture distance, or the complementary distance when drawing the opposite orientation.
+*/
+function RGL_SegTextureOffset(sg, opposite)
+  if sg is void then return 0.0 end if
+  offset = 0.0
+  if typeof(sg.offset) == "int" then offset = RGL_FixedToFloat(sg.offset) end if
+  if not opposite then return offset end if
+  if sg.linedef is void or sg.linedef.v1 is void or sg.linedef.v2 is void or sg.v1 is void or sg.v2 is void then return 0.0 end if
+
+  ldx = RGL_FixedToFloat(sg.linedef.v2.x - sg.linedef.v1.x)
+  ldy = RGL_FixedToFloat(sg.linedef.v2.y - sg.linedef.v1.y)
+  sdx = RGL_FixedToFloat(sg.v2.x - sg.v1.x)
+  sdy = RGL_FixedToFloat(sg.v2.y - sg.v1.y)
+  remaining = std.math.sqrt(ldx * ldx + ldy * ldy) - offset - std.math.sqrt(sdx * sdx + sdy * sdy)
+  if remaining < 0.0 then return 0.0 end if
+  return remaining
 end function
 
 /*
@@ -3613,9 +3643,9 @@ end function
 
 /*
 * Function: RGL_DrawWallPiece
-* Purpose: Draws a one-sided middle wall or the visible upper/lower steps between adjacent sectors with pegging and light.
+* Purpose: Draws a one-sided middle wall or adjacent-sector steps with pegging, light, and the parent linedef's continuous horizontal UV origin.
 */
-function RGL_DrawWallPiece(v1, v2, linedef, side, front, back)
+function RGL_DrawWallPiece(v1, v2, linedef, side, front, back, wallOffset)
   global rgl_current_light
 
   if v1 is void or v2 is void then return end if
@@ -3628,7 +3658,7 @@ function RGL_DrawWallPiece(v1, v2, linedef, side, front, back)
   if back is void then
     tex = 0
     if side is not void and typeof(side.midtexture) == "int" then tex = side.midtexture end if
-    RGL_DrawWallQuadTexMid(v1, v2, front.floorheight, front.ceilingheight, tex, side, false, RGL_MidTextureMid(linedef, tex, side, front, void))
+    RGL_DrawWallQuadTexMid(v1, v2, front.floorheight, front.ceilingheight, tex, side, false, RGL_MidTextureMid(linedef, tex, side, front, void), wallOffset)
     return
   end if
 
@@ -3639,11 +3669,11 @@ function RGL_DrawWallPiece(v1, v2, linedef, side, front, back)
 
   if (not skyCeilingPortal) and back.ceilingheight < front.ceilingheight then
     tex = RGL_FallbackStepTexture(RGL_TopTextureOrZero(side), side, otherSide)
-    RGL_DrawWallQuadTexMid(v1, v2, back.ceilingheight, front.ceilingheight, tex, side, false, RGL_UpperTextureMid(linedef, tex, side, front, back))
+    RGL_DrawWallQuadTexMid(v1, v2, back.ceilingheight, front.ceilingheight, tex, side, false, RGL_UpperTextureMid(linedef, tex, side, front, back), wallOffset)
   end if
   if back.floorheight > front.floorheight then
     tex = RGL_FallbackStepTexture(RGL_BottomTextureOrZero(side), side, otherSide)
-    RGL_DrawWallQuadTexMid(v1, v2, front.floorheight, back.floorheight, tex, side, false, RGL_LowerTextureMid(linedef, tex, side, front, back))
+    RGL_DrawWallQuadTexMid(v1, v2, front.floorheight, back.floorheight, tex, side, false, RGL_LowerTextureMid(linedef, tex, side, front, back), wallOffset)
   end if
 end function
 
@@ -3662,7 +3692,7 @@ function RGL_DrawLine(li)
     sid = li.sidenum[0]
     if typeof(sid) == "int" and sid >= 0 and sid < len(sides) then side = sides[sid] end if
   end if
-  RGL_DrawWallPiece(li.v1, li.v2, li, side, li.frontsector, li.backsector)
+  RGL_DrawWallPiece(li.v1, li.v2, li, side, li.frontsector, li.backsector, 0.0)
 end function
 
 /*
@@ -3675,7 +3705,7 @@ function RGL_DrawSeg(sg)
   if rgl_building_cache and not rgl_collecting_volatile_geometry and not rgl_collecting_scrolling_geometry then
     if RGL_IsVolatileSector(sg.frontsector) or RGL_IsVolatileSector(sg.backsector) then return end if
   end if
-  RGL_DrawWallPiece(sg.v1, sg.v2, sg.linedef, sg.sidedef, sg.frontsector, sg.backsector)
+  RGL_DrawWallPiece(sg.v1, sg.v2, sg.linedef, sg.sidedef, sg.frontsector, sg.backsector, RGL_SegTextureOffset(sg, false))
 end function
 
 /*
@@ -3722,13 +3752,13 @@ function RGL_DrawMaskedSeg(sg)
   if sg.frontsector is not void then c = RGL_LightByte(sg.frontsector) end if
   rgl_current_light = c
   glColor4ub(c, c, c, 255)
-  RGL_DrawMaskedMidtexture(sg.v1, sg.v2, sg.linedef, sg.sidedef, sg.frontsector, sg.backsector)
+  RGL_DrawMaskedMidtexture(sg.v1, sg.v2, sg.linedef, sg.sidedef, sg.frontsector, sg.backsector, RGL_SegTextureOffset(sg, false))
   if sg.backsector is not void then
     if oside is not void then
       c = RGL_LightByte(sg.backsector)
       rgl_current_light = c
       glColor4ub(c, c, c, 255)
-      RGL_DrawMaskedMidtexture(sg.v2, sg.v1, sg.linedef, oside, sg.backsector, sg.frontsector)
+      RGL_DrawMaskedMidtexture(sg.v2, sg.v1, sg.linedef, oside, sg.backsector, sg.frontsector, RGL_SegTextureOffset(sg, true))
     end if
   end if
 end function
@@ -3778,9 +3808,9 @@ function RGL_DrawLineSideMidtexture(li, sideIndex)
   rgl_current_light = c
   glColor4ub(c, c, c, 255)
   if sideIndex == 0 then
-    RGL_DrawMaskedMidtexture(li.v1, li.v2, li, side, front, back)
+    RGL_DrawMaskedMidtexture(li.v1, li.v2, li, side, front, back, 0.0)
   else
-    RGL_DrawMaskedMidtexture(li.v2, li.v1, li, side, front, back)
+    RGL_DrawMaskedMidtexture(li.v2, li.v1, li, side, front, back, 0.0)
   end if
 end function
 
@@ -3834,7 +3864,7 @@ function RGL_DrawSkyInteriorBoundarySeg(sg)
   c = RGL_LightByte(sg.frontsector)
   rgl_current_light = c
   glColor3ub(c, c, c)
-  RGL_DrawWallQuad(sg.v1, sg.v2, z0, z1, tex, sg.sidedef)
+  RGL_DrawWallQuadOffset(sg.v1, sg.v2, z0, z1, tex, sg.sidedef, RGL_SegTextureOffset(sg, false))
 
   if otherSide is not void then
     tex = RGL_TopTextureOrZero(otherSide)
@@ -3843,7 +3873,7 @@ function RGL_DrawSkyInteriorBoundarySeg(sg)
       c = RGL_LightByte(sg.backsector)
       rgl_current_light = c
       glColor3ub(c, c, c)
-      RGL_DrawWallQuad(sg.v2, sg.v1, z0, z1, tex, otherSide)
+      RGL_DrawWallQuadOffset(sg.v2, sg.v1, z0, z1, tex, otherSide, RGL_SegTextureOffset(sg, true))
     end if
   end if
 end function
@@ -5287,7 +5317,7 @@ end function
 
 /*
 * Function: RGL_DrawSky
-* Purpose: Draws a depth-independent full-screen sky texture, then restores the 3D projection and depth testing.
+* Purpose: Draws the classic yaw-anchored full-screen sky texture, then restores the 3D projection and depth testing.
 */
 function RGL_DrawSky(yaw)
   if typeof(skytexture) != "int" then return end if
@@ -5304,8 +5334,11 @@ function RGL_DrawSky(yaw)
   glMatrixMode(GL_MODELVIEW)
   glLoadIdentity()
 
-  s0 = 0.0
-  s1 = s0 + 1.0
+  // Vanilla maps one 256-column sky repeat across a 90-degree view. Adding yaw keeps
+  // the panorama fixed in world space; reversing the screen span matches xtoviewangle.
+  skyCenter = RGL_NormalizeDegrees(yaw) / 90.0
+  s0 = skyCenter + 0.5
+  s1 = skyCenter - 0.5
   glBegin(GL_QUADS)
   glTexCoord2d(s0, 0.0)
   glVertex3d(-1.0, 1.0, 0.0)

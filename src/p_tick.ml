@@ -176,6 +176,23 @@ function P_RunThinkers()
 end function
 
 /*
+* Function: P_RunFrozenPlayerMobjs
+* Purpose: Advances only active player mobjs while the developer freeze suspends every other world thinker.
+*/
+function P_RunFrozenPlayerMobjs()
+  i = 0
+  while i < MAXPLAYERS
+    if i < len(playeringame) and playeringame[i] and i < len(players) and typeof(players[i]) == "struct" then
+      player = players[i]
+      if player.mo is not void and typeof(P_MobjThinker) == "function" then
+        P_MobjThinker(player.mo)
+      end if
+    end if
+    i = i + 1
+  end while
+end function
+
+/*
 * Function: P_Ticker
 * Purpose: Advances players, thinkers, and sector specials once per unpaused game tic, then increments level time.
 */
@@ -207,6 +224,12 @@ function P_Ticker()
     i = i + 1
   end while
   if profiling then _D_ProfileAdd(7, _D_ProfileTimeUs() - t0) end if
+
+  // PlayerThink creates momentum; the player's mobj thinker must consume it even while the world is frozen.
+  if consolefreeze then
+    P_RunFrozenPlayerMobjs()
+    return
+  end if
 
   if profiling then t0 = _D_ProfileTimeUs() end if
   P_RunThinkers()

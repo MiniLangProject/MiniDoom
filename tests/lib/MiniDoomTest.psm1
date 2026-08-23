@@ -121,6 +121,7 @@ public class MiniDoomTestNative {
   [DllImport("user32.dll")] public static extern bool PostMessage(IntPtr hWnd, uint Msg, IntPtr wParam, IntPtr lParam);
   [DllImport("user32.dll")] public static extern bool SetForegroundWindow(IntPtr hWnd);
   [DllImport("user32.dll")] public static extern IntPtr GetForegroundWindow();
+  [DllImport("user32.dll")] public static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
   [DllImport("user32.dll")] public static extern void keybd_event(byte bVk, byte bScan, uint dwFlags, UIntPtr dwExtraInfo);
   [DllImport("user32.dll")] public static extern bool PrintWindow(IntPtr hwnd, IntPtr hdcBlt, uint nFlags);
   [DllImport("user32.dll")] public static extern bool GetWindowRect(IntPtr hWnd, out RECT lpRect);
@@ -167,6 +168,17 @@ function Wait-MiniDoomWindow {
     throw "Timed out waiting for MiniDoom window."
 }
 
+# Purpose: Creates a unique minimal config so tests can never overwrite the interactive build/default.cfg.
+function New-MiniDoomTestConfig {
+    param([Parameter(Mandatory = $true)][string]$RepoRoot)
+
+    $configRoot = Join-Path $RepoRoot 'test-results\_runtime-configs'
+    [System.IO.Directory]::CreateDirectory($configRoot) | Out-Null
+    $path = Join-Path $configRoot ("minidoom-{0}.cfg" -f [Guid]::NewGuid().ToString('N'))
+    [System.IO.File]::WriteAllText($path, "screenblocks`t`t10`n")
+    return $path
+}
+
 # Purpose: Starts one test-owned MiniDoom instance and returns only after its window is ready.
 function Start-MiniDoomForTest {
     param(
@@ -177,6 +189,17 @@ function Start-MiniDoomForTest {
 
     $exe = Join-Path $RepoRoot 'build\MiniDoom.exe'
     Assert-True (Test-Path $exe) "MiniDoom.exe not found at $exe. Run build first."
+
+    $hasExplicitConfig = $false
+    foreach ($argument in $Arguments) {
+        if ([string]::Equals("$argument", '-config', [StringComparison]::OrdinalIgnoreCase)) {
+            $hasExplicitConfig = $true
+            break
+        }
+    }
+    if (-not $hasExplicitConfig) {
+        $Arguments = @($Arguments) + @('-config', (New-MiniDoomTestConfig -RepoRoot $RepoRoot))
+    }
 
     $p = Start-Process -FilePath $exe -ArgumentList $Arguments -WorkingDirectory (Join-Path $RepoRoot 'build') -WindowStyle Normal -PassThru
     Wait-MiniDoomWindow -Process $p -TimeoutSeconds $WindowTimeoutSeconds
@@ -264,8 +287,11 @@ function Send-MiniDoomKey {
     Assert-MiniDoomHealthy -Process $Process
     $hwnd = $Process.MainWindowHandle
     Assert-True ($VirtualKey -ge 0 -and $VirtualKey -le 255) "Virtual key is outside the Win32 byte range: $VirtualKey"
-    [void][MiniDoomTestNative]::SetForegroundWindow($hwnd)
-    Start-Sleep -Milliseconds 120
+    for ($attempt = 0; $attempt -lt 5 -and [MiniDoomTestNative]::GetForegroundWindow() -ne $hwnd; $attempt++) {
+        [void][MiniDoomTestNative]::ShowWindow($hwnd, 9)
+        [void][MiniDoomTestNative]::SetForegroundWindow($hwnd)
+        Start-Sleep -Milliseconds 120
+    }
     Assert-True ([MiniDoomTestNative]::GetForegroundWindow() -eq $hwnd) 'Could not focus the exact MiniDoom window for key injection.'
     [MiniDoomTestNative]::keybd_event([byte]$VirtualKey, 0, 0, [UIntPtr]::Zero)
     Start-Sleep -Milliseconds ([Math]::Max(20, $HoldMilliseconds))

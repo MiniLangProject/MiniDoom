@@ -123,6 +123,73 @@ function inline _PE_ResolveThinkerMobj(cur)
 end function
 
 /*
+* Function: _PE_IsNoTargetMobj
+* Purpose: Reports whether a player actor is hidden from monster sight and sound acquisition.
+*/
+function inline _PE_IsNoTargetMobj(mo)
+  if mo is void or mo.player is void then return false end if
+  return (mo.player.cheats & cheat_t.CF_NOTARGET) != 0
+end function
+
+/*
+* Function: _PE_DropHiddenTarget
+* Purpose: Cancels a monster's lock, movement, and queued attack when its player target has persistent notarget enabled.
+*/
+function _PE_DropHiddenTarget(actor)
+  if actor is void or not _PE_IsNoTargetMobj(actor.target) then return false end if
+
+  actor.target = void
+  actor.threshold = 0
+  actor.movecount = 0
+  actor.movedir = DI_NODIR
+  actor.flags = actor.flags &(~mobjflag_t.MF_JUSTATTACKED)
+  if (actor.flags & mobjflag_t.MF_SKULLFLY) != 0 then
+    actor.flags = actor.flags &(~mobjflag_t.MF_SKULLFLY)
+    actor.momx = 0
+    actor.momy = 0
+    actor.momz = 0
+  end if
+
+  if actor.health > 0 and (actor.flags & mobjflag_t.MF_SHOOTABLE) != 0 and actor.info is not void then
+    P_SetMobjState(actor, actor.info.spawnstate)
+  end if
+  return true
+end function
+
+/*
+* Function: P_ForgetPlayerTarget
+* Purpose: Makes active monsters and sector sound emitters immediately forget one newly hidden player.
+*/
+function P_ForgetPlayerTarget(playerMo)
+  global soundtarget
+
+  if playerMo is void then return end if
+
+  if soundtarget == playerMo then soundtarget = void end if
+
+  if typeof(sectors) == "array" then
+    i = 0
+    while i < len(sectors)
+      if sectors[i] is not void and sectors[i].soundtarget == playerMo then
+        sectors[i].soundtarget = void
+      end if
+      i = i + 1
+    end while
+  end if
+
+  cur = thinkercap.next
+  while cur is not void and cur != thinkercap
+    actor = _PE_ResolveThinkerMobj(cur)
+    if actor is not void and actor.player is void then
+      if actor.target == playerMo then _PE_DropHiddenTarget(actor) end if
+      // Revenant tracers and Arch-vile fire use tracer rather than target for the victim.
+      if actor.tracer == playerMo then actor.tracer = void end if
+    end if
+    cur = cur.next
+  end while
+end function
+
+/*
 * Function: _PE_HasOtherAliveType
 * Purpose: Scans registered thinkers for another living mobj of the requested type, excluding the supplied actor.
 */
@@ -195,6 +262,10 @@ function P_NoiseAlert(target, emmiter)
   global soundtarget
   global validcount
 
+  // Persistent notarget players may still shoot, but their weapons never wake monsters.
+  if _PE_IsNoTargetMobj(target) then return end if
+  if emmiter is void or emmiter.subsector is void or emmiter.subsector.sector is void then return end if
+
   soundtarget = target
   validcount = validcount + 1
   P_RecursiveSound(emmiter.subsector.sector, 0)
@@ -206,6 +277,7 @@ end function
 */
 function P_CheckMeleeRange(actor)
   if actor is void or actor.target is void then return false end if
+  if _PE_IsNoTargetMobj(actor.target) then return false end if
   pl = actor.target
   if pl.info is void then return false end if
 
@@ -223,6 +295,7 @@ end function
 */
 function P_CheckMissileRange(actor)
   if actor is void or actor.target is void then return false end if
+  if _PE_IsNoTargetMobj(actor.target) then return false end if
   if not P_CheckSight(actor, actor.target) then return false end if
 
   if (actor.flags & mobjflag_t.MF_JUSTHIT) != 0 then
@@ -441,6 +514,11 @@ function P_LookForPlayers(actor, allaround)
       continue
     end if
 
+    if _PE_IsNoTargetMobj(player.mo) then
+      actor.lastlook =(idx + 1) & 3
+      continue
+    end if
+
     if not P_CheckSight(actor, player.mo) then
       actor.lastlook =(idx + 1) & 3
       continue
@@ -500,6 +578,8 @@ function A_Look(actor)
     targ = actor.subsector.sector.soundtarget
   end if
 
+  if _PE_IsNoTargetMobj(targ) then targ = void end if
+
   seeyou = false
   if targ is not void and(targ.flags & mobjflag_t.MF_SHOOTABLE) != 0 then
     actor.target = targ
@@ -540,6 +620,8 @@ end function
 */
 function A_Chase(actor)
   if actor is void or actor.info is void then return end if
+
+  if _PE_DropHiddenTarget(actor) then return end if
 
   if actor.reactiontime then actor.reactiontime = actor.reactiontime - 1 end if
 
@@ -615,6 +697,7 @@ end function
 */
 function A_FaceTarget(actor)
   if actor is void or actor.target is void then return end if
+  if _PE_IsNoTargetMobj(actor.target) then return end if
   actor.flags = actor.flags &(~mobjflag_t.MF_AMBUSH)
   actor.angle = R_PointToAngle2(actor.x, actor.y, actor.target.x, actor.target.y)
   if (actor.target.flags & mobjflag_t.MF_SHADOW) != 0 then
@@ -813,6 +896,10 @@ function A_Tracer(actor)
 
   dest = actor.tracer
   if dest is void or dest.health <= 0 then return end if
+  if _PE_IsNoTargetMobj(dest) then
+    actor.tracer = void
+    return
+  end if
 
   exact = R_PointToAngle2(actor.x, actor.y, dest.x, dest.y)
   if exact != actor.angle then

@@ -463,7 +463,7 @@ function P_SetPsprite(player, position, stnum)
 
   /*
 * Function: P_FireWeapon
-* Purpose: After an ammo check, enters player and weapon attack states and alerts nearby monsters to the shot.
+* Purpose: After an ammo check, enters attack states and alerts nearby monsters unless persistent notarget is active.
   */
   function P_FireWeapon(player)
     if player is void then return end if
@@ -478,7 +478,7 @@ function P_SetPsprite(player, position, stnum)
       P_SetPsprite(player, ps_weapon, wi.atkstate)
     end if
 
-    if typeof(P_NoiseAlert) == "function" and player.mo is not void then
+    if typeof(P_NoiseAlert) == "function" and player.mo is not void and (player.cheats & cheat_t.CF_NOTARGET) == 0 then
       P_NoiseAlert(player.mo, player.mo)
     end if
   end function

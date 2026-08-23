@@ -39,6 +39,7 @@ enum cheat_t
   CF_NOCLIP = 1
   CF_GODMODE = 2
   CF_NOMOMENTUM = 4
+  CF_NOTARGET = 8
 end enum
 
 /*

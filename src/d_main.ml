@@ -37,6 +37,7 @@ import i_video
 import i_gl
 import g_game
 import hu_stuff
+import console_ui
 import wi_stuff
 import st_stuff
 import am_map
@@ -554,6 +555,14 @@ function D_ProcessEvents()
 
   while eventtail != eventhead
     ev = events[eventtail]
+
+    // The drop-down console has first refusal so menus and gameplay never see captured input.
+    if typeof(CUI_Responder) == "function" then
+      if CUI_Responder(ev) then
+        eventtail =(eventtail + 1) &(MAXEVENTS - 1)
+        continue
+      end if
+    end if
 
     if typeof(M_Responder) == "function" then
       if M_Responder(ev) then
@@ -1900,6 +1909,21 @@ function D_DoomMain()
 end function
 
 /*
+* Function: _D_StatusBarVisible
+* Purpose: Determines classic status-bar visibility without comparing a scaled HD view height to logical screen dimensions.
+*/
+function inline _D_StatusBarVisible()
+  if gamestate != gamestate_t.GS_LEVEL then return false end if
+  if automapactive then return true end if
+  if typeof(setblocks) == "int" then return setblocks < 11 end if
+  if typeof(viewheight) != "int" then return true end if
+  if typeof(RH_IsActive) == "function" and RH_IsActive() and typeof(RH_Height) == "function" then
+    return viewheight < RH_Height()
+  end if
+  return viewheight < SCREENHEIGHT
+end function
+
+/*
 * Function: D_Display
 * Purpose: Composes one frame, including wipes, view/HUD layers, palette updates, and profiling.
 */
@@ -1915,8 +1939,8 @@ function D_Display()
 
   profiling = _d_profile_render
   keepStatusOverlay = false
-  if gamestate == gamestate_t.GS_LEVEL and R_RendererIsOpenGL() then
-    if typeof(viewheight) == "int" and viewheight < SCREENHEIGHT then keepStatusOverlay = true end if
+  if R_RendererIsOpenGL() and _D_StatusBarVisible() then
+    keepStatusOverlay = true
   end if
   keepStaticPageOverlay = false
   if gamestate == gamestate_t.GS_DEMOSCREEN and gamestate == wipegamestate and not advancedemo then
@@ -2002,10 +2026,7 @@ function D_Display()
     end if
 
     if typeof(ST_Drawer) == "function" then
-      st_fullscreen = false
-      if typeof(viewheight) == "int" then
-        st_fullscreen =(viewheight == SCREENHEIGHT)
-      end if
+      st_fullscreen = not _D_StatusBarVisible()
       if profiling then
         t0 = _D_ProfileTimeUs()
         ST_Drawer(st_fullscreen, levelRefresh)
@@ -2068,6 +2089,7 @@ function D_Display()
   if typeof(I_CaptureLogicalOverlayBase) == "function" then I_CaptureLogicalOverlayBase() end if
   if typeof(V_ClearOverlayMask) == "function" then V_ClearOverlayMask() end if
   if (not forceSoftwareWipe) and (not glWipeToLevel) and typeof(M_Drawer) == "function" then M_Drawer() end if
+  if (not forceSoftwareWipe) and (not glWipeToLevel) and typeof(CUI_Drawer) == "function" then CUI_Drawer() end if
   if typeof(V_EndOverlayMask) == "function" then V_EndOverlayMask() end if
   mpAuthoritative = false
   if typeof(MP_PlatformIsHosting) == "function" and MP_PlatformIsHosting() then mpAuthoritative = true end if
@@ -2160,6 +2182,7 @@ function D_Display()
     if typeof(RGL_SetForceSoftware) == "function" then RGL_SetForceSoftware(false) end if
     if typeof(RH_SetForceLogical) == "function" then RH_SetForceLogical(false) end if
     if typeof(I_SetForceSoftwarePresent) == "function" then I_SetForceSoftwarePresent(false) end if
+    if gamestate == gamestate_t.GS_LEVEL and typeof(ST_ForceRefresh) == "function" then ST_ForceRefresh() end if
     if profiling then
       _d_prof_frames = _d_prof_frames + 1
       _D_ProfileFlushMaybe()
@@ -2239,6 +2262,7 @@ function D_Display()
   if forceSoftwareWipe and typeof(R_SetViewSize) == "function" then
     R_SetViewSize(setblocks, setdetail)
   end if
+  if gamestate == gamestate_t.GS_LEVEL and typeof(ST_ForceRefresh) == "function" then ST_ForceRefresh() end if
 
   if profiling then
     _d_prof_frames = _d_prof_frames + 1

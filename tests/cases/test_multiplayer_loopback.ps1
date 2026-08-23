@@ -201,6 +201,19 @@ try {
         Wait-LogPattern -Path $clientLogs[$slot - 1] -Pattern 'MPTEST CHAT_RECEIVED sender=1 dest=5 length=2' -TimeoutSeconds 10 | Out-Null
     }
 
+    # Every client announces through the same host-authenticated packet path used
+    # by the console NAME command. Slot 3 joins last, so all peers must receive it.
+    for ($slot = 1; $slot -le 3; $slot++) {
+        Wait-LogPattern -Path $clientLogs[$slot - 1] -Pattern "MPTEST NAME_SENT slot=$slot name=LoopClient$slot ok=1" -TimeoutSeconds 10 | Out-Null
+        Wait-LogPattern -Path $hostLog -Pattern "MPTEST NAME_RELAY slot=$slot name=LoopClient$slot" -TimeoutSeconds 10 | Out-Null
+        Wait-LogPattern -Path $clientLogs[$slot - 1] -Pattern "MPTEST NAME_RECEIVED slot=$slot name=LoopClient$slot" -TimeoutSeconds 10 | Out-Null
+    }
+    for ($receiver = 1; $receiver -le 3; $receiver++) {
+        for ($namedSlot = 1; $namedSlot -le 3; $namedSlot++) {
+            Wait-LogPattern -Path $clientLogs[$receiver - 1] -Pattern "MPTEST NAME_RECEIVED slot=$namedSlot name=LoopClient$namedSlot" -TimeoutSeconds 10 | Out-Null
+        }
+    }
+
     $mismatch = Invoke-UdpTextRequest -Port $port -Text "MDMP1|REQ|WrongWad|0000000000000000|0|$mapToken|2|4|0|0"
     Assert-True ($mismatch -match '^MDMP1\|DEN\|3\|') "WAD mismatch was not denied correctly: $mismatch"
 
