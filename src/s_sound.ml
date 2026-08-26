@@ -1150,7 +1150,7 @@ end function
 
 /*
 * Function: S_SetMusicVolume
-* Purpose: Clamps and stores music volume, then refreshes the platform mixer from full scale to the requested level.
+* Purpose: Clamps and stores music volume, then forwards only the requested level to the platform mixer.
 */
 function S_SetMusicVolume(volume)
   global snd_MusicVolume
@@ -1159,7 +1159,6 @@ function S_SetMusicVolume(volume)
   snd_MusicVolume = v
 
   if typeof(I_SetMusicVolume) == "function" then
-    I_SetMusicVolume(S_MAX_VOLUME)
     I_SetMusicVolume(v)
   end if
 end function

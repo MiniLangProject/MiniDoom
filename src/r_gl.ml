@@ -35,6 +35,8 @@ import std.time
 const RGL_ANGLE_FULL = 4294967296.0
 const RGL_FF_FRAMEMASK = 0x7fff
 const RGL_WORLD_SPRITE_FOOT_LIFT = 4.0
+// Keeps MAP32's roughly 7000-unit sightlines inside both the GL frustum and sprite culler with safe margin.
+const RGL_WORLD_VIEW_DISTANCE = 12288.0
 const RGL_BASEYCENTER = 100
 const RGL_DYNAMIC_SETTLE_FRAMES = 3
 const RGL_GEOM_FIX_SCALE = 65536.0
@@ -5303,7 +5305,7 @@ function RGL_Restore3DProjection()
   end if
   if aspect <= 0 then aspect = 1.6 end if
   nearz = 4.0
-  farz = 4096.0
+  farz = RGL_WORLD_VIEW_DISTANCE
   top = 2.505
   yshift = -0.401
   right = top * aspect
@@ -5666,7 +5668,7 @@ function RGL_DrawSpriteBillboardsNative(player, yaw)
   rad =((90.0 - yaw) / 360.0) * 6.283185314
   rx = std.math.cos(rad)
   rz = std.math.sin(rad)
-  farDist = 4096.0 * 4096.0
+  farDist = RGL_WORLD_VIEW_DISTANCE * RGL_WORLD_VIEW_DISTANCE
   scale = 1
   if typeof(ru_scale) == "int" and ru_scale > 0 then scale = ru_scale end if
   requiredBytes = rgl_frame_mobj_count * RGL_SPRITE_RECORD_SIZE
@@ -5727,7 +5729,7 @@ function RGL_DrawSpriteBillboardsImmediate(player, yaw)
   rad =((90.0 - yaw) / 360.0) * 6.283185314
   rx = std.math.cos(rad)
   rz = std.math.sin(rad)
-  farDist = 4096.0 * 4096.0
+  farDist = RGL_WORLD_VIEW_DISTANCE * RGL_WORLD_VIEW_DISTANCE
   i = 0
   while i < rgl_frame_mobj_count
     mo = rgl_frame_mobjs[i]

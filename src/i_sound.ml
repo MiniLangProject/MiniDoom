@@ -1102,10 +1102,15 @@ end function
 
 /*
 * Function: _IS_MusicScale7
-* Purpose: Clamps a seven-bit MUS velocity/controller value while master gain remains the MIDI backend's responsibility.
+* Purpose: Applies sequencer-side master gain on Windows MIDI devices that may ignore midiOutSetVolume; Linux delegates gain to FluidSynth.
 */
 function inline _IS_MusicScale7(v)
-  return _IS_Clamp(v, 0, 127)
+  x = _IS_Clamp(v, 0, 127)
+#if TARGET_OS == "windows"
+  return _IS_Clamp(_ISnd_IDiv(x * _I_musicVolume, 127), 0, 127)
+#else
+  return x
+#endif
 end function
 
 /*
