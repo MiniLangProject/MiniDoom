@@ -6,6 +6,46 @@ MiniDoom is a full MiniLang port of the original DOOM engine codebase, focused o
 This project keeps the original DOOM architecture and module split concept, but translates the implementation to MiniLang (`.ml`) with platform-specific runtime bindings where needed (video, audio, input, window handling).
 <br clear="right" />
 
+## Highlights
+
+- Native x64 builds for **Windows** and **Linux** from the same MiniLang source tree.
+- Original software renderer plus an accelerated OpenGL renderer, switchable at runtime with `Alt+G`.
+- DOOM and DOOM II IWAD/PWAD support, savegames, demos, menus, HUD, sound effects, and MUS music.
+- Built-in drop-down console with classic cheats and developer commands.
+- Host-authoritative UDP multiplayer for up to four players in cooperative and deathmatch modes.
+- Automatic 3× HDWAD rendering cache for OpenGL textures, sprites, UI graphics, and level geometry.
+
+| Feature | Windows x64 | Linux x64 |
+| --- | --- | --- |
+| Classic software renderer | Win32/GDI presentation | SDL2/OpenGL presentation |
+| Accelerated renderer | OpenGL compatibility profile | SDL2/OpenGL compatibility profile |
+| Sound effects | WinMM PCM | SDL2 queued audio |
+| MUS music | Windows MIDI mapper | Built-in SDL2 software synthesizer |
+| Input and windowing | Win32 | SDL2 |
+| Multiplayer | UDP/WinSock | UDP/POSIX sockets |
+
+## Download and Quick Start
+
+Prebuilt Windows and Linux packages are available on the
+[GitHub Releases page](https://github.com/MiniLangProject/MiniDoom/releases/latest).
+The packages contain the engine only; copyrighted DOOM IWADs are never included.
+
+Windows:
+
+```powershell
+.\MiniDoom.exe -iwad "C:\Games\DOOM\DOOM2.WAD" -windowed -opengl
+```
+
+Linux (install `libsdl2-2.0-0` and `libgl1` first):
+
+```bash
+./run-minidoom -iwad "$HOME/games/doom/DOOM2.WAD" -windowed -opengl
+```
+
+The first OpenGL start creates `<IWAD>.hdwad` next to the selected IWAD. This
+one-time build can take a while and requires several hundred megabytes of free
+space; later starts reuse the validated cache.
+
 ## Level Gallery
 
 All 59 levels available in the locally tested registered **DOOM** IWAD (27) and **DOOM II** (32) are captured from the same player start in both renderers. Classic is shown on the left, OpenGL on the right. The IWAD files are not part of this repository.
@@ -155,11 +195,13 @@ Regenerate the gallery from local IWADs with:
 
 ```text
 MiniDoom/
-  src/                       # MiniLang game/engine source files
+  src/                       # MiniLang game/engine source files and platform bindings
   docs/gallery/              # Classic/OpenGL level comparison screenshots
   icons/                     # PNG + ICO assets for EXE icon resources
+  tests/                     # Smoke, renderer, console, multiplayer, and regression tests
   tools/
     capture_readme_gallery.ps1 # Regenerates the README screenshot gallery
+    check_source_comments.ps1 # Audits declaration documentation
     exe_icon_injector.ml     # MiniLang tool: injects .ico into Windows .exe resources
     minidoom_gl_helper.c     # Cross-platform accelerated rendering helper
     minidoom_linux_platform.c # Linux SDL2 window/input/audio bridge
@@ -174,11 +216,13 @@ MiniDoom/
 - Python 3.10+ (recommended: 3.11+)
 - MiniLang compiler (Python implementation):  
   [MiniLangCompilerPy](https://github.com/MiniLangProject/MiniLangCompilerPy)
-- Compiler version 1.1.0 or newer with `--target linux-x64` support for Linux builds
+- Compiler version 1.1.0 or newer with `windows-x64` and `linux-x64` targets
+- Windows builds: MSVC x64 build tools and the Windows 10/11 SDK
 - Linux builds: GCC, the SDL2 runtime (`libSDL2-2.0.so.0`), and OpenGL (`libGL.so.1`)
-- A DOOM IWAD file (for example `DOOM.WAD`, `DOOM1.WAD`, `DOOM2.WAD`) for runtime testing
+- A legally obtained DOOM IWAD such as `DOOM.WAD`, `DOOM1.WAD`, or `DOOM2.WAD`
 
-Note: IWAD files are not shipped with this repository.
+IWAD, PWAD, generated HDWAD, configuration, and save files are not shipped in
+the repository or release archives.
 
 ## Build MiniDoom (Recommended)
 
@@ -246,8 +290,8 @@ build/linux/libMiniDoomGL.so
 Use `run-minidoom`; it sets the local shared-library search path before
 starting the ELF. Both the classic and OpenGL renderers, keyboard/mouse input,
 SDL2 sound effects, screenshots, saves, and UDP multiplayer use native Linux
-services. The Linux bridge currently has no built-in MIDI synthesizer, so MUS
-sequencing is silent unless a Linux music provider is added later.
+services. Doom's MUS tracks play through a built-in SDL2 software synthesizer,
+so Linux music needs neither a system MIDI daemon nor an external SoundFont.
 
 ### Useful Build Options
 
@@ -308,10 +352,16 @@ If no `-iwad` is provided, the engine uses its internal IWAD search order and lo
 The classic renderer remains the default. Start the accelerated 3D renderer with:
 
 ```powershell
-.\build\MiniDoom.exe -iwad "C:\Games\DOOM\DOOM2.WAD" -opengl
+.\build\MiniDoom.exe -iwad "C:\Games\DOOM\DOOM2.WAD" -windowed -opengl
 ```
 
-OpenGL uses VSync by default to avoid tearing and uneven presentation. Runtime options:
+```bash
+./build/linux/run-minidoom -iwad "$HOME/games/doom/DOOM2.WAD" -windowed -opengl
+```
+
+Press `Alt+G` while running to switch between OpenGL and the classic pixel
+renderer. OpenGL uses VSync by default to avoid tearing and uneven presentation.
+Runtime options:
 
 - `-novsync`: disable VSync (useful for profiling)
 - `-vsync`: explicitly enable VSync
@@ -354,30 +404,30 @@ Available commands:
 
 Gameplay-changing cheats are single-player only to prevent multiplayer desynchronization. The original quick-warp form also works without opening the console: type `idclev12` during normal play for DOOM II `MAP12`, or `idclev23` for DOOM `E2M3`. These typed cheat keys do not block ordinary movement controls.
 
-## Optional Upscaled Graphics
+## Automatic HDWAD Cache
 
-MiniDoom can load an optional sidecar graphics package next to the original WAD:
+The OpenGL renderer uses a generated sidecar cache next to the selected IWAD:
 
 ```text
 DOOM2.WAD
-DOOM2.WAD.UPSCALED
+DOOM2.WAD.hdwad
 ```
 
-Generate the package with palette-aware xBRZ scaling:
+When `-opengl` is requested and no valid sidecar exists, MiniDoom builds it
+automatically. The cache contains palette-aware 3× wall textures, flats,
+sprites, HUD/menu graphics, fonts, full-screen patches, and precomputed OpenGL
+geometry for every discovered map. A loading screen reports the current phase,
+percentage, and estimated remaining time.
 
-```powershell
-.\build\tools\wad_upscale.exe "C:\Games\DOOM\DOOM2.WAD" "C:\Games\DOOM\DOOM2.WAD.UPSCALED" 2
-```
+Useful options:
 
-Run with a physical presentation scale and the package:
+- `-rebuildhdwad`: regenerate the automatic cache even when a valid one exists.
+- `-hdwad <path>`: load an explicitly selected HDWAD instead of auto-generating one.
+- `-nohdwad`: disable automatic cache attachment/generation for diagnostics.
 
-```powershell
-.\build\MiniDoom.exe -iwad "C:\Games\DOOM\DOOM2.WAD" -renderscale 2 -upscaled "C:\Games\DOOM\DOOM2.WAD.UPSCALED"
-```
-
-If `-upscaled` is omitted, MiniDoom automatically tries `<iwad>.UPSCALED`. Missing upscaled graphics fall back to the original WAD.
-
-The upscaled package stores prepared wall textures, flats, sprites, HUD/menu patches, fonts, and full-screen patch graphics. During normal high-resolution gameplay, MiniDoom consumes those prepared images directly; the xBRZ-style scaler belongs to the offline `wad_upscale` tool rather than the frame loop.
+The generated file can be several hundred megabytes. It is renderer-only,
+excluded from multiplayer WAD fingerprints, and can be deleted safely; the next
+OpenGL start will recreate it. Classic rendering does not require an HDWAD.
 
 ## Multiplayer Mode
 
@@ -477,6 +527,21 @@ Player names accept ASCII letters, digits, spaces, hyphens, and underscores. Lea
 - `Host did not respond (timeout)`: verify host address/port and firewall/NAT rules.
 - `WAD fingerprint mismatch`: ensure all peers use the same IWAD.
 - `Server full`: lower active players or increase max players (up to 4).
+
+## Tests and Source Audit
+
+The PowerShell test harness covers software/OpenGL rendering, renderer toggling,
+sprites, wall offsets, moving geometry, sky behavior, wipes, console commands,
+frame pacing, invisibility, HDWAD generation, and multiplayer transport/loopback.
+
+```powershell
+pwsh .\tests\run_tests.ps1 `
+  -Compiler "C:\path\to\MiniLangCompilerPy\mlc_win64.py" `
+  -Std "C:\path\to\MiniLangCompilerPy\std" `
+  -Iwad "C:\Games\DOOM\DOOM2.WAD"
+
+pwsh .\tools\check_source_comments.ps1 -Summary
+```
 
 ## Notes vs Original DOOM
 

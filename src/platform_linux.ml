@@ -102,15 +102,15 @@ extern function waveOutUnprepareHeader(hwo as ptr, pwh as ptr, cbwh as u32) from
 extern function waveOutReset(hwo as ptr) from "libMiniDoomPlatform.so" symbol "MDL_waveOutReset" returns u32
 // Resets and closes MiniDoom's SDL queued-audio device.
 extern function waveOutClose(hwo as ptr) from "libMiniDoomPlatform.so" symbol "MDL_waveOutClose" returns u32
-// Opens the intentionally silent Linux MIDI compatibility endpoint.
+// Opens the SDL2 software synthesizer used by the existing MUS sequencer.
 extern function midiOutOpen(phmo as bytes, dev as u32, cb as ptr, inst as ptr, flags as u32) from "libMiniDoomPlatform.so" symbol "MDL_midiOutOpen" returns u32
-// Accepts a sequencer MIDI message while no Linux synthesizer is configured.
+// Applies a packed MIDI message to the Linux software-synth voices.
 extern function midiOutShortMsg(hmo as ptr, msg as u32) from "libMiniDoomPlatform.so" symbol "MDL_midiOutShortMsg" returns u32
-// Resets the silent Linux MIDI compatibility endpoint.
+// Silences all Linux synth voices and restores channel controller defaults.
 extern function midiOutReset(hmo as ptr) from "libMiniDoomPlatform.so" symbol "MDL_midiOutReset" returns u32
-// Closes the silent Linux MIDI compatibility endpoint.
+// Stops and closes the SDL2 music device.
 extern function midiOutClose(hmo as ptr) from "libMiniDoomPlatform.so" symbol "MDL_midiOutClose" returns u32
-// Records a music-volume update without requiring a system MIDI service.
+// Applies the packed stereo music volume to the software-synth master gain.
 extern function midiOutSetVolume(hmo as ptr, vol as u32) from "libMiniDoomPlatform.so" symbol "MDL_midiOutSetVolume" returns u32
 // Allocates unmanaged storage for the queued-audio buffers and headers.
 extern function GlobalAlloc(flags as u32, size as u32) from "libc.so.6" symbol "malloc" returns ptr

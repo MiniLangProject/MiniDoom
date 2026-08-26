@@ -228,6 +228,7 @@ def _build_linux_helpers(platform_src: Path, gl_helper_src: Path, output_dir: Pa
             "-o",
             platform_so,
             "-ldl",
+            "-lm",
             "-pthread",
         ]
     )

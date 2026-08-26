@@ -14,7 +14,7 @@
   limitations under the License.
 
   Script: i_sound.ml
-  Purpose: Mixes Doom sound effects into WinMM PCM buffers and translates MUS music events to the Windows MIDI device.
+  Purpose: Mixes Doom sound effects into platform PCM buffers and translates MUS music events to the active MIDI backend.
 */
 import doomdef
 import doomstat
@@ -940,7 +940,7 @@ end function
 
 /*
 * Function: _IS_MidiInit
-* Purpose: Opens the Windows MIDI mapper once and stores its pointer-sized output handle.
+* Purpose: Opens the platform MIDI backend once and stores its pointer-sized output handle.
 */
 function inline _IS_MidiInit()
   global _I_midiHandle
@@ -1649,7 +1649,7 @@ end function
 
 /*
 * Function: I_ShutdownMusic
-* Purpose: Stops the active MUS score and resets/closes the Windows MIDI mapper.
+* Purpose: Stops the active MUS score and resets/closes the platform MIDI backend.
 */
 function I_ShutdownMusic()
   _IS_MusicStopInternal(false)

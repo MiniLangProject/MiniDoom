@@ -12,7 +12,9 @@
 #include <dlfcn.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <math.h>
 #include <stdint.h>
+#include <stdatomic.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -22,6 +24,10 @@
 #include <unistd.h>
 
 #define MDL_EXPORT __attribute__((visibility("default")))
+#define MDL_MIDI_RATE 44100
+#define MDL_MIDI_CHANNELS 16
+#define MDL_MIDI_VOICES 48
+#define MDL_MIDI_SINE_SIZE 2048
 
 /* Opaque SDL window type used without requiring development headers. */
 typedef struct SDL_Window SDL_Window;
@@ -37,7 +43,7 @@ typedef struct SDL_AudioSpec {
   uint16_t samples;
   uint16_t padding;
   uint32_t size;
-  void *callback;
+  void (*callback)(void *, uint8_t *, int);
   void *userdata;
 } SDL_AudioSpec;
 
@@ -116,6 +122,7 @@ static void *g_gl;
 static SDL_Window *g_window;
 static SDL_GLContext g_context;
 static SDL_AudioDeviceID g_audio;
+static SDL_AudioDeviceID g_midi_audio;
 static uint8_t g_keys[256];
 static uint8_t g_pressed[256];
 static int g_mouse_x;
@@ -124,6 +131,42 @@ static int g_mouse_buttons;
 static int g_has_focus = 1;
 static uint8_t *g_rgba;
 static size_t g_rgba_capacity;
+
+/* Per-channel controller state consumed by the built-in General MIDI synth. */
+typedef struct MDL_MidiChannel {
+  uint8_t program;
+  uint8_t volume;
+  uint8_t expression;
+  uint8_t pan;
+  uint16_t pitch_bend;
+} MDL_MidiChannel;
+
+/* One active oscillator including its envelope, stereo placement, and age. */
+typedef struct MDL_MidiVoice {
+  int active;
+  int releasing;
+  uint8_t channel;
+  uint8_t note;
+  uint8_t velocity;
+  uint8_t waveform;
+  float phase;
+  float phase_step;
+  float envelope;
+  float attack_step;
+  float decay;
+  float release_decay;
+  uint32_t noise;
+  uint64_t age;
+} MDL_MidiVoice;
+
+static MDL_MidiChannel g_midi_channels[MDL_MIDI_CHANNELS];
+static MDL_MidiVoice g_midi_voices[MDL_MIDI_VOICES];
+static float g_midi_sine[MDL_MIDI_SINE_SIZE];
+static float g_midi_master = 1.0f;
+static uint64_t g_midi_age;
+static int g_midi_tables_ready;
+static int g_midi_started_logged;
+static _Atomic uint32_t g_midi_debug_peak;
 
 /* Marks queued wave headers complete according to SDL's remaining byte count. */
 static void mdl_audio_refresh(void);
@@ -157,6 +200,8 @@ static void (*pSDL_PauseAudioDevice)(SDL_AudioDeviceID, int);
 static int (*pSDL_QueueAudio)(SDL_AudioDeviceID, const void *, uint32_t);
 static uint32_t (*pSDL_GetQueuedAudioSize)(SDL_AudioDeviceID);
 static void (*pSDL_ClearQueuedAudio)(SDL_AudioDeviceID);
+static void (*pSDL_LockAudioDevice)(SDL_AudioDeviceID);
+static void (*pSDL_UnlockAudioDevice)(SDL_AudioDeviceID);
 
 static void (*pglViewport)(int, int, int, int);
 static void (*pglDisable)(uint32_t);
@@ -221,6 +266,8 @@ static int mdl_load_libraries(void) {
   LOAD_SDL(SDL_QueueAudio);
   LOAD_SDL(SDL_GetQueuedAudioSize);
   LOAD_SDL(SDL_ClearQueuedAudio);
+  LOAD_SDL(SDL_LockAudioDevice);
+  LOAD_SDL(SDL_UnlockAudioDevice);
 
   LOAD_GL(glViewport);
   LOAD_GL(glDisable);
@@ -235,6 +282,274 @@ static int mdl_load_libraries(void) {
   return pSDL_Init && pSDL_CreateWindow && pSDL_GL_CreateContext &&
          pSDL_GL_MakeCurrent && pSDL_GL_SwapWindow && pSDL_PollEvent &&
          pglViewport && pglDrawPixels;
+}
+
+/* Initializes the oscillator lookup table and General MIDI controller defaults. */
+static void mdl_midi_initialize_tables(void) {
+  int i;
+  if (!g_midi_tables_ready) {
+    for (i = 0; i < MDL_MIDI_SINE_SIZE; ++i) {
+      g_midi_sine[i] = sinf((float)i * 6.2831853071795864769f / (float)MDL_MIDI_SINE_SIZE);
+    }
+    g_midi_tables_ready = 1;
+  }
+  for (i = 0; i < MDL_MIDI_CHANNELS; ++i) {
+    g_midi_channels[i].program = 0;
+    g_midi_channels[i].volume = 100;
+    g_midi_channels[i].expression = 127;
+    g_midi_channels[i].pan = 64;
+    g_midi_channels[i].pitch_bend = 8192;
+  }
+}
+
+/* Converts a MIDI note and channel bend into cycles per output sample. */
+static float mdl_midi_phase_step(int note, uint16_t pitch_bend) {
+  float bend = ((float)pitch_bend - 8192.0f) * (2.0f / 8192.0f);
+  float semitones = (float)note - 69.0f + bend;
+  float frequency = 440.0f * powf(2.0f, semitones / 12.0f);
+  return frequency / (float)MDL_MIDI_RATE;
+}
+
+/* Chooses a compact oscillator family from a General MIDI program number. */
+static uint8_t mdl_midi_program_waveform(uint8_t program) {
+  if (program < 8) return 0;    /* pianos */
+  if (program < 16) return 1;   /* chromatic percussion */
+  if (program < 24) return 2;   /* organs */
+  if (program < 32) return 1;   /* guitars */
+  if (program < 40) return 2;   /* basses */
+  if (program < 56) return 3;   /* strings and ensembles */
+  if (program < 72) return 3;   /* brass and reeds */
+  if (program < 80) return 0;   /* pipes */
+  if (program < 88) return 2;   /* synth leads */
+  if (program < 104) return 1;  /* pads and effects */
+  return 3;
+}
+
+/* Configures attack and natural decay so instrument families remain distinct. */
+static void mdl_midi_envelope(uint8_t program, float *attack, float *decay) {
+  if (program < 8) {
+    *attack = 1.0f;
+    *decay = 0.999985f;
+  } else if (program < 16 || (program >= 24 && program < 40)) {
+    *attack = 1.0f;
+    *decay = 0.99994f;
+  } else if (program >= 40 && program < 56) {
+    *attack = 0.0025f;
+    *decay = 0.999998f;
+  } else if (program >= 88 && program < 104) {
+    *attack = 0.0015f;
+    *decay = 0.999999f;
+  } else {
+    *attack = 0.015f;
+    *decay = 0.999999f;
+  }
+}
+
+/* Returns an unused voice or steals the quietest/oldest voice under saturation. */
+static MDL_MidiVoice *mdl_midi_allocate_voice(void) {
+  MDL_MidiVoice *best = &g_midi_voices[0];
+  int i;
+  for (i = 0; i < MDL_MIDI_VOICES; ++i) {
+    MDL_MidiVoice *voice = &g_midi_voices[i];
+    if (!voice->active) return voice;
+    if ((voice->releasing && !best->releasing) ||
+        (voice->releasing == best->releasing && voice->envelope < best->envelope) ||
+        (voice->releasing == best->releasing && voice->envelope == best->envelope && voice->age < best->age)) {
+      best = voice;
+    }
+  }
+  return best;
+}
+
+/* Starts one melodic oscillator or a short percussion/noise voice. */
+static void mdl_midi_note_on(int channel, int note, int velocity) {
+  MDL_MidiChannel *state;
+  MDL_MidiVoice *voice;
+  float attack;
+  float decay;
+  if (channel < 0 || channel >= MDL_MIDI_CHANNELS || note < 0 || note > 127 || velocity <= 0) return;
+  state = &g_midi_channels[channel];
+  voice = mdl_midi_allocate_voice();
+  memset(voice, 0, sizeof(*voice));
+  voice->active = 1;
+  voice->channel = (uint8_t)channel;
+  voice->note = (uint8_t)note;
+  voice->velocity = (uint8_t)velocity;
+  voice->phase_step = mdl_midi_phase_step(note, state->pitch_bend);
+  voice->release_decay = 0.99945f;
+  voice->noise = 0x9E3779B9u ^ ((uint32_t)note << 16) ^ (uint32_t)++g_midi_age;
+  voice->age = g_midi_age;
+  if (channel == 9) {
+    voice->waveform = (note == 35 || note == 36) ? 5 : 4;
+    voice->phase_step = mdl_midi_phase_step(note == 35 || note == 36 ? 43 : 72, 8192);
+    voice->envelope = 1.0f;
+    voice->attack_step = 1.0f;
+    voice->decay = (note >= 42 && note <= 46) ? 0.9955f : 0.9982f;
+    voice->release_decay = voice->decay;
+    return;
+  }
+  voice->waveform = mdl_midi_program_waveform(state->program);
+  mdl_midi_envelope(state->program, &attack, &decay);
+  voice->attack_step = attack;
+  voice->decay = decay;
+  voice->envelope = attack >= 1.0f ? 1.0f : 0.0f;
+}
+
+/* Releases every matching note while preserving a short click-free tail. */
+static void mdl_midi_note_off(int channel, int note) {
+  int i;
+  for (i = 0; i < MDL_MIDI_VOICES; ++i) {
+    MDL_MidiVoice *voice = &g_midi_voices[i];
+    if (voice->active && voice->channel == channel && voice->note == note) voice->releasing = 1;
+  }
+}
+
+/* Stops all channel voices either immediately or through their release envelope. */
+static void mdl_midi_all_notes(int channel, int immediate) {
+  int i;
+  for (i = 0; i < MDL_MIDI_VOICES; ++i) {
+    MDL_MidiVoice *voice = &g_midi_voices[i];
+    if (!voice->active || (channel >= 0 && voice->channel != channel)) continue;
+    if (immediate) voice->active = 0;
+    else voice->releasing = 1;
+  }
+}
+
+/* Resets voices and controllers while retaining the current master volume. */
+static void mdl_midi_reset_unlocked(void) {
+  memset(g_midi_voices, 0, sizeof(g_midi_voices));
+  mdl_midi_initialize_tables();
+  g_midi_age = 0;
+}
+
+/* Evaluates one oscillator sample using table-based sine and cheap harmonics. */
+static float mdl_midi_voice_sample(MDL_MidiVoice *voice) {
+  float sine;
+  float sample;
+  int index;
+  voice->phase += voice->phase_step;
+  if (voice->phase >= 1.0f) voice->phase -= (float)(int)voice->phase;
+  index = (int)(voice->phase * (float)MDL_MIDI_SINE_SIZE) & (MDL_MIDI_SINE_SIZE - 1);
+  sine = g_midi_sine[index];
+  switch (voice->waveform) {
+    case 1: {
+      float triangle = 1.0f - 4.0f * fabsf(voice->phase - 0.5f);
+      sample = triangle * 0.65f + sine * 0.35f;
+      break;
+    }
+    case 2:
+      sample = (voice->phase < 0.5f ? 0.55f : -0.55f) + sine * 0.45f;
+      break;
+    case 3:
+      sample = (voice->phase * 2.0f - 1.0f) * 0.45f + sine * 0.55f;
+      break;
+    case 4:
+      voice->noise = voice->noise * 1664525u + 1013904223u;
+      sample = ((float)((voice->noise >> 8) & 0xFFFFu) / 32767.5f) - 1.0f;
+      if (voice->note == 38 || voice->note == 40) sample = sample * 0.78f + sine * 0.22f;
+      break;
+    case 5:
+      sample = sine;
+      voice->phase_step *= 0.99992f;
+      break;
+    default:
+      sample = sine;
+      break;
+  }
+  return sample;
+}
+
+/* Renders interleaved signed-16 stereo music for SDL's audio callback thread. */
+static void mdl_midi_audio_callback(void *userdata, uint8_t *stream, int length) {
+  int16_t *output = (int16_t *)stream;
+  int frames = length / 4;
+  int frame;
+  (void)userdata;
+  memset(stream, 0, (size_t)length);
+  for (frame = 0; frame < frames; ++frame) {
+    float left = 0.0f;
+    float right = 0.0f;
+    int i;
+    for (i = 0; i < MDL_MIDI_VOICES; ++i) {
+      MDL_MidiVoice *voice = &g_midi_voices[i];
+      MDL_MidiChannel *channel;
+      float sample;
+      float gain;
+      float pan;
+      if (!voice->active) continue;
+      channel = &g_midi_channels[voice->channel];
+      if (voice->envelope < 1.0f) {
+        voice->envelope += voice->attack_step;
+        if (voice->envelope > 1.0f) voice->envelope = 1.0f;
+      }
+      voice->envelope *= voice->releasing ? voice->release_decay : voice->decay;
+      if (voice->envelope < 0.0005f) {
+        voice->active = 0;
+        continue;
+      }
+      sample = mdl_midi_voice_sample(voice);
+      gain = voice->envelope * ((float)voice->velocity / 127.0f) *
+             ((float)channel->volume / 127.0f) * ((float)channel->expression / 127.0f) *
+             g_midi_master * 0.16f;
+      pan = (float)channel->pan / 127.0f;
+      left += sample * gain * (1.0f - pan);
+      right += sample * gain * pan;
+    }
+    if (left > 1.0f) left = 1.0f;
+    if (left < -1.0f) left = -1.0f;
+    if (right > 1.0f) right = 1.0f;
+    if (right < -1.0f) right = -1.0f;
+    output[frame * 2] = (int16_t)(left * 32767.0f);
+    output[frame * 2 + 1] = (int16_t)(right * 32767.0f);
+    {
+      uint32_t peak = (uint32_t)(fabsf(left) > fabsf(right) ? fabsf(left) * 32767.0f : fabsf(right) * 32767.0f);
+      uint32_t old = atomic_load_explicit(&g_midi_debug_peak, memory_order_relaxed);
+      while (peak > old && !atomic_compare_exchange_weak_explicit(
+               &g_midi_debug_peak, &old, peak, memory_order_relaxed, memory_order_relaxed)) {}
+    }
+  }
+}
+
+/* Applies a packed MIDI message to the software-synth channel and voice state. */
+static void mdl_midi_dispatch(uint32_t message) {
+  int status = message & 0xFF;
+  int command = status & 0xF0;
+  int channel = status & 0x0F;
+  int data1 = (message >> 8) & 0x7F;
+  int data2 = (message >> 16) & 0x7F;
+  MDL_MidiChannel *state = &g_midi_channels[channel];
+  int i;
+  if (command == 0x80 || (command == 0x90 && data2 == 0)) {
+    mdl_midi_note_off(channel, data1);
+  } else if (command == 0x90) {
+    if (!g_midi_started_logged) {
+      fprintf(stderr, "MiniDoom Linux: MUS playback started\n");
+      g_midi_started_logged = 1;
+    }
+    mdl_midi_note_on(channel, data1, data2);
+  } else if (command == 0xB0) {
+    if (data1 == 7) state->volume = (uint8_t)data2;
+    else if (data1 == 10) state->pan = (uint8_t)data2;
+    else if (data1 == 11) state->expression = (uint8_t)data2;
+    else if (data1 == 120) mdl_midi_all_notes(channel, 1);
+    else if (data1 == 123) mdl_midi_all_notes(channel, 0);
+    else if (data1 == 121) {
+      state->volume = 100;
+      state->expression = 127;
+      state->pan = 64;
+      state->pitch_bend = 8192;
+    }
+  } else if (command == 0xC0) {
+    state->program = (uint8_t)data1;
+  } else if (command == 0xE0) {
+    state->pitch_bend = (uint16_t)(data1 | (data2 << 7));
+    for (i = 0; i < MDL_MIDI_VOICES; ++i) {
+      MDL_MidiVoice *voice = &g_midi_voices[i];
+      if (voice->active && voice->channel == channel && channel != 9) {
+        voice->phase_step = mdl_midi_phase_step(voice->note, state->pitch_bend);
+      }
+    }
+  }
 }
 
 /* Writes a native little-endian signed field into a MiniLang record buffer. */
@@ -442,6 +757,8 @@ MDL_EXPORT int MDL_ValidateRect(void *hwnd, void *rect) { (void)hwnd; (void)rect
 /* Releases every SDL, OpenGL, audio, and conversion resource owned by the window. */
 MDL_EXPORT int MDL_DestroyWindow(void *hwnd) {
   (void)hwnd;
+  if (g_midi_audio && pSDL_CloseAudioDevice) pSDL_CloseAudioDevice(g_midi_audio);
+  g_midi_audio = 0;
   if (g_audio && pSDL_CloseAudioDevice) pSDL_CloseAudioDevice(g_audio);
   g_audio = 0;
   if (g_context && pSDL_GL_DeleteContext) pSDL_GL_DeleteContext(g_context);
@@ -821,19 +1138,87 @@ MDL_EXPORT uint32_t MDL_waveOutClose(void *handle) {
   return 0;
 }
 
-/* Doom's MUS sequencer remains active, but this first Linux backend has no
-   system-wide MIDI synthesizer dependency. Calls intentionally succeed. */
-/* Opens a successful but silent MIDI endpoint until a synthesizer is provided. */
+/* Opens the built-in SDL software synthesizer used by Doom's MUS sequencer. */
 MDL_EXPORT uint32_t MDL_midiOutOpen(void *handle_output, uint32_t device, void *callback, void *instance, uint32_t flags) {
+  SDL_AudioSpec wanted;
   (void)device; (void)callback; (void)instance; (void)flags;
-  if (handle_output) mdl_write_u64(handle_output, 0, 1);
+  if (!handle_output || !mdl_load_libraries() || !pSDL_OpenAudioDevice ||
+      !pSDL_PauseAudioDevice || !pSDL_LockAudioDevice || !pSDL_UnlockAudioDevice) return 1;
+  if (g_midi_audio) {
+    mdl_write_u64(handle_output, 0, g_midi_audio);
+    return 0;
+  }
+  if (pSDL_Init(SDL_INIT_TIMER | SDL_INIT_AUDIO) != 0) {
+    fprintf(stderr, "MiniDoom Linux: SDL MIDI audio init failed: %s\n",
+            pSDL_GetError ? pSDL_GetError() : "unknown");
+    return 1;
+  }
+  memset(&wanted, 0, sizeof(wanted));
+  wanted.freq = MDL_MIDI_RATE;
+  wanted.format = AUDIO_S16LSB;
+  wanted.channels = 2;
+  wanted.samples = 512;
+  wanted.callback = mdl_midi_audio_callback;
+  mdl_midi_initialize_tables();
+  mdl_midi_reset_unlocked();
+  g_midi_started_logged = 0;
+  atomic_store_explicit(&g_midi_debug_peak, 0, memory_order_relaxed);
+  g_midi_audio = pSDL_OpenAudioDevice(NULL, 0, &wanted, NULL, 0);
+  if (!g_midi_audio) {
+    fprintf(stderr, "MiniDoom Linux: SDL software MIDI synth failed: %s\n",
+            pSDL_GetError ? pSDL_GetError() : "unknown");
+    return 1;
+  }
+  mdl_write_u64(handle_output, 0, g_midi_audio);
+  pSDL_PauseAudioDevice(g_midi_audio, 0);
+  fprintf(stderr, "MiniDoom Linux: SDL software MIDI synthesizer enabled\n");
   return 0;
 }
-/* Accepts one sequencer message without requiring a system MIDI service. */
-MDL_EXPORT uint32_t MDL_midiOutShortMsg(void *handle, uint32_t message) { (void)handle; (void)message; return 0; }
-/* Resets the silent MIDI compatibility endpoint. */
-MDL_EXPORT uint32_t MDL_midiOutReset(void *handle) { (void)handle; return 0; }
-/* Closes the silent MIDI compatibility endpoint. */
-MDL_EXPORT uint32_t MDL_midiOutClose(void *handle) { (void)handle; return 0; }
-/* Records a successful music-volume update for the silent endpoint. */
-MDL_EXPORT uint32_t MDL_midiOutSetVolume(void *handle, uint32_t volume) { (void)handle; (void)volume; return 0; }
+
+/* Applies one packed General MIDI message while the SDL callback is locked. */
+MDL_EXPORT uint32_t MDL_midiOutShortMsg(void *handle, uint32_t message) {
+  (void)handle;
+  if (!g_midi_audio) return 1;
+  pSDL_LockAudioDevice(g_midi_audio);
+  mdl_midi_dispatch(message);
+  pSDL_UnlockAudioDevice(g_midi_audio);
+  return 0;
+}
+
+/* Silences every voice and restores General MIDI controller defaults. */
+MDL_EXPORT uint32_t MDL_midiOutReset(void *handle) {
+  (void)handle;
+  if (!g_midi_audio) return 0;
+  pSDL_LockAudioDevice(g_midi_audio);
+  mdl_midi_reset_unlocked();
+  pSDL_UnlockAudioDevice(g_midi_audio);
+  return 0;
+}
+
+/* Stops and closes the SDL music device owned by the software synthesizer. */
+MDL_EXPORT uint32_t MDL_midiOutClose(void *handle) {
+  (void)handle;
+  if (!g_midi_audio) return 0;
+  pSDL_PauseAudioDevice(g_midi_audio, 1);
+  pSDL_CloseAudioDevice(g_midi_audio);
+  g_midi_audio = 0;
+  memset(g_midi_voices, 0, sizeof(g_midi_voices));
+  return 0;
+}
+
+/* Converts WinMM's packed stereo volume into the software synth master gain. */
+MDL_EXPORT uint32_t MDL_midiOutSetVolume(void *handle, uint32_t volume) {
+  uint32_t left = volume & 0xFFFFu;
+  uint32_t right = (volume >> 16) & 0xFFFFu;
+  (void)handle;
+  if (!g_midi_audio) return 0;
+  pSDL_LockAudioDevice(g_midi_audio);
+  g_midi_master = ((float)left + (float)right) / 131070.0f;
+  pSDL_UnlockAudioDevice(g_midi_audio);
+  return 0;
+}
+
+/* Returns the largest synthesized sample magnitude for native regression tests. */
+MDL_EXPORT uint32_t MDL_MidiDebugPeak(void) {
+  return atomic_load_explicit(&g_midi_debug_peak, memory_order_relaxed);
+}
