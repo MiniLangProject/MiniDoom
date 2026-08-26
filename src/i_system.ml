@@ -14,7 +14,7 @@
   limitations under the License.
 
   Script: i_system.ml
-  Purpose: Supplies Win32 timing, sleep, shutdown, fatal-error, low-memory allocation, and base command services to the engine.
+  Purpose: Supplies portable timing, sleep, shutdown, fatal-error, low-memory allocation, and base command services to the engine.
 */
 import d_ticcmd
 import d_event
@@ -27,6 +27,9 @@ import g_game
 import i_system
 import mp_platform
 import std.math
+#if TARGET_OS == "linux"
+import platform_linux
+#endif
 
 const _ISYS_MB_OK = 0x00000000
 const _ISYS_MB_ICONERROR = 0x00000010
@@ -276,6 +279,7 @@ end function
 function I_EndRead()
 end function
 
+#if TARGET_OS == "windows"
 /*
  * Function: GetTickCount
  *
@@ -299,6 +303,7 @@ extern function Sleep(ms as int) from "kernel32.dll" returns int
  */
 
 extern function ExitProcess(code as int) from "kernel32.dll" returns int
+#endif
 
 _I_basetime = 0
 _I_emptycmd = void

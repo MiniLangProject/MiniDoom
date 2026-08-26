@@ -14,14 +14,18 @@
   limitations under the License.
 
   Script: i_main.ml
-  Purpose: Normalizes process arguments and working directory, starts Doom, and reports uncaught startup failures through Win32.
+  Purpose: Normalizes process arguments, starts Doom, and reports uncaught startup failures through the active platform UI.
 */
 import doomdef
 import m_argv
 import d_main
 import std.fs as fs
 import std.math
+#if TARGET_OS == "linux"
+import platform_linux
+#endif
 
+#if TARGET_OS == "windows"
 /*
  * Function: MessageBoxW
  *
@@ -29,6 +33,7 @@ import std.math
  */
 
 extern function MessageBoxW(hwnd as ptr, text as wstr, caption as wstr, flags as u32) from "user32.dll" symbol "MessageBoxW" returns int
+#endif
 
 const _IMAIN_MB_OK = 0x00000000
 const _IMAIN_MB_ICONERROR = 0x00000010

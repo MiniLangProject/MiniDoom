@@ -1,7 +1,7 @@
 # MiniDoom
 <img src="./icons/MiniDoom.png" width="125" align="left"/>
 
-MiniDoom is a full MiniLang port of the original DOOM engine codebase, focused on gameplay parity, classic behavior, and native Windows execution.
+MiniDoom is a full MiniLang port of the original DOOM engine codebase, focused on gameplay parity, classic behavior, and native Windows/Linux x64 execution.
 
 This project keeps the original DOOM architecture and module split concept, but translates the implementation to MiniLang (`.ml`) with platform-specific runtime bindings where needed (video, audio, input, window handling).
 <br clear="right" />
@@ -141,15 +141,15 @@ Regenerate the gallery from local IWADs with:
 - Port original DOOM engine logic to MiniLang as faithfully as possible.
 - Preserve classic gameplay behavior (movement, combat, AI, doors/switches/triggers, HUD/menu flow).
 - Keep rendering semantics close to the original pipeline (BSP, walls, visplanes, sprites, clipping).
-- Run as a native Windows executable (`MiniDoom.exe`) built with the MiniLang compiler.
+- Run as a native Windows x64 executable or Linux x64 ELF built with the MiniLang compiler.
 
 ## How This Port Was Built
 
 - The original C/H codebase was mapped module-by-module to MiniLang.
 - In most cases, one gameplay/render/system C module is represented by one MiniLang file.
 - Data structures (`struct`, enums, tables, globals) were ported explicitly.
-- Win32-facing parts (graphics/audio/system) are implemented via native bindings used by MiniLang.
-- The build flow is automated with a Python script that also handles EXE icon injection.
+- Platform services use Win32 on Windows and a compact SDL2/OpenGL bridge on Linux.
+- The Python build flow selects the correct native helpers and handles Windows EXE icon injection.
 
 ## Repository Structure
 
@@ -161,17 +161,21 @@ MiniDoom/
   tools/
     capture_readme_gallery.ps1 # Regenerates the README screenshot gallery
     exe_icon_injector.ml     # MiniLang tool: injects .ico into Windows .exe resources
-  build.py                   # Main build script (builds tool + MiniDoom + icon injection)
+    minidoom_gl_helper.c     # Cross-platform accelerated rendering helper
+    minidoom_linux_platform.c # Linux SDL2 window/input/audio bridge
+  build.py                   # Windows/Linux native build orchestrator
   LICENSE
   README.md
 ```
 
 ## Prerequisites
 
-- Windows (x64)
+- Windows x64 or Linux x64
 - Python 3.10+ (recommended: 3.11+)
 - MiniLang compiler (Python implementation):  
   [MiniLangCompilerPy](https://github.com/MiniLangProject/MiniLangCompilerPy)
+- Compiler version 1.1.0 or newer with `--target linux-x64` support for Linux builds
+- Linux builds: GCC, the SDL2 runtime (`libSDL2-2.0.so.0`), and OpenGL (`libGL.so.1`)
 - A DOOM IWAD file (for example `DOOM.WAD`, `DOOM1.WAD`, `DOOM2.WAD`) for runtime testing
 
 Note: IWAD files are not shipped with this repository.
@@ -180,36 +184,80 @@ Note: IWAD files are not shipped with this repository.
 
 Use `build.py` from this repository root.
 
-### Example
+### Windows x64
 
 ```powershell
 python .\build.py `
   --compiler "C:\path\to\MiniLangCompilerPy\mlc_win64.py" `
-  --std "C:\path\to\MiniLangCompilerPy\std"
+  --std "C:\path\to\MiniLangCompilerPy\std" `
+  --target windows-x64
 ```
 
 What this does:
 
-1. Compiles `tools/exe_icon_injector.ml` to `build/tools/exe_icon_injector.exe`
-2. Compiles `tools/wad_upscale.ml` to `build/tools/wad_upscale.exe`
+1. Builds `MiniDoomGL.dll`
+2. Compiles `tools/exe_icon_injector.ml`
 3. Compiles `src/i_main.ml` to `build/MiniDoom.exe`
-4. Injects `icons/MiniDoom.ico` into `build/MiniDoom.exe`
+4. Injects `icons/MiniDoom.ico` into the executable
 
 Final output:
 
 ```text
 build/MiniDoom.exe
-build/tools/wad_upscale.exe
+build/MiniDoomGL.dll
 ```
+
+### Linux x64
+
+On Linux, install GCC plus the SDL2 and OpenGL runtime libraries, then run:
+
+```bash
+sudo apt install gcc libsdl2-2.0-0 libgl1
+```
+
+```bash
+python3 ./build.py \
+  --compiler /path/to/MiniLangCompilerPy/mlc_win64.py \
+  --std /path/to/MiniLangCompilerPy/std \
+  --target linux-x64 \
+  --clean
+```
+
+The same Linux build can be cross-built from Windows when WSL with GCC is
+available:
+
+```powershell
+python .\build.py `
+  --compiler "C:\path\to\MiniLangCompilerPy\mlc_win64.py" `
+  --std "C:\path\to\MiniLangCompilerPy\std" `
+  --target linux-x64 `
+  --clean
+```
+
+Linux output is placed in `build/linux/`:
+
+```text
+build/linux/MiniDoom
+build/linux/run-minidoom
+build/linux/libMiniDoomPlatform.so
+build/linux/libMiniDoomGL.so
+```
+
+Use `run-minidoom`; it sets the local shared-library search path before
+starting the ELF. Both the classic and OpenGL renderers, keyboard/mouse input,
+SDL2 sound effects, screenshots, saves, and UDP multiplayer use native Linux
+services. The Linux bridge currently has no built-in MIDI synthesizer, so MUS
+sequencing is silent unless a Linux music provider is added later.
 
 ### Useful Build Options
 
 - `--output-dir <path>`: change output directory
+- `--target windows-x64|linux-x64`: choose PE or ELF output
 - `--skip-icon`: build without icon injection
 - `--clean`: remove output directory before build
 - `--icon <path.ico>`: use a custom icon file
 - `--icon-group <id>` / `--icon-lang <id>`: resource ids for icon injection
-- `--skip-upscale-tool`: build without `tools/wad_upscale.ml`
+- `--skip-gl-helper`: reuse an existing Windows `MiniDoomGL.dll` without rebuilding it (Linux always builds its helpers)
 
 ## Build MiniDoom Manually (Without build.py)
 
@@ -221,6 +269,7 @@ python C:\path\to\mlc_win64.py `
   .\MiniDoom.exe `
   -I .\src `
   -I C:\path\to\MiniLangCompilerPy `
+  --target windows-x64 `
   --subsystem windows
 ```
 
@@ -232,6 +281,7 @@ python C:\path\to\mlc_win64.py `
   .\exe_icon_injector.exe `
   -I .\src `
   -I C:\path\to\MiniLangCompilerPy `
+  --target windows-x64 `
   --subsystem console
 
 .\exe_icon_injector.exe .\MiniDoom.exe .\icons\MiniDoom.ico
@@ -243,6 +293,12 @@ Example run:
 
 ```powershell
 .\build\MiniDoom.exe -iwad "C:\Games\DOOM\DOOM2.WAD"
+```
+
+Linux:
+
+```bash
+./build/linux/run-minidoom -iwad "$HOME/games/doom/DOOM2.WAD"
 ```
 
 If no `-iwad` is provided, the engine uses its internal IWAD search order and loads the first matching file it finds.
@@ -425,7 +481,7 @@ Player names accept ASCII letters, digits, spaces, hyphens, and underscores. Lea
 ## Notes vs Original DOOM
 
 - Core engine behavior targets original DOOM parity while using MiniLang runtime semantics.
-- Platform layer is adapted for modern Windows execution.
+- Platform services are adapted to native Win32 and Linux SDL2/OpenGL execution.
 - Build and tooling are modernized (single Python build script + MiniLang resource tool).
 
 ## License

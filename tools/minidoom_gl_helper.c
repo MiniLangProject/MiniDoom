@@ -14,12 +14,54 @@
   limitations under the License.
 
   Script: minidoom_gl_helper.c
-  Purpose: Bridges MiniLang to performance-critical WGL timing, software rasterization, VBO submission, sprite batching, dynamic-light, and indexed-overlay operations.
+  Purpose: Bridges MiniLang to performance-critical OpenGL timing, software rasterization, VBO submission, sprite batching, dynamic-light, and indexed-overlay operations on Windows and Linux.
 */
 
+#ifdef _WIN32
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 #include <GL/gl.h>
+#else
+#include <dlfcn.h>
+#include <sched.h>
+#include <time.h>
+#include <unistd.h>
+
+#define __declspec(value) __attribute__((visibility("default")))
+#define __stdcall
+#define APIENTRY
+#define WINAPI
+#define BOOL int
+#define TRUE 1
+#define FALSE 0
+typedef void *PROC;
+typedef unsigned int GLenum;
+typedef unsigned int GLuint;
+typedef int GLint;
+typedef int GLsizei;
+typedef unsigned char GLboolean;
+typedef unsigned char GLubyte;
+typedef float GLfloat;
+typedef double GLdouble;
+
+extern void glAlphaFunc(GLenum function, GLdouble reference);
+extern void glBegin(GLenum mode);
+extern void glBindTexture(GLenum target, GLuint texture);
+extern void glBlendFunc(GLenum source, GLenum destination);
+extern void glColor4ub(unsigned char red, unsigned char green, unsigned char blue, unsigned char alpha);
+extern void glColorPointer(GLint size, GLenum type, GLsizei stride, const void *pointer);
+extern void glDepthFunc(GLenum function);
+extern void glDepthMask(GLboolean flag);
+extern void glDisable(GLenum capability);
+extern void glDrawArrays(GLenum mode, GLint first, GLsizei count);
+extern void glEnable(GLenum capability);
+extern void glEnd(void);
+extern void glTexCoord2d(GLdouble s, GLdouble t);
+extern void glTexCoordPointer(GLint size, GLenum type, GLsizei stride, const void *pointer);
+extern void glTexImage2D(GLenum target, GLint level, GLint internalFormat, GLsizei width, GLsizei height, GLint border, GLenum format, GLenum type, const void *pixels);
+extern void glVertex3d(GLdouble x, GLdouble y, GLdouble z);
+extern void glVertexPointer(GLint size, GLenum type, GLsizei stride, const void *pointer);
+#endif
 #include <limits.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -47,6 +89,50 @@
 #define GL_TEXTURE_2D 0x0DE1
 #endif
 
+#ifndef GL_FLOAT
+#define GL_FLOAT 0x1406
+#endif
+
+#ifndef GL_INT
+#define GL_INT 0x1404
+#endif
+
+#ifndef GL_UNSIGNED_BYTE
+#define GL_UNSIGNED_BYTE 0x1401
+#endif
+
+#ifndef GL_RGBA
+#define GL_RGBA 0x1908
+#endif
+
+#ifndef GL_TRIANGLES
+#define GL_TRIANGLES 0x0004
+#endif
+
+#ifndef GL_QUADS
+#define GL_QUADS 0x0007
+#endif
+
+#ifndef GL_ONE
+#define GL_ONE 1
+#endif
+
+#ifndef GL_LESS
+#define GL_LESS 0x0201
+#endif
+
+#ifndef GL_LEQUAL
+#define GL_LEQUAL 0x0203
+#endif
+
+#ifndef GL_SRC_ALPHA
+#define GL_SRC_ALPHA 0x0302
+#endif
+
+#ifndef GL_ONE_MINUS_SRC_ALPHA
+#define GL_ONE_MINUS_SRC_ALPHA 0x0303
+#endif
+
 #ifndef CREATE_WAITABLE_TIMER_HIGH_RESOLUTION
 #define CREATE_WAITABLE_TIMER_HIGH_RESOLUTION 0x00000002
 #endif
@@ -58,7 +144,9 @@ typedef void (APIENTRY *PFNGLGENBUFFERSPROC)(GLsizei n, GLuint *buffers);
 typedef void (APIENTRY *PFNGLBINDBUFFERPROC)(GLenum target, GLuint buffer);
 typedef void (APIENTRY *PFNGLBUFFERDATAPROC)(GLenum target, GLsizeiptr size, const void *data, GLenum usage);
 typedef void (APIENTRY *PFNGLDELETEBUFFERSPROC)(GLsizei n, const GLuint *buffers);
+#ifdef _WIN32
 typedef BOOL (WINAPI *PFNWGLSWAPINTERVALEXTPROC)(int interval);
+#endif
 
 static PFNGLGENBUFFERSPROC pglGenBuffers = NULL;
 static PFNGLBINDBUFFERPROC pglBindBuffer = NULL;
@@ -70,17 +158,20 @@ static int g_lastDrawnBatches = 0;
 static int g_lastDrawnVertices = 0;
 static unsigned char *g_overlayRgba = NULL;
 static int g_overlayRgbaBytes = 0;
+static int64_t g_framePaceLastUs = 0;
+#ifdef _WIN32
 static LARGE_INTEGER g_qpcFrequency;
 static int g_qpcReady = 0;
-static int64_t g_framePaceLastUs = 0;
 /* Kept for the DLL lifetime to avoid creating a kernel object every frame. */
 static HANDLE g_framePaceTimer = NULL;
+#endif
 
 /*
  * Function: mgl_time_microseconds
  * Purpose: Reads a monotonic microsecond clock from QPC, falling back to GetTickCount64 when high-resolution timing is unavailable.
  */
 static int64_t mgl_time_microseconds(void) {
+#ifdef _WIN32
   LARGE_INTEGER now;
   if (!g_qpcReady) {
     if (!QueryPerformanceFrequency(&g_qpcFrequency) || g_qpcFrequency.QuadPart <= 0) {
@@ -93,6 +184,11 @@ static int64_t mgl_time_microseconds(void) {
   return (int64_t)((now.QuadPart / g_qpcFrequency.QuadPart) * 1000000 +
                    ((now.QuadPart % g_qpcFrequency.QuadPart) * 1000000) /
                        g_qpcFrequency.QuadPart);
+#else
+  struct timespec now;
+  clock_gettime(CLOCK_MONOTONIC, &now);
+  return (int64_t)now.tv_sec * 1000000 + now.tv_nsec / 1000;
+#endif
 }
 
 /*
@@ -135,6 +231,7 @@ __declspec(dllexport) void __stdcall MGL_FramePace(int targetFps, int leadUs) {
   due = g_framePaceLastUs + frameUs - leadUs;
   remaining = due - now;
   if (remaining > 2000) {
+#ifdef _WIN32
     LARGE_INTEGER waitDue;
     int64_t waitUs = remaining - 500;
     if (g_framePaceTimer == NULL) {
@@ -151,11 +248,22 @@ __declspec(dllexport) void __stdcall MGL_FramePace(int targetFps, int leadUs) {
       /* Last-resort path for systems without a usable waitable timer. */
       Sleep((DWORD)((remaining - 1000) / 1000));
     }
+#else
+    struct timespec requested;
+    int64_t waitUs = remaining - 500;
+    requested.tv_sec = waitUs / 1000000;
+    requested.tv_nsec = (long)(waitUs % 1000000) * 1000L;
+    nanosleep(&requested, NULL);
+#endif
   }
   do {
     now = mgl_time_microseconds();
     if (now < due) {
+#ifdef _WIN32
       SwitchToThread();
+#else
+      sched_yield();
+#endif
     }
   } while (now < due);
 
@@ -360,6 +468,7 @@ __declspec(dllexport) BOOL __stdcall MGL_ExpandIndexed8(
  * Purpose: Resolves an OpenGL extension entry point through WGL and falls back to opengl32 exports while rejecting WGL's sentinel failure values.
  */
 static PROC mgl_load_proc(const char *name) {
+#ifdef _WIN32
   PROC p = wglGetProcAddress(name);
   if (p == NULL || p == (PROC)1 || p == (PROC)2 || p == (PROC)3 || p == (PROC)-1) {
     HMODULE ogl = GetModuleHandleA("opengl32.dll");
@@ -368,6 +477,9 @@ static PROC mgl_load_proc(const char *name) {
     }
   }
   return p;
+#else
+  return dlsym(RTLD_DEFAULT, name);
+#endif
 }
 
 /*
@@ -394,12 +506,17 @@ __declspec(dllexport) BOOL __stdcall MGL_InitVBO(void) {
  * Purpose: Requests the WGL swap interval for the current context and reports failure when the extension is absent or rejects the value.
  */
 __declspec(dllexport) BOOL __stdcall MGL_SetSwapInterval(int interval) {
+#ifdef _WIN32
   PFNWGLSWAPINTERVALEXTPROC pSwapInterval =
       (PFNWGLSWAPINTERVALEXTPROC)mgl_load_proc("wglSwapIntervalEXT");
   if (pSwapInterval == NULL) {
     return FALSE;
   }
   return pSwapInterval(interval);
+#else
+  (void)interval;
+  return FALSE;
+#endif
 }
 
 /*

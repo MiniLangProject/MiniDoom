@@ -20,6 +20,9 @@ import m_argv
 import doomdef
 import r_renderer
 import std.math
+#if TARGET_OS == "linux"
+import platform_linux
+#endif
 
 const IGL_PFD_DRAW_TO_WINDOW = 0x00000004
 const IGL_PFD_SUPPORT_OPENGL = 0x00000020
@@ -68,6 +71,7 @@ const GL_REPEAT = 0x2901
 const GL_UNPACK_ALIGNMENT = 0x0CF5
 const GL_PACK_ALIGNMENT = 0x0D05
 
+#if TARGET_OS == "windows"
 /*
  * Function: ChoosePixelFormat
  *
@@ -568,6 +572,7 @@ extern function glReadPixels(x as int, y as int, width as int, height as int, fo
  */
 
 extern function glReadBuffer(mode as u32) from "opengl32.dll" symbol "glReadBuffer" returns void
+#endif
 
 igl_enabled = false
 igl_active = false
@@ -807,7 +812,11 @@ function IGL_Init(hwnd, hdc, width, height)
   glDisable(GL_CULL_FACE)
   glPixelStorei(GL_UNPACK_ALIGNMENT, 1)
   IGL_ConfigureFramePacing()
+#if TARGET_OS == "linux"
+  print "OpenGL: SDL2 backend enabled (" + igl_width + "x" + igl_height + ")"
+#else
   print "OpenGL: WGL backend enabled (" + igl_width + "x" + igl_height + ")"
+#endif
   return true
 end function
 

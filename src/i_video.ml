@@ -30,6 +30,9 @@ import i_gl
 import std.time
 import std.fs as fs
 import std.math
+#if TARGET_OS == "linux"
+import platform_linux
+#endif
 
 const _I_BI_RGB = 0
 const _I_DIB_RGB_COLORS = 0
@@ -64,8 +67,9 @@ const _I_SWP_FRAMECHANGED = 0x0020
 const _I_SWP_SHOWWINDOW = 0x0040
 const _I_GWL_STYLE = -16
 
+#if TARGET_OS == "windows"
 /*
-* Function: CreateWindowExW
+ * Function: CreateWindowExW
 * Purpose: Creates the native game window with the requested client style, placement, and dimensions.
 */
 extern function CreateWindowExW(exStyle as u32, className as wstr, windowName as wstr, style as u32, x as int, y as int, width as int, height as int, parent as ptr, menu as ptr, instance as ptr, param as ptr) from "user32.dll" symbol "CreateWindowExW" returns ptr
@@ -287,6 +291,7 @@ extern function CreateDirectoryW(path as wstr, security as ptr) from "kernel32.d
  */
 
 extern function GetConsoleWindow() from "kernel32.dll" symbol "GetConsoleWindow" returns ptr
+#endif
 
 _i_inited = false
 _i_hwnd = void

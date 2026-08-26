@@ -27,7 +27,11 @@ import m_misc
 import w_wad
 import doomdef
 import std.math
+#if TARGET_OS == "linux"
+import platform_linux
+#endif
 
+#if TARGET_OS == "windows"
 /*
  * Function: waveOutOpen
  *
@@ -143,6 +147,7 @@ extern function RtlMoveMemoryToPtr(dst as ptr, src as bytes, len as u32) from "k
 * Purpose: Copies an unmanaged WAVEHDR record into managed bytes for flag inspection.
 */
 extern function RtlMoveMemoryFromPtr(dst as bytes, src as ptr, len as u32) from "kernel32.dll" symbol "RtlMoveMemory" returns void
+#endif
 
 const _IS_MIX_RATE = 11025
 const _IS_MIX_SAMPLES = 512
@@ -659,6 +664,7 @@ end function
 * Purpose: Marks every software SFX channel inactive without disturbing music playback.
 */
 function inline _IS_StopAllSfx()
+  if not _IS_IsSeq(_I_chActive) or len(_I_chActive) < _IS_NUM_MIX_CHANNELS then return end if
   i = 0
   while i < _IS_NUM_MIX_CHANNELS
     _I_chActive[i] = 0

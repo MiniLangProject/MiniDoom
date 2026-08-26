@@ -24,6 +24,9 @@ import std.time as time
 import std.string as str
 import std.math
 import std.fs as fs
+#if TARGET_OS == "linux"
+import platform_linux
+#endif
 
 _mp_platform_last_error = ""
 _mp_platform_last_status = ""
@@ -49,8 +52,13 @@ const _MPPLAT_RECV_MAX = 1400
 const _MPPLAT_GAME_PAYLOAD_MAX = 1391
 const _MPPLAT_CONTROL_MAX = 512
 const _MPPLAT_TIMEOUT_MS = 2500
+#if TARGET_OS == "windows"
 const _MPPLAT_WOULDBLOCK = 10035
 const _MPPLAT_TIMEDOUT = 10060
+#else
+const _MPPLAT_WOULDBLOCK = 11
+const _MPPLAT_TIMEDOUT = 110
+#endif
 const _MPPLAT_HOST_PEER_TIMEOUT_MS = 30000
 const _MPPLAT_CLIENT_HOST_TIMEOUT_MS = 10000
 const _MPPLAT_CLIENT_PING_INTERVAL_MS = 1000
@@ -169,8 +177,9 @@ _mp_game_queue_head = 0
 _mp_game_queue_tail = 0
 _mp_game_queue_dropped = 0
 
+#if TARGET_OS == "windows"
 /*
-* Function: ioctlsocket
+ * Function: ioctlsocket
 * Purpose: Toggles socket mode (blocking/non-blocking) for UDP polling.
 */
 extern function ioctlsocket(s as ptr, cmd as i32, argp as bytes) from "ws2_32.dll" returns int
@@ -181,6 +190,7 @@ extern function ioctlsocket(s as ptr, cmd as i32, argp as bytes) from "ws2_32.dl
  */
 
 extern function setsockopt(s as ptr, level as int, optname as int, optval as bytes, optlen as int) from "ws2_32.dll" symbol "setsockopt" returns int
+#endif
 /*
 * Function: _MPPlatform_ToInt
 * Purpose: Converts mixed numeric values to stable integer values.

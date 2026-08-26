@@ -3,9 +3,10 @@
 MiniDoom build script.
 
 Build flow:
-1) Compile tools/exe_icon_injector.ml -> build/tools/exe_icon_injector.exe
-2) Compile src/i_main.ml             -> build/MiniDoom.exe
-3) Inject icons/MiniDoom.ico into build/MiniDoom.exe (optional)
+1) Build the target-specific native OpenGL/platform helpers.
+2) Compile src/i_main.ml to a Windows PE or Linux ELF image.
+3) On Windows, optionally compile the icon tool and inject MiniDoom.ico.
+4) On Linux, emit a launcher that provides the local shared-library path.
 """
 
 from __future__ import annotations
@@ -22,6 +23,7 @@ DEFAULT_GAME_ENTRY = PROJECT_ROOT / "src" / "i_main.ml"
 DEFAULT_ICON_TOOL_SRC = PROJECT_ROOT / "tools" / "exe_icon_injector.ml"
 DEFAULT_ICON = PROJECT_ROOT / "icons" / "MiniDoom.ico"
 DEFAULT_GL_HELPER_SRC = PROJECT_ROOT / "tools" / "minidoom_gl_helper.c"
+DEFAULT_LINUX_PLATFORM_SRC = PROJECT_ROOT / "tools" / "minidoom_linux_platform.c"
 
 
 def _resolve_std_import_root(std_path: Path) -> Path:
@@ -50,6 +52,7 @@ def _compiler_cmd(
     output_file: Path,
     include_dirs: list[Path],
     subsystem: str,
+    target: str,
 ) -> list[str]:
     """Build a MiniLang compiler argv for script or native compiler frontends.
 
@@ -67,7 +70,9 @@ def _compiler_cmd(
 
     for inc in include_dirs:
         cmd += ["-I", str(inc.resolve())]
-    cmd += ["--subsystem", subsystem]
+    cmd += ["--target", target]
+    if target == "windows-x64":
+        cmd += ["--subsystem", subsystem]
     return cmd
 
 
@@ -169,6 +174,108 @@ def _build_gl_helper(gl_helper_src: Path, out_dll: Path) -> bool:
     return True
 
 
+def _wsl_path(path: Path) -> str:
+    """Translate an absolute Windows path for commands executed inside WSL."""
+    result = subprocess.run(
+        ["wsl.exe", "wslpath", "-a", str(path.resolve()).replace("\\", "/")],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    translated = result.stdout.strip()
+    if not translated:
+        raise RuntimeError(f"WSL could not translate path: {path}")
+    return translated
+
+
+def _linux_native_cmd(arguments: list[str | Path]) -> list[str]:
+    """Create a native Linux command, using WSL when the build host is Windows."""
+    if sys.platform.startswith("linux"):
+        return [str(value.resolve()) if isinstance(value, Path) else str(value) for value in arguments]
+    if sys.platform == "win32" and shutil.which("wsl.exe"):
+        converted = [_wsl_path(value) if isinstance(value, Path) else str(value) for value in arguments]
+        return ["wsl.exe", *converted]
+    raise RuntimeError(
+        "Linux helper builds require GCC on Linux, or WSL with GCC when build.py runs on Windows."
+    )
+
+
+def _build_linux_helpers(platform_src: Path, gl_helper_src: Path, output_dir: Path) -> tuple[Path, Path]:
+    """Build SDL2 platform and optimized OpenGL helpers as Linux x64 shared objects."""
+    if not platform_src.is_file():
+        raise FileNotFoundError(f"Linux platform helper source not found: {platform_src}")
+    if not gl_helper_src.is_file():
+        raise FileNotFoundError(f"OpenGL helper source not found: {gl_helper_src}")
+
+    platform_so = output_dir / "libMiniDoomPlatform.so"
+    gl_so = output_dir / "libMiniDoomGL.so"
+    platform_so.parent.mkdir(parents=True, exist_ok=True)
+    # A just-terminated WSL process can briefly retain a deleted NTFS working
+    # directory after --clean.  Recreate the destination from Linux as well so
+    # GCC never observes the stale, removed mount entry.
+    if sys.platform == "win32":
+        _run(_linux_native_cmd(["mkdir", "-p", output_dir]), PROJECT_ROOT)
+
+    platform_cmd = _linux_native_cmd(
+        [
+            "gcc",
+            "-shared",
+            "-fPIC",
+            "-O3",
+            "-Wall",
+            "-Wextra",
+            platform_src,
+            "-o",
+            platform_so,
+            "-ldl",
+            "-pthread",
+        ]
+    )
+    gl_cmd = _linux_native_cmd(
+        [
+            "gcc",
+            "-shared",
+            "-fPIC",
+            "-O3",
+            "-Wall",
+            "-Wextra",
+            gl_helper_src,
+            "-o",
+            gl_so,
+            "-Wl,-l:libGL.so.1",
+            "-ldl",
+            "-lm",
+            "-pthread",
+        ]
+    )
+    _run(platform_cmd, PROJECT_ROOT)
+    _run(gl_cmd, PROJECT_ROOT)
+    return platform_so, gl_so
+
+
+def _make_linux_launcher(output_dir: Path, game_binary: Path) -> Path:
+    """Write a relocatable launcher that resolves MiniDoom's adjacent .so files."""
+    # Keep a distinct name on case-insensitive Windows filesystems; otherwise
+    # "minidoom" would overwrite the adjacent "MiniDoom" ELF during a WSL
+    # cross-build.
+    launcher = output_dir / "run-minidoom"
+    launcher.write_text(
+        "#!/usr/bin/env sh\n"
+        "set -eu\n"
+        "MINIDOOM_DIR=$(CDPATH= cd -- \"$(dirname -- \"$0\")\" && pwd)\n"
+        "export LD_LIBRARY_PATH=\"$MINIDOOM_DIR${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}\"\n"
+        "exec \"$MINIDOOM_DIR/MiniDoom\" \"$@\"\n",
+        encoding="utf-8",
+        newline="\n",
+    )
+    if sys.platform.startswith("linux"):
+        game_binary.chmod(0o755)
+        launcher.chmod(0o755)
+    else:
+        _run(_linux_native_cmd(["chmod", "+x", game_binary, launcher]), PROJECT_ROOT)
+    return launcher
+
+
 def _build_icon_tool(
     compiler_path: Path,
     python_exe: Path,
@@ -185,6 +292,7 @@ def _build_icon_tool(
         output_file=out_exe,
         include_dirs=[PROJECT_ROOT / "src", std_import_root],
         subsystem="console",
+        target="windows-x64",
     )
     _run(cmd, PROJECT_ROOT)
 
@@ -195,8 +303,9 @@ def _build_game(
     std_import_root: Path,
     out_exe: Path,
     game_entry: Path,
+    target: str,
 ) -> None:
-    """Compile the selected MiniDoom entry module as a Windows executable."""
+    """Compile the selected MiniDoom entry module for the requested native target."""
     out_exe.parent.mkdir(parents=True, exist_ok=True)
     cmd = _compiler_cmd(
         compiler_path=compiler_path,
@@ -205,6 +314,7 @@ def _build_game(
         output_file=out_exe,
         include_dirs=[PROJECT_ROOT / "src", std_import_root],
         subsystem="windows",
+        target=target,
     )
     _run(cmd, PROJECT_ROOT)
 
@@ -229,16 +339,22 @@ def _inject_icon(
 
 def main() -> int:
     """Parse build options and orchestrate native helper, game, and icon stages."""
-    parser = argparse.ArgumentParser(description="Build MiniDoom with optional icon injection.")
+    parser = argparse.ArgumentParser(description="Build MiniDoom for Windows x64 or Linux x64.")
     parser.add_argument(
         "--compiler",
         required=True,
-        help="Path to MiniLang compiler entrypoint (e.g. mlc_win64.py or compiler exe).",
+        help="Path to the current MiniLang compiler entrypoint (Python script or compiler executable).",
     )
     parser.add_argument(
         "--std",
         required=True,
         help="Path to std folder OR the parent folder that contains std/.",
+    )
+    parser.add_argument(
+        "--target",
+        choices=("windows-x64", "linux-x64"),
+        default="windows-x64",
+        help="Native output target (default: windows-x64).",
     )
     parser.add_argument(
         "--python",
@@ -247,8 +363,8 @@ def main() -> int:
     )
     parser.add_argument(
         "--output-dir",
-        default=str(PROJECT_ROOT / "build"),
-        help="Output directory (default: ./build).",
+        default="",
+        help="Output directory (default: ./build for Windows, ./build/linux for Linux).",
     )
     parser.add_argument(
         "--entry",
@@ -285,7 +401,7 @@ def main() -> int:
     parser.add_argument(
         "--skip-gl-helper",
         action="store_true",
-        help="Build MiniDoom.exe without the optional OpenGL VBO helper DLL.",
+        help="Reuse an existing Windows MiniDoomGL.dll instead of rebuilding it.",
     )
     parser.add_argument(
         "--clean",
@@ -305,7 +421,10 @@ def main() -> int:
 
     std_import_root = _resolve_std_import_root(Path(args.std))
 
-    output_dir = Path(args.output_dir).resolve()
+    default_output_dir = PROJECT_ROOT / "build"
+    if args.target == "linux-x64":
+        default_output_dir = default_output_dir / "linux"
+    output_dir = Path(args.output_dir).resolve() if args.output_dir else default_output_dir.resolve()
     if args.clean and output_dir.exists():
         shutil.rmtree(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -314,36 +433,49 @@ def main() -> int:
     if not game_entry.is_file():
         raise FileNotFoundError(f"Game entry not found: {game_entry}")
 
+    is_linux = args.target == "linux-x64"
     icon_tool_src = Path(args.icon_tool_src).resolve()
-    if not icon_tool_src.is_file():
-        raise FileNotFoundError(f"Icon tool source not found: {icon_tool_src}")
-
     icon_path = Path(args.icon).resolve()
-    if not args.skip_icon and not icon_path.is_file():
-        raise FileNotFoundError(f"Icon file not found: {icon_path}")
-
     icon_tool_exe = output_dir / "tools" / "exe_icon_injector.exe"
-    game_exe = output_dir / "MiniDoom.exe"
-    gl_helper_dll = output_dir / "MiniDoomGL.dll"
+    game_exe = output_dir / ("MiniDoom" if is_linux else "MiniDoom.exe")
 
-    if args.skip_gl_helper:
-        print("Skipping MiniDoomGL.dll (--skip-gl-helper).")
+    if is_linux:
+        if args.skip_gl_helper:
+            raise ValueError("--skip-gl-helper is not supported for Linux; the renderer depends on its native helpers.")
+        print("Building Linux SDL2/OpenGL helpers...")
+        _build_linux_helpers(
+            DEFAULT_LINUX_PLATFORM_SRC.resolve(),
+            DEFAULT_GL_HELPER_SRC.resolve(),
+            output_dir,
+        )
     else:
-        gl_helper_src = DEFAULT_GL_HELPER_SRC.resolve()
-        if gl_helper_src.is_file():
-            print("Building MiniDoomGL.dll...")
-            _build_gl_helper(gl_helper_src, gl_helper_dll)
+        gl_helper_dll = output_dir / "MiniDoomGL.dll"
+        if args.skip_gl_helper:
+            if not gl_helper_dll.is_file():
+                raise FileNotFoundError(
+                    "--skip-gl-helper requires an existing MiniDoomGL.dll in the output directory."
+                )
+            print("Reusing existing MiniDoomGL.dll (--skip-gl-helper).")
         else:
-            print(f"Skipping MiniDoomGL.dll: source not found: {gl_helper_src}")
+            gl_helper_src = DEFAULT_GL_HELPER_SRC.resolve()
+            if gl_helper_src.is_file():
+                print("Building MiniDoomGL.dll...")
+                _build_gl_helper(gl_helper_src, gl_helper_dll)
+            else:
+                print(f"Skipping MiniDoomGL.dll: source not found: {gl_helper_src}")
 
-    print("Building icon tool...")
-    _build_icon_tool(
-        compiler_path=compiler_path,
-        python_exe=python_exe,
-        std_import_root=std_import_root,
-        out_exe=icon_tool_exe,
-        icon_tool_src=icon_tool_src,
-    )
+        if not icon_tool_src.is_file():
+            raise FileNotFoundError(f"Icon tool source not found: {icon_tool_src}")
+        if not args.skip_icon and not icon_path.is_file():
+            raise FileNotFoundError(f"Icon file not found: {icon_path}")
+        print("Building icon tool...")
+        _build_icon_tool(
+            compiler_path=compiler_path,
+            python_exe=python_exe,
+            std_import_root=std_import_root,
+            out_exe=icon_tool_exe,
+            icon_tool_src=icon_tool_src,
+        )
 
     print("Building MiniDoom...")
     _build_game(
@@ -352,9 +484,13 @@ def main() -> int:
         std_import_root=std_import_root,
         out_exe=game_exe,
         game_entry=game_entry,
+        target=args.target,
     )
 
-    if args.skip_icon:
+    if is_linux:
+        launcher = _make_linux_launcher(output_dir, game_exe)
+        print("Skipping Windows icon injection for Linux target.")
+    elif args.skip_icon:
         print("Skipping icon injection (--skip-icon).")
     else:
         print("Injecting icon...")
@@ -368,7 +504,9 @@ def main() -> int:
 
     print("")
     print("Build complete.")
-    print(f"Output EXE: {game_exe}")
+    print(f"Output {'ELF' if is_linux else 'EXE'}: {game_exe}")
+    if is_linux:
+        print(f"Launcher: {launcher}")
     return 0
 
 

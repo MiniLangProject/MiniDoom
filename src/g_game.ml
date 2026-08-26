@@ -49,7 +49,11 @@ import r_sky
 import g_game
 import std.fs as fs
 import std.math
+#if TARGET_OS == "linux"
+import platform_linux
+#endif
 
+#if TARGET_OS == "windows"
 /*
 * Function: G_CreateDirectoryW
 * Purpose: Creates a directory for per-WAD savegame storage.
@@ -61,6 +65,7 @@ extern function G_CreateDirectoryW(path as wstr, security as ptr) from "kernel32
 * Purpose: Reads Windows environment variables for user-specific savegame storage.
 */
 extern function G_GetEnvironmentVariableW(name as wstr, buffer as bytes, size as int) from "kernel32.dll" symbol "GetEnvironmentVariableW" returns int
+#endif
 
 /*
 * Function: G_DeathMatchSpawnPlayer
@@ -338,9 +343,23 @@ end function
 * Purpose: Resolves and creates the per-WAD savegame directory.
 */
 function _G_SaveDir()
+#if TARGET_OS == "linux"
+  // Follow XDG when configured and otherwise keep saves in one hidden folder
+  // directly below HOME so directory creation never requires recursion.
+  appdata = _G_EnvString("XDG_DATA_HOME")
+  root = ""
+  if appdata != "" then
+    root = fs.joinPath(appdata, "minidoom")
+  else
+    home = _G_EnvString("HOME")
+    if home == "" then return "" end if
+    root = fs.joinPath(home, ".minidoom")
+  end if
+#else
   appdata = _G_EnvString("APPDATA")
   if appdata == "" then return "" end if
   root = fs.joinPath(appdata, "MiniDoom")
+#endif
   if not _G_EnsureDir(root) then return "" end if
 
   wad = ""
