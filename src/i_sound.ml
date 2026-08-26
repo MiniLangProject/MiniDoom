@@ -1102,11 +1102,10 @@ end function
 
 /*
 * Function: _IS_MusicScale7
-* Purpose: Scales a seven-bit MUS velocity/controller value by the current music master volume.
+* Purpose: Clamps a seven-bit MUS velocity/controller value while master gain remains the MIDI backend's responsibility.
 */
 function inline _IS_MusicScale7(v)
-  x = _IS_Clamp(v, 0, 127)
-  return _IS_Clamp(_ISnd_IDiv(x * _I_musicVolume, 127), 0, 127)
+  return _IS_Clamp(v, 0, 127)
 end function
 
 /*
@@ -1582,7 +1581,8 @@ function I_StartSound(id, vol, sep, pitch, priority)
   if sid >= 0 and sid < len(_I_sfxRates) then rate = _IS_ToInt(_I_sfxRates[sid], _IS_MIX_RATE) end if
   step = _IS_PitchToStep(pitch, rate)
 
-  return addsfx(sid, _IS_ToInt(vol, 127), step, _IS_ToInt(sep, 128))
+  mixVol = _IS_NormalizeVolume127(vol)
+  return addsfx(sid, mixVol, step, _IS_ToInt(sep, 128))
 end function
 
 /*

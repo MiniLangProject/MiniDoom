@@ -112,10 +112,10 @@ extern function midiOutReset(hmo as ptr) from "libMiniDoomPlatform.so" symbol "M
 extern function midiOutClose(hmo as ptr) from "libMiniDoomPlatform.so" symbol "MDL_midiOutClose" returns u32
 // Applies the packed stereo music volume to the software-synth master gain.
 extern function midiOutSetVolume(hmo as ptr, vol as u32) from "libMiniDoomPlatform.so" symbol "MDL_midiOutSetVolume" returns u32
-// Allocates unmanaged storage for the queued-audio buffers and headers.
-extern function GlobalAlloc(flags as u32, size as u32) from "libc.so.6" symbol "malloc" returns ptr
-// Releases unmanaged queued-audio storage through the C runtime allocator.
-extern function GlobalFree(mem as ptr) from "libc.so.6" symbol "free" returns ptr
+// Allocates zeroed unmanaged storage while preserving GlobalAlloc's two-argument ABI.
+extern function GlobalAlloc(flags as u32, size as u32) from "libMiniDoomPlatform.so" symbol "MDL_GlobalAlloc" returns ptr
+// Releases unmanaged queued-audio storage and returns a null compatibility pointer.
+extern function GlobalFree(mem as ptr) from "libMiniDoomPlatform.so" symbol "MDL_GlobalFree" returns ptr
 // Copies MiniLang-managed audio bytes into an unmanaged buffer.
 extern function RtlMoveMemoryToPtr(dst as ptr, src as bytes, len as u32) from "libc.so.6" symbol "memmove" returns void
 // Refreshes SDL completion flags before copying an unmanaged wave header back.

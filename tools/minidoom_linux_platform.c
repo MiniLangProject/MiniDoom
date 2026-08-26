@@ -12,6 +12,7 @@
 #include <dlfcn.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <limits.h>
 #include <math.h>
 #include <stdint.h>
 #include <stdatomic.h>
@@ -24,7 +25,7 @@
 #include <unistd.h>
 
 #define MDL_EXPORT __attribute__((visibility("default")))
-#define MDL_MIDI_RATE 44100
+#define MDL_MIDI_RATE 48000
 #define MDL_MIDI_CHANNELS 16
 #define MDL_MIDI_VOICES 48
 #define MDL_MIDI_SINE_SIZE 2048
@@ -123,6 +124,9 @@ static SDL_Window *g_window;
 static SDL_GLContext g_context;
 static SDL_AudioDeviceID g_audio;
 static SDL_AudioDeviceID g_midi_audio;
+static void *g_fluid_library;
+static void *g_fluid_settings;
+static void *g_fluid_synth;
 static uint8_t g_keys[256];
 static uint8_t g_pressed[256];
 static int g_mouse_x;
@@ -155,6 +159,7 @@ typedef struct MDL_MidiVoice {
   float attack_step;
   float decay;
   float release_decay;
+  float filter_state;
   uint32_t noise;
   uint64_t age;
 } MDL_MidiVoice;
@@ -166,6 +171,8 @@ static float g_midi_master = 1.0f;
 static uint64_t g_midi_age;
 static int g_midi_tables_ready;
 static int g_midi_started_logged;
+static float g_midi_output_left;
+static float g_midi_output_right;
 static _Atomic uint32_t g_midi_debug_peak;
 
 /* Marks queued wave headers complete according to SDL's remaining byte count. */
@@ -202,6 +209,22 @@ static uint32_t (*pSDL_GetQueuedAudioSize)(SDL_AudioDeviceID);
 static void (*pSDL_ClearQueuedAudio)(SDL_AudioDeviceID);
 static void (*pSDL_LockAudioDevice)(SDL_AudioDeviceID);
 static void (*pSDL_UnlockAudioDevice)(SDL_AudioDeviceID);
+
+static void *(*pnew_fluid_settings)(void);
+static void (*pdelete_fluid_settings)(void *);
+static int (*pfluid_settings_setnum)(void *, const char *, double);
+static int (*pfluid_settings_setint)(void *, const char *, int);
+static void *(*pnew_fluid_synth)(void *);
+static void (*pdelete_fluid_synth)(void *);
+static int (*pfluid_synth_sfload)(void *, const char *, int);
+static int (*pfluid_synth_noteon)(void *, int, int, int);
+static int (*pfluid_synth_noteoff)(void *, int, int);
+static int (*pfluid_synth_cc)(void *, int, int, int);
+static int (*pfluid_synth_program_change)(void *, int, int);
+static int (*pfluid_synth_pitch_bend)(void *, int, int);
+static int (*pfluid_synth_system_reset)(void *);
+static void (*pfluid_synth_set_gain)(void *, float);
+static int (*pfluid_synth_write_s16)(void *, int, void *, int, int, void *, int, int);
 
 static void (*pglViewport)(int, int, int, int);
 static void (*pglDisable)(uint32_t);
@@ -284,6 +307,125 @@ static int mdl_load_libraries(void) {
          pglViewport && pglDrawPixels;
 }
 
+/* Loads the FluidSynth ABI dynamically so Linux packages can carry the shared library beside MiniDoom. */
+static int mdl_fluid_load_library(void) {
+  if (g_fluid_library) return 1;
+  g_fluid_library = dlopen("libfluidsynth.so.3", RTLD_NOW | RTLD_LOCAL);
+  if (!g_fluid_library) g_fluid_library = dlopen("libfluidsynth.so", RTLD_NOW | RTLD_LOCAL);
+  if (!g_fluid_library) return 0;
+#define LOAD_FLUID(name) do { *(void **)(&p##name) = dlsym(g_fluid_library, #name); } while (0)
+  LOAD_FLUID(new_fluid_settings);
+  LOAD_FLUID(delete_fluid_settings);
+  LOAD_FLUID(fluid_settings_setnum);
+  LOAD_FLUID(fluid_settings_setint);
+  LOAD_FLUID(new_fluid_synth);
+  LOAD_FLUID(delete_fluid_synth);
+  LOAD_FLUID(fluid_synth_sfload);
+  LOAD_FLUID(fluid_synth_noteon);
+  LOAD_FLUID(fluid_synth_noteoff);
+  LOAD_FLUID(fluid_synth_cc);
+  LOAD_FLUID(fluid_synth_program_change);
+  LOAD_FLUID(fluid_synth_pitch_bend);
+  LOAD_FLUID(fluid_synth_system_reset);
+  LOAD_FLUID(fluid_synth_set_gain);
+  LOAD_FLUID(fluid_synth_write_s16);
+#undef LOAD_FLUID
+  if (!pnew_fluid_settings || !pdelete_fluid_settings || !pfluid_settings_setnum ||
+      !pfluid_settings_setint || !pnew_fluid_synth || !pdelete_fluid_synth ||
+      !pfluid_synth_sfload || !pfluid_synth_noteon || !pfluid_synth_noteoff ||
+      !pfluid_synth_cc || !pfluid_synth_program_change || !pfluid_synth_pitch_bend ||
+      !pfluid_synth_system_reset || !pfluid_synth_set_gain || !pfluid_synth_write_s16) {
+    dlclose(g_fluid_library);
+    g_fluid_library = NULL;
+    return 0;
+  }
+  return 1;
+}
+
+/* Finds an explicit, bundled, or distribution-provided General MIDI SoundFont. */
+static const char *mdl_fluid_find_soundfont(char *path, size_t capacity) {
+  const char *environment = getenv("MINIDOOM_SOUNDFONT");
+  const char *local_candidates[] = {"MiniDoom.sf3", "MiniDoom.sf2", "TimGM6mb.sf2"};
+  const char *system_candidates[] = {
+    "/usr/share/sounds/sf3/MuseScore_General_Lite.sf3",
+    "/usr/share/sounds/sf2/TimGM6mb.sf2",
+    "/usr/share/soundfonts/TimGM6mb.sf2",
+    "/usr/share/soundfonts/default.sf2"
+  };
+  char executable[PATH_MAX];
+  ssize_t length;
+  size_t i;
+  if (environment && environment[0] && access(environment, R_OK) == 0) return environment;
+  length = readlink("/proc/self/exe", executable, sizeof(executable) - 1);
+  if (length > 0) {
+    char *slash;
+    executable[length] = '\0';
+    slash = strrchr(executable, '/');
+    if (slash) {
+      size_t directory_length;
+      *slash = '\0';
+      directory_length = strlen(executable);
+      for (i = 0; i < sizeof(local_candidates) / sizeof(local_candidates[0]); ++i) {
+        size_t filename_length = strlen(local_candidates[i]);
+        if (directory_length + filename_length + 2 > capacity) continue;
+        memcpy(path, executable, directory_length);
+        path[directory_length] = '/';
+        memcpy(path + directory_length + 1, local_candidates[i], filename_length + 1);
+        if (access(path, R_OK) == 0) return path;
+      }
+    }
+  }
+  for (i = 0; i < sizeof(system_candidates) / sizeof(system_candidates[0]); ++i) {
+    if (access(system_candidates[i], R_OK) == 0) return system_candidates[i];
+  }
+  return NULL;
+}
+
+/* Releases every object owned by the dynamically loaded FluidSynth backend. */
+static void mdl_fluid_shutdown(void) {
+  if (g_fluid_synth && pdelete_fluid_synth) pdelete_fluid_synth(g_fluid_synth);
+  if (g_fluid_settings && pdelete_fluid_settings) pdelete_fluid_settings(g_fluid_settings);
+  g_fluid_synth = NULL;
+  g_fluid_settings = NULL;
+  if (g_fluid_library) dlclose(g_fluid_library);
+  g_fluid_library = NULL;
+}
+
+/* Creates a deterministic headless FluidSynth instance and loads the selected GM bank. */
+static int mdl_fluid_initialize(void) {
+  char soundfont_path[PATH_MAX];
+  const char *soundfont;
+  if (g_fluid_synth) return 1;
+  if (!mdl_fluid_load_library()) {
+    fprintf(stderr, "MiniDoom Linux: FluidSynth library not found\n");
+    return 0;
+  }
+  soundfont = mdl_fluid_find_soundfont(soundfont_path, sizeof(soundfont_path));
+  if (!soundfont) {
+    fprintf(stderr, "MiniDoom Linux: no GM SoundFont found (set MINIDOOM_SOUNDFONT)\n");
+    mdl_fluid_shutdown();
+    return 0;
+  }
+  g_fluid_settings = pnew_fluid_settings();
+  if (!g_fluid_settings) {
+    mdl_fluid_shutdown();
+    return 0;
+  }
+  pfluid_settings_setnum(g_fluid_settings, "synth.sample-rate", (double)MDL_MIDI_RATE);
+  pfluid_settings_setint(g_fluid_settings, "synth.polyphony", 64);
+  pfluid_settings_setint(g_fluid_settings, "synth.reverb.active", 1);
+  pfluid_settings_setint(g_fluid_settings, "synth.chorus.active", 0);
+  g_fluid_synth = pnew_fluid_synth(g_fluid_settings);
+  if (!g_fluid_synth || pfluid_synth_sfload(g_fluid_synth, soundfont, 1) < 0) {
+    fprintf(stderr, "MiniDoom Linux: FluidSynth could not load %s\n", soundfont);
+    mdl_fluid_shutdown();
+    return 0;
+  }
+  pfluid_synth_set_gain(g_fluid_synth, 0.20f * g_midi_master);
+  fprintf(stderr, "MiniDoom Linux: FluidSynth GM music enabled (%s)\n", soundfont);
+  return 1;
+}
+
 /* Initializes the oscillator lookup table and General MIDI controller defaults. */
 static void mdl_midi_initialize_tables(void) {
   int i;
@@ -316,23 +458,36 @@ static uint8_t mdl_midi_program_waveform(uint8_t program) {
   if (program < 16) return 1;   /* chromatic percussion */
   if (program < 24) return 2;   /* organs */
   if (program < 32) return 1;   /* guitars */
-  if (program < 40) return 2;   /* basses */
+  if (program < 40) return 6;   /* basses */
   if (program < 56) return 3;   /* strings and ensembles */
   if (program < 72) return 3;   /* brass and reeds */
   if (program < 80) return 0;   /* pipes */
   if (program < 88) return 2;   /* synth leads */
   if (program < 104) return 1;  /* pads and effects */
+  if (program >= 112) return 7; /* tuned percussion and effects */
   return 3;
 }
 
 /* Configures attack and natural decay so instrument families remain distinct. */
 static void mdl_midi_envelope(uint8_t program, float *attack, float *decay) {
-  if (program < 8) {
+  if (program >= 112) {
     *attack = 1.0f;
-    *decay = 0.999985f;
-  } else if (program < 16 || (program >= 24 && program < 40)) {
+    *decay = 0.99935f;
+  } else if (program < 8) {
     *attack = 1.0f;
-    *decay = 0.99994f;
+    *decay = 0.99992f;
+  } else if (program < 16) {
+    *attack = 1.0f;
+    *decay = 0.99972f;
+  } else if (program < 24) {
+    *attack = 0.02f;
+    *decay = 0.999998f;
+  } else if (program < 32) {
+    *attack = 1.0f;
+    *decay = 0.99988f;
+  } else if (program < 40) {
+    *attack = 0.08f;
+    *decay = 0.99995f;
   } else if (program >= 40 && program < 56) {
     *attack = 0.0025f;
     *decay = 0.999998f;
@@ -380,11 +535,31 @@ static void mdl_midi_note_on(int channel, int note, int velocity) {
   voice->noise = 0x9E3779B9u ^ ((uint32_t)note << 16) ^ (uint32_t)++g_midi_age;
   voice->age = g_midi_age;
   if (channel == 9) {
-    voice->waveform = (note == 35 || note == 36) ? 5 : 4;
-    voice->phase_step = mdl_midi_phase_step(note == 35 || note == 36 ? 43 : 72, 8192);
+    if (note == 35 || note == 36) {
+      voice->waveform = 5;
+      voice->phase_step = mdl_midi_phase_step(note == 35 ? 41 : 43, 8192);
+      voice->decay = 0.99930f;
+    } else if (note == 38 || note == 40) {
+      voice->waveform = 4;
+      voice->phase_step = mdl_midi_phase_step(note == 38 ? 50 : 53, 8192);
+      voice->decay = 0.99915f;
+    } else if (note == 41 || note == 43 || note == 45 || note == 47 || note == 48 || note == 50) {
+      voice->waveform = 9;
+      voice->phase_step = mdl_midi_phase_step(note + 7, 8192);
+      voice->decay = 0.99935f;
+    } else if (note == 42 || note == 44 || note == 46 || note == 49 || note == 51 ||
+               note == 53 || note == 57 || note == 59) {
+      voice->waveform = 8;
+      voice->phase_step = mdl_midi_phase_step(note + 36, 8192);
+      voice->decay = (note == 42 || note == 44) ? 0.9965f :
+                     (note == 46 ? 0.99940f : 0.99965f);
+    } else {
+      voice->waveform = 4;
+      voice->phase_step = mdl_midi_phase_step(55, 8192);
+      voice->decay = 0.9988f;
+    }
     voice->envelope = 1.0f;
     voice->attack_step = 1.0f;
-    voice->decay = (note >= 42 && note <= 46) ? 0.9955f : 0.9982f;
     voice->release_decay = voice->decay;
     return;
   }
@@ -420,37 +595,78 @@ static void mdl_midi_reset_unlocked(void) {
   memset(g_midi_voices, 0, sizeof(g_midi_voices));
   mdl_midi_initialize_tables();
   g_midi_age = 0;
+  g_midi_output_left = 0.0f;
+  g_midi_output_right = 0.0f;
 }
 
-/* Evaluates one oscillator sample using table-based sine and cheap harmonics. */
+/* Reads the periodic sine table for an arbitrary wrapped oscillator phase. */
+static float mdl_midi_sine_at(float phase) {
+  int index = (int)(phase * (float)MDL_MIDI_SINE_SIZE) & (MDL_MIDI_SINE_SIZE - 1);
+  return g_midi_sine[index];
+}
+
+/* Adds one harmonic only while it remains comfortably below Nyquist. */
+static float mdl_midi_harmonic(const MDL_MidiVoice *voice, int multiple) {
+  if (voice->phase_step * (float)multiple >= 0.45f) return 0.0f;
+  return mdl_midi_sine_at(voice->phase * (float)multiple);
+}
+
+/* Evaluates one oscillator using smooth harmonics and filtered percussion noise. */
 static float mdl_midi_voice_sample(MDL_MidiVoice *voice) {
   float sine;
   float sample;
-  int index;
   voice->phase += voice->phase_step;
   if (voice->phase >= 1.0f) voice->phase -= (float)(int)voice->phase;
-  index = (int)(voice->phase * (float)MDL_MIDI_SINE_SIZE) & (MDL_MIDI_SINE_SIZE - 1);
-  sine = g_midi_sine[index];
+  sine = mdl_midi_sine_at(voice->phase);
   switch (voice->waveform) {
-    case 1: {
-      float triangle = 1.0f - 4.0f * fabsf(voice->phase - 0.5f);
-      sample = triangle * 0.65f + sine * 0.35f;
+    case 1:
+      sample = sine * 0.78f + mdl_midi_harmonic(voice, 2) * 0.16f +
+               mdl_midi_harmonic(voice, 3) * 0.06f;
       break;
-    }
     case 2:
-      sample = (voice->phase < 0.5f ? 0.55f : -0.55f) + sine * 0.45f;
+      sample = sine * 0.70f + mdl_midi_harmonic(voice, 2) * 0.20f +
+               mdl_midi_harmonic(voice, 3) * 0.10f;
       break;
     case 3:
-      sample = (voice->phase * 2.0f - 1.0f) * 0.45f + sine * 0.55f;
+      sample = sine * 0.82f + mdl_midi_harmonic(voice, 2) * 0.12f +
+               mdl_midi_harmonic(voice, 4) * 0.06f;
       break;
-    case 4:
+    case 4: {
+      float low;
       voice->noise = voice->noise * 1664525u + 1013904223u;
       sample = ((float)((voice->noise >> 8) & 0xFFFFu) / 32767.5f) - 1.0f;
-      if (voice->note == 38 || voice->note == 40) sample = sample * 0.78f + sine * 0.22f;
+      voice->filter_state += (sample - voice->filter_state) * 0.24f;
+      low = voice->filter_state;
+      sample = (sample - low) * 0.48f + low * 0.22f + sine * 0.30f;
       break;
+    }
     case 5:
       sample = sine;
       voice->phase_step *= 0.99992f;
+      break;
+    case 6:
+      sample = sine * 0.88f + mdl_midi_harmonic(voice, 2) * 0.12f;
+      break;
+    case 7:
+      sample = sine * 0.76f + mdl_midi_harmonic(voice, 2) * 0.18f +
+               mdl_midi_harmonic(voice, 3) * 0.06f;
+      voice->phase_step *= 0.999995f;
+      break;
+    case 8: {
+      float low;
+      voice->noise = voice->noise * 1664525u + 1013904223u;
+      sample = ((float)((voice->noise >> 8) & 0xFFFFu) / 32767.5f) - 1.0f;
+      voice->filter_state += (sample - voice->filter_state) * 0.10f;
+      low = voice->filter_state;
+      sample = (sample - low) * 0.74f + sine * 0.16f + mdl_midi_harmonic(voice, 3) * 0.10f;
+      break;
+    }
+    case 9:
+      voice->noise = voice->noise * 1664525u + 1013904223u;
+      sample = ((float)((voice->noise >> 8) & 0xFFFFu) / 32767.5f) - 1.0f;
+      voice->filter_state += (sample - voice->filter_state) * 0.16f;
+      sample = sine * 0.82f + voice->filter_state * 0.18f;
+      voice->phase_step *= 0.99998f;
       break;
     default:
       sample = sine;
@@ -466,6 +682,23 @@ static void mdl_midi_audio_callback(void *userdata, uint8_t *stream, int length)
   int frame;
   (void)userdata;
   memset(stream, 0, (size_t)length);
+  if (g_fluid_synth && pfluid_synth_write_s16) {
+    uint32_t peak = 0;
+    int sample_count = length / 2;
+    int sample_index;
+    pfluid_synth_write_s16(g_fluid_synth, frames, output, 0, 2, output, 1, 2);
+    for (sample_index = 0; sample_index < sample_count; ++sample_index) {
+      int value = output[sample_index];
+      uint32_t magnitude = (uint32_t)(value < 0 ? -value : value);
+      if (magnitude > peak) peak = magnitude;
+    }
+    {
+      uint32_t old = atomic_load_explicit(&g_midi_debug_peak, memory_order_relaxed);
+      while (peak > old && !atomic_compare_exchange_weak_explicit(
+               &g_midi_debug_peak, &old, peak, memory_order_relaxed, memory_order_relaxed)) {}
+    }
+    return;
+  }
   for (frame = 0; frame < frames; ++frame) {
     float left = 0.0f;
     float right = 0.0f;
@@ -475,6 +708,7 @@ static void mdl_midi_audio_callback(void *userdata, uint8_t *stream, int length)
       MDL_MidiChannel *channel;
       float sample;
       float gain;
+      float voice_gain;
       float pan;
       if (!voice->active) continue;
       channel = &g_midi_channels[voice->channel];
@@ -488,13 +722,30 @@ static void mdl_midi_audio_callback(void *userdata, uint8_t *stream, int length)
         continue;
       }
       sample = mdl_midi_voice_sample(voice);
+      if (voice->channel == 9) {
+        voice_gain = voice->waveform == 5 ? 0.24f :
+                     (voice->waveform == 4 ? 0.16f :
+                     (voice->waveform == 9 ? 0.18f : 0.11f));
+      } else if (channel->program >= 32 && channel->program < 40) {
+        voice_gain = 0.22f;
+      } else if (channel->program >= 112) {
+        voice_gain = 0.18f;
+      } else if (channel->program >= 16 && channel->program < 24) {
+        voice_gain = 0.13f;
+      } else {
+        voice_gain = 0.14f;
+      }
       gain = voice->envelope * ((float)voice->velocity / 127.0f) *
              ((float)channel->volume / 127.0f) * ((float)channel->expression / 127.0f) *
-             g_midi_master * 0.16f;
+             g_midi_master * voice_gain;
       pan = (float)channel->pan / 127.0f;
       left += sample * gain * (1.0f - pan);
       right += sample * gain * pan;
     }
+    g_midi_output_left += (left - g_midi_output_left) * 0.72f;
+    g_midi_output_right += (right - g_midi_output_right) * 0.72f;
+    left = g_midi_output_left;
+    right = g_midi_output_right;
     if (left > 1.0f) left = 1.0f;
     if (left < -1.0f) left = -1.0f;
     if (right > 1.0f) right = 1.0f;
@@ -519,6 +770,24 @@ static void mdl_midi_dispatch(uint32_t message) {
   int data2 = (message >> 16) & 0x7F;
   MDL_MidiChannel *state = &g_midi_channels[channel];
   int i;
+  if (g_fluid_synth) {
+    if (command == 0x80 || (command == 0x90 && data2 == 0)) {
+      pfluid_synth_noteoff(g_fluid_synth, channel, data1);
+    } else if (command == 0x90) {
+      if (!g_midi_started_logged) {
+        fprintf(stderr, "MiniDoom Linux: MUS playback started\n");
+        g_midi_started_logged = 1;
+      }
+      pfluid_synth_noteon(g_fluid_synth, channel, data1, data2);
+    } else if (command == 0xB0) {
+      pfluid_synth_cc(g_fluid_synth, channel, data1, data2);
+    } else if (command == 0xC0) {
+      pfluid_synth_program_change(g_fluid_synth, channel, data1);
+    } else if (command == 0xE0) {
+      pfluid_synth_pitch_bend(g_fluid_synth, channel, data1 | (data2 << 7));
+    }
+    return;
+  }
   if (command == 0x80 || (command == 0x90 && data2 == 0)) {
     mdl_midi_note_off(channel, data1);
   } else if (command == 0x90) {
@@ -759,6 +1028,7 @@ MDL_EXPORT int MDL_DestroyWindow(void *hwnd) {
   (void)hwnd;
   if (g_midi_audio && pSDL_CloseAudioDevice) pSDL_CloseAudioDevice(g_midi_audio);
   g_midi_audio = 0;
+  mdl_fluid_shutdown();
   if (g_audio && pSDL_CloseAudioDevice) pSDL_CloseAudioDevice(g_audio);
   g_audio = 0;
   if (g_context && pSDL_GL_DeleteContext) pSDL_GL_DeleteContext(g_context);
@@ -1053,6 +1323,18 @@ static void mdl_audio_refresh(void) {
   }
 }
 
+/* Allocates zero-filled storage using GlobalAlloc's flags-plus-size calling convention. */
+MDL_EXPORT void *MDL_GlobalAlloc(uint32_t flags, uint32_t size) {
+  (void)flags;
+  return calloc(1, size > 0 ? (size_t)size : 1u);
+}
+
+/* Frees GlobalAlloc-compatible storage and mirrors GlobalFree's null success value. */
+MDL_EXPORT void *MDL_GlobalFree(void *memory) {
+  free(memory);
+  return NULL;
+}
+
 MDL_EXPORT void MDL_RtlMoveMemoryFromPtr(void *destination, const void *source, uint32_t length) {
   /* WinMM updates WAVEHDR flags asynchronously. Refresh the SDL queue-backed
      emulation immediately before MiniLang reads a header snapshot. */
@@ -1066,18 +1348,29 @@ MDL_EXPORT uint32_t MDL_waveOutOpen(void *handle_output, uint32_t device, const 
   SDL_AudioSpec wanted;
   (void)device; (void)callback; (void)instance; (void)flags;
   if (!mdl_load_libraries() || !pSDL_OpenAudioDevice || !handle_output) return 1;
+  if (pSDL_Init(SDL_INIT_TIMER | SDL_INIT_AUDIO) != 0) {
+    fprintf(stderr, "MiniDoom Linux: SDL sound-effects audio init failed: %s\n",
+            pSDL_GetError ? pSDL_GetError() : "unknown");
+    return 1;
+  }
   memset(&wanted, 0, sizeof(wanted));
   wanted.freq = format ? mdl_read_i32(format, 4) : 11025;
   wanted.format = AUDIO_S16LSB;
   wanted.channels = format ? format[2] : 2;
   wanted.samples = 512;
   g_audio = pSDL_OpenAudioDevice(NULL, 0, &wanted, NULL, 0);
-  if (!g_audio) return 1;
+  if (!g_audio) {
+    fprintf(stderr, "MiniDoom Linux: SDL sound-effects device failed: %s\n",
+            pSDL_GetError ? pSDL_GetError() : "unknown");
+    return 1;
+  }
   pSDL_PauseAudioDevice(g_audio, 0);
   memset(handle_output, 0, 8);
   mdl_write_u64(handle_output, 0, g_audio);
   g_pending_count = 0;
   g_audio_submitted = 0;
+  fprintf(stderr, "MiniDoom Linux: SDL sound-effects mixer enabled (%d Hz, %d channels)\n",
+          wanted.freq, wanted.channels);
   return 0;
 }
 
@@ -1157,8 +1450,9 @@ MDL_EXPORT uint32_t MDL_midiOutOpen(void *handle_output, uint32_t device, void *
   wanted.freq = MDL_MIDI_RATE;
   wanted.format = AUDIO_S16LSB;
   wanted.channels = 2;
-  wanted.samples = 512;
+  wanted.samples = 2048;
   wanted.callback = mdl_midi_audio_callback;
+  if (!mdl_fluid_initialize()) return 1;
   mdl_midi_initialize_tables();
   mdl_midi_reset_unlocked();
   g_midi_started_logged = 0;
@@ -1167,11 +1461,12 @@ MDL_EXPORT uint32_t MDL_midiOutOpen(void *handle_output, uint32_t device, void *
   if (!g_midi_audio) {
     fprintf(stderr, "MiniDoom Linux: SDL software MIDI synth failed: %s\n",
             pSDL_GetError ? pSDL_GetError() : "unknown");
+    mdl_fluid_shutdown();
     return 1;
   }
   mdl_write_u64(handle_output, 0, g_midi_audio);
   pSDL_PauseAudioDevice(g_midi_audio, 0);
-  fprintf(stderr, "MiniDoom Linux: SDL software MIDI synthesizer enabled\n");
+  fprintf(stderr, "MiniDoom Linux: SDL FluidSynth output enabled\n");
   return 0;
 }
 
@@ -1190,7 +1485,8 @@ MDL_EXPORT uint32_t MDL_midiOutReset(void *handle) {
   (void)handle;
   if (!g_midi_audio) return 0;
   pSDL_LockAudioDevice(g_midi_audio);
-  mdl_midi_reset_unlocked();
+  if (g_fluid_synth) pfluid_synth_system_reset(g_fluid_synth);
+  else mdl_midi_reset_unlocked();
   pSDL_UnlockAudioDevice(g_midi_audio);
   return 0;
 }
@@ -1203,6 +1499,7 @@ MDL_EXPORT uint32_t MDL_midiOutClose(void *handle) {
   pSDL_CloseAudioDevice(g_midi_audio);
   g_midi_audio = 0;
   memset(g_midi_voices, 0, sizeof(g_midi_voices));
+  mdl_fluid_shutdown();
   return 0;
 }
 
@@ -1214,6 +1511,7 @@ MDL_EXPORT uint32_t MDL_midiOutSetVolume(void *handle, uint32_t volume) {
   if (!g_midi_audio) return 0;
   pSDL_LockAudioDevice(g_midi_audio);
   g_midi_master = ((float)left + (float)right) / 131070.0f;
+  if (g_fluid_synth) pfluid_synth_set_gain(g_fluid_synth, 0.20f * g_midi_master);
   pSDL_UnlockAudioDevice(g_midi_audio);
   return 0;
 }

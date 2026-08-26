@@ -20,7 +20,7 @@ This project keeps the original DOOM architecture and module split concept, but 
 | Classic software renderer | Win32/GDI presentation | SDL2/OpenGL presentation |
 | Accelerated renderer | OpenGL compatibility profile | SDL2/OpenGL compatibility profile |
 | Sound effects | WinMM PCM | SDL2 queued audio |
-| MUS music | Windows MIDI mapper | Built-in SDL2 software synthesizer |
+| MUS music | Windows MIDI mapper | FluidSynth + MuseScore General Lite |
 | Input and windowing | Win32 | SDL2 |
 | Multiplayer | UDP/WinSock | UDP/POSIX sockets |
 
@@ -206,6 +206,7 @@ MiniDoom/
     minidoom_gl_helper.c     # Cross-platform accelerated rendering helper
     minidoom_linux_platform.c # Linux SDL2 window/input/audio bridge
   build.py                   # Windows/Linux native build orchestrator
+  THIRD_PARTY_NOTICES.md     # Notices for bundled Linux audio components
   LICENSE
   README.md
 ```
@@ -218,7 +219,7 @@ MiniDoom/
   [MiniLangCompilerPy](https://github.com/MiniLangProject/MiniLangCompilerPy)
 - Compiler version 1.1.0 or newer with `windows-x64` and `linux-x64` targets
 - Windows builds: MSVC x64 build tools and the Windows 10/11 SDK
-- Linux builds: GCC, the SDL2 runtime (`libSDL2-2.0.so.0`), and OpenGL (`libGL.so.1`)
+- Linux builds: GCC, the SDL2 runtime (`libSDL2-2.0.so.0`), OpenGL (`libGL.so.1`), FluidSynth (`libfluidsynth.so.3`), and a GM SoundFont
 - A legally obtained DOOM IWAD such as `DOOM.WAD`, `DOOM1.WAD`, or `DOOM2.WAD`
 
 IWAD, PWAD, generated HDWAD, configuration, and save files are not shipped in
@@ -256,7 +257,7 @@ build/MiniDoomGL.dll
 On Linux, install GCC plus the SDL2 and OpenGL runtime libraries, then run:
 
 ```bash
-sudo apt install gcc libsdl2-2.0-0 libgl1
+sudo apt install gcc libsdl2-2.0-0 libgl1 libfluidsynth3 musescore-general-soundfont-small
 ```
 
 ```bash
@@ -290,8 +291,28 @@ build/linux/libMiniDoomGL.so
 Use `run-minidoom`; it sets the local shared-library search path before
 starting the ELF. Both the classic and OpenGL renderers, keyboard/mouse input,
 SDL2 sound effects, screenshots, saves, and UDP multiplayer use native Linux
-services. Doom's MUS tracks play through a built-in SDL2 software synthesizer,
-so Linux music needs neither a system MIDI daemon nor an external SoundFont.
+services. Doom's MUS tracks play through FluidSynth. The prebuilt release
+includes FluidSynth and the MIT-licensed MuseScore General Lite SoundFont, so
+it needs no MIDI daemon or extra SoundFont installation.
+
+For a source build, install `libfluidsynth.so.3` and place a compatible GM
+SoundFont beside the executable as `MiniDoom.sf3`/`MiniDoom.sf2`, or select one
+with `MINIDOOM_SOUNDFONT=/path/to/soundfont.sf3`. Release builders can copy a
+self-contained runtime into the output directory with:
+
+```bash
+python3 ./build.py \
+  --compiler /path/to/MiniLangCompilerPy/mlc_win64.py \
+  --std /path/to/MiniLangCompilerPy/std \
+  --target linux-x64 \
+  --linux-music-runtime /path/to/runtime \
+  --clean
+```
+
+The runtime directory must contain `libfluidsynth.so.3`,
+`libinstpatch-1.0.so.2`, and `MiniDoom.sf3`. See
+[`THIRD_PARTY_NOTICES.md`](./THIRD_PARTY_NOTICES.md) for licenses and
+attribution.
 
 ### Useful Build Options
 
@@ -302,6 +323,7 @@ so Linux music needs neither a system MIDI daemon nor an external SoundFont.
 - `--icon <path.ico>`: use a custom icon file
 - `--icon-group <id>` / `--icon-lang <id>`: resource ids for icon injection
 - `--skip-gl-helper`: reuse an existing Windows `MiniDoomGL.dll` without rebuilding it (Linux always builds its helpers)
+- `--linux-music-runtime <path>`: bundle FluidSynth, libinstpatch, and `MiniDoom.sf3` in a Linux build
 
 ## Build MiniDoom Manually (Without build.py)
 

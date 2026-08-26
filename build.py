@@ -24,6 +24,11 @@ DEFAULT_ICON_TOOL_SRC = PROJECT_ROOT / "tools" / "exe_icon_injector.ml"
 DEFAULT_ICON = PROJECT_ROOT / "icons" / "MiniDoom.ico"
 DEFAULT_GL_HELPER_SRC = PROJECT_ROOT / "tools" / "minidoom_gl_helper.c"
 DEFAULT_LINUX_PLATFORM_SRC = PROJECT_ROOT / "tools" / "minidoom_linux_platform.c"
+LINUX_MUSIC_RUNTIME_FILES = (
+    "libfluidsynth.so.3",
+    "libinstpatch-1.0.so.2",
+    "MiniDoom.sf3",
+)
 
 
 def _resolve_std_import_root(std_path: Path) -> Path:
@@ -277,6 +282,27 @@ def _make_linux_launcher(output_dir: Path, game_binary: Path) -> Path:
     return launcher
 
 
+def _copy_linux_music_runtime(runtime_dir: Path, output_dir: Path) -> None:
+    """Copy the optional relocatable FluidSynth runtime into a Linux build.
+
+    Release builds use this hook to bundle the shared libraries and General
+    MIDI SoundFont expected by the SDL audio bridge.  Source builds may omit
+    it and use compatible system libraries plus ``MINIDOOM_SOUNDFONT``.
+    """
+    source_dir = runtime_dir.resolve()
+    if not source_dir.is_dir():
+        raise FileNotFoundError(f"Linux music runtime directory not found: {source_dir}")
+
+    missing = [name for name in LINUX_MUSIC_RUNTIME_FILES if not (source_dir / name).is_file()]
+    if missing:
+        raise FileNotFoundError(
+            "Linux music runtime is incomplete; missing: " + ", ".join(missing)
+        )
+
+    for name in LINUX_MUSIC_RUNTIME_FILES:
+        shutil.copy2(source_dir / name, output_dir / name)
+
+
 def _build_icon_tool(
     compiler_path: Path,
     python_exe: Path,
@@ -405,6 +431,14 @@ def main() -> int:
         help="Reuse an existing Windows MiniDoomGL.dll instead of rebuilding it.",
     )
     parser.add_argument(
+        "--linux-music-runtime",
+        default="",
+        help=(
+            "Optional directory containing libfluidsynth.so.3, "
+            "libinstpatch-1.0.so.2, and MiniDoom.sf3 to bundle in a Linux build."
+        ),
+    )
+    parser.add_argument(
         "--clean",
         action="store_true",
         help="Delete output directory before building.",
@@ -490,6 +524,14 @@ def main() -> int:
 
     if is_linux:
         launcher = _make_linux_launcher(output_dir, game_exe)
+        if args.linux_music_runtime:
+            _copy_linux_music_runtime(Path(args.linux_music_runtime), output_dir)
+            print("Bundled FluidSynth music runtime and SoundFont.")
+        else:
+            print(
+                "Music runtime not bundled; install libfluidsynth.so.3 and provide "
+                "MiniDoom.sf3 or set MINIDOOM_SOUNDFONT."
+            )
         print("Skipping Windows icon injection for Linux target.")
     elif args.skip_icon:
         print("Skipping icon injection (--skip-icon).")
