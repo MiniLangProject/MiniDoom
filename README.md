@@ -268,6 +268,8 @@ If the graphics driver does not expose swap-interval control, MiniDoom falls bac
 
 Open or close the in-game console with `~`, `Ö`, or `^` (depending on the active keyboard layout; German `AltGr`+`+` is also supported). The console slides over the upper third of the screen, pauses the current single-player game, and captures all movement and fire input while it is open. HUD notices, multiplayer chat, errors, and command results are mirrored into its scrollback.
 
+![MiniDoom drop-down console showing the built-in help](docs/console.png)
+
 Console controls:
 
 - `Enter`: execute the current command.
