@@ -27,6 +27,7 @@ import g_game
 import i_system
 import mp_platform
 import std.math
+import std.time
 #if TARGET_OS == "linux"
 import platform_linux
 #endif
@@ -289,14 +290,6 @@ end function
 extern function GetTickCount() from "kernel32.dll" returns u32
 
 /*
- * Function: Sleep
- *
- * Purpose: Suspends the calling thread for at least the requested Win32 millisecond interval.
- */
-
-extern function Sleep(ms as int) from "kernel32.dll" returns int
-
-/*
  * Function: ExitProcess
  *
  * Purpose: Terminates the process immediately with the supplied operating-system exit code.
@@ -318,12 +311,12 @@ end function
 
 /*
 * Function: _I_Sleep
-* Purpose: Suspends the current thread for a non-negative millisecond duration through the Win32 scheduler.
+* Purpose: Suspends the current thread for a non-negative duration through the platform-neutral standard time API.
 */
 function inline _I_Sleep(ms)
   if typeof(ms) != "int" then return end if
   if ms < 0 then ms = 0 end if
-  Sleep(ms)
+  std.time.sleep(ms)
 end function
 
 /*
