@@ -9,7 +9,8 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
 # This audit intentionally rejects comments that merely restate a declaration name.
-# It covers MiniLang functions/structs and the C helper's ordinary function definitions.
+# MiniLang declarations use MiniDoc's //! file and /// declaration syntax; native
+# helper sources retain the documentation conventions of their own language.
 if ([string]::IsNullOrWhiteSpace($RepoRoot)) {
     $RepoRoot = Split-Path -Parent $PSScriptRoot
 }
@@ -72,6 +73,11 @@ function Get-DeclarationComment {
     while ($end -ge 0 -and [string]::IsNullOrWhiteSpace($Lines[$end])) { $end-- }
     if ($end -lt 0) { return $null }
     $trimmed = $Lines[$end].Trim()
+    if ($trimmed.StartsWith('///')) {
+        $start = $end
+        while ($start -gt 0 -and $Lines[$start - 1].Trim().StartsWith('///')) { $start-- }
+        return (($Lines[$start..$end] -join "`n").Trim())
+    }
     if ($trimmed.StartsWith('//')) { return $trimmed.Substring(2).Trim() }
     if ($trimmed -ne '*/') { return $null }
 
@@ -81,15 +87,24 @@ function Get-DeclarationComment {
     return (($Lines[$start..$end] -join "`n").Trim())
 }
 
-# Extract the Purpose text from the project's standard declaration docblock.
+# Extract the semantic summary from MiniDoc or a native declaration docblock.
 <#
 .SYNOPSIS
-Extracts the semantic Purpose sentence used to reject missing or tautological documentation.
+Extracts the semantic summary used to reject missing or tautological documentation.
 #>
-function Get-PurposeText {
+function Get-SummaryText {
     param([string]$Comment)
 
     if ([string]::IsNullOrWhiteSpace($Comment)) { return '' }
+    if ($Comment -match '(?m)^\s*///') {
+        $summary = [Collections.Generic.List[string]]::new()
+        foreach ($line in ($Comment -split "`r?`n")) {
+            $value = ($line -replace '^\s*///\s?', '').Trim()
+            if ($value.StartsWith('@')) { break }
+            if ($value) { $summary.Add($value) }
+        }
+        return (($summary -join ' ').Trim())
+    }
     if ($Comment -match '(?m)^\s*\*?\s*Purpose:\s*(.+?)\s*$') { return $Matches[1].Trim() }
     # Get-DeclarationComment already removes the leading // marker.
     if (-not $Comment.Contains("`n") -and -not $Comment.Contains('/*')) { return $Comment.Trim() }
@@ -105,11 +120,11 @@ $miniLangFiles = @(
 )
 foreach ($file in $miniLangFiles) {
     $lines = @(Get-Content -LiteralPath $file.FullName)
-    $header = ($lines | Select-Object -First 45) -join "`n"
-    $headerPurpose = ''
-    if ($header -match '(?m)^\s*\*?\s*Purpose:\s*(.{18,})\s*$') {
-        $headerPurpose = $Matches[1].Trim()
-    }
+    $fileDocLines = @(
+        $lines | Select-Object -First 55 | Where-Object { $_ -match '^\s*//!' } |
+            ForEach-Object { ($_ -replace '^\s*//!\s?', '').Trim() }
+    )
+    $headerPurpose = ($fileDocLines -join ' ').Trim()
     $headerGeneric = $false
     foreach ($pattern in $genericHeaderPatterns) {
         if ($headerPurpose -match $pattern) {
@@ -117,14 +132,14 @@ foreach ($file in $miniLangFiles) {
             break
         }
     }
-    if ($header -notmatch '(?m)^\s*\*?\s*Script:\s*\S+' -or
-        [string]::IsNullOrWhiteSpace($headerPurpose) -or $headerGeneric) {
+    if ([string]::IsNullOrWhiteSpace($headerPurpose) -or
+        $headerPurpose.Length -lt 18 -or $headerGeneric) {
         $failures.Add([pscustomobject]@{
             File = [IO.Path]::GetRelativePath($repo, $file.FullName)
             Line = 1
             Kind = 'file'
             Name = $file.Name
-            Problem = 'missing useful, source-specific Script/Purpose header in first 45 lines'
+            Problem = 'missing useful, source-specific //! file documentation in first 55 lines'
         })
     }
     for ($i = 0; $i -lt $lines.Count; $i++) {
@@ -145,11 +160,12 @@ foreach ($file in $miniLangFiles) {
         else { continue }
 
         $comment = Get-DeclarationComment -Lines $lines -DeclarationIndex $i
-        $purpose = Get-PurposeText -Comment $comment
+        $purpose = Get-SummaryText -Comment $comment
         $reason = ''
         if ([string]::IsNullOrWhiteSpace($comment)) { $reason = 'missing adjacent documentation block' }
-        elseif ([string]::IsNullOrWhiteSpace($purpose)) { $reason = 'missing Purpose text' }
-        elseif ($purpose.Length -lt 18) { $reason = 'Purpose text is too short to explain behavior' }
+        elseif ($comment -notmatch '(?m)^\s*///') { $reason = 'MiniLang declaration must use an adjacent /// MiniDoc block' }
+        elseif ([string]::IsNullOrWhiteSpace($purpose)) { $reason = 'missing MiniDoc summary text' }
+        elseif ($purpose.Length -lt 18) { $reason = 'MiniDoc summary is too short to explain behavior' }
         else {
             foreach ($pattern in $genericPatterns) {
                 if ($purpose -match $pattern) {

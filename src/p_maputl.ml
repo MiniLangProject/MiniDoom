@@ -13,9 +13,10 @@
   See the License for the specific language governing permissions and
   limitations under the License.
 
-  Script: p_maputl.ml
-  Purpose: Supplies fixed-point geometry tests, blockmap linking, opening calculations, and ordered path traversal.
 */
+
+//! Supplies fixed-point geometry tests, blockmap linking, opening calculations, and ordered path traversal.
+
 import m_bbox
 import doomdef
 import p_local
@@ -23,49 +24,49 @@ import r_state
 import r_main
 import m_argv
 
-/*
-* Function: _abs
-* Purpose: Returns an integer magnitude for distance and side-of-line calculations.
-*/
+/// Returns an integer magnitude for distance and side-of-line calculations.
+/// @param x Horizontal map- or screen-space coordinate.
+/// @internal
 function inline _abs(x)
   if x < 0 then return - x end if
   return x
 end function
 
-/*
-* Function: _PMU_U32
-* Purpose: Normalizes an integer to unsigned 32-bit form for sign-bit tests that emulate Doom C arithmetic.
-*/
+/// Normalizes an integer to unsigned 32-bit form for sign-bit tests that emulate Doom C arithmetic.
+/// @param v Value consumed by the operation.
+/// @internal
 function inline _PMU_U32(v)
   if typeof(v) != "int" then return 0 end if
   return v & 0xFFFFFFFF
 end function
 
-/*
-* Function: _PMU_HasSignBit
-* Purpose: Tests bit 31 of a value after unsigned 32-bit normalization.
-*/
+/// Tests bit 31 of a value after unsigned 32-bit normalization.
+/// @param v Value consumed by the operation.
+/// @internal
 function inline _PMU_HasSignBit(v)
   return (_PMU_U32(v) & 0x80000000) != 0
 end function
 
-/*
-* Function: _PMU_IsSeq
-* Purpose: Accepts arrays and byte buffers as the indexable sequence forms used by compatibility helpers.
-*/
+/// Accepts arrays and byte buffers as the indexable sequence forms used by compatibility helpers.
+/// @param v Value consumed by the operation.
+/// @internal
 function inline _PMU_IsSeq(v)
   t = typeof(v)
   return t == "array" or t == "list"
 end function
 
+/// Tracks whether pmu diag use init is active in the p maputl subsystem.
+/// @internal
 _pmuDiagUseInit = false
+/// Tracks whether pmu diag use is active in the p maputl subsystem.
+/// @internal
 _pmuDiagUse = false
+/// Tracks the mutable pmu diag use count value used by the p maputl subsystem.
+/// @internal
 _pmuDiagUseCount = 0
 
-/*
-* Function: _PMU_DiagUseEnabled
-* Purpose: Caches whether path/use diagnostic output was requested on the command line.
-*/
+/// Caches whether path/use diagnostic output was requested on the command line.
+/// @internal
 function inline _PMU_DiagUseEnabled()
   global _pmuDiagUseInit
   global _pmuDiagUse
@@ -83,10 +84,9 @@ function inline _PMU_DiagUseEnabled()
   return _pmuDiagUse
 end function
 
-/*
-* Function: _PMU_DiagUseLog
-* Purpose: Emits a map-use diagnostic only when the cached diagnostic option is active.
-*/
+/// Emits a map-use diagnostic only when the cached diagnostic option is active.
+/// @param msg Msg value supplied to `_PMU_DiagUseLog`.
+/// @internal
 function inline _PMU_DiagUseLog(msg)
   global _pmuDiagUseCount
   if not _PMU_DiagUseEnabled() then return end if
@@ -96,10 +96,9 @@ function inline _PMU_DiagUseLog(msg)
   end if
 end function
 
-/*
-* Function: P_AproxDistance
-* Purpose: Computes Doom's inexpensive fixed-point distance approximation from horizontal and vertical deltas.
-*/
+/// Computes Doom's inexpensive fixed-point distance approximation from horizontal and vertical deltas.
+/// @param dx Horizontal coordinate or vector component represented by dx.
+/// @param dy Vertical coordinate or vector component represented by dy.
 function inline P_AproxDistance(dx, dy)
   dx = _abs(dx)
   dy = _abs(dy)
@@ -109,10 +108,11 @@ function inline P_AproxDistance(dx, dy)
   return dx + dy -(dy >> 1)
 end function
 
-/*
-* Function: P_PointOnLineSide
-* Purpose: Classifies a fixed-point point against a partition line while preserving Doom's vertical, horizontal, and sign-bit shortcuts.
-*/
+/// Classifies a fixed-point point against a partition line while preserving Doom's vertical, horizontal, and
+/// sign-bit shortcuts.
+/// @param x Horizontal map- or screen-space coordinate.
+/// @param y Vertical map- or screen-space coordinate.
+/// @param line Map line or text line affected by the operation.
 function inline P_PointOnLineSide(x, y, line)
   if line is void then return 0 end if
 
@@ -140,10 +140,9 @@ function inline P_PointOnLineSide(x, y, line)
   return 1
 end function
 
-/*
-* Function: P_BoxOnLineSide
-* Purpose: Classifies an axis-aligned bounding box against a line, returning -1 when the box straddles both sides.
-*/
+/// Classifies an axis-aligned bounding box against a line, returning -1 when the box straddles both sides.
+/// @param tmbox Temporary movement bounding box to read or update.
+/// @param ld Ld value supplied to `P_BoxOnLineSide`.
 function inline P_BoxOnLineSide(tmbox, ld)
   if tmbox is void or ld is void then return 0 end if
 
@@ -176,10 +175,11 @@ function inline P_BoxOnLineSide(tmbox, ld)
   return -1
 end function
 
-/*
-* Function: P_PointOnDivlineSide
-* Purpose: Classifies a fixed-point point against an infinite divline using overflow-safe sign tests and scaled cross products.
-*/
+/// Classifies a fixed-point point against an infinite divline using overflow-safe sign tests and scaled cross
+/// products.
+/// @param x Horizontal map- or screen-space coordinate.
+/// @param y Vertical map- or screen-space coordinate.
+/// @param line Map line or text line affected by the operation.
 function inline P_PointOnDivlineSide(x, y, line)
   if line is void then return 0 end if
 
@@ -214,10 +214,9 @@ function inline P_PointOnDivlineSide(x, y, line)
   return 1
 end function
 
-/*
-* Function: P_MakeDivline
-* Purpose: Copies a linedef's first vertex and direction into the lightweight divline form used by trace calculations.
-*/
+/// Copies a linedef's first vertex and direction into the lightweight divline form used by trace calculations.
+/// @param li Li value supplied to `P_MakeDivline`.
+/// @param dl Dl value supplied to `P_MakeDivline`.
 function inline P_MakeDivline(li, dl)
   if li is void or dl is void then return end if
   dl.x = li.v1.x
@@ -226,10 +225,9 @@ function inline P_MakeDivline(li, dl)
   dl.dy = li.dy
 end function
 
-/*
-* Function: P_InterceptVector
-* Purpose: Computes the fixed-point fraction where one divline intersects another, returning zero for parallel traces.
-*/
+/// Computes the fixed-point fraction where one divline intersects another, returning zero for parallel traces.
+/// @param v2 V2 value supplied to `P_InterceptVector`.
+/// @param v1 V1 value supplied to `P_InterceptVector`.
 function inline P_InterceptVector(v2, v1)
   den = FixedMul(v1.dy >> 8, v2.dx) - FixedMul(v1.dx >> 8, v2.dy)
   if den == 0 then
@@ -240,10 +238,9 @@ function inline P_InterceptVector(v2, v1)
   return FixedDiv(num, den)
 end function
 
-/*
-* Function: P_LineOpening
-* Purpose: Computes the vertical opening, top, bottom, and low-floor values across a two-sided line into shared trace globals.
-*/
+/// Computes the vertical opening, top, bottom, and low-floor values across a two-sided line into shared trace
+/// globals.
+/// @param linedef Linedef value supplied to `P_LineOpening`.
 function P_LineOpening(linedef)
   global opentop
   global openbottom
@@ -294,10 +291,8 @@ function P_LineOpening(linedef)
   openrange = opentop - openbottom
 end function
 
-/*
-* Function: P_UnsetThingPosition
-* Purpose: Unlinks a mobj from sector and blockmap chains before movement, honoring no-sector and no-blockmap flags.
-*/
+/// Unlinks a mobj from sector and blockmap chains before movement, honoring no-sector and no-blockmap flags.
+/// @param thing World object affected by the operation.
 function P_UnsetThingPosition(thing)
   if thing is void then return end if
 
@@ -342,10 +337,9 @@ function P_UnsetThingPosition(thing)
   end if
 end function
 
-/*
-* Function: P_SetThingPosition
-* Purpose: Finds a thing's subsector and links it into sector and blockmap lists unless its flags suppress either index.
-*/
+/// Finds a thing's subsector and links it into sector and blockmap lists unless its flags suppress either
+/// index.
+/// @param thing World object affected by the operation.
 function P_SetThingPosition(thing)
   if thing is void then return end if
 
@@ -391,10 +385,11 @@ function P_SetThingPosition(thing)
   end if
 end function
 
-/*
-* Function: P_BlockLinesIterator
-* Purpose: Visits each valid line in one blockmap cell once per traversal and stops immediately when the callback rejects it.
-*/
+/// Visits each valid line in one blockmap cell once per traversal and stops immediately when the callback
+/// rejects it.
+/// @param x Horizontal map- or screen-space coordinate.
+/// @param y Vertical map- or screen-space coordinate.
+/// @param func Func value supplied to `P_BlockLinesIterator`.
 function P_BlockLinesIterator(x, y, func)
   global validcount
 
@@ -441,10 +436,10 @@ function P_BlockLinesIterator(x, y, func)
   return true
 end function
 
-/*
-* Function: P_BlockThingsIterator
-* Purpose: Walks the mobj chain for one blockmap cell and stops when the callback returns false.
-*/
+/// Walks the mobj chain for one blockmap cell and stops when the callback returns false.
+/// @param x Horizontal map- or screen-space coordinate.
+/// @param y Vertical map- or screen-space coordinate.
+/// @param func Func value supplied to `P_BlockThingsIterator`.
 function P_BlockThingsIterator(x, y, func)
   if func is void then return true end if
   if x < 0 or y < 0 or x >= bmapwidth or y >= bmapheight then
@@ -466,17 +461,20 @@ function P_BlockThingsIterator(x, y, func)
   return true
 end function
 
+/// Defines pt addlines for the p maputl subsystem.
 const PT_ADDLINES = 1
+/// Defines pt addthings for the p maputl subsystem.
 const PT_ADDTHINGS = 2
+/// Defines pt earlyout for the p maputl subsystem.
 const PT_EARLYOUT = 4
 
+/// Tracks whether earlyout is active in the p maputl subsystem.
 earlyout = false
+/// Tracks the mutable ptflags value used by the p maputl subsystem.
 ptflags = 0
 
-/*
-* Function: _EnsureIntercepts
-* Purpose: Lazily allocates the reusable baseline intercept records required before path traversal begins.
-*/
+/// Lazily allocates the reusable baseline intercept records required before path traversal begins.
+/// @internal
 function inline _EnsureIntercepts()
   global intercepts
   if len(intercepts) == 0 then
@@ -488,10 +486,9 @@ function inline _EnsureIntercepts()
   end if
 end function
 
-/*
-* Function: _PT_EnsureInterceptCapacity
-* Purpose: Lazily allocates and geometrically grows the reusable intercept array required by path traversal.
-*/
+/// Lazily allocates and geometrically grows the reusable intercept array required by path traversal.
+/// @param need Need value supplied to `_PT_EnsureInterceptCapacity`.
+/// @internal
 function _PT_EnsureInterceptCapacity(need)
   global intercepts
   if typeof(need) != "int" then return end if
@@ -519,10 +516,10 @@ function _PT_EnsureInterceptCapacity(need)
   _PMU_DiagUseLog("intercept-capacity=" + len(intercepts))
 end function
 
-/*
-* Function: _PT_AddLineIntercept
-* Purpose: Tests one line against the active trace and appends its in-range fractional crossing to the intercept buffer.
-*/
+/// Tests one line against the active trace and appends its in-range fractional crossing to the intercept
+/// buffer.
+/// @param ld Ld value supplied to `_PT_AddLineIntercept`.
+/// @internal
 function _PT_AddLineIntercept(ld)
   global intercept_p
   if ld is void then return true end if
@@ -562,10 +559,9 @@ function _PT_AddLineIntercept(ld)
   return true
 end function
 
-/*
-* Function: _PT_AddThingIntercept
-* Purpose: Approximates a thing as a trace-facing diagonal and appends an in-range crossing intercept.
-*/
+/// Approximates a thing as a trace-facing diagonal and appends an in-range crossing intercept.
+/// @param thing World object affected by the operation.
+/// @internal
 function _PT_AddThingIntercept(thing)
   global intercept_p
   if thing is void then return true end if
@@ -612,26 +608,21 @@ function _PT_AddThingIntercept(thing)
   return true
 end function
 
-/*
-* Function: PIT_AddLineIntercepts
-* Purpose: Adapts blockmap line iteration to the current path-traversal intercept collector.
-*/
+/// Adapts blockmap line iteration to the current path-traversal intercept collector.
+/// @param ld Ld value supplied to `PIT_AddLineIntercepts`.
 function PIT_AddLineIntercepts(ld)
   return _PT_AddLineIntercept(ld)
 end function
 
-/*
-* Function: PIT_AddThingIntercepts
-* Purpose: Adapts blockmap thing iteration to the current path-traversal intercept collector.
-*/
+/// Adapts blockmap thing iteration to the current path-traversal intercept collector.
+/// @param thing World object affected by the operation.
 function PIT_AddThingIntercepts(thing)
   return _PT_AddThingIntercept(thing)
 end function
 
-/*
-* Function: P_TraverseIntercepts
-* Purpose: Computes intercepts values for the map utility.
-*/
+/// Computes intercepts values for the map utility.
+/// @param func Func value supplied to `P_TraverseIntercepts`.
+/// @param maxfrac Maxfrac value supplied to `P_TraverseIntercepts`.
 function P_TraverseIntercepts(func, maxfrac)
   if typeof(func) != "function" then return true end if
 
@@ -666,10 +657,14 @@ function P_TraverseIntercepts(func, maxfrac)
   return true
 end function
 
-/*
-* Function: P_PathTraverse
-* Purpose: Steps a trace through blockmap cells, collects requested line and thing crossings, sorts them by fraction, and invokes the traverser in order.
-*/
+/// Steps a trace through blockmap cells, collects requested line and thing crossings, sorts them by fraction,
+/// and invokes the traverser in order.
+/// @param x1 Horizontal coordinate of the first endpoint.
+/// @param y1 Vertical coordinate of the first endpoint.
+/// @param x2 Horizontal coordinate of the second endpoint.
+/// @param y2 Vertical coordinate of the second endpoint.
+/// @param flags Bit flags that control the operation.
+/// @param trav Trav value supplied to `P_PathTraverse`.
 function P_PathTraverse(x1, y1, x2, y2, flags, trav)
   global intercept_p
   global ptflags

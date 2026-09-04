@@ -13,9 +13,10 @@
   See the License for the specific language governing permissions and
   limitations under the License.
 
-  Script: hu_stuff.ml
-  Purpose: Owns level-title/message widgets, localized chat entry, and authoritative directed-chat submission.
 */
+
+//! Owns level-title/message widgets, localized chat entry, and authoritative directed-chat submission.
+
 import d_event
 import doomdef
 import z_zone
@@ -30,25 +31,41 @@ import sounds
 import m_menu
 import mp_platform
 
+/// Defines hu fontstart for the hu stuff subsystem.
 const HU_FONTSTART = 33
+/// Defines hu fontend for the hu stuff subsystem.
 const HU_FONTEND = 95
+/// Defines hu fontsize for the hu stuff subsystem.
 const HU_FONTSIZE =(HU_FONTEND - HU_FONTSTART + 1)
 
+/// Defines hu broadcast for the hu stuff subsystem.
 const HU_BROADCAST = 5
+/// Defines hu mpmsg chat for the hu stuff subsystem.
 const HU_MPMSG_CHAT = 7
+/// Defines the maximum hu mpchat maxbytes accepted by the hu stuff subsystem.
 const HU_MPCHAT_MAXBYTES = 120
 
+/// Defines hu msgrefresh for the hu stuff subsystem.
 const HU_MSGREFRESH = KEY_ENTER
+/// Defines hu msgx for the hu stuff subsystem.
 const HU_MSGX = 0
+/// Defines hu msgy for the hu stuff subsystem.
 const HU_MSGY = 0
+/// Defines hu msgwidth for the hu stuff subsystem.
 const HU_MSGWIDTH = 64
+/// Defines hu msgheight for the hu stuff subsystem.
 const HU_MSGHEIGHT = 1
+/// Defines hu msgtimeout for the hu stuff subsystem.
 const HU_MSGTIMEOUT = 4 * TICRATE
 
+/// Defines hu inputtoggle for the hu stuff subsystem.
 const HU_INPUTTOGGLE = 116
+/// Defines hu inputx for the hu stuff subsystem.
 const HU_INPUTX = HU_MSGX
 
+/// Defines hu titlex for the hu stuff subsystem.
 const HU_TITLEX = 0
+/// Stores the chat macros collection used by the hu stuff subsystem.
 chat_macros =[
 HUSTR_CHATMACRO0,
 HUSTR_CHATMACRO1,
@@ -62,8 +79,10 @@ HUSTR_CHATMACRO8,
 HUSTR_CHATMACRO9
 ]
 
+/// Stores the player names collection used by the hu stuff subsystem.
 player_names =[HUSTR_PLRGREEN, HUSTR_PLRINDIGO, HUSTR_PLRBROWN, HUSTR_PLRRED]
 
+/// Stores the mapnames collection used by the hu stuff subsystem.
 mapnames =[
 HUSTR_E1M1, HUSTR_E1M2, HUSTR_E1M3, HUSTR_E1M4, HUSTR_E1M5, HUSTR_E1M6, HUSTR_E1M7, HUSTR_E1M8, HUSTR_E1M9,
 HUSTR_E2M1, HUSTR_E2M2, HUSTR_E2M3, HUSTR_E2M4, HUSTR_E2M5, HUSTR_E2M6, HUSTR_E2M7, HUSTR_E2M8, HUSTR_E2M9,
@@ -71,21 +90,25 @@ HUSTR_E3M1, HUSTR_E3M2, HUSTR_E3M3, HUSTR_E3M4, HUSTR_E3M5, HUSTR_E3M6, HUSTR_E3
 HUSTR_E4M1, HUSTR_E4M2, HUSTR_E4M3, HUSTR_E4M4, HUSTR_E4M5, HUSTR_E4M6, HUSTR_E4M7, HUSTR_E4M8, HUSTR_E4M9
 ]
 
+/// Stores the mapnames2 collection used by the hu stuff subsystem.
 mapnames2 =[
 HUSTR_1, HUSTR_2, HUSTR_3, HUSTR_4, HUSTR_5, HUSTR_6, HUSTR_7, HUSTR_8, HUSTR_9, HUSTR_10, HUSTR_11, HUSTR_12, HUSTR_13, HUSTR_14, HUSTR_15, HUSTR_16,
 HUSTR_17, HUSTR_18, HUSTR_19, HUSTR_20, HUSTR_21, HUSTR_22, HUSTR_23, HUSTR_24, HUSTR_25, HUSTR_26, HUSTR_27, HUSTR_28, HUSTR_29, HUSTR_30, HUSTR_31, HUSTR_32
 ]
 
+/// Stores the mapnamesp collection used by the hu stuff subsystem.
 mapnamesp =[
 PHUSTR_1, PHUSTR_2, PHUSTR_3, PHUSTR_4, PHUSTR_5, PHUSTR_6, PHUSTR_7, PHUSTR_8, PHUSTR_9, PHUSTR_10, PHUSTR_11, PHUSTR_12, PHUSTR_13, PHUSTR_14, PHUSTR_15, PHUSTR_16,
 PHUSTR_17, PHUSTR_18, PHUSTR_19, PHUSTR_20, PHUSTR_21, PHUSTR_22, PHUSTR_23, PHUSTR_24, PHUSTR_25, PHUSTR_26, PHUSTR_27, PHUSTR_28, PHUSTR_29, PHUSTR_30, PHUSTR_31, PHUSTR_32
 ]
 
+/// Stores the mapnamest collection used by the hu stuff subsystem.
 mapnamest =[
 THUSTR_1, THUSTR_2, THUSTR_3, THUSTR_4, THUSTR_5, THUSTR_6, THUSTR_7, THUSTR_8, THUSTR_9, THUSTR_10, THUSTR_11, THUSTR_12, THUSTR_13, THUSTR_14, THUSTR_15, THUSTR_16,
 THUSTR_17, THUSTR_18, THUSTR_19, THUSTR_20, THUSTR_21, THUSTR_22, THUSTR_23, THUSTR_24, THUSTR_25, THUSTR_26, THUSTR_27, THUSTR_28, THUSTR_29, THUSTR_30, THUSTR_31, THUSTR_32
 ]
 
+/// Stores the french key map collection used by the hu stuff subsystem.
 frenchKeyMap =[
 0,
 1, 2, 3, 4, 5, 6, 7, 8, 9, 10,
@@ -100,44 +123,72 @@ frenchKeyMap =[
 80, 65, 82, 83, 84, 85, 86, 90, 88, 89, 87, 94, 92, 36, 94, 127
 ]
 
+/// Stores the hu font collection used by the hu stuff subsystem.
 hu_font =[]
 
+/// Tracks the mutable chat char value used by the hu stuff subsystem.
 chat_char = 0
+/// Holds the optional plr resource used by the hu stuff subsystem.
 plr = void
 
+/// Tracks the mutable w title value used by the hu stuff subsystem.
 w_title = hu_textline_t(0, 0, 0, 0, bytes(HU_MAXLINELENGTH + 1, 0), 0, 0)
+/// Tracks the mutable w message value used by the hu stuff subsystem.
 w_message = hu_stext_t([], 0, 0,[false], false)
+/// Tracks the mutable w chat value used by the hu stuff subsystem.
 w_chat = hu_itext_t(hu_textline_t(0, 0, 0, 0, bytes(HU_MAXLINELENGTH + 1, 0), 0, 0), 0,[false], false)
+/// Stores the w inputbuffer collection used by the hu stuff subsystem.
 w_inputbuffer =[]
 
+/// Tracks whether always off is active in the hu stuff subsystem.
 always_off = false
+/// Stores the always off ref collection used by the hu stuff subsystem.
 always_off_ref =[false]
+/// Stores the chat dest collection used by the hu stuff subsystem.
 chat_dest =[0, 0, 0, 0]
+/// Stores the destination keys collection used by the hu stuff subsystem.
 destination_keys =[0, 0, 0, 0]
 
+/// Tracks whether message on is active in the hu stuff subsystem.
 message_on = false
+/// Stores the message on ref collection used by the hu stuff subsystem.
 message_on_ref =[false]
+/// Tracks whether message dontfuckwithme is active in the hu stuff subsystem.
 message_dontfuckwithme = false
+/// Tracks whether message nottobefuckedwith is active in the hu stuff subsystem.
 message_nottobefuckedwith = false
+/// Tracks the mutable message counter value used by the hu stuff subsystem.
 message_counter = 0
 
+/// Tracks whether chat on is active in the hu stuff subsystem.
 chat_on = false
+/// Stores the chat on ref collection used by the hu stuff subsystem.
 chat_on_ref =[false]
 
+/// Tracks whether headsupactive is active in the hu stuff subsystem.
 headsupactive = false
+/// Tracks whether hu started is active in the hu stuff subsystem.
 hu_started = false
 
+/// Stores the shiftxform collection used by the hu stuff subsystem.
 shiftxform =[]
+/// Tracks whether shiftdown is active in the hu stuff subsystem.
 shiftdown = false
+/// Tracks whether altdown is active in the hu stuff subsystem.
 altdown = false
+/// Tracks the mutable num nobrainers value used by the hu stuff subsystem.
 num_nobrainers = 0
+/// Stores the mutable hu lastmessage text used by the hu stuff subsystem.
+/// @internal
 _hu_lastmessage = ""
+/// Tracks the mutable hu local chat dest value used by the hu stuff subsystem.
+/// @internal
 _hu_local_chat_dest = HU_BROADCAST
 
-/*
-* Function: _HU_ToInt
-* Purpose: Normalizes numeric HUD fields to truncating integers or a caller-supplied fallback.
-*/
+/// Normalizes numeric HUD fields to truncating integers or a caller-supplied fallback.
+/// @param v Value consumed by the operation.
+/// @param fallback Value returned when the requested conversion or lookup is unavailable.
+/// @internal
 function inline _HU_ToInt(v, fallback)
   if typeof(v) == "int" then return v end if
   n = toNumber(v)
@@ -149,10 +200,9 @@ function inline _HU_ToInt(v, fallback)
   return fallback
 end function
 
-/*
-* Function: _HU_SetMessageOn
-* Purpose: Keeps the HUD message visibility flag and HUlib's shared boolean reference in lockstep.
-*/
+/// Keeps the HUD message visibility flag and HUlib's shared boolean reference in lockstep.
+/// @param v Value consumed by the operation.
+/// @internal
 function inline _HU_SetMessageOn(v)
   global message_on
   global message_on_ref
@@ -162,10 +212,9 @@ function inline _HU_SetMessageOn(v)
   end if
 end function
 
-/*
-* Function: _HU_SetChatOn
-* Purpose: Keeps chat-entry visibility synchronized with the mutable reference consumed by HUlib.
-*/
+/// Keeps chat-entry visibility synchronized with the mutable reference consumed by HUlib.
+/// @param v Value consumed by the operation.
+/// @internal
 function inline _HU_SetChatOn(v)
   global chat_on
   global chat_on_ref
@@ -175,10 +224,8 @@ function inline _HU_SetChatOn(v)
   end if
 end function
 
-/*
-* Function: _HU_FontHeight
-* Purpose: Returns the loaded HUD font height with an eight-pixel fallback.
-*/
+/// Returns the loaded HUD font height with an eight-pixel fallback.
+/// @internal
 function inline _HU_FontHeight()
   if typeof(hu_font) == "array" and len(hu_font) > 0 and hu_font[0] is not void then
     return RDefs_I16LE(hu_font[0], 2)
@@ -186,10 +233,9 @@ function inline _HU_FontHeight()
   return 8
 end function
 
-/*
-* Function: _HU_KeyCodeFromString
-* Purpose: Extracts the first byte used by localized one-character chat key bindings.
-*/
+/// Extracts the first byte used by localized one-character chat key bindings.
+/// @param s S value supplied to `_HU_KeyCodeFromString`.
+/// @internal
 function inline _HU_KeyCodeFromString(s)
   if typeof(s) != "string" or len(s) == 0 then return 0 end if
   b = bytes(s)
@@ -197,29 +243,25 @@ function inline _HU_KeyCodeFromString(s)
   return b[0]
 end function
 
-/*
-* Function: _HU_ShowMessagesEnabled
-* Purpose: Normalizes the integer showMessages setting to a HUD visibility decision.
-*/
+/// Normalizes the integer showMessages setting to a HUD visibility decision.
+/// @internal
 function inline _HU_ShowMessagesEnabled()
   if typeof(showMessages) == "int" then return showMessages != 0 end if
   return true
 end function
 
-/*
-* Function: _HU_MPUsePacketChat
-* Purpose: Enables chat only for the host-authoritative platform session that owns D_Net routing.
-*/
+/// Enables chat only for the host-authoritative platform session that owns D_Net routing.
+/// @internal
 function inline _HU_MPUsePacketChat()
   if typeof(MP_PlatformIsHosting) == "function" and MP_PlatformIsHosting() then return true end if
   if typeof(MP_PlatformIsClientConnected) == "function" and MP_PlatformIsClientConnected() then return true end if
   return false
 end function
 
-/*
-* Function: _HU_MPSendChatMessage
-* Purpose: Submits one complete HUD chat line to the authoritative channel, including private destination.
-*/
+/// Submits one complete HUD chat line to the authoritative channel, including private destination.
+/// @param dest Dest value supplied to `_HU_MPSendChatMessage`.
+/// @param msg Msg value supplied to `_HU_MPSendChatMessage`.
+/// @internal
 function inline _HU_MPSendChatMessage(dest, msg)
   if not _HU_MPUsePacketChat() then return false end if
   if typeof(msg) != "string" then return false end if
@@ -229,19 +271,17 @@ function inline _HU_MPSendChatMessage(dest, msg)
   return D_NetMPSendChat(dest, m)
 end function
 
-/*
-* Function: _HU_PlayerName
-* Purpose: Resolves a checked local player-name entry for directed chat prompts.
-*/
+/// Resolves a checked local player-name entry for directed chat prompts.
+/// @param idx Zero-based element or table index.
+/// @internal
 function inline _HU_PlayerName(idx)
   if idx >= 0 and idx < len(player_names) then return player_names[idx] end if
   return ""
 end function
 
-/*
-* Function: _HU_ITextString
-* Purpose: Copies the live HU input widget bytes into an immutable chat string.
-*/
+/// Copies the live HU input widget bytes into an immutable chat string.
+/// @param it It value supplied to `_HU_ITextString`.
+/// @internal
 function inline _HU_ITextString(it)
   if it is void or it.l is void then return "" end if
   if typeof(it.l.l) != "bytes" then return "" end if
@@ -251,10 +291,8 @@ function inline _HU_ITextString(it)
   return decode(slice(it.l.l, 0, n))
 end function
 
-/*
-* Function: _HU_BuildBaseShiftMap
-* Purpose: Creates the ASCII chat transform with identity punctuation and uppercase alphabetic keys.
-*/
+/// Creates the ASCII chat transform with identity punctuation and uppercase alphabetic keys.
+/// @internal
 function _HU_BuildBaseShiftMap()
   m =[]
   i = 0
@@ -270,10 +308,8 @@ function _HU_BuildBaseShiftMap()
   return m
 end function
 
-/*
-* Function: _HU_BuildEnglishShiftMap
-* Purpose: Adds US-keyboard shifted punctuation and digits to the common chat transform.
-*/
+/// Adds US-keyboard shifted punctuation and digits to the common chat transform.
+/// @internal
 function _HU_BuildEnglishShiftMap()
   m = _HU_BuildBaseShiftMap()
 
@@ -302,10 +338,8 @@ function _HU_BuildEnglishShiftMap()
   return m
 end function
 
-/*
-* Function: _HU_BuildFrenchShiftMap
-* Purpose: Adds the French layout's supported shifted punctuation to the common chat transform.
-*/
+/// Adds the French layout's supported shifted punctuation to the common chat transform.
+/// @internal
 function _HU_BuildFrenchShiftMap()
   m = _HU_BuildBaseShiftMap()
 
@@ -322,10 +356,9 @@ function _HU_BuildFrenchShiftMap()
   return m
 end function
 
-/*
-* Function: _HU_ShiftChar
-* Purpose: Applies the active keyboard shift map to one printable chat byte.
-*/
+/// Applies the active keyboard shift map to one printable chat byte.
+/// @param c C value supplied to `_HU_ShiftChar`.
+/// @internal
 function inline _HU_ShiftChar(c)
   if typeof(c) != "int" then return c end if
   if typeof(shiftxform) == "array" and c >= 0 and c < len(shiftxform) then
@@ -334,10 +367,8 @@ function inline _HU_ShiftChar(c)
   return c
 end function
 
-/*
-* Function: _HU_CurrentPlayer
-* Purpose: Resolves and caches the console player's current HUD message source.
-*/
+/// Resolves and caches the console player's current HUD message source.
+/// @internal
 function inline _HU_CurrentPlayer()
   if typeof(players) != "array" then return void end if
   if typeof(consoleplayer) != "int" then return void end if
@@ -345,10 +376,8 @@ function inline _HU_CurrentPlayer()
   return players[consoleplayer]
 end function
 
-/*
-* Function: _HU_PopCurrentPlayerMessage
-* Purpose: Reads and clears current player HUD message from authoritative player state.
-*/
+/// Reads and clears current player HUD message from authoritative player state.
+/// @internal
 function _HU_PopCurrentPlayerMessage()
   global plr
 
@@ -374,10 +403,8 @@ function _HU_PopCurrentPlayerMessage()
   return void
 end function
 
-/*
-* Function: _HU_MapTitle
-* Purpose: Selects the localized automap title for the current episode/map marker.
-*/
+/// Selects the localized automap title for the current episode/map marker.
+/// @internal
 function _HU_MapTitle()
   if gamemode == GameMode_t.shareware or gamemode == GameMode_t.registered or gamemode == GameMode_t.retail then
     idx =(gameepisode - 1) * 9 + gamemap - 1
@@ -398,10 +425,8 @@ function _HU_MapTitle()
   return ""
 end function
 
-/*
-* Function: _HU_InitDestinationKeys
-* Purpose: Maps the four localized player-color destination keys to responder key codes.
-*/
+/// Maps the four localized player-color destination keys to responder key codes.
+/// @internal
 function inline _HU_InitDestinationKeys()
   destination_keys =[
   _HU_KeyCodeFromString(HUSTR_KEYGREEN),
@@ -412,10 +437,8 @@ function inline _HU_InitDestinationKeys()
   return destination_keys
 end function
 
-/*
-* Function: _HU_EnsureInputBuffers
-* Purpose: Allocates one bounded HUlib input widget per possible remote chat sender.
-*/
+/// Allocates one bounded HUlib input widget per possible remote chat sender.
+/// @internal
 function _HU_EnsureInputBuffers()
   global w_inputbuffer
   w_inputbuffer =[]
@@ -428,10 +451,7 @@ function _HU_EnsureInputBuffers()
   end while
 end function
 
-/*
-* Function: HU_Init
-* Purpose: Builds keyboard shift maps, shared visibility references, and the STCFN font-lump cache.
-*/
+/// Builds keyboard shift maps, shared visibility references, and the STCFN font-lump cache.
 function HU_Init()
   global hu_font
   global shiftxform
@@ -469,10 +489,7 @@ function HU_Init()
   if typeof(CUI_SetFont) == "function" then CUI_SetFont(hu_font, HU_FONTSTART) end if
 end function
 
-/*
-* Function: HU_Stop
-* Purpose: Deactivates level HUD rendering and cancels any partially entered chat line.
-*/
+/// Deactivates level HUD rendering and cancels any partially entered chat line.
 function HU_Stop()
   global headsupactive
   global hu_started
@@ -481,10 +498,7 @@ function HU_Stop()
   _HU_SetChatOn(false)
 end function
 
-/*
-* Function: HU_Start
-* Purpose: Rebinds HUD widgets to the current player and clears messages/chat buffers for the new level.
-*/
+/// Rebinds HUD widgets to the current player and clears messages/chat buffers for the new level.
 function HU_Start()
   global w_message
   global w_chat
@@ -531,10 +545,7 @@ function HU_Start()
   hu_started = true
 end function
 
-/*
-* Function: HU_Drawer
-* Purpose: Draws message history, map title, and active chat input when the HUD is visible.
-*/
+/// Draws message history, map title, and active chat input when the HUD is visible.
 function HU_Drawer()
   if not headsupactive then return end if
   HUlib_drawSText(w_message)
@@ -542,20 +553,15 @@ function HU_Drawer()
   if automapactive then HUlib_drawTextLine(w_title, false) end if
 end function
 
-/*
-* Function: HU_Erase
-* Purpose: Restores view-border pixels previously occupied by HUD text in reduced-screen mode.
-*/
+/// Restores view-border pixels previously occupied by HUD text in reduced-screen mode.
 function HU_Erase()
   HUlib_eraseSText(w_message)
   HUlib_eraseIText(w_chat)
   HUlib_eraseTextLine(w_title)
 end function
 
-/*
-* Function: HU_NetAddMessage
-* Purpose: Pushes one network-originated chat/feed line directly into HUD message area.
-*/
+/// Pushes one network-originated chat/feed line directly into HUD message area.
+/// @param msg Msg value supplied to `HU_NetAddMessage`.
 function HU_NetAddMessage(msg)
   global message_counter
   global message_nottobefuckedwith
@@ -587,10 +593,7 @@ function HU_NetAddMessage(msg)
   end if
 end function
 
-/*
-* Function: HU_Ticker
-* Purpose: Ages the current HUD message and consumes one authoritative player message per UI tic.
-*/
+/// Ages the current HUD message and consumes one authoritative player message per UI tic.
 function HU_Ticker()
   global message_counter
   global message_nottobefuckedwith
@@ -621,10 +624,8 @@ function HU_Ticker()
 
 end function
 
-/*
-* Function: ForeignTranslation
-* Purpose: Maps one key byte through the French keyboard table while preserving other languages.
-*/
+/// Maps one key byte through the French keyboard table while preserving other languages.
+/// @param ch Ch value supplied to `ForeignTranslation`.
 function ForeignTranslation(ch)
   if language != Language_t.french then return ch end if
   if typeof(ch) != "int" then return ch end if
@@ -633,10 +634,8 @@ function ForeignTranslation(ch)
   return frenchKeyMap[ch]
 end function
 
-/*
-* Function: HU_Responder
-* Purpose: Owns chat activation, destination selection, macros, editing, and final packet submission.
-*/
+/// Owns chat activation, destination selection, macros, editing, and final packet submission.
+/// @param ev Input event to process.
 function HU_Responder(ev)
   global shiftdown
   global altdown

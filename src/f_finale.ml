@@ -13,9 +13,10 @@
   See the License for the specific language governing permissions and
   limitations under the License.
 
-  Script: f_finale.ml
-  Purpose: Implements finale sequencing, text pages, and ending presentation.
 */
+
+//! Implements finale sequencing, text pages, and ending presentation.
+
 import doomtype
 import d_event
 import i_system
@@ -31,24 +32,35 @@ import r_state
 import hu_stuff
 import m_misc
 
+/// Defines textspeed for the f finale subsystem.
 const TEXTSPEED = 3
+/// Defines textwait for the f finale subsystem.
 const TEXTWAIT = 250
 
+/// Tracks whether finale started is active in the f finale subsystem.
 finale_started = false
+/// Tracks the mutable finale count value used by the f finale subsystem.
 finale_count = 0
+/// Tracks the mutable finale stage value used by the f finale subsystem.
 finale_stage = 0
+/// Stores the mutable finale text text used by the f finale subsystem.
 finale_text = ""
+/// Stores the mutable finale flat text used by the f finale subsystem.
 finale_flat = "FLOOR4_8"
 
+/// Tracks whether cast active is active in the f finale subsystem.
 cast_active = false
+/// Tracks the mutable cast tics value used by the f finale subsystem.
 cast_tics = 0
+/// Stores the mutable cast name text used by the f finale subsystem.
 cast_name = ""
+/// Tracks the mutable bunny laststage value used by the f finale subsystem.
 bunny_laststage = -1
 
-/*
-* Function: _F_Substr
-* Purpose: Returns at most the first n encoded bytes of a string, clamping n to the available data.
-*/
+/// Returns at most the first n encoded bytes of a string, clamping n to the available data.
+/// @param s S value supplied to `_F_Substr`.
+/// @param n Number of values to process.
+/// @internal
 function inline _F_Substr(s, n)
   if typeof(s) != "string" then return "" end if
   if n <= 0 then return "" end if
@@ -57,10 +69,11 @@ function inline _F_Substr(s, n)
   return decode(slice(b, 0, n))
 end function
 
-/*
-* Function: _F_IDiv
-* Purpose: Returns a signed quotient truncated toward zero, or zero for invalid operands and a zero divisor.
-*/
+/// Returns a signed quotient truncated toward zero, or zero for invalid operands and a zero divisor in
+/// `_F_IDiv`
+/// @param a First input operand.
+/// @param b Second input operand.
+/// @internal
 function inline _F_IDiv(a, b)
   if typeof(a) != "int" or typeof(b) != "int" or b == 0 then return 0 end if
   q = a / b
@@ -68,44 +81,40 @@ function inline _F_IDiv(a, b)
   return std.math.ceil(q)
 end function
 
-/*
-* Function: _F_u16le
-* Purpose: Decodes an unsigned 16-bit little-endian value from a patch header.
-*/
+/// Decodes an unsigned 16-bit little-endian value from a patch header.
+/// @param b Second input operand.
+/// @param off Zero-based byte or element offset.
+/// @internal
 function inline _F_u16le(b, off)
   return b[off] +(b[off + 1] << 8)
 end function
 
-/*
-* Function: _F_u32le
-* Purpose: Decodes an unsigned 32-bit little-endian value from a patch column table.
-*/
+/// Decodes an unsigned 32-bit little-endian value from a patch column table.
+/// @param b Second input operand.
+/// @param off Zero-based byte or element offset.
+/// @internal
 function inline _F_u32le(b, off)
   return b[off] +(b[off + 1] << 8) +(b[off + 2] << 16) +(b[off + 3] << 24)
 end function
 
-/*
-* Function: _F_PatchWidth
-* Purpose: Reads a Doom patch width, returning zero for missing or truncated patch data.
-*/
+/// Reads a Doom patch width, returning zero for missing or truncated patch data.
+/// @param patch Patch value supplied to `_F_PatchWidth`.
+/// @internal
 function inline _F_PatchWidth(patch)
   if typeof(patch) != "bytes" or len(patch) < 8 then return 0 end if
   return _F_u16le(patch, 0)
 end function
 
-/*
-* Function: _F_UpperAscii
-* Purpose: Normalizes lowercase ASCII character codes before indexing the uppercase HUD font.
-*/
+/// Normalizes lowercase ASCII character codes before indexing the uppercase HUD font.
+/// @param c C value supplied to `_F_UpperAscii`.
+/// @internal
 function inline _F_UpperAscii(c)
   if c >= 97 and c <= 122 then return c - 32 end if
   return c
 end function
 
-/*
-* Function: _F_AnyPlayerButtons
-* Purpose: Reports whether any valid player command currently carries a button press used to skip a commercial finale.
-*/
+/// Reports whether any valid player command currently carries a button press used to skip a commercial finale.
+/// @internal
 function _F_AnyPlayerButtons()
   i = 0
   while i < MAXPLAYERS
@@ -119,10 +128,10 @@ function _F_AnyPlayerButtons()
   return false
 end function
 
-/*
-* Function: _F_DrawTiledFlat
-* Purpose: Fills the logical screen with a repeating 64x64 flat, marks it dirty, and submits the matching HD overlay when available.
-*/
+/// Fills the logical screen with a repeating 64x64 flat, marks it dirty, and submits the matching HD overlay
+/// when available.
+/// @param name Resource or object name to resolve.
+/// @internal
 function _F_DrawTiledFlat(name)
   if typeof(screens) != "array" or len(screens) == 0 then return end if
   dest = screens[0]
@@ -163,10 +172,9 @@ function _F_DrawTiledFlat(name)
   if typeof(V_DrawUpscaledFlatOverlay) == "function" then V_DrawUpscaledFlatOverlay(name) end if
 end function
 
-/*
-* Function: _F_EndPatchName
-* Purpose: Maps a clamped bunny-ending animation stage to its END0-through-END6 patch name.
-*/
+/// Maps a clamped bunny-ending animation stage to its END0-through-END6 patch name.
+/// @param stage Stage value supplied to `_F_EndPatchName`.
+/// @internal
 function inline _F_EndPatchName(stage)
   if stage <= 0 then return "END0" end if
   if stage == 1 then return "END1" end if
@@ -177,10 +185,7 @@ function inline _F_EndPatchName(stage)
   return "END6"
 end function
 
-/*
-* Function: F_StartFinale
-* Purpose: Enters GS_FINALE, selects the episode/map text and background, and starts the appropriate finale music.
-*/
+/// Enters GS_FINALE, selects the episode/map text and background, and starts the appropriate finale music.
 function F_StartFinale()
   global finale_started
   global finale_count
@@ -259,10 +264,8 @@ function F_StartFinale()
   finale_text = C1TEXT
 end function
 
-/*
-* Function: F_Responder
-* Purpose: Routes input only to the cast stage; text and art stages deliberately leave events unconsumed.
-*/
+/// Routes input only to the cast stage; text and art stages deliberately leave events unconsumed.
+/// @param ev Input event to process.
 function F_Responder(ev)
   if ev == 0 then return false end if
   if finale_stage == 2 or cast_active then
@@ -271,10 +274,7 @@ function F_Responder(ev)
   return false
 end function
 
-/*
-* Function: F_TextWrite
-* Purpose: Draws the tiled finale background and reveals the selected story text at TEXTSPEED using the HUD font.
-*/
+/// Draws the tiled finale background and reveals the selected story text at TEXTSPEED using the HUD font.
 function F_TextWrite()
   if not finale_started then return end if
   _F_DrawTiledFlat(finale_flat)
@@ -317,10 +317,8 @@ function F_TextWrite()
   end while
 end function
 
-/*
-* Function: F_StartCast
-* Purpose: Switches the finale into its cast stage, initializes its placeholder actor state, and starts the evil music track.
-*/
+/// Switches the finale into its cast stage, initializes its placeholder actor state, and starts the evil music
+/// track.
 function F_StartCast()
   global cast_active
   global cast_tics
@@ -334,20 +332,15 @@ function F_StartCast()
   S_ChangeMusic(musicenum_t.mus_evil, true)
 end function
 
-/*
-* Function: F_CastTicker
-* Purpose: Advances the cast-stage elapsed-tic counter while that stage is active.
-*/
+/// Advances the cast-stage elapsed-tic counter while that stage is active.
 function F_CastTicker()
   global cast_tics
   if not cast_active then return end if
   cast_tics = cast_tics + 1
 end function
 
-/*
-* Function: F_CastResponder
-* Purpose: Consumes key-down events during the cast stage and advances its input-driven counter.
-*/
+/// Consumes key-down events during the cast stage and advances its input-driven counter.
+/// @param ev Input event to process.
 function F_CastResponder(ev)
   if ev == 0 then return false end if
   if ev.type == evtype_t.ev_keydown then
@@ -358,10 +351,9 @@ function F_CastResponder(ev)
   return false
 end function
 
-/*
-* Function: F_CastPrint
-* Purpose: Measures and renders a cast name centered at y=180, falling back to the menu text renderer when the HUD font is unavailable.
-*/
+/// Measures and renders a cast name centered at y=180, falling back to the menu text renderer when the HUD font
+/// is unavailable.
+/// @param text Text to process.
 function F_CastPrint(text)
   if typeof(hu_font) != "array" then
     if typeof(M_DrawText) == "function" then M_DrawText(90, 180, false, text) end if
@@ -405,10 +397,11 @@ function F_CastPrint(text)
   end while
 end function
 
-/*
-* Function: F_DrawPatchCol
-* Purpose: Decodes one post-compressed Doom patch column into the logical framebuffer with horizontal and vertical bounds checks.
-*/
+/// Decodes one post-compressed Doom patch column into the logical framebuffer with horizontal and vertical
+/// bounds checks.
+/// @param x Horizontal map- or screen-space coordinate.
+/// @param patch Patch value supplied to `F_DrawPatchCol`.
+/// @param col Col value supplied to `F_DrawPatchCol`.
 function F_DrawPatchCol(x, patch, col)
   if typeof(screens) != "array" or len(screens) == 0 then return end if
   fb = screens[0]
@@ -440,10 +433,7 @@ function F_DrawPatchCol(x, patch, col)
   end while
 end function
 
-/*
-* Function: F_BunnyScroll
-* Purpose: Composes the episode-three PFUB panorama, then advances and sounds the centered END0-through-END6 animation.
-*/
+/// Composes the episode-three PFUB panorama, then advances and sounds the centered END0-through-END6 animation.
 function F_BunnyScroll()
   if W_CheckNumForName("PFUB1") < 0 or W_CheckNumForName("PFUB2") < 0 then
     _F_DrawTiledFlat(finale_flat)
@@ -496,10 +486,7 @@ function F_BunnyScroll()
   end if
 end function
 
-/*
-* Function: F_CastDrawer
-* Purpose: Draws the cast-stage backdrop and centered actor name while cast presentation is active.
-*/
+/// Draws the cast-stage backdrop and centered actor name while cast presentation is active.
 function F_CastDrawer()
   if not cast_active then return end if
   if W_CheckNumForName("BOSSBACK") >= 0 then
@@ -508,10 +495,8 @@ function F_CastDrawer()
   F_CastPrint(cast_name)
 end function
 
-/*
-* Function: F_Ticker
-* Purpose: Advances finale time, handles commercial skip/world completion, and transitions non-commercial text into its art stage.
-*/
+/// Advances finale time, handles commercial skip/world completion, and transitions non-commercial text into its
+/// art stage.
 function F_Ticker()
   global finale_count
   global finale_stage
@@ -547,10 +532,7 @@ function F_Ticker()
   end if
 end function
 
-/*
-* Function: F_Drawer
-* Purpose: Dispatches finale rendering between story text, cast presentation, and the episode-specific ending artwork.
-*/
+/// Dispatches finale rendering between story text, cast presentation, and the episode-specific ending artwork.
 function F_Drawer()
   if not finale_started then return end if
 

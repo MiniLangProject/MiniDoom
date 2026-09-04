@@ -13,9 +13,10 @@
   See the License for the specific language governing permissions and
   limitations under the License.
 
-  Script: p_sight.ml
-  Purpose: Tests monster line of sight through reject tables, BSP crossings, and vertical portal slopes.
 */
+
+//! Tests monster line of sight through reject tables, BSP crossings, and vertical portal slopes.
+
 import doomdef
 import i_system
 import p_local
@@ -24,20 +25,26 @@ import r_state
 import doomdata
 import m_fixed
 
+/// Tracks the mutable sightzstart value used by the p sight subsystem.
 sightzstart = 0
+/// Tracks the mutable topslope value used by the p sight subsystem.
 topslope = 0
+/// Tracks the mutable bottomslope value used by the p sight subsystem.
 bottomslope = 0
 
+/// Tracks the mutable strace value used by the p sight subsystem.
 strace = divline_t(0, 0, 0, 0)
+/// Tracks the mutable t2x value used by the p sight subsystem.
 t2x = 0
+/// Tracks the mutable t2y value used by the p sight subsystem.
 t2y = 0
 
+/// Stores the sightcounts collection used by the p sight subsystem.
 sightcounts =[0, 0]
 
-/*
-* Function: _PSI_SectorIndex
-* Purpose: Resolves a sector object to its map index for REJECT-table visibility lookup.
-*/
+/// Resolves a sector object to its map index for REJECT-table visibility lookup.
+/// @param sec Sec value supplied to `_PSI_SectorIndex`.
+/// @internal
 function _PSI_SectorIndex(sec)
   if sec is void then return -1 end if
   if typeof(sectors) != "array" then return -1 end if
@@ -49,10 +56,9 @@ function _PSI_SectorIndex(sec)
   return -1
 end function
 
-/*
-* Function: _PSI_GetRejectByte
-* Purpose: Reads one REJECT lump byte safely, supporting both direct byte storage and wrapped lump data.
-*/
+/// Reads one REJECT lump byte safely, supporting both direct byte storage and wrapped lump data.
+/// @param idx Zero-based element or table index.
+/// @internal
 function _PSI_GetRejectByte(idx)
   if idx < 0 then return 0 end if
 
@@ -70,10 +76,11 @@ function _PSI_GetRejectByte(idx)
   return 0
 end function
 
-/*
-* Function: P_DivlineSide
-* Purpose: Classifies a point against a divline, returning two for an exact collinear hit and using scaled products to avoid overflow.
-*/
+/// Classifies a point against a divline, returning two for an exact collinear hit and using scaled products to
+/// avoid overflow.
+/// @param x Horizontal map- or screen-space coordinate.
+/// @param y Vertical map- or screen-space coordinate.
+/// @param node Node value supplied to `P_DivlineSide`.
 function inline P_DivlineSide(x, y, node)
   if node is void then return 0 end if
 
@@ -106,10 +113,9 @@ function inline P_DivlineSide(x, y, node)
   return 1
 end function
 
-/*
-* Function: P_InterceptVector2
-* Purpose: Computes where the current sight trace intersects a partition line as a fixed-point fraction.
-*/
+/// Computes where the current sight trace intersects a partition line as a fixed-point fraction.
+/// @param v2 V2 value supplied to `P_InterceptVector2`.
+/// @param v1 V1 value supplied to `P_InterceptVector2`.
 function inline P_InterceptVector2(v2, v1)
   den = FixedMul(v1.dy >> 8, v2.dx) - FixedMul(v1.dx >> 8, v2.dy)
   if den == 0 then return 0 end if
@@ -119,10 +125,8 @@ function inline P_InterceptVector2(v2, v1)
   return frac
 end function
 
-/*
-* Function: P_CrossSubsector
-* Purpose: Clips the sight slope window against every blocking seg in a subsector and rejects fully occluded traces.
-*/
+/// Clips the sight slope window against every blocking seg in a subsector and rejects fully occluded traces.
+/// @param num Index identifying the requested item.
 function P_CrossSubsector(num)
   if typeof(subsectors) != "array" or typeof(segs) != "array" then return false end if
   if num >= len(subsectors) then
@@ -188,10 +192,8 @@ function P_CrossSubsector(num)
   return true
 end function
 
-/*
-* Function: P_CrossBSPNode
-* Purpose: Traverses the BSP front-to-back along the sight trace, stopping as soon as either child proves occlusion.
-*/
+/// Traverses the BSP front-to-back along the sight trace, stopping as soon as either child proves occlusion.
+/// @param bspnum Index identifying bsp.
 function P_CrossBSPNode(bspnum)
   if (bspnum & NF_SUBSECTOR) != 0 then
     if bspnum == -1 then
@@ -223,10 +225,10 @@ function P_CrossBSPNode(bspnum)
   return P_CrossBSPNode(bsp.children[side ^ 1])
 end function
 
-/*
-* Function: P_CheckSight
-* Purpose: Rejects impossible sector pairs early, then traces BSP portals and vertical slopes to decide whether two mobjs see each other.
-*/
+/// Rejects impossible sector pairs early, then traces BSP portals and vertical slopes to decide whether two
+/// mobjs see each other.
+/// @param t1 T1 value supplied to `P_CheckSight`.
+/// @param t2 T2 value supplied to `P_CheckSight`.
 function P_CheckSight(t1, t2)
   global sightzstart
   global topslope

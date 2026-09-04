@@ -13,23 +13,26 @@
   See the License for the specific language governing permissions and
   limitations under the License.
 
-  Script: r_sky.ml
-  Purpose: Resolves the level sky flat and texture identifiers plus the vertical mapping origin used by sky columns.
 */
 
+//! Resolves the level sky flat and texture identifiers plus the vertical mapping origin used by sky columns.
+
+
+/// Defines the skyflatname text used by the r sky subsystem.
 const SKYFLATNAME = "F_SKY1"
+/// Defines angletoskyshift for the r sky subsystem.
 const ANGLETOSKYSHIFT = 22
 import m_fixed
 import r_data
 
+/// Tracks the mutable skyflatnum value used by the r sky subsystem.
 skyflatnum = 0
+/// Tracks the mutable skytexture value used by the r sky subsystem.
 skytexture = 0
+/// Tracks the mutable skytexturemid value used by the r sky subsystem.
 skytexturemid = 0
 
-/*
-* Function: R_InitSkyMap
-* Purpose: Resolves the sky flat and SKY1 texture indices and places the sky cylinder at the vanilla vertical midpoint.
-*/
+/// Resolves the sky flat and SKY1 texture indices and places the sky cylinder at the vanilla vertical midpoint.
 function R_InitSkyMap()
   global skyflatnum
   global skytexture

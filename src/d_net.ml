@@ -13,9 +13,10 @@
   See the License for the specific language governing permissions and
   limitations under the License.
 
-  Script: d_net.ml
-  Purpose: Runs legacy lockstep networking and host-authoritative input, snapshot, phase, stats, and chat replication.
 */
+
+//! Runs legacy lockstep networking and host-authoritative input, snapshot, phase, stats, and chat replication.
+
 import d_player
 import m_menu
 import i_system
@@ -34,246 +35,584 @@ import s_sound
 import sounds
 import std.math
 
+/// Defines doomcom id for the d net subsystem.
 const DOOMCOM_ID = 0x12345678
+/// Defines the maximum maxnetnodes accepted by the d net subsystem.
 const MAXNETNODES = 8
+/// Defines backuptics for the d net subsystem.
 const BACKUPTICS = 12
+/// Defines resendcount for the d net subsystem.
 const RESENDCOUNT = 10
+/// Defines pl drone for the d net subsystem.
 const PL_DRONE = 0x80
 
+/// Defines ncmd exit for the d net subsystem.
 const NCMD_EXIT = 0x80000000
+/// Defines ncmd retransmit for the d net subsystem.
 const NCMD_RETRANSMIT = 0x40000000
+/// Defines ncmd setup for the d net subsystem.
 const NCMD_SETUP = 0x20000000
+/// Defines ncmd kill for the d net subsystem.
 const NCMD_KILL = 0x10000000
+/// Defines ncmd checksum for the d net subsystem.
 const NCMD_CHECKSUM = 0x0fffffff
 
-/*
-* Enum: command_t
-* Purpose: Selects whether the platform driver transmits the current packet or polls for one received packet.
-*/
+/// Selects whether the platform driver transmits the current packet or polls for one received packet.
 enum command_t
+  /// Represents cmd send in `command_t`
   CMD_SEND = 1
+  /// Represents cmd get in `command_t`
   CMD_GET = 2
 end enum
 
-/*
-* Struct: doomdata_t
-* Purpose: Holds one legacy lockstep packet header plus its bounded ring of tic commands.
-*/
+/// Holds one legacy lockstep packet header plus its bounded ring of tic commands.
 struct doomdata_t
+  /// Stores checksum for `doomdata_t`
   checksum
+  /// Stores retransmitfrom for `doomdata_t`
   retransmitfrom
+  /// Stores starttic for `doomdata_t`
   starttic
+  /// Stores player for `doomdata_t`
   player
+  /// Stores numtics for `doomdata_t`
   numtics
+  /// Stores cmds for `doomdata_t`
   cmds
 end struct
 
-/*
-* Struct: doomcom_t
-* Purpose: Mirrors the classic network-driver control block and negotiated session metadata.
-*/
+/// Mirrors the classic network-driver control block and negotiated session metadata.
 struct doomcom_t
+  /// Stores id for `doomcom_t`
   id
+  /// Stores intnum for `doomcom_t`
   intnum
+  /// Stores command for `doomcom_t`
   command
+  /// Stores remotenode for `doomcom_t`
   remotenode
+  /// Stores datalength for `doomcom_t`
   datalength
 
+  /// Stores numnodes for `doomcom_t`
   numnodes
+  /// Stores ticdup for `doomcom_t`
   ticdup
+  /// Stores extratics for `doomcom_t`
   extratics
+  /// Stores deathmatch for `doomcom_t`
   deathmatch
+  /// Stores savegame for `doomcom_t`
   savegame
+  /// Stores episode for `doomcom_t`
   episode
+  /// Stores map for `doomcom_t`
   map
+  /// Stores skill for `doomcom_t`
   skill
 
+  /// Stores consoleplayer for `doomcom_t`
   consoleplayer
+  /// Stores numplayers for `doomcom_t`
   numplayers
+  /// Stores angleoffset for `doomcom_t`
   angleoffset
+  /// Stores drone for `doomcom_t`
   drone
 
+  /// Payload owned or referenced by this record stored by `doomcom_t`
   data
 end struct
 
+/// Holds the optional doomcom resource used by the d net subsystem.
 doomcom = void
+/// Holds the optional netbuffer resource used by the d net subsystem.
 netbuffer = void
 
+/// Stores the localcmds collection used by the d net subsystem.
 localcmds =[]
+/// Stores the netcmds collection used by the d net subsystem.
 netcmds =[]
+/// Stores the nettics collection used by the d net subsystem.
 nettics =[]
+/// Stores the nodeingame collection used by the d net subsystem.
 nodeingame =[]
+/// Stores the remoteresend collection used by the d net subsystem.
 remoteresend =[]
+/// Stores the resendto collection used by the d net subsystem.
 resendto =[]
+/// Stores the resendcount collection used by the d net subsystem.
 resendcount =[]
+/// Stores the nodeforplayer collection used by the d net subsystem.
 nodeforplayer =[]
 
+/// Tracks the mutable maketic value used by the d net subsystem.
 maketic = 0
+/// Tracks the mutable lastnettic value used by the d net subsystem.
 lastnettic = 0
+/// Tracks the mutable skiptics value used by the d net subsystem.
 skiptics = 0
+/// Tracks the mutable ticdup value used by the d net subsystem.
 ticdup = 1
+/// Tracks the mutable maxsend value used by the d net subsystem.
 maxsend = 1
+/// Tracks the mutable gametime value used by the d net subsystem.
 gametime = 0
 
+/// Tracks whether reboundpacket is active in the d net subsystem.
 reboundpacket = false
+/// Holds the optional reboundstore resource used by the d net subsystem.
 reboundstore = void
 
+/// Stores the mutable dnet exitmsg text used by the d net subsystem.
+/// @internal
 _dnet_exitmsg = ""
+/// Tracks the mutable dnet oldentertics value used by the d net subsystem.
+/// @internal
 _dnet_oldentertics = -1
+/// Tracks the mutable dnet oldnettics value used by the d net subsystem.
+/// @internal
 _dnet_oldnettics = 0
+/// Tracks the mutable dnet frameon value used by the d net subsystem.
+/// @internal
 _dnet_frameon = 0
+/// Stores the dnet frameskip collection used by the d net subsystem.
+/// @internal
 _dnet_frameskip =[false, false, false, false]
+/// Tracks the mutable d runtics last value used by the d net subsystem.
 d_runtics_last = 0
 
+/// Defines dnet mpmsg input for the d net subsystem.
+/// @internal
 const _DNET_MPMSG_INPUT = 1
+/// Defines dnet mpmsg snapshot for the d net subsystem.
+/// @internal
 const _DNET_MPMSG_SNAPSHOT = 2
+/// Defines dnet mpmsg phase for the d net subsystem.
+/// @internal
 const _DNET_MPMSG_PHASE = 3
+/// Defines dnet mpmsg feed for the d net subsystem.
+/// @internal
 const _DNET_MPMSG_FEED = 4
+/// Defines dnet mpmsg wistats for the d net subsystem.
+/// @internal
 const _DNET_MPMSG_WISTATS = 5
+/// Defines dnet mpmsg wistats req for the d net subsystem.
+/// @internal
 const _DNET_MPMSG_WISTATS_REQ = 6
+/// Defines dnet mpmsg chat for the d net subsystem.
+/// @internal
 const _DNET_MPMSG_CHAT = 7
+/// Defines dnet mpmsg name for the d net subsystem.
+/// @internal
 const _DNET_MPMSG_NAME = 8
+/// Defines dnet mpmsg sound for the d net subsystem.
+/// @internal
 const _DNET_MPMSG_SOUND = 201
+/// Defines dnet mp chat broadcast for the d net subsystem.
+/// @internal
 const _DNET_MP_CHAT_BROADCAST = 5
+/// Defines dnet mp chat cooldown tics for the d net subsystem.
+/// @internal
 const _DNET_MP_CHAT_COOLDOWN_TICS = 4
+/// Defines dnet mp snapshot interval for the d net subsystem.
+/// @internal
 const _DNET_MP_SNAPSHOT_INTERVAL = 1
+/// Defines dnet mp full snapshot period for the d net subsystem.
+/// @internal
 const _DNET_MP_FULL_SNAPSHOT_PERIOD = 35
+/// Defines dnet mp input keepalive tics for the d net subsystem.
+/// @internal
 const _DNET_MP_INPUT_KEEPALIVE_TICS = 1
+/// Defines dnet mp input active redundant copies for the d net subsystem.
+/// @internal
 const _DNET_MP_INPUT_ACTIVE_REDUNDANT_COPIES = 2
+/// Defines dnet mp remote cmd stale tics for the d net subsystem.
+/// @internal
 const _DNET_MP_REMOTE_CMD_STALE_TICS = 6
+/// Defines dnet mp phase interval for the d net subsystem.
+/// @internal
 const _DNET_MP_PHASE_INTERVAL = 4
+/// Defines dnet mp wistats retry tics for the d net subsystem.
+/// @internal
 const _DNET_MP_WISTATS_RETRY_TICS = 12
+/// Defines the maximum dnet mp wistats max retries accepted by the d net subsystem.
+/// @internal
 const _DNET_MP_WISTATS_MAX_RETRIES = 3
+/// Defines dnet mp wistats req cooldown tics for the d net subsystem.
+/// @internal
 const _DNET_MP_WISTATS_REQ_COOLDOWN_TICS = 4
+/// Defines dnet mp wistats base row bytes for the d net subsystem.
+/// @internal
 const _DNET_MP_WISTATS_BASE_ROW_BYTES = 24
+/// Defines dnet mp name bytes for the d net subsystem.
+/// @internal
 const _DNET_MP_NAME_BYTES = 26
+/// Defines dnet mp wistats row bytes for the d net subsystem.
+/// @internal
 const _DNET_MP_WISTATS_ROW_BYTES = _DNET_MP_WISTATS_BASE_ROW_BYTES + _DNET_MP_NAME_BYTES
+/// Defines dnet mp wistats broadcast interval for the d net subsystem.
+/// @internal
 const _DNET_MP_WISTATS_BROADCAST_INTERVAL = 18
+/// Defines the maximum dnet mp max actors per snapshot accepted by the d net subsystem.
+/// @internal
 const _DNET_MP_MAX_ACTORS_PER_SNAPSHOT = 20
+/// Defines dnet mp actor pool per snapshot for the d net subsystem.
+/// @internal
 const _DNET_MP_ACTOR_POOL_PER_SNAPSHOT = 80
+/// Defines the maximum dnet mp max removed per snapshot accepted by the d net subsystem.
+/// @internal
 const _DNET_MP_MAX_REMOVED_PER_SNAPSHOT = 96
+/// Defines the maximum dnet mp max sectors per snapshot accepted by the d net subsystem.
+/// @internal
 const _DNET_MP_MAX_SECTORS_PER_SNAPSHOT = 8
+/// Defines the maximum dnet mp max sides per snapshot accepted by the d net subsystem.
+/// @internal
 const _DNET_MP_MAX_SIDES_PER_SNAPSHOT = 8
+/// Defines dnet mp player row bytes for the d net subsystem.
+/// @internal
 const _DNET_MP_PLAYER_ROW_BYTES = 88
+/// Defines dnet mp client stale grace sweeps for the d net subsystem.
+/// @internal
 const _DNET_MP_CLIENT_STALE_GRACE_SWEEPS = 2
+/// Defines dnet mp remove resend count for the d net subsystem.
+/// @internal
 const _DNET_MP_REMOVE_RESEND_COUNT = 3
+/// Defines dnet mp actor candidate multiplier for the d net subsystem.
+/// @internal
 const _DNET_MP_ACTOR_CANDIDATE_MULTIPLIER = 6
+/// Defines dnet mp static heartbeat fulls for the d net subsystem.
+/// @internal
 const _DNET_MP_STATIC_HEARTBEAT_FULLS = 8
+/// Defines the maximum dnet mp removed queue max accepted by the d net subsystem.
+/// @internal
 const _DNET_MP_REMOVED_QUEUE_MAX = 4096
+/// Defines dnet mp relevance distance for the d net subsystem.
+/// @internal
 const _DNET_MP_RELEVANCE_DISTANCE = 1536 * FRACUNIT
+/// Defines dnet mp relevance missile bonus for the d net subsystem.
+/// @internal
 const _DNET_MP_RELEVANCE_MISSILE_BONUS = 768 * FRACUNIT
+/// Defines dnet mp relevance special bonus for the d net subsystem.
+/// @internal
 const _DNET_MP_RELEVANCE_SPECIAL_BONUS = 384 * FRACUNIT
+/// Defines dnet mp relevance view bonus for the d net subsystem.
+/// @internal
 const _DNET_MP_RELEVANCE_VIEW_BONUS = 2048 * FRACUNIT
+/// Defines dnet mp relevance view halfangle for the d net subsystem.
+/// @internal
 const _DNET_MP_RELEVANCE_VIEW_HALFANGLE = 0x20000000
 // Keep below transport frame size (_MPPLAT_RECV_MAX=1400, minus 9-byte MP frame header with checksum).
+/// Defines dnet mp payload budget for the d net subsystem.
+/// @internal
 const _DNET_MP_PAYLOAD_BUDGET = 1391
+/// Defines dnet mp join fullsync burst tics for the d net subsystem.
+/// @internal
 const _DNET_MP_JOIN_FULLSYNC_BURST_TICS = 70
+/// Defines the dnet mp client interp num count used by the d net subsystem.
+/// @internal
 const _DNET_MP_CLIENT_INTERP_NUM = 1
+/// Defines dnet mp client interp den for the d net subsystem.
+/// @internal
 const _DNET_MP_CLIENT_INTERP_DEN = 3
+/// Defines dnet mp client hard snap dist for the d net subsystem.
+/// @internal
 const _DNET_MP_CLIENT_HARD_SNAP_DIST = 128 * FRACUNIT
+/// Defines the maximum dnet mp client max extrap missile accepted by the d net subsystem.
+/// @internal
 const _DNET_MP_CLIENT_MAX_EXTRAP_MISSILE = 4
+/// Defines the maximum dnet mp client max extrap mobile accepted by the d net subsystem.
+/// @internal
 const _DNET_MP_CLIENT_MAX_EXTRAP_MOBILE = 2
+/// Defines the maximum dnet mp client extrap abs vel max mobile accepted by the d net subsystem.
+/// @internal
 const _DNET_MP_CLIENT_EXTRAP_ABS_VEL_MAX_MOBILE = 12 * FRACUNIT
+/// Defines the maximum dnet mp client extrap abs vel max missile accepted by the d net subsystem.
+/// @internal
 const _DNET_MP_CLIENT_EXTRAP_ABS_VEL_MAX_MISSILE = 24 * FRACUNIT
 
+/// Tracks the mutable dnet mp last snapshot tic value used by the d net subsystem.
+/// @internal
 _dnet_mp_last_snapshot_tic = 0
+/// Tracks the mutable dnet mp last input seq value used by the d net subsystem.
+/// @internal
 _dnet_mp_last_input_seq = 0
+/// Tracks the mutable dnet mp last input send tic value used by the d net subsystem.
+/// @internal
 _dnet_mp_last_input_send_tic = 0
+/// Holds the optional dnet mp last input cmd resource used by the d net subsystem.
+/// @internal
 _dnet_mp_last_input_cmd = void
+/// Stores the dnet mp remote cmds collection used by the d net subsystem.
+/// @internal
 _dnet_mp_remote_cmds = []
+/// Stores the dnet mp remote cmd valid collection used by the d net subsystem.
+/// @internal
 _dnet_mp_remote_cmd_valid = []
+/// Stores the dnet mp remote cmd tic collection used by the d net subsystem.
+/// @internal
 _dnet_mp_remote_cmd_tic = []
+/// Stores the dnet mp remote input last seq collection used by the d net subsystem.
+/// @internal
 _dnet_mp_remote_input_last_seq = []
+/// Stores the dnet mp host input active logged collection used by the d net subsystem.
+/// @internal
 _dnet_mp_host_input_active_logged = []
+/// Tracks the mutable dnet mp last phase tic value used by the d net subsystem.
+/// @internal
 _dnet_mp_last_phase_tic = 0
+/// Holds the optional dnet mp host last phase key resource used by the d net subsystem.
+/// @internal
 _dnet_mp_host_last_phase_key = void
+/// Tracks the mutable dnet mp host last wistats tic value used by the d net subsystem.
+/// @internal
 _dnet_mp_host_last_wistats_tic = 0
+/// Stores the dnet mp host last wistats req tic collection used by the d net subsystem.
+/// @internal
 _dnet_mp_host_last_wistats_req_tic = []
+/// Tracks the mutable dnet mp client last phase tick value used by the d net subsystem.
+/// @internal
 _dnet_mp_client_last_phase_tick = 0
+/// Stores the dnet mp host last frags collection used by the d net subsystem.
+/// @internal
 _dnet_mp_host_last_frags = []
+/// Stores the dnet mp host last chat tic collection used by the d net subsystem.
+/// @internal
 _dnet_mp_host_last_chat_tic = []
+/// Stores the dnet mp host actor ids collection used by the d net subsystem.
+/// @internal
 _dnet_mp_host_actor_ids = []
+/// Stores the dnet mp host actor nodes collection used by the d net subsystem.
+/// @internal
 _dnet_mp_host_actor_nodes = []
+/// Stores the dnet mp host actor refs collection used by the d net subsystem.
+/// @internal
 _dnet_mp_host_actor_refs = []
+/// Stores the dnet mp host last actor sig collection used by the d net subsystem.
+/// @internal
 _dnet_mp_host_last_actor_sig = []
+/// Stores the dnet mp host actor miss collection used by the d net subsystem.
+/// @internal
 _dnet_mp_host_actor_miss = []
+/// Tracks the mutable dnet mp host actor seen value used by the d net subsystem.
+/// @internal
 _dnet_mp_host_actor_seen = bytes(0, 0)
+/// Tracks the mutable dnet mp host actor active count value used by the d net subsystem.
+/// @internal
 _dnet_mp_host_actor_active_count = 0
+/// Stores the dnet mp host removed ids collection used by the d net subsystem.
+/// @internal
 _dnet_mp_host_removed_ids = []
+/// Tracks the mutable dnet mp host next actor id value used by the d net subsystem.
+/// @internal
 _dnet_mp_host_next_actor_id = 1
+/// Tracks the mutable dnet mp host actor cursor value used by the d net subsystem.
+/// @internal
 _dnet_mp_host_actor_cursor = 0
+/// Tracks the mutable dnet mp host sector cursor value used by the d net subsystem.
+/// @internal
 _dnet_mp_host_sector_cursor = 0
+/// Stores the dnet mp host last player sig collection used by the d net subsystem.
+/// @internal
 _dnet_mp_host_last_player_sig = []
+/// Stores the dnet mp host last sector floor collection used by the d net subsystem.
+/// @internal
 _dnet_mp_host_last_sector_floor = []
+/// Stores the dnet mp host last sector ceiling collection used by the d net subsystem.
+/// @internal
 _dnet_mp_host_last_sector_ceiling = []
+/// Stores the dnet mp host last sector light collection used by the d net subsystem.
+/// @internal
 _dnet_mp_host_last_sector_light = []
+/// Stores the dnet mp host last sector special collection used by the d net subsystem.
+/// @internal
 _dnet_mp_host_last_sector_special = []
+/// Tracks the mutable dnet mp host side cursor value used by the d net subsystem.
+/// @internal
 _dnet_mp_host_side_cursor = 0
+/// Stores the dnet mp host last side top collection used by the d net subsystem.
+/// @internal
 _dnet_mp_host_last_side_top = []
+/// Stores the dnet mp host last side bottom collection used by the d net subsystem.
+/// @internal
 _dnet_mp_host_last_side_bottom = []
+/// Stores the dnet mp host last side mid collection used by the d net subsystem.
+/// @internal
 _dnet_mp_host_last_side_mid = []
+/// Stores the dnet mp host slot fullsync burst collection used by the d net subsystem.
+/// @internal
 _dnet_mp_host_slot_fullsync_burst = []
+/// Holds the optional dnet mp host cached wistats resource used by the d net subsystem.
+/// @internal
 _dnet_mp_host_cached_wistats = void
+/// Stores the dnet mp client actor ids collection used by the d net subsystem.
+/// @internal
 _dnet_mp_client_actor_ids = []
+/// Stores the dnet mp client actor refs collection used by the d net subsystem.
+/// @internal
 _dnet_mp_client_actor_refs = []
+/// Stores the dnet mp client actor miss collection used by the d net subsystem.
+/// @internal
 _dnet_mp_client_actor_miss = []
+/// Stores the dnet mp client actor tx collection used by the d net subsystem.
+/// @internal
 _dnet_mp_client_actor_tx = []
+/// Stores the dnet mp client actor ty collection used by the d net subsystem.
+/// @internal
 _dnet_mp_client_actor_ty = []
+/// Stores the dnet mp client actor tz collection used by the d net subsystem.
+/// @internal
 _dnet_mp_client_actor_tz = []
+/// Stores the dnet mp client actor tang collection used by the d net subsystem.
+/// @internal
 _dnet_mp_client_actor_tang = []
+/// Stores the dnet mp client actor vx collection used by the d net subsystem.
+/// @internal
 _dnet_mp_client_actor_vx = []
+/// Stores the dnet mp client actor vy collection used by the d net subsystem.
+/// @internal
 _dnet_mp_client_actor_vy = []
+/// Stores the dnet mp client actor vz collection used by the d net subsystem.
+/// @internal
 _dnet_mp_client_actor_vz = []
+/// Stores the dnet mp client actor last snap tic collection used by the d net subsystem.
+/// @internal
 _dnet_mp_client_actor_last_snap_tic = []
+/// Stores the dnet mp client actor kind collection used by the d net subsystem.
+/// @internal
 _dnet_mp_client_actor_kind = []
+/// Stores the dnet mp client player tx collection used by the d net subsystem.
+/// @internal
 _dnet_mp_client_player_tx = []
+/// Stores the dnet mp client player ty collection used by the d net subsystem.
+/// @internal
 _dnet_mp_client_player_ty = []
+/// Stores the dnet mp client player tz collection used by the d net subsystem.
+/// @internal
 _dnet_mp_client_player_tz = []
+/// Stores the dnet mp client player tang collection used by the d net subsystem.
+/// @internal
 _dnet_mp_client_player_tang = []
+/// Stores the dnet mp client player vx collection used by the d net subsystem.
+/// @internal
 _dnet_mp_client_player_vx = []
+/// Stores the dnet mp client player vy collection used by the d net subsystem.
+/// @internal
 _dnet_mp_client_player_vy = []
+/// Stores the dnet mp client player vz collection used by the d net subsystem.
+/// @internal
 _dnet_mp_client_player_vz = []
+/// Stores the dnet mp client player last snap tic collection used by the d net subsystem.
+/// @internal
 _dnet_mp_client_player_last_snap_tic = []
+/// Tracks the mutable dnet mp client last smooth tic value used by the d net subsystem.
+/// @internal
 _dnet_mp_client_last_smooth_tic = -1
+/// Tracks the mutable dnet mp client last snapshot tick value used by the d net subsystem.
+/// @internal
 _dnet_mp_client_last_snapshot_tick = 0
+/// Holds the optional dnet mp client pending snapshot resource used by the d net subsystem.
+/// @internal
 _dnet_mp_client_pending_snapshot = void
+/// Tracks whether dnet mp client world bootstrapped is active in the d net subsystem.
+/// @internal
 _dnet_mp_client_world_bootstrapped = false
+/// Tracks the mutable dnet mp client ui tic value used by the d net subsystem.
+/// @internal
 _dnet_mp_client_ui_tic = -1
+/// Tracks whether dnet mp client wait wistats is active in the d net subsystem.
+/// @internal
 _dnet_mp_client_wait_wistats = false
+/// Tracks whether dnet mp client have wistats is active in the d net subsystem.
+/// @internal
 _dnet_mp_client_have_wistats = false
+/// Tracks the mutable dnet mp client wistats last tick value used by the d net subsystem.
+/// @internal
 _dnet_mp_client_wistats_last_tick = 0
+/// Tracks the mutable dnet mp client wistats next req tic value used by the d net subsystem.
+/// @internal
 _dnet_mp_client_wistats_next_req_tic = 0
+/// Tracks the mutable dnet mp client wistats req count value used by the d net subsystem.
+/// @internal
 _dnet_mp_client_wistats_req_count = 0
+/// Stores the mutable dnet mp client wistats error text used by the d net subsystem.
+/// @internal
 _dnet_mp_client_wistats_error = ""
+/// Holds the optional dnet mp client cached wistats resource used by the d net subsystem.
+/// @internal
 _dnet_mp_client_cached_wistats = void
+/// Tracks whether dnet mp client local pickups armed is active in the d net subsystem.
+/// @internal
 _dnet_mp_client_local_pickups_armed = false
+/// Tracks the mutable dnet mp client seen players value used by the d net subsystem.
+/// @internal
 _dnet_mp_client_seen_players = bytes(MAXPLAYERS, 0)
+/// Tracks the mutable dnet mp client claimed actors value used by the d net subsystem.
+/// @internal
 _dnet_mp_client_claimed_actors = bytes(0, 0)
+/// Tracks whether dnet mp was authoritative is active in the d net subsystem.
+/// @internal
 _dnet_mp_was_authoritative = false
+/// Tracks whether dnet mp was client is active in the d net subsystem.
+/// @internal
 _dnet_mp_was_client = false
+/// Tracks whether dnet mp local name announced is active in the d net subsystem.
+/// @internal
 _dnet_mp_local_name_announced = false
+/// Tracks the mutable dnet mp dbg snap calls value used by the d net subsystem.
+/// @internal
 _dnet_mp_dbg_snap_calls = 0
+/// Tracks the mutable dnet mp dbg snap skip not host value used by the d net subsystem.
+/// @internal
 _dnet_mp_dbg_snap_skip_not_host = 0
+/// Tracks the mutable dnet mp dbg snap skip not level value used by the d net subsystem.
+/// @internal
 _dnet_mp_dbg_snap_skip_not_level = 0
+/// Tracks the mutable dnet mp dbg snap skip nosend value used by the d net subsystem.
+/// @internal
 _dnet_mp_dbg_snap_skip_nosend = 0
+/// Tracks the mutable dnet mp dbg snap skip rate value used by the d net subsystem.
+/// @internal
 _dnet_mp_dbg_snap_skip_rate = 0
+/// Tracks the mutable dnet mp dbg snap built value used by the d net subsystem.
+/// @internal
 _dnet_mp_dbg_snap_built = 0
+/// Tracks the mutable dnet mp dbg snap targets value used by the d net subsystem.
+/// @internal
 _dnet_mp_dbg_snap_targets = 0
+/// Tracks the mutable dnet mp dbg snap sent value used by the d net subsystem.
+/// @internal
 _dnet_mp_dbg_snap_sent = 0
+/// Tracks the mutable dnet mp dbg unknown payload drop value used by the d net subsystem.
+/// @internal
 _dnet_mp_dbg_unknown_payload_drop = 0
+/// Tracks the mutable dnet mp snap cache tick value used by the d net subsystem.
+/// @internal
 _dnet_mp_snap_cache_tick = -1
+/// Tracks whether dnet mp snap cache force all is active in the d net subsystem.
+/// @internal
 _dnet_mp_snap_cache_force_all = false
+/// Stores the dnet mp snap cache player rows collection used by the d net subsystem.
+/// @internal
 _dnet_mp_snap_cache_player_rows = []
+/// Stores the dnet mp snap cache actor ids collection used by the d net subsystem.
+/// @internal
 _dnet_mp_snap_cache_actor_ids = []
+/// Stores the dnet mp snap cache actor refs collection used by the d net subsystem.
+/// @internal
 _dnet_mp_snap_cache_actor_refs = []
+/// Stores the dnet mp snap cache removed ids collection used by the d net subsystem.
+/// @internal
 _dnet_mp_snap_cache_removed_ids = []
+/// Stores the dnet mp snap cache sector rows collection used by the d net subsystem.
+/// @internal
 _dnet_mp_snap_cache_sector_rows = []
+/// Stores the dnet mp snap cache side rows collection used by the d net subsystem.
+/// @internal
 _dnet_mp_snap_cache_side_rows = []
 
-/*
-* Function: _DNet_DefaultCmds
-* Purpose: Allocates a full BACKUPTICS command ring initialized to neutral input.
-*/
+/// Allocates a full BACKUPTICS command ring initialized to neutral input.
+/// @internal
 function inline _DNet_DefaultCmds()
   a = array(BACKUPTICS)
   i = 0
@@ -284,19 +623,18 @@ function inline _DNet_DefaultCmds()
   return a
 end function
 
-/*
-* Function: _DNet_IsSeq
-* Purpose: Accepts arrays and lists wherever network codecs require indexed sequence access.
-*/
+/// Accepts arrays and lists wherever network codecs require indexed sequence access.
+/// @param v Value consumed by the operation.
+/// @internal
 function inline _DNet_IsSeq(v)
   t = typeof(v)
   return t == "array" or t == "list"
 end function
 
-/*
-* Function: _DNet_ToInt
-* Purpose: Converts source to int values for the network game.
-*/
+/// Converts source to int values for the network game.
+/// @param v Value consumed by the operation.
+/// @param fallback Value returned when the requested conversion or lookup is unavailable.
+/// @internal
 function inline _DNet_ToInt(v, fallback)
   if typeof(v) == "int" then return v end if
   if typeof(v) == "float" then
@@ -312,10 +650,10 @@ function inline _DNet_ToInt(v, fallback)
   return fallback
 end function
 
-/*
-* Function: _DNet_EnumIndex
-* Purpose: Normalizes enum/int values to a bounded integer enum index.
-*/
+/// Normalizes enum/int values to a bounded integer enum index.
+/// @param v Value consumed by the operation.
+/// @param limit Limit value supplied to `_DNet_EnumIndex`.
+/// @internal
 function inline _DNet_EnumIndex(v, limit)
   vi = _DNet_ToInt(v, -1)
   if vi >= 0 then
@@ -333,10 +671,10 @@ function inline _DNet_EnumIndex(v, limit)
   return -1
 end function
 
-/*
-* Function: _DNet_IDiv
-* Purpose: Returns a quotient truncated toward zero for tic math, with invalid operands mapped to zero.
-*/
+/// Returns a quotient truncated toward zero for tic math, with invalid operands mapped to zero.
+/// @param a First input operand.
+/// @param b Second input operand.
+/// @internal
 function inline _DNet_IDiv(a, b)
   ai = _DNet_ToInt(a, 0)
   bi = _DNet_ToInt(b, 0)
@@ -347,10 +685,9 @@ function inline _DNet_IDiv(a, b)
   return std.math.ceil(q)
 end function
 
-/*
-* Function: _DNet_StateIndex
-* Purpose: Resolves a runtime state value to its authoritative state index for snapshot serialization.
-*/
+/// Resolves a runtime state value to its authoritative state index for snapshot serialization.
+/// @param s S value supplied to `_DNet_StateIndex`.
+/// @internal
 function _DNet_StateIndex(s)
   idx = _DNet_ToInt(Info_StateIndex(s), -1)
   if idx >= 0 then return idx end if
@@ -385,10 +722,8 @@ function _DNet_StateIndex(s)
   return idx
 end function
 
-/*
-* Function: _DNet_EnsureStateArrays
-* Purpose: Restores all legacy lockstep rings to protocol sizes before packet/tic access.
-*/
+/// Restores all legacy lockstep rings to protocol sizes before packet/tic access.
+/// @internal
 function _DNet_EnsureStateArrays()
   global localcmds
   global netcmds
@@ -425,10 +760,9 @@ function _DNet_EnsureStateArrays()
   end if
 end function
 
-/*
-* Function: _DNet_CopyCmd
-* Purpose: Copies a tic command by value so ring-buffer reuse cannot mutate queued input.
-*/
+/// Copies a tic command by value so ring-buffer reuse cannot mutate queued input.
+/// @param src Src value supplied to `_DNet_CopyCmd`.
+/// @internal
 function inline _DNet_CopyCmd(src)
   if src is void then return ticcmd_t(0, 0, 0, 0, 0, 0) end if
   return ticcmd_t(
@@ -441,36 +775,31 @@ function inline _DNet_CopyCmd(src)
 )
 end function
 
-/*
-* Function: _DNet_MPIsHost
-* Purpose: Returns true when multiplayer platform is currently hosting.
-*/
+/// Returns true when multiplayer platform is currently hosting.
+/// @internal
 function inline _DNet_MPIsHost()
   if typeof(MP_PlatformIsHosting) != "function" then return false end if
   return MP_PlatformIsHosting()
 end function
 
-/*
-* Function: _DNet_MPIsClient
-* Purpose: Returns true when multiplayer platform is currently connected as client.
-*/
+/// Returns true when multiplayer platform is currently connected as client.
+/// @internal
 function inline _DNet_MPIsClient()
   if typeof(MP_PlatformIsClientConnected) != "function" then return false end if
   return MP_PlatformIsClientConnected()
 end function
 
-/*
-* Function: _DNet_MPIsAuthoritative
-* Purpose: Returns true while host-authoritative multiplayer runtime is active.
-*/
+/// Returns true while host-authoritative multiplayer runtime is active.
+/// @internal
 function inline _DNet_MPIsAuthoritative()
   return _DNet_MPIsHost() or _DNet_MPIsClient()
 end function
 
-/*
-* Function: _DNet_MPWriteU16
-* Purpose: Writes a 16-bit unsigned integer into byte buffer.
-*/
+/// Writes a 16-bit unsigned integer into byte buffer.
+/// @param buf Buf value supplied to `_DNet_MPWriteU16`.
+/// @param off Zero-based byte or element offset.
+/// @param v Value consumed by the operation.
+/// @internal
 function inline _DNet_MPWriteU16(buf, off, v)
   if typeof(buf) != "bytes" then return end if
   if off < 0 or off + 1 >= len(buf) then return end if
@@ -481,10 +810,11 @@ function inline _DNet_MPWriteU16(buf, off, v)
   buf[off + 1] = (x >> 8) & 255
 end function
 
-/*
-* Function: _DNet_MPWriteI16
-* Purpose: Writes a 16-bit signed integer into byte buffer.
-*/
+/// Writes a 16-bit signed integer into byte buffer.
+/// @param buf Buf value supplied to `_DNet_MPWriteI16`.
+/// @param off Zero-based byte or element offset.
+/// @param v Value consumed by the operation.
+/// @internal
 function inline _DNet_MPWriteI16(buf, off, v)
   if typeof(buf) != "bytes" then return end if
   if off < 0 or off + 1 >= len(buf) then return end if
@@ -496,10 +826,11 @@ function inline _DNet_MPWriteI16(buf, off, v)
   buf[off + 1] = (x >> 8) & 255
 end function
 
-/*
-* Function: _DNet_MPWriteU32
-* Purpose: Writes a 32-bit unsigned integer into byte buffer.
-*/
+/// Writes a 32-bit unsigned integer into byte buffer.
+/// @param buf Buf value supplied to `_DNet_MPWriteU32`.
+/// @param off Zero-based byte or element offset.
+/// @param v Value consumed by the operation.
+/// @internal
 function inline _DNet_MPWriteU32(buf, off, v)
   if typeof(buf) != "bytes" then return end if
   if off < 0 or off + 3 >= len(buf) then return end if
@@ -511,38 +842,39 @@ function inline _DNet_MPWriteU32(buf, off, v)
   buf[off + 3] = (x >> 24) & 255
 end function
 
-/*
-* Function: _DNet_MPWriteI32
-* Purpose: Writes a 32-bit signed integer into byte buffer.
-*/
+/// Writes a 32-bit signed integer into byte buffer.
+/// @param buf Buf value supplied to `_DNet_MPWriteI32`.
+/// @param off Zero-based byte or element offset.
+/// @param v Value consumed by the operation.
+/// @internal
 function inline _DNet_MPWriteI32(buf, off, v)
   _DNet_MPWriteU32(buf, off, _DNet_ToInt(v, 0))
 end function
 
-/*
-* Function: _DNet_MPReadU16
-* Purpose: Reads a 16-bit unsigned integer from byte buffer.
-*/
+/// Reads a 16-bit unsigned integer from byte buffer.
+/// @param buf Buf value supplied to `_DNet_MPReadU16`.
+/// @param off Zero-based byte or element offset.
+/// @internal
 function inline _DNet_MPReadU16(buf, off)
   b0 = buf[off] & 255
   b1 = buf[off + 1] & 255
   return b0 | (b1 << 8)
 end function
 
-/*
-* Function: _DNet_MPReadI16
-* Purpose: Reads a 16-bit signed integer from byte buffer.
-*/
+/// Reads a 16-bit signed integer from byte buffer.
+/// @param buf Buf value supplied to `_DNet_MPReadI16`.
+/// @param off Zero-based byte or element offset.
+/// @internal
 function inline _DNet_MPReadI16(buf, off)
   x = _DNet_MPReadU16(buf, off)
   if x >= 32768 then x = x - 65536 end if
   return x
 end function
 
-/*
-* Function: _DNet_MPReadU32
-* Purpose: Reads a 32-bit unsigned integer from byte buffer.
-*/
+/// Reads a 32-bit unsigned integer from byte buffer.
+/// @param buf Buf value supplied to `_DNet_MPReadU32`.
+/// @param off Zero-based byte or element offset.
+/// @internal
 function inline _DNet_MPReadU32(buf, off)
   b0 = buf[off] & 255
   b1 = buf[off + 1] & 255
@@ -553,10 +885,10 @@ function inline _DNet_MPReadU32(buf, off)
   return x
 end function
 
-/*
-* Function: _DNet_MPReadI32
-* Purpose: Reads a 32-bit signed integer from byte buffer.
-*/
+/// Reads a 32-bit signed integer from byte buffer.
+/// @param buf Buf value supplied to `_DNet_MPReadI32`.
+/// @param off Zero-based byte or element offset.
+/// @internal
 function inline _DNet_MPReadI32(buf, off)
   b0 = buf[off] & 255
   b1 = buf[off + 1] & 255
@@ -567,10 +899,10 @@ function inline _DNet_MPReadI32(buf, off)
   return x
 end function
 
-/*
-* Function: _DNet_MPSeqIsNewer
-* Purpose: Returns true when input sequence a is newer than b (uint32 wrap-around aware).
-*/
+/// Returns true when input sequence a is newer than b (uint32 wrap-around aware).
+/// @param a First input operand.
+/// @param b Second input operand.
+/// @internal
 function inline _DNet_MPSeqIsNewer(a, b)
   aa = _DNet_ToInt(a, 0)
   bb = _DNet_ToInt(b, -1)
@@ -582,10 +914,8 @@ function inline _DNet_MPSeqIsNewer(a, b)
   return diff > 0 and diff < 2147483648
 end function
 
-/*
-* Function: _DNet_MPResetRuntime
-* Purpose: Clears host/client authoritative replication caches.
-*/
+/// Clears host/client authoritative replication caches.
+/// @internal
 function _DNet_MPResetRuntime()
   global _dnet_mp_last_snapshot_tic
   global _dnet_mp_last_input_seq
@@ -783,10 +1113,7 @@ function _DNet_MPResetRuntime()
   _dnet_mp_snap_cache_side_rows = []
 end function
 
-/*
-* Function: D_NetMPDebugOverlayText
-* Purpose: Returns authoritative d_net snapshot diagnostics for on-screen overlay.
-*/
+/// Returns authoritative d_net snapshot diagnostics for on-screen overlay.
 function D_NetMPDebugOverlayText()
   if _DNet_MPIsClient() then
     if typeof(_dnet_mp_client_wistats_error) == "string" and _dnet_mp_client_wistats_error != "" then
@@ -813,10 +1140,8 @@ function D_NetMPDebugOverlayText()
   return txt
 end function
 
-/*
-* Function: _DNet_MPActiveSlots
-* Purpose: Returns currently active multiplayer slots with host slot always present.
-*/
+/// Returns currently active multiplayer slots with host slot always present.
+/// @internal
 function inline _DNet_MPActiveSlots()
   if typeof(MP_PlatformGetActiveSlots) == "function" then
     s = MP_PlatformGetActiveSlots()
@@ -825,10 +1150,10 @@ function inline _DNet_MPActiveSlots()
   return [0]
 end function
 
-/*
-* Function: _DNet_MPSlotActive
-* Purpose: Checks if slot is present in active slot list.
-*/
+/// Checks if slot is present in active slot list.
+/// @param active Whether the requested state should be active.
+/// @param slot Slot value supplied to `_DNet_MPSlotActive`.
+/// @internal
 function inline _DNet_MPSlotActive(active, slot)
   if not _DNet_IsSeq(active) then return false end if
   i = 0
@@ -839,10 +1164,9 @@ function inline _DNet_MPSlotActive(active, slot)
   return false
 end function
 
-/*
-* Function: _DNet_MPPlayerName
-* Purpose: Resolves a readable player name for HUD/event messages.
-*/
+/// Resolves a readable player name for HUD/event messages.
+/// @param slot Slot value supplied to `_DNet_MPPlayerName`.
+/// @internal
 function inline _DNet_MPPlayerName(slot)
   s = _DNet_ToInt(slot, 0)
   if s < 0 then s = 0 end if
@@ -854,10 +1178,9 @@ function inline _DNet_MPPlayerName(slot)
   return "Player " + (s + 1)
 end function
 
-/*
-* Function: _DNet_MPCopyFrags4
-* Purpose: Returns a fixed-size 4-entry frag row copied from arbitrary source sequence.
-*/
+/// Returns a fixed-size 4-entry frag row copied from arbitrary source sequence.
+/// @param src Src value supplied to `_DNet_MPCopyFrags4`.
+/// @internal
 function inline _DNet_MPCopyFrags4(src)
   fr = [0, 0, 0, 0]
   if _DNet_IsSeq(src) then
@@ -869,10 +1192,12 @@ function inline _DNet_MPCopyFrags4(src)
   return fr
 end function
 
-/*
-* Function: _DNet_MPWriteFixedName
-* Purpose: Writes one fixed-width null-terminated ASCII player name field.
-*/
+/// Writes one fixed-width null-terminated ASCII player name field.
+/// @param payload Payload value supplied to `_DNet_MPWriteFixedName`.
+/// @param off Zero-based byte or element offset.
+/// @param width Width of the target in pixels or map units.
+/// @param name Resource or object name to resolve.
+/// @internal
 function _DNet_MPWriteFixedName(payload, off, width, name)
   if typeof(payload) != "bytes" then return end if
   o = _DNet_ToInt(off, 0)
@@ -901,10 +1226,11 @@ function _DNet_MPWriteFixedName(payload, off, width, name)
   end while
 end function
 
-/*
-* Function: _DNet_MPReadFixedName
-* Purpose: Reads one fixed-width null-terminated ASCII player name field.
-*/
+/// Reads one fixed-width null-terminated ASCII player name field.
+/// @param payload Payload value supplied to `_DNet_MPReadFixedName`.
+/// @param off Zero-based byte or element offset.
+/// @param width Width of the target in pixels or map units.
+/// @internal
 function _DNet_MPReadFixedName(payload, off, width)
   if typeof(payload) != "bytes" then return "" end if
   o = _DNet_ToInt(off, 0)
@@ -937,10 +1263,9 @@ function _DNet_MPReadFixedName(payload, off, width)
   return s
 end function
 
-/*
-* Function: _DNet_MPMakeWBRowForSlot
-* Purpose: Builds one intermission player row from current authoritative runtime player state.
-*/
+/// Builds one intermission player row from current authoritative runtime player state.
+/// @param slot Slot value supplied to `_DNet_MPMakeWBRowForSlot`.
+/// @internal
 function _DNet_MPMakeWBRowForSlot(slot)
   s = _DNet_ToInt(slot, 0)
   if s < 0 then s = 0 end if
@@ -990,10 +1315,8 @@ function _DNet_MPMakeWBRowForSlot(slot)
   return wbplayerstruct_t(ingame, skills, sitems, ssecret, stime, fr, score)
 end function
 
-/*
-* Function: _DNet_MPBuildIntermissionWB
-* Purpose: Builds a complete intermission stats struct from wminfo with runtime fallback.
-*/
+/// Builds a complete intermission stats struct from wminfo with runtime fallback.
+/// @internal
 function _DNet_MPBuildIntermissionWB()
   epsd = _DNet_ToInt(gameepisode, 1) - 1
   didsecret = false
@@ -1106,10 +1429,10 @@ function _DNet_MPBuildIntermissionWB()
 )
 end function
 
-/*
-* Function: _DNet_MPWBRowChanged
-* Purpose: Compares one intermission row for gameplay-relevant stat changes.
-*/
+/// Compares one intermission row for gameplay-relevant stat changes.
+/// @param a First input operand.
+/// @param b Second input operand.
+/// @internal
 function inline _DNet_MPWBRowChanged(a, b)
   if typeof(a) != "struct" and typeof(b) != "struct" then return false end if
   if typeof(a) != "struct" or typeof(b) != "struct" then return true end if
@@ -1142,10 +1465,10 @@ function inline _DNet_MPWBRowChanged(a, b)
   return false
 end function
 
-/*
-* Function: _DNet_MPWBStatsChanged
-* Purpose: Detects whether a newer WI stats packet requires intermission state refresh.
-*/
+/// Detects whether a newer WI stats packet requires intermission state refresh.
+/// @param oldwb Oldwb value supplied to `_DNet_MPWBStatsChanged`.
+/// @param newwb Newwb value supplied to `_DNet_MPWBStatsChanged`.
+/// @internal
 function inline _DNet_MPWBStatsChanged(oldwb, newwb)
   if typeof(oldwb) != "struct" and typeof(newwb) != "struct" then return false end if
   if typeof(oldwb) != "struct" or typeof(newwb) != "struct" then return true end if
@@ -1167,10 +1490,8 @@ function inline _DNet_MPWBStatsChanged(oldwb, newwb)
   return false
 end function
 
-/*
-* Function: _DNet_MPBuildWIStatsPacket
-* Purpose: Serializes host intermission stats so clients can render exact percentages and icons.
-*/
+/// Serializes host intermission stats so clients can render exact percentages and icons.
+/// @internal
 function _DNet_MPBuildWIStatsPacket()
   global _dnet_mp_host_cached_wistats
   wb = void
@@ -1266,10 +1587,9 @@ function _DNet_MPBuildWIStatsPacket()
   return payload
 end function
 
-/*
-* Function: _DNet_MPHostSendWIStatsTo
-* Purpose: Sends a full intermission stats packet to one client slot.
-*/
+/// Sends a full intermission stats packet to one client slot.
+/// @param slot Slot value supplied to `_DNet_MPHostSendWIStatsTo`.
+/// @internal
 function inline _DNet_MPHostSendWIStatsTo(slot)
   if not _DNet_MPIsHost() then return false end if
   if typeof(MP_PlatformNetSend) != "function" then return false end if
@@ -1280,10 +1600,8 @@ function inline _DNet_MPHostSendWIStatsTo(slot)
   return MP_PlatformNetSend(s, payload)
 end function
 
-/*
-* Function: _DNet_MPHostBroadcastWIStats
-* Purpose: Broadcasts intermission stats snapshot to all connected clients.
-*/
+/// Broadcasts intermission stats snapshot to all connected clients.
+/// @internal
 function _DNet_MPHostBroadcastWIStats()
   global _dnet_mp_host_last_wistats_tic
   if not _DNet_MPIsHost() then return end if
@@ -1299,10 +1617,10 @@ function _DNet_MPHostBroadcastWIStats()
   _dnet_mp_host_last_wistats_tic = _DNet_ToInt(gametic, 0)
 end function
 
-/*
-* Function: _DNet_MPHostHandleWIStatsRequest
-* Purpose: Handles one client request for intermission stats retransmission.
-*/
+/// Handles one client request for intermission stats retransmission.
+/// @param node Node value supplied to `_DNet_MPHostHandleWIStatsRequest`.
+/// @param payload Payload value supplied to `_DNet_MPHostHandleWIStatsRequest`.
+/// @internal
 function inline _DNet_MPHostHandleWIStatsRequest(node, payload)
   global _dnet_mp_host_last_wistats_req_tic
   if not _DNet_MPIsHost() then return end if
@@ -1319,10 +1637,9 @@ function inline _DNet_MPHostHandleWIStatsRequest(node, payload)
   _DNet_MPHostSendWIStatsTo(slot)
 end function
 
-/*
-* Function: _DNet_MPReturnToOffline
-* Purpose: Collapses stale multiplayer clocks/slots after transport loss and returns to a defined title state.
-*/
+/// Collapses stale multiplayer clocks/slots after transport loss and returns to a defined title state.
+/// @param wasClient Was client value supplied to `_DNet_MPReturnToOffline`.
+/// @internal
 function _DNet_MPReturnToOffline(wasClient)
   global usergame
   global paused
@@ -1341,10 +1658,8 @@ function _DNet_MPReturnToOffline(wasClient)
   end if
 end function
 
-/*
-* Function: _DNet_MPSendWIStatsRequest
-* Purpose: Sends one client-side intermission stats request to the host.
-*/
+/// Sends one client-side intermission stats request to the host.
+/// @internal
 function inline _DNet_MPSendWIStatsRequest()
   if not _DNet_MPIsClient() then return false end if
   if typeof(MP_PlatformNetSend) != "function" then return false end if
@@ -1355,10 +1670,9 @@ function inline _DNet_MPSendWIStatsRequest()
   return MP_PlatformNetSend(0, payload)
 end function
 
-/*
-* Function: _DNet_MPClientApplyWIStats
-* Purpose: Applies host intermission stats packet to client WI runtime state.
-*/
+/// Applies host intermission stats packet to client WI runtime state.
+/// @param payload Payload value supplied to `_DNet_MPClientApplyWIStats`.
+/// @internal
 function _DNet_MPClientApplyWIStats(payload)
   global _dnet_mp_client_wait_wistats
   global _dnet_mp_client_have_wistats
@@ -1474,10 +1788,8 @@ function _DNet_MPClientApplyWIStats(payload)
   end if
 end function
 
-/*
-* Function: _DNet_MPClientUpdateWIStatsSync
-* Purpose: Runs bounded request/retry logic until client received host intermission stats.
-*/
+/// Runs bounded request/retry logic until client received host intermission stats.
+/// @internal
 function _DNet_MPClientUpdateWIStatsSync()
   global _dnet_mp_client_wait_wistats
   global _dnet_mp_client_have_wistats
@@ -1510,10 +1822,11 @@ function _DNet_MPClientUpdateWIStatsSync()
   _dnet_mp_client_wistats_next_req_tic = nowtic + _DNET_MP_WISTATS_RETRY_TICS
 end function
 
-/*
-* Function: _DNet_MPBuildFeedPacket
-* Purpose: Builds a small gameplay event packet (kill feed, etc.).
-*/
+/// Builds a small gameplay event packet (kill feed, etc.).
+/// @param code Code value supplied to `_DNet_MPBuildFeedPacket`.
+/// @param a First input operand.
+/// @param b Second input operand.
+/// @internal
 function inline _DNet_MPBuildFeedPacket(code, a, b)
   payload = bytes(4, 0)
   payload[0] = _DNET_MPMSG_FEED
@@ -1523,10 +1836,9 @@ function inline _DNet_MPBuildFeedPacket(code, a, b)
   return payload
 end function
 
-/*
-* Function: _DNet_MPNormalizeChatText
-* Purpose: Normalizes chat text to printable ASCII and trims packet size.
-*/
+/// Normalizes chat text to printable ASCII and trims packet size.
+/// @param msg Msg value supplied to `_DNet_MPNormalizeChatText`.
+/// @internal
 function _DNet_MPNormalizeChatText(msg)
   if typeof(msg) != "string" then return "" end if
   src = bytes(msg)
@@ -1550,10 +1862,11 @@ function _DNet_MPNormalizeChatText(msg)
   return decode(slice(outb, 0, n))
 end function
 
-/*
-* Function: _DNet_MPBuildChatPacket
-* Purpose: Builds one authoritative multiplayer chat packet.
-*/
+/// Builds one authoritative multiplayer chat packet.
+/// @param senderSlot Sender slot value supplied to `_DNet_MPBuildChatPacket`.
+/// @param dest Dest value supplied to `_DNet_MPBuildChatPacket`.
+/// @param msg Msg value supplied to `_DNet_MPBuildChatPacket`.
+/// @internal
 function _DNet_MPBuildChatPacket(senderSlot, dest, msg)
   txt = _DNet_MPNormalizeChatText(msg)
   mb = bytes(txt)
@@ -1571,10 +1884,10 @@ function _DNet_MPBuildChatPacket(senderSlot, dest, msg)
   return payload
 end function
 
-/*
-* Function: _DNet_MPHostBroadcastKillFeed
-* Purpose: Broadcasts one host-authoritative kill message to all connected clients.
-*/
+/// Broadcasts one host-authoritative kill message to all connected clients.
+/// @param killer Killer value supplied to `_DNet_MPHostBroadcastKillFeed`.
+/// @param victim Victim value supplied to `_DNet_MPHostBroadcastKillFeed`.
+/// @internal
 function _DNet_MPHostBroadcastKillFeed(killer, victim)
   if not _DNet_MPIsHost() then return end if
   msg = _DNet_MPPlayerName(killer) + " killed " + _DNet_MPPlayerName(victim)
@@ -1597,10 +1910,10 @@ function _DNet_MPHostBroadcastKillFeed(killer, victim)
   end while
 end function
 
-/*
-* Function: _DNet_MPHostBroadcastTelefragFeed
-* Purpose: Broadcasts one host-authoritative telefrag message to all connected clients.
-*/
+/// Broadcasts one host-authoritative telefrag message to all connected clients.
+/// @param killer Killer value supplied to `_DNet_MPHostBroadcastTelefragFeed`.
+/// @param victim Victim value supplied to `_DNet_MPHostBroadcastTelefragFeed`.
+/// @internal
 function _DNet_MPHostBroadcastTelefragFeed(killer, victim)
   if not _DNet_MPIsHost() then return end if
   msg = _DNet_MPPlayerName(killer) + " telefragged " + _DNet_MPPlayerName(victim)
@@ -1623,10 +1936,9 @@ function _DNet_MPHostBroadcastTelefragFeed(killer, victim)
   end while
 end function
 
-/*
-* Function: _DNet_MPClientApplyChat
-* Purpose: Applies one authoritative multiplayer chat message on the local HUD.
-*/
+/// Applies one authoritative multiplayer chat message on the local HUD.
+/// @param payload Payload value supplied to `_DNet_MPClientApplyChat`.
+/// @internal
 function inline _DNet_MPClientApplyChat(payload)
   if typeof(payload) != "bytes" or len(payload) < 4 then return end if
   if (payload[0] & 255) != _DNET_MPMSG_CHAT then return end if
@@ -1647,10 +1959,11 @@ function inline _DNet_MPClientApplyChat(payload)
   HU_NetAddMessage(msg)
 end function
 
-/*
-* Function: _DNet_MPHostRelayChat
-* Purpose: Displays and routes a validated chat line to its sender and optional private recipient.
-*/
+/// Displays and routes a validated chat line to its sender and optional private recipient.
+/// @param sender Sender value supplied to `_DNet_MPHostRelayChat`.
+/// @param dest Dest value supplied to `_DNet_MPHostRelayChat`.
+/// @param txt Txt value supplied to `_DNet_MPHostRelayChat`.
+/// @internal
 function _DNet_MPHostRelayChat(sender, dest, txt)
   if not _DNet_MPIsHost() then return false end if
   if sender < 0 or sender >= MAXPLAYERS then return false end if
@@ -1683,10 +1996,10 @@ function _DNet_MPHostRelayChat(sender, dest, txt)
   return true
 end function
 
-/*
-* Function: _DNet_MPHostHandleChatPacket
-* Purpose: Validates and relays one client chat packet as authoritative chat event.
-*/
+/// Validates and relays one client chat packet as authoritative chat event.
+/// @param node Node value supplied to `_DNet_MPHostHandleChatPacket`.
+/// @param payload Payload value supplied to `_DNet_MPHostHandleChatPacket`.
+/// @internal
 function _DNet_MPHostHandleChatPacket(node, payload)
   global _dnet_mp_host_last_chat_tic
   payloadSender = -1
@@ -1722,10 +2035,9 @@ function _DNet_MPHostHandleChatPacket(node, payload)
   _DNet_MPHostRelayChat(sender, dest, txt)
 end function
 
-/*
-* Function: D_NetMPSendChat
-* Purpose: Sends local HUD chat through the authoritative packet channel, preserving private destinations.
-*/
+/// Sends local HUD chat through the authoritative packet channel, preserving private destinations.
+/// @param dest Dest value supplied to `D_NetMPSendChat`.
+/// @param msg Msg value supplied to `D_NetMPSendChat`.
 function D_NetMPSendChat(dest, msg)
   if not _DNet_MPIsAuthoritative() then return false end if
   sender = _DNet_ToInt(consoleplayer, 0)
@@ -1747,10 +2059,10 @@ function D_NetMPSendChat(dest, msg)
   return sent
 end function
 
-/*
-* Function: _DNet_MPBuildNamePacket
-* Purpose: Encodes one sanitized player-name update in a compact fixed-protocol packet.
-*/
+/// Encodes one sanitized player-name update in a compact fixed-protocol packet.
+/// @param slot Slot value supplied to `_DNet_MPBuildNamePacket`.
+/// @param name Resource or object name to resolve.
+/// @internal
 function _DNet_MPBuildNamePacket(slot, name)
   clean = MP_SanitizeName(name)
   nb = bytes(clean)
@@ -1768,10 +2080,9 @@ function _DNet_MPBuildNamePacket(slot, name)
   return payload
 end function
 
-/*
-* Function: _DNet_MPReadNamePacket
-* Purpose: Validates a name packet's declared length and returns its canonical player name.
-*/
+/// Validates a name packet's declared length and returns its canonical player name.
+/// @param payload Payload value supplied to `_DNet_MPReadNamePacket`.
+/// @internal
 function _DNet_MPReadNamePacket(payload)
   if typeof(payload) != "bytes" or len(payload) < 4 then return "" end if
   if (payload[0] & 255) != _DNET_MPMSG_NAME then return "" end if
@@ -1780,10 +2091,10 @@ function _DNet_MPReadNamePacket(payload)
   return MP_SanitizeName(decode(slice(payload, 3, n)))
 end function
 
-/*
-* Function: _DNet_MPHostBroadcastName
-* Purpose: Broadcasts one host-approved slot name to every connected multiplayer client.
-*/
+/// Broadcasts one host-approved slot name to every connected multiplayer client.
+/// @param slot Slot value supplied to `_DNet_MPHostBroadcastName`.
+/// @param name Resource or object name to resolve.
+/// @internal
 function _DNet_MPHostBroadcastName(slot, name)
   if not _DNet_MPIsHost() or typeof(MP_PlatformNetSend) != "function" then return false end if
   payload = _DNet_MPBuildNamePacket(slot, name)
@@ -1800,10 +2111,8 @@ function _DNet_MPHostBroadcastName(slot, name)
   return sentAny
 end function
 
-/*
-* Function: _DNet_MPHostBroadcastAllNames
-* Purpose: Refreshes the complete small slot-name table so newly joined clients learn existing peers immediately.
-*/
+/// Refreshes the complete small slot-name table so newly joined clients learn existing peers immediately.
+/// @internal
 function _DNet_MPHostBroadcastAllNames()
   if not _DNet_MPIsHost() then return end if
   _DNet_MPHostBroadcastName(0, _DNet_MPPlayerName(0))
@@ -1818,10 +2127,9 @@ function _DNet_MPHostBroadcastAllNames()
   end while
 end function
 
-/*
-* Function: _DNet_MPClientApplyName
-* Purpose: Applies one authoritative rename and reports changes made by another player.
-*/
+/// Applies one authoritative rename and reports changes made by another player.
+/// @param payload Payload value supplied to `_DNet_MPClientApplyName`.
+/// @internal
 function _DNet_MPClientApplyName(payload)
   if not _DNet_MPIsClient() then return end if
   clean = _DNet_MPReadNamePacket(payload)
@@ -1841,10 +2149,10 @@ function _DNet_MPClientApplyName(payload)
   end if
 end function
 
-/*
-* Function: _DNet_MPHostHandleNamePacket
-* Purpose: Authenticates a client rename by its transport slot, updates the peer table, and relays it.
-*/
+/// Authenticates a client rename by its transport slot, updates the peer table, and relays it.
+/// @param node Node value supplied to `_DNet_MPHostHandleNamePacket`.
+/// @param payload Payload value supplied to `_DNet_MPHostHandleNamePacket`.
+/// @internal
 function _DNet_MPHostHandleNamePacket(node, payload)
   if not _DNet_MPIsHost() then return end if
   sender = _DNet_ToInt(node, -1)
@@ -1866,10 +2174,8 @@ function _DNet_MPHostHandleNamePacket(node, payload)
   _DNet_MPHostBroadcastAllNames()
 end function
 
-/*
-* Function: D_NetMPSetPlayerName
-* Purpose: Changes the local persistent name and propagates it through an active authoritative session.
-*/
+/// Changes the local persistent name and propagates it through an active authoritative session.
+/// @param name Resource or object name to resolve.
 function D_NetMPSetPlayerName(name)
   clean = MP_SanitizeName(name)
   MP_SetPlayerName(clean)
@@ -1897,10 +2203,10 @@ function D_NetMPSetPlayerName(name)
   return clean
 end function
 
-/*
-* Function: _DNet_MPHostIsLikelyTelefrag
-* Purpose: Detects teleport-stomp frags so feed can use telefrag wording.
-*/
+/// Detects teleport-stomp frags so feed can use telefrag wording.
+/// @param killer Killer value supplied to `_DNet_MPHostIsLikelyTelefrag`.
+/// @param victim Victim value supplied to `_DNet_MPHostIsLikelyTelefrag`.
+/// @internal
 function _DNet_MPHostIsLikelyTelefrag(killer, victim)
   if killer < 0 or killer >= MAXPLAYERS or victim < 0 or victim >= MAXPLAYERS then return false end if
   if killer == victim then return false end if
@@ -1919,10 +2225,8 @@ function _DNet_MPHostIsLikelyTelefrag(killer, victim)
   return true
 end function
 
-/*
-* Function: _DNet_MPHostCheckFragFeed
-* Purpose: Detects host-side frag matrix increments and emits kill feed events.
-*/
+/// Detects host-side frag matrix increments and emits kill feed events.
+/// @internal
 function _DNet_MPHostCheckFragFeed()
   global _dnet_mp_host_last_frags
   if not _DNet_MPIsHost() then return end if
@@ -1968,10 +2272,8 @@ function _DNet_MPHostCheckFragFeed()
   end while
 end function
 
-/*
-* Function: _DNet_MPPhaseCode
-* Purpose: Maps Doom gamestate to compact phase code used by phase sync packets.
-*/
+/// Maps Doom gamestate to compact phase code used by phase sync packets.
+/// @internal
 function inline _DNet_MPPhaseCode()
   if gamestate == gamestate_t.GS_LEVEL then return 0 end if
   if gamestate == gamestate_t.GS_INTERMISSION then return 1 end if
@@ -1979,10 +2281,8 @@ function inline _DNet_MPPhaseCode()
   return 3
 end function
 
-/*
-* Function: _DNet_MPIntermissionNextMap
-* Purpose: Resolves the next map number while host is in intermission.
-*/
+/// Resolves the next map number while host is in intermission.
+/// @internal
 function inline _DNet_MPIntermissionNextMap()
   nextMap = _DNet_ToInt(gamemap, 1)
   if gamestate == gamestate_t.GS_INTERMISSION and typeof(wminfo) == "struct" and typeof(wminfo.next) == "int" then
@@ -1993,10 +2293,8 @@ function inline _DNet_MPIntermissionNextMap()
   return nextMap
 end function
 
-/*
-* Function: _DNet_MPBuildPhasePacket
-* Purpose: Builds a compact host phase packet for client flow synchronization.
-*/
+/// Builds a compact host phase packet for client flow synchronization.
+/// @internal
 function _DNet_MPBuildPhasePacket()
   payload = bytes(16, 0)
   payload[0] = _DNET_MPMSG_PHASE
@@ -2015,10 +2313,9 @@ function _DNet_MPBuildPhasePacket()
   return payload
 end function
 
-/*
-* Function: _DNet_MPHostMaybeSendPhase
-* Purpose: Periodically sends host game phase packets to keep clients flow-synchronized.
-*/
+/// Periodically sends host game phase packets to keep clients flow-synchronized.
+/// @param force Force value supplied to `_DNet_MPHostMaybeSendPhase`.
+/// @internal
 function _DNet_MPHostMaybeSendPhase(force)
   global _dnet_mp_last_phase_tic
   global _dnet_mp_host_last_phase_key
@@ -2091,10 +2388,8 @@ function _DNet_MPHostMaybeSendPhase(force)
   end if
 end function
 
-/*
-* Function: _DNet_MPLevelReady
-* Purpose: Returns true when level state is initialized enough for authoritative snapshots.
-*/
+/// Returns true when level state is initialized enough for authoritative snapshots.
+/// @internal
 function _DNet_MPLevelReady()
   if gamestate == gamestate_t.GS_LEVEL then return true end if
   if not _DNet_IsSeq(sectors) or len(sectors) <= 0 then return false end if
@@ -2109,10 +2404,9 @@ function _DNet_MPLevelReady()
   return false
 end function
 
-/*
-* Function: _DNet_MPActorUsable
-* Purpose: Checks whether thinker owner is a currently valid non-player mobj for replication.
-*/
+/// Checks whether thinker owner is a currently valid non-player mobj for replication.
+/// @param mo Map object affected by the operation.
+/// @internal
 function inline _DNet_MPActorUsable(mo)
   if typeof(mo) != "struct" then return false end if
   if mo.player is not void then return false end if
@@ -2127,10 +2421,9 @@ function inline _DNet_MPActorUsable(mo)
   return true
 end function
 
-/*
-* Function: _DNet_MPThinkerIsMobj
-* Purpose: Returns true when thinker node is a mobj thinker callback.
-*/
+/// Returns true when thinker node is a mobj thinker callback.
+/// @param node Node value supplied to `_DNet_MPThinkerIsMobj`.
+/// @internal
 function inline _DNet_MPThinkerIsMobj(node)
   if typeof(node) != "struct" then return false end if
   if node.func is void then return false end if
@@ -2139,10 +2432,9 @@ function inline _DNet_MPThinkerIsMobj(node)
   return node.func.acp1 == P_MobjThinker
 end function
 
-/*
- * Function: _DNet_MPHostFindActorIndex
- * Purpose: Locates host-side actor registry slot by stable actor key.
-*/
+/// Locates host-side actor registry slot by stable actor key.
+/// @param nodeKey Stable key identifying the network node.
+/// @internal
 function inline _DNet_MPHostFindActorIndex(nodeKey)
   if nodeKey <= 0 then return -1 end if
   i = 0
@@ -2153,10 +2445,8 @@ function inline _DNet_MPHostFindActorIndex(nodeKey)
   return -1
 end function
 
-/*
- * Function: _DNet_MPHostFindFreeActorSlot
- * Purpose: Returns reusable host registry slot whose actor id was cleared.
- */
+/// Returns reusable host registry slot whose actor id was cleared.
+/// @internal
 function inline _DNet_MPHostFindFreeActorSlot()
   i = 0
   while i < len(_dnet_mp_host_actor_ids)
@@ -2166,10 +2456,9 @@ function inline _DNet_MPHostFindFreeActorSlot()
   return -1
 end function
 
-/*
-* Function: _DNet_MPHostFindActorIndexByPose
-* Purpose: Finds an existing host actor slot by tight type/pose match as fallback when thinker key is missing.
-*/
+/// Finds an existing host actor slot by tight type/pose match as fallback when thinker key is missing.
+/// @param owner Owner value supplied to `_DNet_MPHostFindActorIndexByPose`.
+/// @internal
 function _DNet_MPHostFindActorIndexByPose(owner)
   if typeof(owner) != "struct" then return -1 end if
   ox = _DNet_ToInt(owner.x, 0)
@@ -2193,10 +2482,9 @@ function _DNet_MPHostFindActorIndexByPose(owner)
   return -1
 end function
 
-/*
-* Function: _DNet_MPHostQueueRemovedId
-* Purpose: Queues one removed actor id for multiple snapshots to tolerate UDP packet loss.
-*/
+/// Queues one removed actor id for multiple snapshots to tolerate UDP packet loss.
+/// @param idv Idv value supplied to `_DNet_MPHostQueueRemovedId`.
+/// @internal
 function inline _DNet_MPHostQueueRemovedId(idv)
   global _dnet_mp_host_removed_ids
   rid = _DNet_ToInt(idv, 0)
@@ -2218,10 +2506,8 @@ function inline _DNet_MPHostQueueRemovedId(idv)
   end if
 end function
 
-/*
-* Function: _DNet_MPHostRefreshActorRegistry
-* Purpose: Updates host-side actor registry and tracks removed actor ids.
-*/
+/// Updates host-side actor registry and tracks removed actor ids.
+/// @internal
 function _DNet_MPHostRefreshActorRegistry()
   global _dnet_mp_host_actor_ids
   global _dnet_mp_host_actor_nodes
@@ -2412,10 +2698,11 @@ function _DNet_MPHostRefreshActorRegistry()
   end if
 end function
 
-/*
-* Function: _DNet_MPHostCollectActorChunk
-* Purpose: Returns rotating subset of changed host actors for snapshot payloads.
-*/
+/// Returns rotating subset of changed host actors for snapshot payloads.
+/// @param maxCount Number of max to process.
+/// @param forceAll Force all value supplied to `_DNet_MPHostCollectActorChunk`.
+/// @param snapshotTick Snapshot tick value supplied to `_DNet_MPHostCollectActorChunk`.
+/// @internal
 function _DNet_MPHostCollectActorChunk(maxCount, forceAll, snapshotTick)
   global _dnet_mp_host_actor_cursor
   global _dnet_mp_host_last_actor_sig
@@ -2529,10 +2816,9 @@ function _DNet_MPHostCollectActorChunk(maxCount, forceAll, snapshotTick)
   return [mergedIds, mergedRefs]
 end function
 
-/*
-* Function: _DNet_MPHostInvalidateActorSigById
-* Purpose: Forces one host actor id to be considered dirty for next snapshot selection.
-*/
+/// Forces one host actor id to be considered dirty for next snapshot selection.
+/// @param aid Aid value supplied to `_DNet_MPHostInvalidateActorSigById`.
+/// @internal
 function inline _DNet_MPHostInvalidateActorSigById(aid)
   global _dnet_mp_host_actor_ids
   global _dnet_mp_host_last_actor_sig
@@ -2547,10 +2833,10 @@ function inline _DNet_MPHostInvalidateActorSigById(aid)
   end while
 end function
 
-/*
-* Function: _DNet_MPHostRequeueDroppedActorRows
-* Purpose: Re-queues actor rows trimmed by packet budget so they are retried next snapshots.
-*/
+/// Re-queues actor rows trimmed by packet budget so they are retried next snapshots.
+/// @param actorIds Actor ids value supplied to `_DNet_MPHostRequeueDroppedActorRows`.
+/// @param startIdx Start idx value supplied to `_DNet_MPHostRequeueDroppedActorRows`.
+/// @internal
 function _DNet_MPHostRequeueDroppedActorRows(actorIds, startIdx)
   if not _DNet_IsSeq(actorIds) then return end if
   start = _DNet_ToInt(startIdx, 0)
@@ -2563,10 +2849,14 @@ function _DNet_MPHostRequeueDroppedActorRows(actorIds, startIdx)
   end while
 end function
 
-/*
-* Function: _DNet_MPHostSelectActorsForSlot
-* Purpose: Prioritizes client-relevant actor updates over non-relevant updates for one target slot.
-*/
+/// Prioritizes client-relevant actor updates over non-relevant updates for one target slot.
+/// @param slot Slot value supplied to `_DNet_MPHostSelectActorsForSlot`.
+/// @param actorIds Actor ids value supplied to `_DNet_MPHostSelectActorsForSlot`.
+/// @param actorRefs Actor refs value supplied to `_DNet_MPHostSelectActorsForSlot`.
+/// @param maxCount Number of max to process.
+/// @param forceAll Force all value supplied to `_DNet_MPHostSelectActorsForSlot`.
+/// @param snapshotTick Snapshot tick value supplied to `_DNet_MPHostSelectActorsForSlot`.
+/// @internal
 function _DNet_MPHostSelectActorsForSlot(slot, actorIds, actorRefs, maxCount, forceAll, snapshotTick)
   nearIds = []
   nearRefs = []
@@ -2651,10 +2941,9 @@ function _DNet_MPHostSelectActorsForSlot(slot, actorIds, actorRefs, maxCount, fo
   return [trimmedIds, trimmedRefs]
 end function
 
-/*
-* Function: _DNet_MPHostPopRemovedIds
-* Purpose: Returns and removes removed actor ids for snapshot notification.
-*/
+/// Returns and removes removed actor ids for snapshot notification.
+/// @param maxCount Number of max to process.
+/// @internal
 function _DNet_MPHostPopRemovedIds(maxCount)
   global _dnet_mp_host_removed_ids
   removed = []
@@ -2709,10 +2998,8 @@ function _DNet_MPHostPopRemovedIds(maxCount)
   return trimmedRemoved
 end function
 
-/*
-* Function: _DNet_MPHostEnsureSectorCache
-* Purpose: Initializes host-side sector cache used for delta snapshots.
-*/
+/// Initializes host-side sector cache used for delta snapshots.
+/// @internal
 function _DNet_MPHostEnsureSectorCache()
   global _dnet_mp_host_last_sector_floor
   global _dnet_mp_host_last_sector_ceiling
@@ -2751,10 +3038,10 @@ function _DNet_MPHostEnsureSectorCache()
   _dnet_mp_host_sector_cursor = 0
 end function
 
-/*
-* Function: _DNet_MPHostCollectSectorChanges
-* Purpose: Collects a rotating subset of changed sector dynamics for snapshots.
-*/
+/// Collects a rotating subset of changed sector dynamics for snapshots.
+/// @param maxCount Number of max to process.
+/// @param forceAll Force all value supplied to `_DNet_MPHostCollectSectorChanges`.
+/// @internal
 function _DNet_MPHostCollectSectorChanges(maxCount, forceAll)
   global _dnet_mp_host_sector_cursor
   rows = []
@@ -2827,10 +3114,8 @@ function _DNet_MPHostCollectSectorChanges(maxCount, forceAll)
   return rows
 end function
 
-/*
-* Function: _DNet_MPHostEnsureSideCache
-* Purpose: Initializes host-side sidedef texture cache used for switch and wall texture replication.
-*/
+/// Initializes host-side sidedef texture cache used for switch and wall texture replication.
+/// @internal
 function _DNet_MPHostEnsureSideCache()
   global _dnet_mp_host_last_side_top
   global _dnet_mp_host_last_side_bottom
@@ -2866,10 +3151,10 @@ function _DNet_MPHostEnsureSideCache()
   _dnet_mp_host_side_cursor = 0
 end function
 
-/*
-* Function: _DNet_MPHostCollectSideChanges
-* Purpose: Collects changed sidedef textures so clients see switch/button state transitions.
-*/
+/// Collects changed sidedef textures so clients see switch/button state transitions.
+/// @param maxCount Number of max to process.
+/// @param forceAll Force all value supplied to `_DNet_MPHostCollectSideChanges`.
+/// @internal
 function _DNet_MPHostCollectSideChanges(maxCount, forceAll)
   global _dnet_mp_host_side_cursor
   rows = []
@@ -2940,10 +3225,9 @@ function _DNet_MPHostCollectSideChanges(maxCount, forceAll)
   return rows
 end function
 
-/*
-* Function: _DNet_MPEnsurePlayerStruct
-* Purpose: Ensures player slot contains a valid player struct.
-*/
+/// Ensures player slot contains a valid player struct.
+/// @param slot Slot value supplied to `_DNet_MPEnsurePlayerStruct`.
+/// @internal
 function inline _DNet_MPEnsurePlayerStruct(slot)
   if slot < 0 or slot >= MAXPLAYERS then return void end if
   if not _DNet_IsSeq(players) or slot >= len(players) then return void end if
@@ -2955,10 +3239,9 @@ function inline _DNet_MPEnsurePlayerStruct(slot)
   return p
 end function
 
-/*
-* Function: _DNet_MPPlayerHasAnyOwnedWeapon
-* Purpose: Returns true if a player struct already carries any weapon ownership flag.
-*/
+/// Returns true if a player struct already carries any weapon ownership flag.
+/// @param p Object or data record consumed by the operation.
+/// @internal
 function inline _DNet_MPPlayerHasAnyOwnedWeapon(p)
   if typeof(p) != "struct" then return false end if
   if not _DNet_IsSeq(p.weaponowned) then return false end if
@@ -2970,10 +3253,9 @@ function inline _DNet_MPPlayerHasAnyOwnedWeapon(p)
   return false
 end function
 
-/*
-* Function: _DNet_MPHostMarkSlotFullsync
-* Purpose: Schedules an immediate full-snapshot burst for a newly active remote slot.
-*/
+/// Schedules an immediate full-snapshot burst for a newly active remote slot.
+/// @param slot Slot value supplied to `_DNet_MPHostMarkSlotFullsync`.
+/// @internal
 function inline _DNet_MPHostMarkSlotFullsync(slot)
   global _dnet_mp_host_slot_fullsync_burst
   s = _DNet_ToInt(slot, -1)
@@ -2984,10 +3266,10 @@ function inline _DNet_MPHostMarkSlotFullsync(slot)
   _dnet_mp_host_slot_fullsync_burst[s] = _DNET_MP_JOIN_FULLSYNC_BURST_TICS
 end function
 
-/*
-* Function: _DNet_MPSetPlayerSlotActive
-* Purpose: Toggles slot active state and removes stale mobjs on deactivate.
-*/
+/// Toggles slot active state and removes stale mobjs on deactivate.
+/// @param slot Slot value supplied to `_DNet_MPSetPlayerSlotActive`.
+/// @param active Whether the requested state should be active.
+/// @internal
 function _DNet_MPSetPlayerSlotActive(slot, active)
   global _dnet_mp_remote_cmds
   global _dnet_mp_remote_cmd_valid
@@ -3027,10 +3309,9 @@ function _DNet_MPSetPlayerSlotActive(slot, active)
   end if
 end function
 
-/*
-* Function: _DNet_MPClientFindActorIndex
-* Purpose: Finds client-side actor proxy registry index by replicated id.
-*/
+/// Finds client-side actor proxy registry index by replicated id.
+/// @param idv Idv value supplied to `_DNet_MPClientFindActorIndex`.
+/// @internal
 function inline _DNet_MPClientFindActorIndex(idv)
   i = 0
   while i < len(_dnet_mp_client_actor_ids)
@@ -3040,10 +3321,9 @@ function inline _DNet_MPClientFindActorIndex(idv)
   return -1
 end function
 
-/*
-* Function: _DNet_MPClientFindActorByUidField
-* Purpose: Finds a client actor proxy whose local mobj mpuid already matches replicated actor id.
-*/
+/// Finds a client actor proxy whose local mobj mpuid already matches replicated actor id.
+/// @param aid Aid value supplied to `_DNet_MPClientFindActorByUidField`.
+/// @internal
 function inline _DNet_MPClientFindActorByUidField(aid)
   i = 0
   while i < len(_dnet_mp_client_actor_refs)
@@ -3056,10 +3336,8 @@ function inline _DNet_MPClientFindActorByUidField(aid)
   return -1
 end function
 
-/*
-* Function: _DNet_MPClientFindFreeActorSlot
-* Purpose: Returns reusable client registry slot whose actor id was cleared.
-*/
+/// Returns reusable client registry slot whose actor id was cleared.
+/// @internal
 function inline _DNet_MPClientFindFreeActorSlot()
   i = 0
   while i < len(_dnet_mp_client_actor_ids) and i < len(_dnet_mp_client_actor_refs)
@@ -3071,20 +3349,19 @@ function inline _DNet_MPClientFindFreeActorSlot()
   return -1
 end function
 
-/*
-* Function: _DNet_MPSign32
-* Purpose: Returns sign of integer value (-1, 0, +1).
-*/
+/// Returns sign of integer value (-1, 0, +1).
+/// @param v Value consumed by the operation.
+/// @internal
 function inline _DNet_MPSign32(v)
   if v < 0 then return -1 end if
   if v > 0 then return 1 end if
   return 0
 end function
 
-/*
-* Function: _DNet_MPAngleDeltaSigned
-* Purpose: Returns shortest signed angular delta (to-from) in Doom angle space.
-*/
+/// Returns shortest signed angular delta (to-from) in Doom angle space.
+/// @param toAng To ang value supplied to `_DNet_MPAngleDeltaSigned`.
+/// @param fromAng From ang value supplied to `_DNet_MPAngleDeltaSigned`.
+/// @internal
 function inline _DNet_MPAngleDeltaSigned(toAng, fromAng)
   d = _DNet_ToInt(toAng, 0) - _DNet_ToInt(fromAng, 0)
   if d > 2147483647 then d = d - 4294967296 end if
@@ -3092,10 +3369,10 @@ function inline _DNet_MPAngleDeltaSigned(toAng, fromAng)
   return d
 end function
 
-/*
-* Function: _DNet_MPClampAbs
-* Purpose: Clamps value into [-limit, +limit].
-*/
+/// Clamps value into [-limit, +limit].
+/// @param v Value consumed by the operation.
+/// @param limit Limit value supplied to `_DNet_MPClampAbs`.
+/// @internal
 function inline _DNet_MPClampAbs(v, limit)
   lim = _DNet_ToInt(limit, 0)
   if lim < 0 then lim = -lim end if
@@ -3106,10 +3383,9 @@ function inline _DNet_MPClampAbs(v, limit)
   return vv
 end function
 
-/*
-* Function: _DNet_MPClientEnsureActorMotionSlot
-* Purpose: Ensures client-side actor smoothing arrays have capacity for one slot index.
-*/
+/// Ensures client-side actor smoothing arrays have capacity for one slot index.
+/// @param idx Zero-based element or table index.
+/// @internal
 function inline _DNet_MPClientEnsureActorMotionSlot(idx)
   global _dnet_mp_client_actor_tx
   global _dnet_mp_client_actor_ty
@@ -3137,10 +3413,8 @@ function inline _DNet_MPClientEnsureActorMotionSlot(idx)
   _dnet_mp_client_actor_kind = _dnet_mp_client_actor_kind + ext
 end function
 
-/*
-* Function: _DNet_MPClientEnsurePlayerMotionSlots
-* Purpose: Ensures client-side remote player smoothing arrays are sized for MAXPLAYERS.
-*/
+/// Ensures client-side remote player smoothing arrays are sized for MAXPLAYERS.
+/// @internal
 function inline _DNet_MPClientEnsurePlayerMotionSlots()
   global _dnet_mp_client_player_tx
   global _dnet_mp_client_player_ty
@@ -3164,10 +3438,9 @@ function inline _DNet_MPClientEnsurePlayerMotionSlots()
   _dnet_mp_client_player_last_snap_tic = _dnet_mp_client_player_last_snap_tic + ext
 end function
 
-/*
-* Function: _DNet_MPClientResetPlayerMotionSlot
-* Purpose: Clears remote player smoothing state for one slot.
-*/
+/// Clears remote player smoothing state for one slot.
+/// @param slot Slot value supplied to `_DNet_MPClientResetPlayerMotionSlot`.
+/// @internal
 function inline _DNet_MPClientResetPlayerMotionSlot(slot)
   _DNet_MPClientEnsurePlayerMotionSlots()
   s = _DNet_ToInt(slot, -1)
@@ -3182,10 +3455,15 @@ function inline _DNet_MPClientResetPlayerMotionSlot(slot)
   _dnet_mp_client_player_last_snap_tic[s] = 0
 end function
 
-/*
-* Function: _DNet_MPClientTrackPlayerSnapshot
-* Purpose: Stores remote player target pose and velocity estimate from authoritative snapshots.
-*/
+/// Stores remote player target pose and velocity estimate from authoritative snapshots.
+/// @param slot Slot value supplied to `_DNet_MPClientTrackPlayerSnapshot`.
+/// @param px Horizontal coordinate or vector component represented by px.
+/// @param py Vertical coordinate or vector component represented by py.
+/// @param pz Pz value supplied to `_DNet_MPClientTrackPlayerSnapshot`.
+/// @param pang Pang value supplied to `_DNet_MPClientTrackPlayerSnapshot`.
+/// @param snapTick Snap tick value supplied to `_DNet_MPClientTrackPlayerSnapshot`.
+/// @param hardSnap Hard snap value supplied to `_DNet_MPClientTrackPlayerSnapshot`.
+/// @internal
 function _DNet_MPClientTrackPlayerSnapshot(slot, px, py, pz, pang, snapTick, hardSnap)
   _DNet_MPClientEnsurePlayerMotionSlots()
   s = _DNet_ToInt(slot, -1)
@@ -3225,10 +3503,11 @@ function _DNet_MPClientTrackPlayerSnapshot(slot, px, py, pz, pang, snapTick, har
   _dnet_mp_client_player_last_snap_tic[s] = _DNet_ToInt(snapTick, 0)
 end function
 
-/*
-* Function: _DNet_MPClientClassifyActor
-* Purpose: Classifies actor replication behavior: 0 static, 1 mobile, 2 fast/effect (missile-like).
-*/
+/// Classifies actor replication behavior: 0 static, 1 mobile, 2 fast/effect (missile-like).
+/// @param atype Atype value supplied to `_DNet_MPClientClassifyActor`.
+/// @param flags Bit flags that control the operation.
+/// @param mo Map object affected by the operation.
+/// @internal
 function inline _DNet_MPClientClassifyActor(atype, flags, mo)
   fl = _DNet_ToInt(flags, 0)
   if (fl & mobjflag_t.MF_MISSILE) != 0 then return 2 end if
@@ -3243,10 +3522,18 @@ function inline _DNet_MPClientClassifyActor(atype, flags, mo)
   return 1
 end function
 
-/*
-* Function: _DNet_MPClientTrackActorSnapshot
-* Purpose: Stores target pose and velocity estimate for one replicated actor snapshot.
-*/
+/// Stores target pose and velocity estimate for one replicated actor snapshot.
+/// @param idx Zero-based element or table index.
+/// @param mo Map object affected by the operation.
+/// @param atype Atype value supplied to `_DNet_MPClientTrackActorSnapshot`.
+/// @param afl Afl value supplied to `_DNet_MPClientTrackActorSnapshot`.
+/// @param ax Horizontal coordinate or vector component represented by ax.
+/// @param ay Vertical coordinate or vector component represented by ay.
+/// @param az Az value supplied to `_DNet_MPClientTrackActorSnapshot`.
+/// @param aang Aang value supplied to `_DNet_MPClientTrackActorSnapshot`.
+/// @param snapTick Snap tick value supplied to `_DNet_MPClientTrackActorSnapshot`.
+/// @param spawnedNow Spawned now value supplied to `_DNet_MPClientTrackActorSnapshot`.
+/// @internal
 function _DNet_MPClientTrackActorSnapshot(idx, mo, atype, afl, ax, ay, az, aang, snapTick, spawnedNow)
   global _dnet_mp_client_actor_tx
   global _dnet_mp_client_actor_ty
@@ -3310,10 +3597,8 @@ function _DNet_MPClientTrackActorSnapshot(idx, mo, atype, afl, ax, ay, az, aang,
   _dnet_mp_client_actor_kind[idx] = kind
 end function
 
-/*
-* Function: _DNet_MPClientAdvanceActors
-* Purpose: Client-side actor smoothing using interpolation with bounded short extrapolation.
-*/
+/// Client-side actor smoothing using interpolation with bounded short extrapolation.
+/// @internal
 function _DNet_MPClientAdvanceActors()
   global _dnet_mp_client_actor_refs
   global _dnet_mp_client_actor_ids
@@ -3429,10 +3714,8 @@ function _DNet_MPClientAdvanceActors()
   end while
 end function
 
-/*
-* Function: _DNet_MPClientAdvancePlayers
-* Purpose: Client-side smoothing for remote player movement and turning.
-*/
+/// Client-side smoothing for remote player movement and turning.
+/// @internal
 function _DNet_MPClientAdvancePlayers()
   global _dnet_mp_client_player_tx
   global _dnet_mp_client_player_ty
@@ -3546,19 +3829,18 @@ function _DNet_MPClientAdvancePlayers()
   end while
 end function
 
-/*
-* Function: _DNet_MPAbs32
-* Purpose: Returns integer absolute value for authoritative snapshot math.
-*/
+/// Returns integer absolute value for authoritative snapshot math.
+/// @param v Value consumed by the operation.
+/// @internal
 function inline _DNet_MPAbs32(v)
   if v < 0 then return -v end if
   return v
 end function
 
-/*
-* Function: _DNet_MPApproxDist2D
-* Purpose: Computes Doom-style fast 2D distance approximation for relevance filtering.
-*/
+/// Computes Doom-style fast 2D distance approximation for relevance filtering.
+/// @param dx Horizontal coordinate or vector component represented by dx.
+/// @param dy Vertical coordinate or vector component represented by dy.
+/// @internal
 function inline _DNet_MPApproxDist2D(dx, dy)
   adx = _DNet_MPAbs32(dx)
   ady = _DNet_MPAbs32(dy)
@@ -3567,18 +3849,17 @@ function inline _DNet_MPApproxDist2D(dx, dy)
   return adx + ady - (mn >> 1)
 end function
 
-/*
-* Function: _DNet_MPU32
-* Purpose: Normalizes signed int values into unsigned 32-bit angle space.
-*/
+/// Normalizes signed int values into unsigned 32-bit angle space.
+/// @param v Value consumed by the operation.
+/// @internal
 function inline _DNet_MPU32(v)
   return _DNet_ToInt(v, 0) & 0xFFFFFFFF
 end function
 
-/*
-* Function: _DNet_MPAngleAbsDelta
-* Purpose: Returns shortest unsigned absolute angle delta (0..0x80000000).
-*/
+/// Returns shortest unsigned absolute angle delta (0..0x80000000).
+/// @param a First input operand.
+/// @param b Second input operand.
+/// @internal
 function inline _DNet_MPAngleAbsDelta(a, b)
   ua = _DNet_MPU32(a)
   ub = _DNet_MPU32(b)
@@ -3588,10 +3869,10 @@ function inline _DNet_MPAngleAbsDelta(a, b)
   return d
 end function
 
-/*
-* Function: _DNet_MPHostActorRelevantForSlot
-* Purpose: Returns true when an actor is relevant enough for a specific client slot snapshot.
-*/
+/// Returns true when an actor is relevant enough for a specific client slot snapshot.
+/// @param slot Slot value supplied to `_DNet_MPHostActorRelevantForSlot`.
+/// @param mo Map object affected by the operation.
+/// @internal
 function inline _DNet_MPHostActorRelevantForSlot(slot, mo)
   if typeof(mo) != "struct" then return false end if
 
@@ -3639,10 +3920,9 @@ function inline _DNet_MPHostActorRelevantForSlot(slot, mo)
   return false
 end function
 
-/*
-* Function: _DNet_MPActorIsStaticForSync
-* Purpose: Detects mostly-static actor classes (pickups/corpses/decor) that can be heartbeated less often.
-*/
+/// Detects mostly-static actor classes (pickups/corpses/decor) that can be heartbeated less often.
+/// @param mo Map object affected by the operation.
+/// @internal
 function inline _DNet_MPActorIsStaticForSync(mo)
   if typeof(mo) != "struct" then return false end if
 
@@ -3665,10 +3945,10 @@ function inline _DNet_MPActorIsStaticForSync(mo)
   return false
 end function
 
-/*
-* Function: _DNet_MPStaticActorHeartbeatHit
-* Purpose: Spreads static actor heartbeat replication across full snapshots.
-*/
+/// Spreads static actor heartbeat replication across full snapshots.
+/// @param idv Idv value supplied to `_DNet_MPStaticActorHeartbeatHit`.
+/// @param snapshotTick Snapshot tick value supplied to `_DNet_MPStaticActorHeartbeatHit`.
+/// @internal
 function inline _DNet_MPStaticActorHeartbeatHit(idv, snapshotTick)
   n = _DNET_MP_STATIC_HEARTBEAT_FULLS
   if n <= 1 then return true end if
@@ -3679,10 +3959,10 @@ function inline _DNet_MPStaticActorHeartbeatHit(idv, snapshotTick)
   return ((_DNet_ToInt(idv, 0) + fullIdx) % n) == 0
 end function
 
-/*
-* Function: _DNet_MPStateKeyEquals
-* Purpose: Compares two compact snapshot keys for player/actor delta detection.
-*/
+/// Compares two compact snapshot keys for player/actor delta detection.
+/// @param a First input operand.
+/// @param b Second input operand.
+/// @internal
 function inline _DNet_MPStateKeyEquals(a, b)
   if not _DNet_IsSeq(a) or not _DNet_IsSeq(b) then return false end if
   if len(a) != len(b) then return false end if
@@ -3694,10 +3974,10 @@ function inline _DNet_MPStateKeyEquals(a, b)
   return true
 end function
 
-/*
-* Function: _DNet_MPClientActorMissLimit
-* Purpose: Returns per-actor stale miss threshold so short-lived effects are culled quickly.
-*/
+/// Returns per-actor stale miss threshold so short-lived effects are culled quickly.
+/// @param baseLimit Base limit value supplied to `_DNet_MPClientActorMissLimit`.
+/// @param mo Map object affected by the operation.
+/// @internal
 function inline _DNet_MPClientActorMissLimit(baseLimit, mo)
   limit = _DNet_ToInt(baseLimit, 3)
   if limit < 1 then limit = 1 end if
@@ -3723,10 +4003,8 @@ function inline _DNet_MPClientActorMissLimit(baseLimit, mo)
   return limit
 end function
 
-/*
-* Function: _DNet_MPClientStaleMissLimit
-* Purpose: Computes how many full-snapshot misses an actor can accumulate before client-side stale removal.
-*/
+/// Computes how many full-snapshot misses an actor can accumulate before client-side stale removal.
+/// @internal
 function _DNet_MPClientStaleMissLimit()
   active = 0
   i = 0
@@ -3751,10 +4029,9 @@ function _DNet_MPClientStaleMissLimit()
   return limit
 end function
 
-/*
-* Function: _DNet_MPActorStateKey
-* Purpose: Builds compact actor state key used to suppress unchanged actor replication.
-*/
+/// Builds compact actor state key used to suppress unchanged actor replication.
+/// @param mo Map object affected by the operation.
+/// @internal
 function inline _DNet_MPActorStateKey(mo)
   if typeof(mo) != "struct" then return 0 end if
   st = _DNet_ToInt(_DNet_StateIndex(mo.state), 0)
@@ -3775,10 +4052,13 @@ function inline _DNet_MPActorStateKey(mo)
   return sig
 end function
 
-/*
-* Function: _DNet_MPClientFindActorByPose
-* Purpose: Finds closest existing client actor proxy by type/position for id-churn recovery.
-*/
+/// Finds closest existing client actor proxy by type/position for id-churn recovery.
+/// @param atype Atype value supplied to `_DNet_MPClientFindActorByPose`.
+/// @param ax Horizontal coordinate or vector component represented by ax.
+/// @param ay Vertical coordinate or vector component represented by ay.
+/// @param az Az value supplied to `_DNet_MPClientFindActorByPose`.
+/// @param claimed Claimed value supplied to `_DNet_MPClientFindActorByPose`.
+/// @internal
 function _DNet_MPClientFindActorByPose(atype, ax, ay, az, claimed)
   bestIdx = -1
   bestScore = 0
@@ -3808,10 +4088,17 @@ function _DNet_MPClientFindActorByPose(atype, ax, ay, az, claimed)
   return bestIdx
 end function
 
-/*
-* Function: _DNet_MPClientFindClaimedActorExact
-* Purpose: Finds already-claimed actor proxy with exact replicated pose/state to suppress duplicate spawns.
-*/
+/// Finds already-claimed actor proxy with exact replicated pose/state to suppress duplicate spawns.
+/// @param atype Atype value supplied to `_DNet_MPClientFindClaimedActorExact`.
+/// @param ax Horizontal coordinate or vector component represented by ax.
+/// @param ay Vertical coordinate or vector component represented by ay.
+/// @param az Az value supplied to `_DNet_MPClientFindClaimedActorExact`.
+/// @param aang Aang value supplied to `_DNet_MPClientFindClaimedActorExact`.
+/// @param aspr Aspr value supplied to `_DNet_MPClientFindClaimedActorExact`.
+/// @param afrm Afrm value supplied to `_DNet_MPClientFindClaimedActorExact`.
+/// @param astate Astate value supplied to `_DNet_MPClientFindClaimedActorExact`.
+/// @param claimed Claimed value supplied to `_DNet_MPClientFindClaimedActorExact`.
+/// @internal
 function _DNet_MPClientFindClaimedActorExact(atype, ax, ay, az, aang, aspr, afrm, astate, claimed)
   i = 0
   while i < len(_dnet_mp_client_actor_ids) and i < len(_dnet_mp_client_actor_refs)
@@ -3831,10 +4118,10 @@ function _DNet_MPClientFindClaimedActorExact(atype, ax, ay, az, aang, aspr, afrm
   return -1
 end function
 
-/*
-* Function: _DNet_MPClientBindActorId
-* Purpose: Binds replicated actor id to one proxy slot and clears previous conflicting mapping.
-*/
+/// Binds replicated actor id to one proxy slot and clears previous conflicting mapping.
+/// @param idx Zero-based element or table index.
+/// @param aid Aid value supplied to `_DNet_MPClientBindActorId`.
+/// @internal
 function inline _DNet_MPClientBindActorId(idx, aid)
   if idx < 0 then return end if
   old = _DNet_MPClientFindActorIndex(aid)
@@ -3846,10 +4133,9 @@ function inline _DNet_MPClientBindActorId(idx, aid)
   end if
 end function
 
-/*
-* Function: _DNet_MPClientRemoveActorAt
-* Purpose: Removes one client-side replicated actor proxy.
-*/
+/// Removes one client-side replicated actor proxy.
+/// @param idx Zero-based element or table index.
+/// @internal
 function inline _DNet_MPClientRemoveActorAt(idx)
   global _dnet_mp_client_actor_ids
   global _dnet_mp_client_actor_refs
@@ -3884,10 +4170,8 @@ function inline _DNet_MPClientRemoveActorAt(idx)
   if _DNet_IsSeq(_dnet_mp_client_actor_kind) and idx < len(_dnet_mp_client_actor_kind) then _dnet_mp_client_actor_kind[idx] = 0 end if
 end function
 
-/*
-* Function: _DNet_MPClientBootstrapWorld
-* Purpose: Clears client-side local non-player thinkers before authoritative actor replication takes over.
-*/
+/// Clears client-side local non-player thinkers before authoritative actor replication takes over.
+/// @internal
 function _DNet_MPClientBootstrapWorld()
   global _dnet_mp_client_actor_ids
   global _dnet_mp_client_actor_refs
@@ -3955,10 +4239,10 @@ function _DNet_MPClientBootstrapWorld()
   end while
 end function
 
-/*
-* Function: _DNet_MPCmdEquals
-* Purpose: Returns true when two ticcmd structs carry the same gameplay input values.
-*/
+/// Returns true when two ticcmd structs carry the same gameplay input values.
+/// @param a First input operand.
+/// @param b Second input operand.
+/// @internal
 function inline _DNet_MPCmdEquals(a, b)
   if typeof(a) != "struct" or typeof(b) != "struct" then return false end if
   if _DNet_ToInt(a.forwardmove, 0) != _DNet_ToInt(b.forwardmove, 0) then return false end if
@@ -3970,10 +4254,9 @@ function inline _DNet_MPCmdEquals(a, b)
   return true
 end function
 
-/*
-* Function: _DNet_MPSendInputCmd
-* Purpose: Sends one client input command to authoritative host.
-*/
+/// Sends one client input command to authoritative host.
+/// @param cmd Cmd value supplied to `_DNet_MPSendInputCmd`.
+/// @internal
 function _DNet_MPSendInputCmd(cmd)
   global _dnet_mp_last_input_seq
   global _dnet_mp_last_input_send_tic
@@ -4027,10 +4310,10 @@ function _DNet_MPSendInputCmd(cmd)
   end if
 end function
 
-/*
-* Function: _DNet_MPHostHandleInputPacket
-* Purpose: Applies one client input payload to host-side remote command cache.
-*/
+/// Applies one client input payload to host-side remote command cache.
+/// @param node Node value supplied to `_DNet_MPHostHandleInputPacket`.
+/// @param payload Payload value supplied to `_DNet_MPHostHandleInputPacket`.
+/// @internal
 function _DNet_MPHostHandleInputPacket(node, payload)
   global _dnet_mp_remote_cmds
   global _dnet_mp_remote_cmd_valid
@@ -4101,10 +4384,9 @@ function _DNet_MPHostHandleInputPacket(node, payload)
   end if
 end function
 
-/*
-* Function: _DNet_MPEnsureHostSlotMobj
-* Purpose: Spawns missing remote player mobjs on host when late-joining clients become active.
-*/
+/// Spawns missing remote player mobjs on host when late-joining clients become active.
+/// @param slot Slot value supplied to `_DNet_MPEnsureHostSlotMobj`.
+/// @internal
 function _DNet_MPEnsureHostSlotMobj(slot)
   if gamestate != gamestate_t.GS_LEVEL then return end if
   if slot < 0 or slot >= MAXPLAYERS then return end if
@@ -4227,10 +4509,8 @@ function _DNet_MPEnsureHostSlotMobj(slot)
   end if
 end function
 
-/*
-* Function: _DNet_MPHostApplyActiveSlots
-* Purpose: Synchronizes host player slot activity with platform peer list.
-*/
+/// Synchronizes host player slot activity with platform peer list.
+/// @internal
 function _DNet_MPHostApplyActiveSlots()
   active = _DNet_MPActiveSlots()
   i = 0
@@ -4286,10 +4566,10 @@ function _DNet_MPHostApplyActiveSlots()
   end while
 end function
 
-/*
-* Function: _DNet_MPBuildSnapshotPacket
-* Purpose: Builds one server snapshot payload for client replication.
-*/
+/// Builds one server snapshot payload for client replication.
+/// @param forceAll Force all value supplied to `_DNet_MPBuildSnapshotPacket`.
+/// @param snapshotTick Snapshot tick value supplied to `_DNet_MPBuildSnapshotPacket`.
+/// @internal
 function _DNet_MPBuildSnapshotPacket(forceAll, snapshotTick)
   global _dnet_mp_host_last_player_sig
   global _dnet_mp_host_removed_ids
@@ -4962,10 +5242,8 @@ function _DNet_MPBuildSnapshotPacket(forceAll, snapshotTick)
   return payload
 end function
 
-/*
-* Function: _DNet_MPHostSnapshotInterval
-* Purpose: Computes adaptive snapshot cadence based on active replicated actor load.
-*/
+/// Computes adaptive snapshot cadence based on active replicated actor load.
+/// @internal
 function inline _DNet_MPHostSnapshotInterval()
   interval = _DNET_MP_SNAPSHOT_INTERVAL
   active = _DNet_ToInt(_dnet_mp_host_actor_active_count, 0)
@@ -4997,10 +5275,9 @@ function inline _DNet_MPHostSnapshotInterval()
   return interval
 end function
 
-/*
-* Function: _DNet_MPHostMaybeSendSnapshot
-* Purpose: Sends periodic world snapshots from authoritative host to all clients.
-*/
+/// Sends periodic world snapshots from authoritative host to all clients.
+/// @param forceAll Force all value supplied to `_DNet_MPHostMaybeSendSnapshot`.
+/// @internal
 function _DNet_MPHostMaybeSendSnapshot(forceAll)
   global _dnet_mp_last_snapshot_tic
   global _dnet_mp_host_slot_fullsync_burst
@@ -5124,10 +5401,9 @@ function _DNet_MPHostMaybeSendSnapshot(forceAll)
   _dnet_mp_last_snapshot_tic = gt
 end function
 
-/*
-* Function: _DNet_MPClientApplyFeed
-* Purpose: Applies one host kill-feed packet on client HUD.
-*/
+/// Applies one host kill-feed packet on client HUD.
+/// @param payload Payload value supplied to `_DNet_MPClientApplyFeed`.
+/// @internal
 function _DNet_MPClientApplyFeed(payload)
   if typeof(payload) != "bytes" or len(payload) < 4 then return end if
   if (payload[0] & 255) != _DNET_MPMSG_FEED then return end if
@@ -5149,10 +5425,9 @@ function _DNet_MPClientApplyFeed(payload)
   end if
 end function
 
-/*
-* Function: _DNet_MPClientApplyPhase
-* Purpose: Applies host phase sync packets (level/intermission/finale) on client.
-*/
+/// Applies host phase sync packets (level/intermission/finale) on client.
+/// @param payload Payload value supplied to `_DNet_MPClientApplyPhase`.
+/// @internal
 function _DNet_MPClientApplyPhase(payload)
   global _dnet_mp_client_last_phase_tick
   global _dnet_mp_client_last_snapshot_tick
@@ -5338,10 +5613,9 @@ function _DNet_MPClientApplyPhase(payload)
   end if
 end function
 
-/*
-* Function: _DNet_MPClientApplySnapshot
-* Purpose: Applies one authoritative world snapshot on client runtime.
-*/
+/// Applies one authoritative world snapshot on client runtime.
+/// @param payload Payload value supplied to `_DNet_MPClientApplySnapshot`.
+/// @internal
 function _DNet_MPClientApplySnapshot(payload)
   global _dnet_mp_client_last_snapshot_tick
   global _dnet_mp_client_pending_snapshot
@@ -5946,10 +6220,8 @@ function _DNet_MPClientApplySnapshot(payload)
   end if
 end function
 
-/*
-* Function: _DNet_MPDrainAuthoritativePackets
-* Purpose: Pumps and routes authoritative multiplayer packets for host/client.
-*/
+/// Pumps and routes authoritative multiplayer packets for host/client.
+/// @internal
 function _DNet_MPDrainAuthoritativePackets()
   global _dnet_mp_dbg_unknown_payload_drop
   if not _DNet_MPIsAuthoritative() then return end if
@@ -6028,10 +6300,8 @@ function _DNet_MPDrainAuthoritativePackets()
   end if
 end function
 
-/*
-* Function: _DNet_MakeStoreFromBuffer
-* Purpose: Takes an atomic value-copy snapshot of the mutable legacy netbuffer.
-*/
+/// Takes an atomic value-copy snapshot of the mutable legacy netbuffer.
+/// @internal
 function _DNet_MakeStoreFromBuffer()
   if netbuffer is void then return doomdata_t(0, 0, 0, 0, 0, _DNet_DefaultCmds()) end if
   cmdcopy = _DNet_DefaultCmds()
@@ -6052,10 +6322,9 @@ function _DNet_MakeStoreFromBuffer()
 )
 end function
 
-/*
-* Function: _DNet_CopyStoreToBuffer
-* Purpose: Commits a decoded packet store into netbuffer only after validation succeeds.
-*/
+/// Commits a decoded packet store into netbuffer only after validation succeeds.
+/// @param src Src value supplied to `_DNet_CopyStoreToBuffer`.
+/// @internal
 function _DNet_CopyStoreToBuffer(src)
   if src is void or netbuffer is void then return end if
   netbuffer.checksum = _DNet_ToInt(src.checksum, 0)
@@ -6077,10 +6346,8 @@ function _DNet_CopyStoreToBuffer(src)
   end while
 end function
 
-/*
-* Function: D_NetInitSinglePlayer
- * Purpose: Rebuilds Doom networking, slot ownership, and tic queues as one local player after startup or transport loss.
- */
+/// Rebuilds Doom networking, slot ownership, and tic queues as one local player after startup or transport
+/// loss.
 function D_NetInitSinglePlayer()
   global doomcom
   global netbuffer
@@ -6169,10 +6436,7 @@ function D_NetInitSinglePlayer()
   _DNet_MPResetRuntime()
 end function
 
-/*
-* Function: D_CheckNetGame
-* Purpose: Resets legacy/authoritative network clocks and initializes the platform network driver once.
-*/
+/// Resets legacy/authoritative network clocks and initializes the platform network driver once.
 function D_CheckNetGame()
   global consoleplayer
   global displayplayer
@@ -6233,10 +6497,7 @@ function D_CheckNetGame()
   end if
 end function
 
-/*
-* Function: D_QuitNetGame
-* Purpose: Repeats a legacy exit notification to every active remote node before local shutdown.
-*/
+/// Repeats a legacy exit notification to every active remote node before local shutdown.
 function D_QuitNetGame()
   if (not netgame) or(not usergame) or consoleplayer == -1 or demoplayback then
     return
@@ -6264,10 +6525,8 @@ function D_QuitNetGame()
   end while
 end function
 
-/*
-* Function: NetUpdate
-* Purpose: Pumps authoritative packets, samples local input, and fills per-player ticcmd rings without simulating clients.
-*/
+/// Pumps authoritative packets, samples local input, and fills per-player ticcmd rings without simulating
+/// clients.
 function NetUpdate()
   global gametime
   global maketic
@@ -6518,10 +6777,9 @@ function NetUpdate()
   GetPackets()
 end function
 
-/*
-* Function: _DNet_RunGameTics
-* Purpose: Runs a bounded number of host/legacy simulation tics and emits host snapshots after each authoritative tic.
-*/
+/// Runs a bounded number of host/legacy simulation tics and emits host snapshots after each authoritative tic.
+/// @param counts Counts value supplied to `_DNet_RunGameTics`.
+/// @internal
 function _DNet_RunGameTics(counts)
   global gametic
 
@@ -6562,10 +6820,8 @@ function _DNet_RunGameTics(counts)
   return ran
 end function
 
-/*
-* Function: _DNet_TryRunTicsUncapped
-* Purpose: Drains every locally available tic for uncapped single-player rendering while preserving network clocks.
-*/
+/// Drains every locally available tic for uncapped single-player rendering while preserving network clocks.
+/// @internal
 function _DNet_TryRunTicsUncapped()
   global _dnet_oldentertics
   global d_runtics_last
@@ -6605,10 +6861,8 @@ function _DNet_TryRunTicsUncapped()
   d_runtics_last = _DNet_RunGameTics(counts)
 end function
 
-/*
-* Function: TryRunTics
-* Purpose: Schedules host/legacy simulation or client-only UI/interpolation ticks from wall-clock and network availability.
-*/
+/// Schedules host/legacy simulation or client-only UI/interpolation ticks from wall-clock and network
+/// availability.
 function TryRunTics()
   global _dnet_oldentertics
   global _dnet_oldnettics
@@ -6803,10 +7057,7 @@ function TryRunTics()
   end if
 end function
 
-/*
-* Function: NetbufferSize
-* Purpose: Computes the encoded byte count for the current bounded legacy packet.
-*/
+/// Computes the encoded byte count for the current bounded legacy packet.
 function inline NetbufferSize()
   if netbuffer is void then return 0 end if
   n = _DNet_ToInt(netbuffer.numtics, 0)
@@ -6816,10 +7067,7 @@ function inline NetbufferSize()
   return 5 + n * 6
 end function
 
-/*
-* Function: NetbufferChecksum
-* Purpose: Computes the legacy Doom packet checksum over header fields and the transmitted ticcmd rows.
-*/
+/// Computes the legacy Doom packet checksum over header fields and the transmitted ticcmd rows.
 function NetbufferChecksum()
   if netbuffer is void then return 0 end if
 
@@ -6846,10 +7094,8 @@ function NetbufferChecksum()
   return c & NCMD_CHECKSUM
 end function
 
-/*
-* Function: ExpandTics
-* Purpose: Expands an 8-bit wire tic into the closest plausible absolute game tic.
-*/
+/// Expands an 8-bit wire tic into the closest plausible absolute game tic.
+/// @param low Low value supplied to `ExpandTics`.
 function ExpandTics(low)
   if typeof(low) != "int" then return 0 end if
   low = low & 255
@@ -6866,10 +7112,9 @@ function ExpandTics(low)
   return low
 end function
 
-/*
-* Function: HSendPacket
-* Purpose: Controls hSend Packet transitions in the network game system.
-*/
+/// Controls hSend Packet transitions in the network game system.
+/// @param node Node value supplied to `HSendPacket`.
+/// @param flags Bit flags that control the operation.
 function HSendPacket(node, flags)
   if netbuffer is void then return false end if
   netbuffer.checksum = NetbufferChecksum() | flags
@@ -6893,10 +7138,7 @@ function HSendPacket(node, flags)
   return true
 end function
 
-/*
-* Function: HGetPacket
-* Purpose: Receives one legacy packet, verifies checksum/length, and exposes its source node.
-*/
+/// Receives one legacy packet, verifies checksum/length, and exposes its source node.
 function HGetPacket()
   if reboundpacket then
     _DNet_CopyStoreToBuffer(reboundstore)
@@ -6921,10 +7163,7 @@ function HGetPacket()
   return true
 end function
 
-/*
-* Function: GetPackets
-* Purpose: Drains validated legacy packets, updates resend windows, and copies new remote commands into rings.
-*/
+/// Drains validated legacy packets, updates resend windows, and copies new remote commands into rings.
 function GetPackets()
   while HGetPacket()
     if (_DNet_ToInt(netbuffer.checksum, 0) & NCMD_SETUP) != 0 then
@@ -7000,10 +7239,7 @@ function GetPackets()
   end while
 end function
 
-/*
-* Function: CheckAbort
-* Purpose: Pumps input during net-start waits and aborts synchronization when Escape is pressed.
-*/
+/// Pumps input during net-start waits and aborts synchronization when Escape is pressed.
 function CheckAbort()
   stoptic = 0
   if typeof(I_GetTime) == "function" then stoptic = _DNet_ToInt(I_GetTime(), 0) + 2 end if
@@ -7023,10 +7259,7 @@ function CheckAbort()
   return false
 end function
 
-/*
-* Function: D_ArbitrateNetStart
-* Purpose: Exchanges legacy startup settings so every node begins with the console node's map and rules.
-*/
+/// Exchanges legacy startup settings so every node begins with the console node's map and rules.
 function D_ArbitrateNetStart()
   autostart = true
   if typeof(doomcom) != "struct" then return end if

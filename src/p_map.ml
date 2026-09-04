@@ -13,9 +13,10 @@
   See the License for the specific language governing permissions and
   limitations under the License.
 
-  Script: p_map.ml
-  Purpose: Resolves mobj/line collision, movement and sliding, use traces, hitscan attacks, and sector crushing.
 */
+
+//! Resolves mobj/line collision, movement and sliding, use traces, hitscan attacks, and sector crushing.
+
 import m_bbox
 import m_fixed
 import m_random
@@ -38,31 +39,39 @@ import r_sky
 import info
 import sounds
 
+/// Stores the tmbbox collection used by the p map subsystem.
 tmbbox =[0, 0, 0, 0]
+/// Holds the optional tmthing resource used by the p map subsystem.
 tmthing = void
+/// Tracks the mutable tmflags value used by the p map subsystem.
 tmflags = 0
+/// Tracks the mutable tmx value used by the p map subsystem.
 tmx = 0
+/// Tracks the mutable tmy value used by the p map subsystem.
 tmy = 0
 
+/// Tracks the mutable tmdropoffz value used by the p map subsystem.
 tmdropoffz = 0
 
+/// Defines the maximum maxspecialcross accepted by the p map subsystem.
 const MAXSPECIALCROSS = 8
+/// Stores the spechit collection used by the p map subsystem.
 spechit =[void, void, void, void, void, void, void, void]
+/// Tracks the mutable numspechit value used by the p map subsystem.
 numspechit = 0
 
-/*
-* Function: _MapAbs
-* Purpose: Returns an integer magnitude for fixed-point distance and intercept comparisons.
-*/
+/// Returns an integer magnitude for fixed-point distance and intercept comparisons.
+/// @param x Horizontal map- or screen-space coordinate.
+/// @internal
 function inline _MapAbs(x)
   if x < 0 then return - x end if
   return x
 end function
 
-/*
-* Function: _PMAP_IDiv
-* Purpose: Truncates fixed-point geometry quotients toward zero and maps invalid divisors to zero.
-*/
+/// Truncates fixed-point geometry quotients toward zero and maps invalid divisors to zero.
+/// @param a First input operand.
+/// @param b Second input operand.
+/// @internal
 function inline _PMAP_IDiv(a, b)
   if typeof(a) != "int" or typeof(b) != "int" or b == 0 then return 0 end if
   q = a / b
@@ -70,10 +79,9 @@ function inline _PMAP_IDiv(a, b)
   return std.math.ceil(q)
 end function
 
-/*
-* Function: _PMAP_S32
-* Purpose: Reinterprets an arithmetic result with signed 32-bit wrap semantics used by blockmap math.
-*/
+/// Reinterprets an arithmetic result with signed 32-bit wrap semantics used by blockmap math.
+/// @param v Value consumed by the operation.
+/// @internal
 function inline _PMAP_S32(v)
   if typeof(v) != "int" then return 0 end if
   v = v & 0xFFFFFFFF
@@ -81,10 +89,11 @@ function inline _PMAP_S32(v)
   return v
 end function
 
-/*
-* Function: _SetTMBox
-* Purpose: Fills the shared candidate bounding box from a center and collision radius.
-*/
+/// Fills the shared candidate bounding box from a center and collision radius.
+/// @param x Horizontal map- or screen-space coordinate.
+/// @param y Vertical map- or screen-space coordinate.
+/// @param radius Radius value supplied to `_SetTMBox`.
+/// @internal
 function inline _SetTMBox(x, y, radius)
   tmbbox[BOXTOP] = y + radius
   tmbbox[BOXBOTTOM] = y - radius
@@ -92,10 +101,9 @@ function inline _SetTMBox(x, y, radius)
   tmbbox[BOXLEFT] = x - radius
 end function
 
-/*
-* Function: _LineIndex
-* Purpose: Resolves a line reference to its stable map-line index for validcount de-duplication.
-*/
+/// Resolves a line reference to its stable map-line index for validcount de-duplication.
+/// @param ld Ld value supplied to `_LineIndex`.
+/// @internal
 function _LineIndex(ld)
   if ld is void then return -1 end if
   if typeof(lines) != "array" then return -1 end if
@@ -107,37 +115,71 @@ function _LineIndex(ld)
   return -1
 end function
 
+/// Tracks the mutable bestslidefrac value used by the p map subsystem.
 bestslidefrac = 0
+/// Tracks the mutable secondslidefrac value used by the p map subsystem.
 secondslidefrac = 0
+/// Holds the optional bestslideline resource used by the p map subsystem.
 bestslideline = void
+/// Holds the optional secondslideline resource used by the p map subsystem.
 secondslideline = void
+/// Holds the optional slidemo resource used by the p map subsystem.
 slidemo = void
+/// Tracks the mutable tmxmove value used by the p map subsystem.
 tmxmove = 0
+/// Tracks the mutable tmymove value used by the p map subsystem.
 tmymove = 0
 
+/// Holds the optional usething resource used by the p map subsystem.
 usething = void
 
+/// Tracks whether crushchange is active in the p map subsystem.
 crushchange = false
+/// Tracks whether nofit is active in the p map subsystem.
 nofit = false
 
+/// Tracks whether pm diag move init is active in the p map subsystem.
+/// @internal
 _pmDiagMoveInit = false
+/// Tracks whether pm diag move is active in the p map subsystem.
+/// @internal
 _pmDiagMove = false
+/// Tracks the mutable pm diag try count value used by the p map subsystem.
+/// @internal
 _pmDiagTryCount = 0
+/// Tracks the mutable pm diag fail count value used by the p map subsystem.
+/// @internal
 _pmDiagFailCount = 0
+/// Tracks the mutable pm diag player try value used by the p map subsystem.
+/// @internal
 _pmDiagPlayerTry = 0
+/// Tracks the mutable pm diag player fail value used by the p map subsystem.
+/// @internal
 _pmDiagPlayerFail = 0
+/// Tracks the mutable pm diag line checks cur value used by the p map subsystem.
+/// @internal
 _pmDiagLineChecksCur = 0
+/// Tracks the mutable pm diag line checks last value used by the p map subsystem.
+/// @internal
 _pmDiagLineChecksLast = 0
+/// Tracks the mutable pm diag line cand cur value used by the p map subsystem.
+/// @internal
 _pmDiagLineCandCur = 0
+/// Tracks the mutable pm diag line cand last value used by the p map subsystem.
+/// @internal
 _pmDiagLineCandLast = 0
+/// Tracks whether pm diag use init is active in the p map subsystem.
+/// @internal
 _pmDiagUseInit = false
+/// Tracks whether pm diag use is active in the p map subsystem.
+/// @internal
 _pmDiagUse = false
+/// Tracks the mutable pm diag use count value used by the p map subsystem.
+/// @internal
 _pmDiagUseCount = 0
 
-/*
-* Function: _PM_TryMoveDiagEnabled
-* Purpose: Caches whether command-line try-move diagnostics are enabled for this process.
-*/
+/// Caches whether command-line try-move diagnostics are enabled for this process.
+/// @internal
 function inline _PM_TryMoveDiagEnabled()
   global _pmDiagMoveInit
   global _pmDiagMove
@@ -155,20 +197,17 @@ function inline _PM_TryMoveDiagEnabled()
   return _pmDiagMove
 end function
 
-/*
-* Function: _PM_DiagMovePrint
-* Purpose: Emits a try-move trace only when the cached diagnostic flag permits it.
-*/
+/// Emits a try-move trace only when the cached diagnostic flag permits it.
+/// @param msg Msg value supplied to `_PM_DiagMovePrint`.
+/// @internal
 function inline _PM_DiagMovePrint(msg)
   if not _PM_TryMoveDiagEnabled() then return end if
   if typeof(msg) != "string" then return end if
   print msg
 end function
 
-/*
-* Function: _PM_UseDiagEnabled
-* Purpose: Caches whether command-line use-line traversal diagnostics are enabled.
-*/
+/// Caches whether command-line use-line traversal diagnostics are enabled.
+/// @internal
 function inline _PM_UseDiagEnabled()
   global _pmDiagUseInit
   global _pmDiagUse
@@ -186,10 +225,9 @@ function inline _PM_UseDiagEnabled()
   return _pmDiagUse
 end function
 
-/*
-* Function: _PM_UseDiagLog
-* Purpose: Emits a use-line trace only under the explicit diagnostic flag.
-*/
+/// Emits a use-line trace only under the explicit diagnostic flag.
+/// @param msg Msg value supplied to `_PM_UseDiagLog`.
+/// @internal
 function inline _PM_UseDiagLog(msg)
   global _pmDiagUseCount
   if not _PM_UseDiagEnabled() then return end if
@@ -200,10 +238,8 @@ function inline _PM_UseDiagLog(msg)
   end if
 end function
 
-/*
-* Function: PIT_StompThing
-* Purpose: Telefrags shootable occupants overlapping the teleport destination, excluding the mover itself.
-*/
+/// Telefrags shootable occupants overlapping the teleport destination, excluding the mover itself.
+/// @param thing World object affected by the operation.
 function PIT_StompThing(thing)
   if thing is void then return true end if
   if (thing.flags & mobjflag_t.MF_SHOOTABLE) == 0 then return true end if
@@ -223,10 +259,8 @@ function PIT_StompThing(thing)
   return true
 end function
 
-/*
-* Function: PIT_CheckLine
-* Purpose: Rejects blocking crossed lines and narrows candidate floor, ceiling, and dropoff openings.
-*/
+/// Rejects blocking crossed lines and narrows candidate floor, ceiling, and dropoff openings.
+/// @param ld Ld value supplied to `PIT_CheckLine`.
 function PIT_CheckLine(ld)
   global tmfloorz
   global tmceilingz
@@ -286,10 +320,8 @@ function PIT_CheckLine(ld)
   return true
 end function
 
-/*
-* Function: PIT_CheckThing
-* Purpose: Resolves mobj overlap as blocking, missile impact, skull charge, or player pickup contact.
-*/
+/// Resolves mobj overlap as blocking, missile impact, skull charge, or player pickup contact.
+/// @param thing World object affected by the operation.
 function PIT_CheckThing(thing)
   if thing is void then return true end if
 
@@ -358,10 +390,10 @@ function PIT_CheckThing(thing)
   return (thing.flags & mobjflag_t.MF_SOLID) == 0
 end function
 
-/*
-* Function: P_CheckPosition
-* Purpose: Probes a candidate origin, populating shared opening globals without committing the mobj position.
-*/
+/// Probes a candidate origin, populating shared opening globals without committing the mobj position.
+/// @param thing World object affected by the operation.
+/// @param x Horizontal map- or screen-space coordinate.
+/// @param y Vertical map- or screen-space coordinate.
 function P_CheckPosition(thing, x, y)
   global tmthing
   global tmflags
@@ -446,10 +478,10 @@ function P_CheckPosition(thing, x, y)
   return true
 end function
 
-/*
-* Function: P_TryMove
-* Purpose: Validates step/dropoff/ceiling constraints and commits a legal XY move with sector relinking.
-*/
+/// Validates step/dropoff/ceiling constraints and commits a legal XY move with sector relinking.
+/// @param thing World object affected by the operation.
+/// @param x Horizontal map- or screen-space coordinate.
+/// @param y Vertical map- or screen-space coordinate.
 function P_TryMove(thing, x, y)
   global floatok
   global numspechit
@@ -553,10 +585,10 @@ function P_TryMove(thing, x, y)
   return true
 end function
 
-/*
-* Function: P_TeleportMove
-* Purpose: Telefrags destination occupants and relocates the mobj without ordinary wall/step restrictions.
-*/
+/// Telefrags destination occupants and relocates the mobj without ordinary wall/step restrictions.
+/// @param thing World object affected by the operation.
+/// @param x Horizontal map- or screen-space coordinate.
+/// @param y Vertical map- or screen-space coordinate.
 function P_TeleportMove(thing, x, y)
   global tmthing
   global tmflags
@@ -607,10 +639,8 @@ function P_TeleportMove(thing, x, y)
   return true
 end function
 
-/*
-* Function: P_ThingHeightClip
-* Purpose: Recomputes floor/ceiling bounds after sector motion and clamps a grounded mobj to its new floor.
-*/
+/// Recomputes floor/ceiling bounds after sector motion and clamps a grounded mobj to its new floor.
+/// @param thing World object affected by the operation.
 function P_ThingHeightClip(thing)
   if thing is void then return false end if
 
@@ -632,10 +662,8 @@ function P_ThingHeightClip(thing)
   return true
 end function
 
-/*
-* Function: P_HitSlideLine
-* Purpose: Projects the pending slide vector along the wall axis or clears it on horizontal/vertical walls.
-*/
+/// Projects the pending slide vector along the wall axis or clears it on horizontal/vertical walls.
+/// @param ld Ld value supplied to `P_HitSlideLine`.
 function P_HitSlideLine(ld)
   global tmxmove
   global tmymove
@@ -684,10 +712,8 @@ function P_HitSlideLine(ld)
   tmymove = FixedMul(newlen, finesine[lineangle])
 end function
 
-/*
-* Function: PTR_SlideTraverse
-* Purpose: Records the nearest blocking line intercept for the current slide trace.
-*/
+/// Records the nearest blocking line intercept for the current slide trace.
+/// @param inter Inter value supplied to `PTR_SlideTraverse`.
 function PTR_SlideTraverse(inter)
   global bestslidefrac
   global secondslidefrac
@@ -731,10 +757,8 @@ function PTR_SlideTraverse(inter)
   return false
 end function
 
-/*
-* Function: PTR_UseTraverse
-* Purpose: Activates the first usable special line on a use trace or stops at a closed non-special line.
-*/
+/// Activates the first usable special line on a use trace or stops at a closed non-special line.
+/// @param inter Inter value supplied to `PTR_UseTraverse`.
 function PTR_UseTraverse(inter)
   global usething
 
@@ -772,10 +796,8 @@ function PTR_UseTraverse(inter)
   return false
 end function
 
-/*
-* Function: P_SlideMove
-* Purpose: Traces leading corners, clips momentum at the nearest wall, and retries up to three slide bumps.
-*/
+/// Traces leading corners, clips momentum at the nearest wall, and retries up to three slide bumps.
+/// @param mo Map object affected by the operation.
 function P_SlideMove(mo)
   global slidemo
   global bestslidefrac
@@ -866,10 +888,8 @@ function P_SlideMove(mo)
     end loop
   end function
 
-  /*
-* Function: P_UseLines
-* Purpose: Casts the player's short use ray and activates the first eligible crossed line.
-  */
+  /// Casts the player's short use ray and activates the first eligible crossed line.
+  /// @param player Player state affected by the operation.
   function P_UseLines(player)
     global usething
 
@@ -886,10 +906,8 @@ function P_SlideMove(mo)
     P_PathTraverse(x1, y1, x2, y2, PT_ADDLINES, PTR_UseTraverse)
   end function
 
-  /*
-* Function: PIT_ChangeSector
-* Purpose: Reclips one resident mobj after sector motion and applies crush damage when it no longer fits.
-  */
+  /// Reclips one resident mobj after sector motion and applies crush damage when it no longer fits.
+  /// @param thing World object affected by the operation.
   function PIT_ChangeSector(thing)
     global nofit
 
@@ -934,10 +952,9 @@ function P_SlideMove(mo)
     return true
   end function
 
-  /*
-* Function: P_ChangeSector
-* Purpose: Visits all blockmap things touching a moving sector and reports whether any were crushed.
-  */
+  /// Visits all blockmap things touching a moving sector and reports whether any were crushed.
+  /// @param sector Map sector affected by the operation.
+  /// @param crunch Crunch value supplied to `P_ChangeSector`.
   function P_ChangeSector(sector, crunch)
     global nofit
     global crushchange
@@ -957,14 +974,15 @@ function P_SlideMove(mo)
     return nofit
   end function
 
+  /// Holds the optional bombsource resource used by the p map subsystem.
   bombsource = void
+  /// Holds the optional bombspot resource used by the p map subsystem.
   bombspot = void
+  /// Tracks the mutable bombdamage value used by the p map subsystem.
   bombdamage = 0
 
-  /*
-* Function: PIT_RadiusAttack
-* Purpose: Applies distance-falloff splash damage to one shootable thing with line-of-sight to the blast.
-  */
+  /// Applies distance-falloff splash damage to one shootable thing with line-of-sight to the blast.
+  /// @param thing World object affected by the operation.
   function PIT_RadiusAttack(thing)
     if thing is void then return true end if
     if (thing.flags & mobjflag_t.MF_SHOOTABLE) == 0 then return true end if
@@ -988,10 +1006,10 @@ function P_SlideMove(mo)
     return true
   end function
 
-  /*
-* Function: P_RadiusAttack
-* Purpose: Walks blast-radius blockmap cells and damages visible shootable occupants around an explosion.
-  */
+  /// Walks blast-radius blockmap cells and damages visible shootable occupants around an explosion.
+  /// @param spot Spot value supplied to `P_RadiusAttack`.
+  /// @param source Source value or buffer.
+  /// @param damage Damage value supplied to `P_RadiusAttack`.
   function P_RadiusAttack(spot, source, damage)
     if spot is void then return end if
 
@@ -1015,18 +1033,23 @@ function P_SlideMove(mo)
     end for
   end function
 
+  /// Holds the optional shootthing resource used by the p map subsystem.
   shootthing = void
+  /// Tracks the mutable shootz value used by the p map subsystem.
   shootz = 0
+  /// Tracks the mutable la damage value used by the p map subsystem.
   la_damage = 0
+  /// Tracks the mutable attackrange value used by the p map subsystem.
   attackrange = 0
+  /// Tracks the mutable aimslope value used by the p map subsystem.
   aimslope = 0
+  /// Tracks the mutable topslope value used by the p map subsystem.
   topslope = 0
+  /// Tracks the mutable bottomslope value used by the p map subsystem.
   bottomslope = 0
 
-  /*
-* Function: PTR_AimTraverse
-* Purpose: Narrows the vertical aiming window through lines and locks onto the first shootable intercept.
-  */
+  /// Narrows the vertical aiming window through lines and locks onto the first shootable intercept.
+  /// @param inter Inter value supplied to `PTR_AimTraverse`.
   function PTR_AimTraverse(inter)
     global linetarget
     global aimslope
@@ -1094,10 +1117,8 @@ function P_SlideMove(mo)
     return false
   end function
 
-  /*
-* Function: PTR_ShootTraverse
-* Purpose: Activates shoot specials and spawns wall puffs or target blood at the first hitscan impact.
-  */
+  /// Activates shoot specials and spawns wall puffs or target blood at the first hitscan impact.
+  /// @param inter Inter value supplied to `PTR_ShootTraverse`.
   function PTR_ShootTraverse(inter)
     global linetarget
 
@@ -1197,10 +1218,10 @@ function P_SlideMove(mo)
     return false
   end function
 
-  /*
-* Function: P_AimLineAttack
-* Purpose: Computes line attack values for the map collision.
-  */
+  /// Computes line attack values for the map collision.
+  /// @param t1 T1 value supplied to `P_AimLineAttack`.
+  /// @param angle Doom binary-angle measurement.
+  /// @param distance Distance value supplied to `P_AimLineAttack`.
   function P_AimLineAttack(t1, angle, distance)
     global shootthing
     global shootz
@@ -1233,10 +1254,12 @@ function P_SlideMove(mo)
     return 0
   end function
 
-  /*
-* Function: P_LineAttack
-* Purpose: Configures a hitscan ray and traverses intercepts to apply damage at the supplied slope.
-  */
+  /// Configures a hitscan ray and traverses intercepts to apply damage at the supplied slope.
+  /// @param t1 T1 value supplied to `P_LineAttack`.
+  /// @param angle Doom binary-angle measurement.
+  /// @param distance Distance value supplied to `P_LineAttack`.
+  /// @param slope Slope value supplied to `P_LineAttack`.
+  /// @param damage Damage value supplied to `P_LineAttack`.
   function P_LineAttack(t1, angle, distance, slope, damage)
     global shootthing
     global la_damage

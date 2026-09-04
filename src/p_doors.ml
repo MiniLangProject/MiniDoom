@@ -13,9 +13,10 @@
   See the License for the specific language governing permissions and
   limitations under the License.
 
-  Script: p_doors.ml
-  Purpose: Spawns and ticks keyed, tagged, timed, manual, and sliding sector-door state machines.
 */
+
+//! Spawns and ticks keyed, tagged, timed, manual, and sliding sector-door state machines.
+
 import z_zone
 import doomdef
 import p_local
@@ -25,54 +26,50 @@ import r_state
 import dstrings
 import sounds
 
-/*
-* Function: _DoorsMakeThinker
-* Purpose: Creates a thinker node bound to a door callback, preserving the layout expected by P_Ticker.
-*/
+/// Creates a thinker node bound to a door callback, preserving the layout expected by P_Ticker.
+/// @param fn Fn value supplied to `_DoorsMakeThinker`.
+/// @internal
 function inline _DoorsMakeThinker(fn)
   return thinker_t(void, void, actionf_t(fn, void, void), void)
 end function
 
-/*
-* Function: _DoorsAddThinkerIfPossible
-* Purpose: Registers a door thinker only when both the node and thinker list API are available.
-*/
+/// Registers a door thinker only when both the node and thinker list API are available.
+/// @param th Th value supplied to `_DoorsAddThinkerIfPossible`.
+/// @internal
 function inline _DoorsAddThinkerIfPossible(th)
   if typeof(P_AddThinker) == "function" then P_AddThinker(th) end if
 end function
 
-/*
-* Function: _DoorsStartSound
-* Purpose: Plays a door cue from a sector sound origin when the sound backend is present.
-*/
+/// Plays a door cue from a sector sound origin when the sound backend is present.
+/// @param origin Origin value supplied to `_DoorsStartSound`.
+/// @param snd Snd value supplied to `_DoorsStartSound`.
+/// @internal
 function inline _DoorsStartSound(origin, snd)
   if typeof(S_StartSound) == "function" then
     S_StartSound(origin, snd)
   end if
 end function
 
-/*
-* Function: _DoorsSoundOrg
-* Purpose: Returns a sector's positional sound origin, falling back to the sector object itself.
-*/
+/// Returns a sector's positional sound origin, falling back to the sector object itself.
+/// @param sec Sec value supplied to `_DoorsSoundOrg`.
+/// @internal
 function inline _DoorsSoundOrg(sec)
   if sec is void then return void end if
   return sec.soundorg
 end function
 
-/*
-* Function: _DoorsIsSeq
-* Purpose: Accepts array and byte-buffer containers used by sector, line, and card tables.
-*/
+/// Accepts array and byte-buffer containers used by sector, line, and card tables.
+/// @param v Value consumed by the operation.
+/// @internal
 function inline _DoorsIsSeq(v)
   t = typeof(v)
   return t == "array" or t == "list"
 end function
 
-/*
-* Function: _DoorsHasCard
-* Purpose: Tests a checked player's card slot without trusting malformed inventory containers.
-*/
+/// Tests a checked player's card slot without trusting malformed inventory containers.
+/// @param player Player state affected by the operation.
+/// @param card Card value supplied to `_DoorsHasCard`.
+/// @internal
 function _DoorsHasCard(player, card)
   if player is void then return false end if
   if not _DoorsIsSeq(player.cards) then return false end if
@@ -106,10 +103,9 @@ function _DoorsHasCard(player, card)
   return false
 end function
 
-/*
-* Function: _DoorsBackSector
-* Purpose: Resolves a two-sided line's back sector through its second side, rejecting invalid indices.
-*/
+/// Resolves a two-sided line's back sector through its second side, rejecting invalid indices.
+/// @param line Map line or text line affected by the operation.
+/// @internal
 function inline _DoorsBackSector(line)
   if line is void then return void end if
   if line.backsector is not void then return line.backsector end if
@@ -123,10 +119,8 @@ function inline _DoorsBackSector(line)
   return sides[backsn].sector
 end function
 
-/*
-* Function: T_VerticalDoor
-* Purpose: Moves one door ceiling through opening, waiting, closing, and crush-reversal phases.
-*/
+/// Moves one door ceiling through opening, waiting, closing, and crush-reversal phases.
+/// @param door Door value supplied to `T_VerticalDoor`.
 function T_VerticalDoor(door)
   if door is void or door.sector is void then return end if
 
@@ -225,10 +219,10 @@ function T_VerticalDoor(door)
   end switch
 end function
 
-/*
-* Function: EV_DoLockedDoor
-* Purpose: Enforces the line's colored key requirement, posts feedback, then delegates valid activation.
-*/
+/// Enforces the line's colored key requirement, posts feedback, then delegates valid activation.
+/// @param line Map line or text line affected by the operation.
+/// @param type Type value supplied to `EV_DoLockedDoor`.
+/// @param thing World object affected by the operation.
 function EV_DoLockedDoor(line, type, thing)
   if line is void or thing is void then return 0 end if
 
@@ -264,10 +258,9 @@ function EV_DoLockedDoor(line, type, thing)
   return EV_DoDoor(line, type)
 end function
 
-/*
-* Function: EV_DoDoor
-* Purpose: Spawns vertical-door thinkers for every sector carrying the triggering line's tag.
-*/
+/// Spawns vertical-door thinkers for every sector carrying the triggering line's tag.
+/// @param line Map line or text line affected by the operation.
+/// @param type Type value supplied to `EV_DoDoor`.
 function EV_DoDoor(line, type)
   if line is void then return 0 end if
 
@@ -334,10 +327,9 @@ function EV_DoDoor(line, type)
     return rtn
   end function
 
-  /*
-* Function: EV_VerticalDoor
-* Purpose: Activates or reverses a manual two-sided door while preventing conflicting sector specials.
-  */
+  /// Activates or reverses a manual two-sided door while preventing conflicting sector specials.
+  /// @param line Map line or text line affected by the operation.
+  /// @param thing World object affected by the operation.
   function EV_VerticalDoor(line, thing)
     if line is void then return end if
 
@@ -435,10 +427,8 @@ function EV_DoDoor(line, type)
     door.topheight = P_FindLowestCeilingSurrounding(sec) -(4 * FRACUNIT)
   end function
 
-  /*
-  * Function: P_SpawnDoorCloseIn30
-* Purpose: Attaches a countdown thinker that closes an initially open sector door after 30 seconds.
-  */
+  /// Attaches a countdown thinker that closes an initially open sector door after 30 seconds.
+  /// @param sec Sec value supplied to `P_SpawnDoorCloseIn30`.
   function P_SpawnDoorCloseIn30(sec)
     if sec is void then return end if
 
@@ -454,10 +444,9 @@ function EV_DoDoor(line, type)
     door.topcountdown = 30 * 35
   end function
 
-  /*
-  * Function: P_SpawnDoorRaiseIn5Mins
-* Purpose: Attaches a delayed thinker that opens the sector door once after five minutes.
-  */
+  /// Attaches a delayed thinker that opens the sector door once after five minutes.
+  /// @param sec Sec value supplied to `P_SpawnDoorRaiseIn5Mins`.
+  /// @param secnum Index identifying sec.
   function P_SpawnDoorRaiseIn5Mins(sec, secnum)
     secnum = secnum
     if sec is void then return end if
@@ -476,35 +465,27 @@ function EV_DoDoor(line, type)
     door.topcountdown = 5 * 60 * 35
   end function
 
-  /*
-  * Function: P_InitSlidingDoorFrames
-* Purpose: Resets the sliding-door frame table before map or renderer-specific frames are registered.
-  */
+  /// Resets the sliding-door frame table before map or renderer-specific frames are registered.
   function P_InitSlidingDoorFrames()
 
   end function
 
-  /*
-* Function: P_FindSlidingDoorType
-* Purpose: Computes sliding door type values for the play simulation.
-  */
+  /// Computes sliding door type values for the play simulation.
+  /// @param line Map line or text line affected by the operation.
   function P_FindSlidingDoorType(line)
     line = line
     return -1
   end function
 
-  /*
-* Function: T_SlidingDoor
-* Purpose: Advances a sliding-door thinker through its configured frame/wait phases.
-  */
+  /// Advances a sliding-door thinker through its configured frame/wait phases.
+  /// @param door Door value supplied to `T_SlidingDoor`.
   function T_SlidingDoor(door)
     door = door
   end function
 
-  /*
-* Function: EV_SlidingDoor
-* Purpose: Validates and starts a manual sliding door when the line and activator permit it.
-  */
+  /// Validates and starts a manual sliding door when the line and activator permit it.
+  /// @param line Map line or text line affected by the operation.
+  /// @param thing World object affected by the operation.
   function EV_SlidingDoor(line, thing)
     line = line
     thing = thing

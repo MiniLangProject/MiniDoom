@@ -13,9 +13,10 @@
   See the License for the specific language governing permissions and
   limitations under the License.
 
-  Script: p_plats.ml
-  Purpose: Drives lift and perpetual-platform thinkers with active-slot tracking, waits, stasis, and sounds.
 */
+
+//! Drives lift and perpetual-platform thinkers with active-slot tracking, waits, stasis, and sounds.
+
 import i_system
 import z_zone
 import m_random
@@ -26,12 +27,11 @@ import doomstat
 import r_state
 import sounds
 
+/// Stores the activeplats collection used by the p plats subsystem.
 activeplats =[]
 
-/*
-* Function: _InitActivePlats
-* Purpose: Lazily creates the fixed-size active-platform slot table expected by tagged control operations.
-*/
+/// Lazily creates the fixed-size active-platform slot table expected by tagged control operations.
+/// @internal
 function _InitActivePlats()
   global activeplats
 
@@ -44,37 +44,35 @@ function _InitActivePlats()
   end while
 end function
 
-/*
-* Function: _PlatMakeThinker
-* Purpose: Creates a platform thinker with list links, movement callback, direction, speed, and wait-state defaults.
-*/
+/// Creates a platform thinker with list links, movement callback, direction, speed, and wait-state defaults.
+/// @param fn Fn value supplied to `_PlatMakeThinker`.
+/// @internal
 function inline _PlatMakeThinker(fn)
   return thinker_t(void, void, actionf_t(fn, void, void), void)
 end function
 
-/*
-* Function: _PlatStartSound
-* Purpose: Emits a positional platform sound only when the sound subsystem is available.
-*/
+/// Emits a positional platform sound only when the sound subsystem is available.
+/// @param origin Origin value supplied to `_PlatStartSound`.
+/// @param snd Snd value supplied to `_PlatStartSound`.
+/// @internal
 function inline _PlatStartSound(origin, snd)
   if typeof(S_StartSound) == "function" then
     S_StartSound(origin, snd)
   end if
 end function
 
-/*
-* Function: _PlatSoundOrg
-* Purpose: Selects the sector's positional sound origin, falling back to the sector when no dedicated origin exists.
-*/
+/// Selects the sector's positional sound origin, falling back to the sector when no dedicated origin exists.
+/// @param sec Sec value supplied to `_PlatSoundOrg`.
+/// @internal
 function inline _PlatSoundOrg(sec)
   if sec is void then return void end if
   return sec.soundorg
 end function
 
-/*
-* Function: _PlatSetSlot
-* Purpose: Rebuilds the active-platform sequence with one validated slot replaced, preserving list compatibility.
-*/
+/// Rebuilds the active-platform sequence with one validated slot replaced, preserving list compatibility.
+/// @param idx Zero-based element or table index.
+/// @param v Value consumed by the operation.
+/// @internal
 function _PlatSetSlot(idx, v)
   global activeplats
   t = typeof(activeplats)
@@ -95,10 +93,9 @@ function _PlatSetSlot(idx, v)
   activeplats = rebuilt
 end function
 
-/*
-* Function: _PlatFrontSector
-* Purpose: Resolves the sector on a line's front side for platform trigger calculations.
-*/
+/// Resolves the sector on a line's front side for platform trigger calculations.
+/// @param line Map line or text line affected by the operation.
+/// @internal
 function inline _PlatFrontSector(line)
   if line is void then return void end if
   if typeof(line.sidenum) != "array" or len(line.sidenum) == 0 then return void end if
@@ -109,10 +106,8 @@ function inline _PlatFrontSector(line)
   return sides[sn].sector
 end function
 
-/*
-* Function: P_AddActivePlat
-* Purpose: Places a platform mover in the first free active slot, failing explicitly when the fixed table is exhausted.
-*/
+/// Places a platform mover in the first free active slot, failing explicitly when the fixed table is exhausted.
+/// @param plat Plat value supplied to `P_AddActivePlat`.
 function P_AddActivePlat(plat)
   _InitActivePlats()
 
@@ -128,10 +123,8 @@ function P_AddActivePlat(plat)
   I_Error("P_AddActivePlat: no more plats!")
 end function
 
-/*
-* Function: P_RemoveActivePlat
-* Purpose: Clears a completed platform's sector ownership, removes its thinker, and frees its active slot.
-*/
+/// Clears a completed platform's sector ownership, removes its thinker, and frees its active slot.
+/// @param plat Plat value supplied to `P_RemoveActivePlat`.
 function P_RemoveActivePlat(plat)
   _InitActivePlats()
 
@@ -153,10 +146,8 @@ function P_RemoveActivePlat(plat)
   I_Error("P_RemoveActivePlat: can't find plat!")
 end function
 
-/*
-* Function: P_ActivateInStasis
-* Purpose: Resumes tagged platforms in stasis by restoring their previous status and movement callback.
-*/
+/// Resumes tagged platforms in stasis by restoring their previous status and movement callback.
+/// @param tag Zone-memory or resource-lifetime tag.
 function P_ActivateInStasis(tag)
   _InitActivePlats()
 
@@ -175,10 +166,8 @@ function P_ActivateInStasis(tag)
   end while
 end function
 
-/*
-* Function: EV_StopPlat
-* Purpose: Puts every moving platform with the trigger tag into stasis while preserving its status for later resume.
-*/
+/// Puts every moving platform with the trigger tag into stasis while preserving its status for later resume.
+/// @param line Map line or text line affected by the operation.
 function EV_StopPlat(line)
   if line is void then return end if
   _InitActivePlats()
@@ -199,10 +188,9 @@ function EV_StopPlat(line)
   end while
 end function
 
-/*
-* Function: T_PlatRaise
-* Purpose: Advances a platform through upward, downward, waiting, and stationary states and emits movement or stop sounds.
-*/
+/// Advances a platform through upward, downward, waiting, and stationary states and emits movement or stop
+/// sounds.
+/// @param plat Plat value supplied to `T_PlatRaise`.
 function T_PlatRaise(plat)
   if plat is void or plat.sector is void then return end if
 
@@ -264,10 +252,11 @@ function T_PlatRaise(plat)
   end switch
 end function
 
-/*
-* Function: EV_DoPlat
-* Purpose: Starts the requested platform behavior in each tagged inactive sector and records it in the active-platform set.
-*/
+/// Starts the requested platform behavior in each tagged inactive sector and records it in the active-platform
+/// set.
+/// @param line Map line or text line affected by the operation.
+/// @param type Type value supplied to `EV_DoPlat`.
+/// @param amount Amount value supplied to `EV_DoPlat`.
 function EV_DoPlat(line, type, amount)
   if line is void then return 0 end if
 

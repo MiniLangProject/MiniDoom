@@ -13,9 +13,10 @@
   See the License for the specific language governing permissions and
   limitations under the License.
 
-  Script: mp_platform.ml
-  Purpose: Implements UDP multiplayer host/join handshake and runtime packet pump.
 */
+
+//! Implements UDP multiplayer host/join handshake and runtime packet pump.
+
 
 import mp_state
 import doomstat
@@ -28,76 +29,161 @@ import std.fs as fs
 import platform_linux
 #endif
 
+/// Stores the mutable mp platform last error text used by the mp platform subsystem.
+/// @internal
 _mp_platform_last_error = ""
+/// Stores the mutable mp platform last status text used by the mp platform subsystem.
+/// @internal
 _mp_platform_last_status = ""
+/// Stores the mutable mp platform event log path text used by the mp platform subsystem.
+/// @internal
 _mp_platform_event_log_path = ""
 
+/// Defines mpplat role none for the mp platform subsystem.
+/// @internal
 const _MPPLAT_ROLE_NONE = 0
+/// Defines mpplat role host for the mp platform subsystem.
+/// @internal
 const _MPPLAT_ROLE_HOST = 1
+/// Defines mpplat role client for the mp platform subsystem.
+/// @internal
 const _MPPLAT_ROLE_CLIENT = 2
 
+/// Defines the mpplat proto text used by the mp platform subsystem.
+/// @internal
 const _MPPLAT_PROTO = "MDMP1"
+/// Defines the mpplat req text used by the mp platform subsystem.
+/// @internal
 const _MPPLAT_REQ = "REQ"
+/// Defines the mpplat acc text used by the mp platform subsystem.
+/// @internal
 const _MPPLAT_ACC = "ACC"
+/// Defines the mpplat den text used by the mp platform subsystem.
+/// @internal
 const _MPPLAT_DEN = "DEN"
+/// Defines the mpplat ping text used by the mp platform subsystem.
+/// @internal
 const _MPPLAT_PING = "PING"
+/// Defines the mpplat pong text used by the mp platform subsystem.
+/// @internal
 const _MPPLAT_PONG = "PONG"
+/// Defines the mpplat leave text used by the mp platform subsystem.
+/// @internal
 const _MPPLAT_LEAVE = "LEAVE"
+/// Defines mpplat game magic0 for the mp platform subsystem.
+/// @internal
 const _MPPLAT_GAME_MAGIC0 = 77
+/// Defines mpplat game magic1 for the mp platform subsystem.
+/// @internal
 const _MPPLAT_GAME_MAGIC1 = 68
+/// Defines mpplat game magic2 for the mp platform subsystem.
+/// @internal
 const _MPPLAT_GAME_MAGIC2 = 71
+/// Defines mpplat game magic3 for the mp platform subsystem.
+/// @internal
 const _MPPLAT_GAME_MAGIC3 = 49
 
+/// Defines the maximum mpplat recv max accepted by the mp platform subsystem.
+/// @internal
 const _MPPLAT_RECV_MAX = 1400
+/// Defines the maximum mpplat game payload max accepted by the mp platform subsystem.
+/// @internal
 const _MPPLAT_GAME_PAYLOAD_MAX = 1391
+/// Defines the maximum mpplat control max accepted by the mp platform subsystem.
+/// @internal
 const _MPPLAT_CONTROL_MAX = 512
+/// Defines mpplat timeout ms for the mp platform subsystem.
+/// @internal
 const _MPPLAT_TIMEOUT_MS = 2500
 #if TARGET_OS == "windows"
+/// Defines mpplat wouldblock for the mp platform subsystem.
+/// @internal
 const _MPPLAT_WOULDBLOCK = 10035
+/// Defines mpplat timedout for the mp platform subsystem.
+/// @internal
 const _MPPLAT_TIMEDOUT = 10060
 #else
+/// Defines mpplat wouldblock for the mp platform subsystem.
+/// @internal
 const _MPPLAT_WOULDBLOCK = 11
+/// Defines mpplat timedout for the mp platform subsystem.
+/// @internal
 const _MPPLAT_TIMEDOUT = 110
 #endif
+/// Defines mpplat host peer timeout ms for the mp platform subsystem.
+/// @internal
 const _MPPLAT_HOST_PEER_TIMEOUT_MS = 30000
+/// Defines mpplat client host timeout ms for the mp platform subsystem.
+/// @internal
 const _MPPLAT_CLIENT_HOST_TIMEOUT_MS = 10000
+/// Defines mpplat client ping interval ms for the mp platform subsystem.
+/// @internal
 const _MPPLAT_CLIENT_PING_INTERVAL_MS = 1000
+/// Defines mpplat host ping interval ms for the mp platform subsystem.
+/// @internal
 const _MPPLAT_HOST_PING_INTERVAL_MS = 1000
+/// Defines mpplat fionbio for the mp platform subsystem.
+/// @internal
 const _MPPLAT_FIONBIO = 0x8004667E
+/// Defines the maximum mpplat max players accepted by the mp platform subsystem.
+/// @internal
 const _MPPLAT_MAX_PLAYERS = 4
+/// Defines mpplat so rcvtimeo for the mp platform subsystem.
+/// @internal
 const _MPPLAT_SO_RCVTIMEO = 0x1006
+/// Defines mpplat game queue chunk for the mp platform subsystem.
+/// @internal
 const _MPPLAT_GAME_QUEUE_CHUNK = 256
+/// Defines the maximum mpplat game queue max accepted by the mp platform subsystem.
+/// @internal
 const _MPPLAT_GAME_QUEUE_MAX = 2048
+/// Defines the maximum mpplat pump max packets accepted by the mp platform subsystem.
+/// @internal
 const _MPPLAT_PUMP_MAX_PACKETS = 192
+/// Defines the minimum mpplat pump min packets accepted by the mp platform subsystem.
+/// @internal
 const _MPPLAT_PUMP_MIN_PACKETS = 48
+/// Defines mpplat pump budget ms for the mp platform subsystem.
+/// @internal
 const _MPPLAT_PUMP_BUDGET_MS = 4
 
-/*
-* Struct: _mp_peer_t
-* Purpose: Tracks a connected remote multiplayer peer endpoint on host side.
-*/
+/// Tracks a connected remote multiplayer peer endpoint on host side.
+/// @internal
 struct _mp_peer_t
+  /// Stores ip for `_mp_peer_t`
   ip
+  /// Stores port for `_mp_peer_t`
   port
+  /// Stable resource or object name stored by `_mp_peer_t`
   name
+  /// Stores slot for `_mp_peer_t`
   slot
+  /// Stores peerid for `_mp_peer_t`
   peerid
+  /// Stores ingame for `_mp_peer_t`
   ingame
+  /// Stores last seen ms for `_mp_peer_t`
   lastSeenMs
+  /// Stores ping seq for `_mp_peer_t`
   pingSeq
+  /// Stores last ping tx ms for `_mp_peer_t`
   lastPingTxMs
+  /// Stores last pong ms for `_mp_peer_t`
   lastPongMs
+  /// Stores rtt ms for `_mp_peer_t`
   rttMs
+  /// Stores ping sent count for `_mp_peer_t`
   pingSentCount
+  /// Stores pong recv count for `_mp_peer_t`
   pongRecvCount
+  /// Stores game in count for `_mp_peer_t`
   gameInCount
+  /// Stores game out count for `_mp_peer_t`
   gameOutCount
 end struct
 
-/*
-* Function: MP_PlatformSetEventLogPath
-* Purpose: Selects an optional per-process diagnostics file used by CLI loopback tests and support logs.
-*/
+/// Selects an optional per-process diagnostics file used by CLI loopback tests and support logs.
+/// @param path Filesystem path to process.
 function MP_PlatformSetEventLogPath(path)
   global _mp_platform_event_log_path
   if typeof(path) != "string" then
@@ -107,10 +193,9 @@ function MP_PlatformSetEventLogPath(path)
   end if
 end function
 
-/*
-* Function: _MPPlatform_LogEvent
-* Purpose: Emits one machine-readable transport event to stdout and the configured process-local log.
-*/
+/// Emits one machine-readable transport event to stdout and the configured process-local log.
+/// @param line Map line or text line affected by the operation.
+/// @internal
 function _MPPlatform_LogEvent(line)
   global _mp_platform_event_log_path
   if typeof(line) != "string" or line == "" then return end if
@@ -139,62 +224,135 @@ function _MPPlatform_LogEvent(line)
   end if
 end function
 
+/// Tracks the mutable mp role value used by the mp platform subsystem.
+/// @internal
 _mp_role = _MPPLAT_ROLE_NONE
+/// Holds the optional mp sock resource used by the mp platform subsystem.
+/// @internal
 _mp_sock = void
 
+/// Tracks the mutable mp host mode cfg value used by the mp platform subsystem.
+/// @internal
 _mp_host_mode_cfg = MP_MODE_COOP
+/// Stores the mutable mp host map cfg text used by the mp platform subsystem.
+/// @internal
 _mp_host_map_cfg = "MAP01"
+/// Tracks the mutable mp host skill cfg value used by the mp platform subsystem.
+/// @internal
 _mp_host_skill_cfg = MP_SKILL_MEDIUM
+/// Tracks the mutable mp host max players cfg value used by the mp platform subsystem.
+/// @internal
 _mp_host_max_players_cfg = 4
+/// Tracks the mutable mp host frag limit cfg value used by the mp platform subsystem.
+/// @internal
 _mp_host_frag_limit_cfg = 0
+/// Tracks the mutable mp host time limit cfg value used by the mp platform subsystem.
+/// @internal
 _mp_host_time_limit_cfg = 0
+/// Tracks the mutable mp host next peer id value used by the mp platform subsystem.
+/// @internal
 _mp_host_next_peer_id = 2
+/// Stores the mp host peers collection used by the mp platform subsystem.
+/// @internal
 _mp_host_peers = []
 
+/// Stores the mutable mp client host text used by the mp platform subsystem.
+/// @internal
 _mp_client_host = ""
+/// Stores the mutable mp client host name text used by the mp platform subsystem.
+/// @internal
 _mp_client_host_name = ""
+/// Tracks the mutable mp client port value used by the mp platform subsystem.
+/// @internal
 _mp_client_port = 0
+/// Tracks the mutable mp client peer id value used by the mp platform subsystem.
+/// @internal
 _mp_client_peer_id = 0
+/// Tracks the mutable mp client slot value used by the mp platform subsystem.
+/// @internal
 _mp_client_slot = 1
+/// Tracks the mutable mp client last ping ms value used by the mp platform subsystem.
+/// @internal
 _mp_client_last_ping_ms = 0
+/// Tracks the mutable mp client ping seq value used by the mp platform subsystem.
+/// @internal
 _mp_client_ping_seq = 0
+/// Tracks the mutable mp client last ping tx ms value used by the mp platform subsystem.
+/// @internal
 _mp_client_last_ping_tx_ms = 0
+/// Tracks the mutable mp client last pong ms value used by the mp platform subsystem.
+/// @internal
 _mp_client_last_pong_ms = 0
+/// Tracks the mutable mp client last seen ms value used by the mp platform subsystem.
+/// @internal
 _mp_client_last_seen_ms = 0
+/// Tracks the mutable mp client rtt ms value used by the mp platform subsystem.
+/// @internal
 _mp_client_rtt_ms = -1
+/// Tracks the mutable mp client ping sent value used by the mp platform subsystem.
+/// @internal
 _mp_client_ping_sent = 0
+/// Tracks the mutable mp client pong recv value used by the mp platform subsystem.
+/// @internal
 _mp_client_pong_recv = 0
+/// Tracks the mutable mp client game in value used by the mp platform subsystem.
+/// @internal
 _mp_client_game_in = 0
+/// Tracks the mutable mp client game out value used by the mp platform subsystem.
+/// @internal
 _mp_client_game_out = 0
+/// Stores the mp client slot names collection used by the mp platform subsystem.
+/// @internal
 _mp_client_slot_names = []
+/// Tracks the mutable mp debug send attempt value used by the mp platform subsystem.
+/// @internal
 _mp_debug_send_attempt = 0
+/// Tracks the mutable mp debug send ok value used by the mp platform subsystem.
+/// @internal
 _mp_debug_send_ok = 0
+/// Tracks the mutable mp debug send idxfail value used by the mp platform subsystem.
+/// @internal
 _mp_debug_send_idxfail = 0
+/// Tracks the mutable mp debug send err value used by the mp platform subsystem.
+/// @internal
 _mp_debug_send_err = 0
+/// Stores the mp game queue nodes collection used by the mp platform subsystem.
+/// @internal
 _mp_game_queue_nodes = []
+/// Stores the mp game queue payloads collection used by the mp platform subsystem.
+/// @internal
 _mp_game_queue_payloads = []
+/// Tracks the mutable mp game queue head value used by the mp platform subsystem.
+/// @internal
 _mp_game_queue_head = 0
+/// Tracks the mutable mp game queue tail value used by the mp platform subsystem.
+/// @internal
 _mp_game_queue_tail = 0
+/// Tracks the mutable mp game queue dropped value used by the mp platform subsystem.
+/// @internal
 _mp_game_queue_dropped = 0
 
 #if TARGET_OS == "windows"
-/*
- * Function: ioctlsocket
-* Purpose: Toggles socket mode (blocking/non-blocking) for UDP polling.
-*/
+/// Toggles socket mode (blocking/non-blocking) for UDP polling.
+/// @param s `ptr` value supplied as s to `ioctlsocket`.
+/// @param cmd `i32` value supplied as cmd to `ioctlsocket`.
+/// @param argp `bytes` value supplied as argp to `ioctlsocket`.
+/// @returns Result returned by the native `ioctlsocket` binding as `int`.
 extern function ioctlsocket(s as ptr, cmd as i32, argp as bytes) from "ws2_32.dll" returns int
-/*
- * Function: setsockopt
- *
- * Purpose: Configures the receive timeout on the owned WinSock UDP handle.
- */
+/// Configures the receive timeout on the owned WinSock UDP handle.
+/// @param s `ptr` value supplied as s to `setsockopt`.
+/// @param level `int` value supplied as level to `setsockopt`.
+/// @param optname `int` value supplied as optname to `setsockopt`.
+/// @param optval `bytes` value supplied as optval to `setsockopt`.
+/// @param optlen `int` value supplied as optlen to `setsockopt`.
+/// @returns Result returned by the native `setsockopt` binding as `int`.
 
 extern function setsockopt(s as ptr, level as int, optname as int, optval as bytes, optlen as int) from "ws2_32.dll" symbol "setsockopt" returns int
 #endif
-/*
-* Function: _MPPlatform_ToInt
-* Purpose: Converts mixed numeric values to stable integer values.
-*/
+/// Converts mixed numeric values to stable integer values.
+/// @param v Value consumed by the operation.
+/// @param fallback Value returned when the requested conversion or lookup is unavailable.
+/// @internal
 function inline _MPPlatform_ToInt(v, fallback)
   if typeof(v) == "int" then return v end if
   if typeof(v) == "float" then
@@ -210,10 +368,8 @@ function inline _MPPlatform_ToInt(v, fallback)
   return fallback
 end function
 
-/*
-* Function: _MPPlatform_WaitPulse
-* Purpose: Keeps GUI/audio responsive while host/join control flow waits on network I/O.
-*/
+/// Keeps GUI/audio responsive while host/join control flow waits on network I/O.
+/// @internal
 function inline _MPPlatform_WaitPulse()
   if typeof(I_LoadingPulse) == "function" then
     I_LoadingPulse()
@@ -224,10 +380,9 @@ function inline _MPPlatform_WaitPulse()
   end if
 end function
 
-/*
-* Function: _MPPlatform_ToBytesCopy
-* Purpose: Normalizes bytes/array payload values to bytes (fast-path avoids copy for bytes).
-*/
+/// Normalizes bytes/array payload values to bytes (fast-path avoids copy for bytes).
+/// @param v Value consumed by the operation.
+/// @internal
 function inline _MPPlatform_ToBytesCopy(v)
   if typeof(v) == "bytes" then
     return v
@@ -245,10 +400,9 @@ function inline _MPPlatform_ToBytesCopy(v)
   return void
 end function
 
-/*
-* Function: _MPPlatform_PeerIngame
-* Purpose: Returns true when peer ingame marker is truthy (bool true or non-zero int).
-*/
+/// Returns true when peer ingame marker is truthy (bool true or non-zero int).
+/// @param p Object or data record consumed by the operation.
+/// @internal
 function inline _MPPlatform_PeerIngame(p)
   if typeof(p) != "struct" then return false end if
   if typeof(p.ingame) == "bool" then return p.ingame end if
@@ -257,10 +411,9 @@ function inline _MPPlatform_PeerIngame(p)
   return false
 end function
 
-/*
-* Function: _MPPlatform_EnsurePeerTelemetry
-* Purpose: Ensures host peer struct has telemetry fields initialized.
-*/
+/// Ensures host peer struct has telemetry fields initialized.
+/// @param p Object or data record consumed by the operation.
+/// @internal
 function inline _MPPlatform_EnsurePeerTelemetry(p)
   if typeof(p) != "struct" then return p end if
   if typeof(p.pingSeq) != "int" then p.pingSeq = 0 end if
@@ -274,10 +427,8 @@ function inline _MPPlatform_EnsurePeerTelemetry(p)
   return p
 end function
 
-/*
-* Function: _MPPlatform_QueueDepth
-* Purpose: Returns queued gameplay packet count waiting for d_net consumption.
-*/
+/// Returns queued gameplay packet count waiting for d_net consumption.
+/// @internal
 function inline _MPPlatform_QueueDepth()
   if typeof(_mp_game_queue_payloads) != "array" then return 0 end if
   head = _MPPlatform_ToInt(_mp_game_queue_head, 0)
@@ -289,10 +440,9 @@ function inline _MPPlatform_QueueDepth()
   return n
 end function
 
-/*
-* Function: _MPPlatform_SetStatus
-* Purpose: Stores latest status string for menu/UI display.
-*/
+/// Stores latest status string for menu/UI display.
+/// @param msg Msg value supplied to `_MPPlatform_SetStatus`.
+/// @internal
 function inline _MPPlatform_SetStatus(msg)
   global _mp_platform_last_status
   if typeof(msg) != "string" then
@@ -303,10 +453,9 @@ function inline _MPPlatform_SetStatus(msg)
   end if
 end function
 
-/*
-* Function: _MPPlatform_PushConsoleMessage
-* Purpose: Sends a short HUD message to the local console player when available.
-*/
+/// Sends a short HUD message to the local console player when available.
+/// @param msg Msg value supplied to `_MPPlatform_PushConsoleMessage`.
+/// @internal
 function inline _MPPlatform_PushConsoleMessage(msg)
   if typeof(msg) != "string" or msg == "" then return end if
   if typeof(players) != "array" then return end if
@@ -318,42 +467,27 @@ function inline _MPPlatform_PushConsoleMessage(msg)
   players[cp] = p
 end function
 
-/*
-* Function: MP_PlatformGetLastStatus
-* Purpose: Returns latest multiplayer runtime status string.
-*/
+/// Returns latest multiplayer runtime status string.
 function MP_PlatformGetLastStatus()
   return _mp_platform_last_status
 end function
 
-/*
-* Function: MP_PlatformGetSessionMode
-* Purpose: Returns server-confirmed multiplayer mode for active session.
-*/
+/// Returns server-confirmed multiplayer mode for active session.
 function MP_PlatformGetSessionMode()
   return _mp_host_mode_cfg
 end function
 
-/*
-* Function: MP_PlatformGetSessionSkill
-* Purpose: Returns server-confirmed multiplayer skill for active session.
-*/
+/// Returns server-confirmed multiplayer skill for active session.
 function MP_PlatformGetSessionSkill()
   return _mp_host_skill_cfg
 end function
 
-/*
-* Function: MP_PlatformGetSessionMap
-* Purpose: Returns server-confirmed map token for active session.
-*/
+/// Returns server-confirmed map token for active session.
 function MP_PlatformGetSessionMap()
   return _mp_host_map_cfg
 end function
 
-/*
-* Function: MP_PlatformGetDebugOverlayText
-* Purpose: Returns multiplayer debug text for in-game overlay rendering.
-*/
+/// Returns multiplayer debug text for in-game overlay rendering.
 function MP_PlatformGetDebugOverlayText()
   if _mp_role == _MPPLAT_ROLE_NONE then return "" end if
 
@@ -409,18 +543,12 @@ function MP_PlatformGetDebugOverlayText()
   return ""
 end function
 
-/*
-* Function: MP_PlatformIsClientConnected
-* Purpose: Returns true when local runtime has an active client connection.
-*/
+/// Returns true when local runtime has an active client connection.
 function inline MP_PlatformIsClientConnected()
   return _mp_role == _MPPLAT_ROLE_CLIENT
 end function
 
-/*
-* Function: MP_PlatformGetLocalPlayerSlot
-* Purpose: Returns local player slot index used by Doom net layer.
-*/
+/// Returns local player slot index used by Doom net layer.
 function inline MP_PlatformGetLocalPlayerSlot()
   if _mp_role == _MPPLAT_ROLE_HOST then return 0 end if
   if _mp_role == _MPPLAT_ROLE_CLIENT then
@@ -431,10 +559,9 @@ function inline MP_PlatformGetLocalPlayerSlot()
   return 0
 end function
 
-/*
-* Function: _MPPlatform_InitClientSlotNames
-* Purpose: Initializes deterministic client-side slot name cache.
-*/
+/// Initializes deterministic client-side slot name cache.
+/// @param localName Local name value supplied to `_MPPlatform_InitClientSlotNames`.
+/// @internal
 function _MPPlatform_InitClientSlotNames(localName)
   global _mp_client_slot_names
   nmLocal = MP_SanitizeName(localName)
@@ -459,10 +586,9 @@ function _MPPlatform_InitClientSlotNames(localName)
   _mp_client_slot_names = names
 end function
 
-/*
-* Function: MP_PlatformSetPlayerNameBySlot
-* Purpose: Updates one checked slot name in the host peer table or client-side authoritative cache.
-*/
+/// Updates one checked slot name in the host peer table or client-side authoritative cache.
+/// @param slot Slot value supplied to `MP_PlatformSetPlayerNameBySlot`.
+/// @param name Resource or object name to resolve.
 function MP_PlatformSetPlayerNameBySlot(slot, name)
   global _mp_client_slot_names
   global _mp_host_peers
@@ -495,10 +621,8 @@ function MP_PlatformSetPlayerNameBySlot(slot, name)
   return false
 end function
 
-/*
-* Function: MP_PlatformGetPlayerNameBySlot
-* Purpose: Resolves player display name for a given Doom slot index.
-*/
+/// Resolves player display name for a given Doom slot index.
+/// @param slot Slot value supplied to `MP_PlatformGetPlayerNameBySlot`.
 function MP_PlatformGetPlayerNameBySlot(slot)
   s = _MPPlatform_ToInt(slot, -1)
   if s < 0 then s = 0 end if
@@ -535,10 +659,7 @@ function MP_PlatformGetPlayerNameBySlot(slot)
   return "Player " + (s + 1)
 end function
 
-/*
-* Function: MP_PlatformGetNodeCount
-* Purpose: Returns active doom net node count for local multiplayer role.
-*/
+/// Returns active doom net node count for local multiplayer role.
 function MP_PlatformGetNodeCount()
   if _mp_role == _MPPLAT_ROLE_HOST then
     maxNode = 0
@@ -562,10 +683,7 @@ function MP_PlatformGetNodeCount()
   return 1
 end function
 
-/*
-* Function: MP_PlatformGetNumPlayers
-* Purpose: Returns known active player count for local multiplayer role.
-*/
+/// Returns known active player count for local multiplayer role.
 function MP_PlatformGetNumPlayers()
   if _mp_role == _MPPLAT_ROLE_HOST then
     n = 1
@@ -598,10 +716,7 @@ function MP_PlatformGetNumPlayers()
   return 1
 end function
 
-/*
-* Function: MP_PlatformGetActiveSlots
-* Purpose: Returns array of currently active player slots (always includes host slot 0).
-*/
+/// Returns array of currently active player slots (always includes host slot 0).
 function MP_PlatformGetActiveSlots()
   if _mp_role == _MPPLAT_ROLE_HOST then
     slots = array(_MPPLAT_MAX_PLAYERS, 0)
@@ -673,10 +788,9 @@ function MP_PlatformGetActiveSlots()
   return [0]
 end function
 
-/*
-* Function: _MPPlatform_SanitizeField
-* Purpose: Removes wire-delimiter/control bytes from textual packet fields.
-*/
+/// Removes wire-delimiter/control bytes from textual packet fields.
+/// @param s0 S0 value supplied to `_MPPlatform_SanitizeField`.
+/// @internal
 function inline _MPPlatform_SanitizeField(s0)
   if typeof(s0) != "string" then return "" end if
   s0 = str.replaceAll(s0, "|", "/")
@@ -685,10 +799,8 @@ function inline _MPPlatform_SanitizeField(s0)
   return s0
 end function
 
-/*
-* Function: _MPPlatform_CloseSocketOnly
-* Purpose: Closes active UDP socket if currently open.
-*/
+/// Closes active UDP socket if currently open.
+/// @internal
 function inline _MPPlatform_CloseSocketOnly()
   global _mp_sock
   if typeof(_mp_sock) == "int" or typeof(_mp_sock) == "ptr" then
@@ -697,10 +809,10 @@ function inline _MPPlatform_CloseSocketOnly()
   _mp_sock = void
 end function
 
-/*
-* Function: _MPPlatform_SetNonBlocking
-* Purpose: Configures UDP socket to non-blocking mode.
-*/
+/// Configures UDP socket to non-blocking mode.
+/// @param sock Sock value supplied to `_MPPlatform_SetNonBlocking`.
+/// @param enabled Whether the requested feature should be enabled.
+/// @internal
 function inline _MPPlatform_SetNonBlocking(sock, enabled)
   arg = bytes(4, 0)
   if enabled then arg[0] = 1 end if
@@ -708,10 +820,10 @@ function inline _MPPlatform_SetNonBlocking(sock, enabled)
   return rc == 0
 end function
 
-/*
-* Function: _MPPlatform_SetRecvTimeout
-* Purpose: Configures socket receive timeout in milliseconds.
-*/
+/// Configures socket receive timeout in milliseconds.
+/// @param sock Sock value supplied to `_MPPlatform_SetRecvTimeout`.
+/// @param timeoutMs Timeout ms value supplied to `_MPPlatform_SetRecvTimeout`.
+/// @internal
 function inline _MPPlatform_SetRecvTimeout(sock, timeoutMs)
   t = _MPPlatform_ToInt(timeoutMs, 1)
   if t < 1 then t = 1 end if
@@ -725,20 +837,21 @@ function inline _MPPlatform_SetRecvTimeout(sock, timeoutMs)
   return rc == 0
 end function
 
-/*
-* Function: _MPPlatform_IsWouldBlockError
-* Purpose: Checks whether a net error maps to WSAEWOULDBLOCK.
-*/
+/// Checks whether a net error maps to WSAEWOULDBLOCK.
+/// @param v Value consumed by the operation.
+/// @internal
 function inline _MPPlatform_IsWouldBlockError(v)
   if typeof(v) != "error" then return false end if
   code = net.lastError()
   return code == _MPPLAT_WOULDBLOCK or code == _MPPLAT_TIMEDOUT
 end function
 
-/*
-* Function: _MPPlatform_SendFields
-* Purpose: Encodes and sends a textual UDP packet with field separators.
-*/
+/// Encodes and sends a textual UDP packet with field separators.
+/// @param sock Sock value supplied to `_MPPlatform_SendFields`.
+/// @param ip Ip value supplied to `_MPPlatform_SendFields`.
+/// @param port Port value supplied to `_MPPlatform_SendFields`.
+/// @param fields Fields value supplied to `_MPPlatform_SendFields`.
+/// @internal
 function inline _MPPlatform_SendFields(sock, ip, port, fields)
   if typeof(fields) != "array" and typeof(fields) != "list" then return error(1, "control fields must be a sequence") end if
   textFields = array(len(fields), "")
@@ -762,10 +875,9 @@ function inline _MPPlatform_SendFields(sock, ip, port, fields)
   return net.udpSendTo(sock, ip, port, wire)
 end function
 
-/*
-* Function: _MPPlatform_NormalizeIPv4
-* Purpose: Validates dotted-decimal IPv4 input and returns the canonical form used by udpRecvFrom endpoints.
-*/
+/// Validates dotted-decimal IPv4 input and returns the canonical form used by udpRecvFrom endpoints.
+/// @param value Value consumed by the operation.
+/// @internal
 function _MPPlatform_NormalizeIPv4(value)
   if typeof(value) != "string" then return "" end if
   input = str.trim(value)
@@ -794,10 +906,10 @@ function _MPPlatform_NormalizeIPv4(value)
   return output
 end function
 
-/*
-* Function: _MPPlatform_FindHostPeerIndex
-* Purpose: Finds existing host peer entry by ip/port tuple.
-*/
+/// Finds existing host peer entry by ip/port tuple.
+/// @param ip Ip value supplied to `_MPPlatform_FindHostPeerIndex`.
+/// @param port Port value supplied to `_MPPlatform_FindHostPeerIndex`.
+/// @internal
 function inline _MPPlatform_FindHostPeerIndex(ip, port)
   if typeof(_mp_host_peers) != "array" then return -1 end if
   i = 0
@@ -811,10 +923,9 @@ function inline _MPPlatform_FindHostPeerIndex(ip, port)
   return -1
 end function
 
-/*
-* Function: _MPPlatform_IsPeerIdUsed
-* Purpose: Checks whether a host peer id is already occupied.
-*/
+/// Checks whether a host peer id is already occupied.
+/// @param pid Pid value supplied to `_MPPlatform_IsPeerIdUsed`.
+/// @internal
 function inline _MPPlatform_IsPeerIdUsed(pid)
   if pid == 1 then return true end if
   i = 0
@@ -826,10 +937,9 @@ function inline _MPPlatform_IsPeerIdUsed(pid)
   return false
 end function
 
-/*
-* Function: _MPPlatform_IsSlotUsed
-* Purpose: Checks whether a host player slot index is already used by a peer.
-*/
+/// Checks whether a host player slot index is already used by a peer.
+/// @param slot Slot value supplied to `_MPPlatform_IsSlotUsed`.
+/// @internal
 function inline _MPPlatform_IsSlotUsed(slot)
   if slot < 1 or slot >= _MPPLAT_MAX_PLAYERS then return true end if
   i = 0
@@ -841,10 +951,8 @@ function inline _MPPlatform_IsSlotUsed(slot)
   return false
 end function
 
-/*
-* Function: _MPPlatform_AllocHostSlot
-* Purpose: Allocates a free player slot [1..MAXPLAYERS-1] for a joining client.
-*/
+/// Allocates a free player slot [1..MAXPLAYERS-1] for a joining client.
+/// @internal
 function inline _MPPlatform_AllocHostSlot()
   s = 1
   while s < _MPPLAT_MAX_PLAYERS
@@ -854,10 +962,9 @@ function inline _MPPlatform_AllocHostSlot()
   return 0
 end function
 
-/*
-* Function: _MPPlatform_FindHostPeerBySlot
-* Purpose: Returns host peer index for a given slot, or -1 if not found.
-*/
+/// Returns host peer index for a given slot, or -1 if not found.
+/// @param slot Slot value supplied to `_MPPlatform_FindHostPeerBySlot`.
+/// @internal
 function inline _MPPlatform_FindHostPeerBySlot(slot)
   i = 0
   while i < len(_mp_host_peers)
@@ -868,10 +975,9 @@ function inline _MPPlatform_FindHostPeerBySlot(slot)
   return -1
 end function
 
-/*
-* Function: _MPPlatform_QueueEnsureCapacity
-* Purpose: Grows game packet queue storage in chunks so enqueue stays O(1) in steady state.
-*/
+/// Grows game packet queue storage in chunks so enqueue stays O(1) in steady state.
+/// @param required Required value supplied to `_MPPlatform_QueueEnsureCapacity`.
+/// @internal
 function _MPPlatform_QueueEnsureCapacity(required)
   global _mp_game_queue_nodes
   global _mp_game_queue_payloads
@@ -901,10 +1007,10 @@ function _MPPlatform_QueueEnsureCapacity(required)
   end if
 end function
 
-/*
-* Function: _MPPlatform_QueueGamePacket
-* Purpose: Enqueues gameplay packet payload for d_net/i_net processing.
-*/
+/// Enqueues gameplay packet payload for d_net/i_net processing.
+/// @param node Node value supplied to `_MPPlatform_QueueGamePacket`.
+/// @param payload Payload value supplied to `_MPPlatform_QueueGamePacket`.
+/// @internal
 function _MPPlatform_QueueGamePacket(node, payload)
   global _mp_game_queue_nodes
   global _mp_game_queue_payloads
@@ -1005,10 +1111,8 @@ function _MPPlatform_QueueGamePacket(node, payload)
   _mp_game_queue_tail = _mp_game_queue_tail + 1
 end function
 
-/*
-* Function: _MPPlatform_PopGamePacket
-* Purpose: Dequeues one gameplay packet as [node,payload], or void when empty.
-*/
+/// Dequeues one gameplay packet as [node,payload], or void when empty.
+/// @internal
 function _MPPlatform_PopGamePacket()
   global _mp_game_queue_nodes
   global _mp_game_queue_payloads
@@ -1064,20 +1168,19 @@ function _MPPlatform_PopGamePacket()
   return [node, payload]
 end function
 
-/*
-* Function: _MPPlatform_IsGamePacket
-* Purpose: Checks whether payload uses MiniDoom gameplay UDP frame format.
-*/
+/// Checks whether payload uses MiniDoom gameplay UDP frame format.
+/// @param payload Payload value supplied to `_MPPlatform_IsGamePacket`.
+/// @internal
 function inline _MPPlatform_IsGamePacket(payload)
   if typeof(payload) != "bytes" then return false end if
   if len(payload) < 7 then return false end if
   return (payload[0] & 255) == _MPPLAT_GAME_MAGIC0 and (payload[1] & 255) == _MPPLAT_GAME_MAGIC1 and (payload[2] & 255) == _MPPLAT_GAME_MAGIC2 and (payload[3] & 255) == _MPPLAT_GAME_MAGIC3
 end function
 
-/*
-* Function: _MPPlatform_GameChecksum16
-* Purpose: Computes a lightweight 16-bit checksum across gameplay payload bytes.
-*/
+/// Computes a lightweight 16-bit checksum across gameplay payload bytes.
+/// @param payload Payload value supplied to `_MPPlatform_GameChecksum16`.
+/// @param n Number of values to process.
+/// @internal
 function inline _MPPlatform_GameChecksum16(payload, n)
   if typeof(payload) != "bytes" then return 0 end if
   lim = _MPPlatform_ToInt(n, 0)
@@ -1094,10 +1197,9 @@ function inline _MPPlatform_GameChecksum16(payload, n)
   return sum & 65535
 end function
 
-/*
-* Function: _MPPlatform_UnwrapGamePayload
-* Purpose: Decodes gameplay frame and returns payload bytes.
-*/
+/// Decodes gameplay frame and returns payload bytes.
+/// @param packet Packet value supplied to `_MPPlatform_UnwrapGamePayload`.
+/// @internal
 function _MPPlatform_UnwrapGamePayload(packet)
   if not _MPPlatform_IsGamePacket(packet) then return end if
   declared = (packet[5] & 255) | ((packet[6] & 255) << 8)
@@ -1116,10 +1218,10 @@ function _MPPlatform_UnwrapGamePayload(packet)
   return bufCopy
 end function
 
-/*
-* Function: _MPPlatform_WrapGamePayload
-* Purpose: Encodes gameplay payload in MiniDoom gameplay UDP frame format.
-*/
+/// Encodes gameplay payload in MiniDoom gameplay UDP frame format.
+/// @param localSlot Local slot value supplied to `_MPPlatform_WrapGamePayload`.
+/// @param payload Payload value supplied to `_MPPlatform_WrapGamePayload`.
+/// @internal
 function _MPPlatform_WrapGamePayload(localSlot, payload)
   if typeof(payload) != "bytes" then return end if
   n = len(payload)
@@ -1143,10 +1245,8 @@ function _MPPlatform_WrapGamePayload(localSlot, payload)
   return packet
 end function
 
-/*
-* Function: _MPPlatform_AllocHostPeerId
-* Purpose: Allocates next available host-side peer id for a joining client.
-*/
+/// Allocates next available host-side peer id for a joining client.
+/// @internal
 function _MPPlatform_AllocHostPeerId()
   global _mp_host_next_peer_id
   pid = _MPPlatform_ToInt(_mp_host_next_peer_id, 2)
@@ -1166,10 +1266,11 @@ function _MPPlatform_AllocHostPeerId()
   return 0
 end function
 
-/*
-* Function: _MPPlatform_UpsertHostPeer
-* Purpose: Creates or refreshes a host peer entry and returns its assigned player slot (1..3).
-*/
+/// Creates or refreshes a host peer entry and returns its assigned player slot (1..3).
+/// @param ip Ip value supplied to `_MPPlatform_UpsertHostPeer`.
+/// @param port Port value supplied to `_MPPlatform_UpsertHostPeer`.
+/// @param name Resource or object name to resolve.
+/// @internal
 function _MPPlatform_UpsertHostPeer(ip, port, name)
   global _mp_host_peers
   nowMs = _MPPlatform_ToInt(time.ticks(), 0)
@@ -1199,10 +1300,10 @@ function _MPPlatform_UpsertHostPeer(ip, port, name)
   return slot
 end function
 
-/*
-* Function: _MPPlatform_RemoveHostPeerByIndex
-* Purpose: Removes host peer entry and emits leave status if requested.
-*/
+/// Removes host peer entry and emits leave status if requested.
+/// @param idx Zero-based element or table index.
+/// @param withMessage With message value supplied to `_MPPlatform_RemoveHostPeerByIndex`.
+/// @internal
 function _MPPlatform_RemoveHostPeerByIndex(idx, withMessage)
   global _mp_host_peers
   if idx < 0 or idx >= len(_mp_host_peers) then return false end if
@@ -1237,20 +1338,25 @@ function _MPPlatform_RemoveHostPeerByIndex(idx, withMessage)
   return true
 end function
 
-/*
-* Function: _MPPlatform_HostSendDeny
-* Purpose: Sends a host-side join denial packet with optional server hash context.
-*/
+/// Sends a host-side join denial packet with optional server hash context.
+/// @param ip Ip value supplied to `_MPPlatform_HostSendDeny`.
+/// @param port Port value supplied to `_MPPlatform_HostSendDeny`.
+/// @param reasonCode Reason code value supplied to `_MPPlatform_HostSendDeny`.
+/// @param reasonText Reason text value supplied to `_MPPlatform_HostSendDeny`.
+/// @param includeHash Include hash value supplied to `_MPPlatform_HostSendDeny`.
+/// @internal
 function inline _MPPlatform_HostSendDeny(ip, port, reasonCode, reasonText, includeHash)
   fields = [_MPPLAT_PROTO, _MPPLAT_DEN, reasonCode, _MPPlatform_SanitizeField(reasonText)]
   if includeHash then fields = fields + [mp_iwad_fnv1a_hex] end if
   _MPPlatform_SendFields(_mp_sock, ip, port, fields)
 end function
 
-/*
-* Function: _MPPlatform_HostSendAccept
-* Purpose: Sends an accept packet with server-authoritative lobby settings.
-*/
+/// Sends an accept packet with server-authoritative lobby settings.
+/// @param ip Ip value supplied to `_MPPlatform_HostSendAccept`.
+/// @param port Port value supplied to `_MPPlatform_HostSendAccept`.
+/// @param slot Slot value supplied to `_MPPlatform_HostSendAccept`.
+/// @param peerId Peer id value supplied to `_MPPlatform_HostSendAccept`.
+/// @internal
 function _MPPlatform_HostSendAccept(ip, port, slot, peerId)
   hostName = MP_SanitizeName(MP_GetPlayerName())
   if hostName == "" then hostName = "Host" end if
@@ -1270,10 +1376,11 @@ function _MPPlatform_HostSendAccept(ip, port, slot, peerId)
   _MPPlatform_SendFields(_mp_sock, ip, port, fields)
 end function
 
-/*
-* Function: _MPPlatform_HostHandlePacket
-* Purpose: Processes host-side incoming UDP packet for join/ping flow.
-*/
+/// Processes host-side incoming UDP packet for join/ping flow.
+/// @param payload Payload value supplied to `_MPPlatform_HostHandlePacket`.
+/// @param peerIp Peer ip value supplied to `_MPPlatform_HostHandlePacket`.
+/// @param peerPort Peer port value supplied to `_MPPlatform_HostHandlePacket`.
+/// @internal
 function _MPPlatform_HostHandlePacket(payload, peerIp, peerPort)
   if typeof(payload) != "bytes" then return end if
   if len(payload) <= 0 or len(payload) > _MPPLAT_CONTROL_MAX then return end if
@@ -1371,10 +1478,11 @@ function _MPPlatform_HostHandlePacket(payload, peerIp, peerPort)
 
 end function
 
-/*
-* Function: _MPPlatform_ClientHandlePacket
-* Purpose: Processes runtime client-side maintenance packets after join.
-*/
+/// Processes runtime client-side maintenance packets after join.
+/// @param payload Payload value supplied to `_MPPlatform_ClientHandlePacket`.
+/// @param peerIp Peer ip value supplied to `_MPPlatform_ClientHandlePacket`.
+/// @param peerPort Peer port value supplied to `_MPPlatform_ClientHandlePacket`.
+/// @internal
 function _MPPlatform_ClientHandlePacket(payload, peerIp, peerPort)
   global _mp_client_last_ping_ms
   global _mp_client_last_pong_ms
@@ -1434,10 +1542,8 @@ function _MPPlatform_ClientHandlePacket(payload, peerIp, peerPort)
 
 end function
 
-/*
-* Function: _MPPlatform_ExpireHostPeers
-* Purpose: Removes host peers that timed out and emits status updates.
-*/
+/// Removes host peers that timed out and emits status updates.
+/// @internal
 function _MPPlatform_ExpireHostPeers()
   global _mp_host_peers
   nowMs = _MPPlatform_ToInt(time.ticks(), 0)
@@ -1483,10 +1589,7 @@ function _MPPlatform_ExpireHostPeers()
   end while
 end function
 
-/*
-* Function: MP_PlatformPump
-* Purpose: Processes non-blocking UDP packets for host/client maintenance.
-*/
+/// Processes non-blocking UDP packets for host/client maintenance.
 function MP_PlatformPump()
   global _mp_client_last_ping_ms
   global _mp_client_ping_seq
@@ -1618,10 +1721,7 @@ function MP_PlatformPump()
   end if
 end function
 
-/*
-* Function: MP_PlatformShutdown
-* Purpose: Shuts down multiplayer UDP runtime state and closes sockets.
-*/
+/// Shuts down multiplayer UDP runtime state and closes sockets.
 function MP_PlatformShutdown()
   global _mp_role
   global _mp_host_peers
@@ -1696,18 +1796,14 @@ function MP_PlatformShutdown()
   _mp_game_queue_dropped = 0
 end function
 
-/*
-* Function: MP_PlatformIsHosting
-* Purpose: Reports whether local runtime is currently acting as UDP host.
-*/
+/// Reports whether local runtime is currently acting as UDP host.
 function inline MP_PlatformIsHosting()
   return _mp_role == _MPPLAT_ROLE_HOST
 end function
 
-/*
-* Function: MP_PlatformNetSend
-* Purpose: Sends a gameplay packet payload to a Doom remote node.
-*/
+/// Sends a gameplay packet payload to a Doom remote node.
+/// @param node Node value supplied to `MP_PlatformNetSend`.
+/// @param payload Payload value supplied to `MP_PlatformNetSend`.
 function MP_PlatformNetSend(node, payload)
   global _mp_client_game_out
   global _mp_debug_send_attempt
@@ -1760,19 +1856,15 @@ function MP_PlatformNetSend(node, payload)
   return false
 end function
 
-/*
-* Function: MP_PlatformNetRecv
-* Purpose: Pops one queued gameplay packet as [node,payload], or void if none.
-*/
+/// Pops one queued gameplay packet as [node,payload], or void if none.
 function inline MP_PlatformNetRecv()
   if _mp_role == _MPPLAT_ROLE_NONE then return end if
   return _MPPlatform_PopGamePacket()
 end function
 
-/*
-* Function: _MPPlatform_SetError
-* Purpose: Stores user-facing error text for multiplayer host/join operations.
-*/
+/// Stores user-facing error text for multiplayer host/join operations.
+/// @param msg Msg value supplied to `_MPPlatform_SetError`.
+/// @internal
 function inline _MPPlatform_SetError(msg)
   global _mp_platform_last_error
   if typeof(msg) != "string" then
@@ -1782,18 +1874,19 @@ function inline _MPPlatform_SetError(msg)
   end if
 end function
 
-/*
-* Function: MP_PlatformGetLastError
-* Purpose: Returns the last multiplayer platform error message.
-*/
+/// Returns the last multiplayer platform error message.
 function MP_PlatformGetLastError()
   return _mp_platform_last_error
 end function
 
-/*
-* Function: MP_PlatformHostGame
-* Purpose: Starts a non-blocking UDP host endpoint for join handshakes.
-*/
+/// Starts a non-blocking UDP host endpoint for join handshakes.
+/// @param port Port value supplied to `MP_PlatformHostGame`.
+/// @param mode Mode value supplied to `MP_PlatformHostGame`.
+/// @param skill Skill value supplied to `MP_PlatformHostGame`.
+/// @param mapname Mapname value supplied to `MP_PlatformHostGame`.
+/// @param maxPlayers Max players value supplied to `MP_PlatformHostGame`.
+/// @param fragLimit Frag limit value supplied to `MP_PlatformHostGame`.
+/// @param timeLimit Time limit value supplied to `MP_PlatformHostGame`.
 function MP_PlatformHostGame(port, mode, skill, mapname, maxPlayers, fragLimit, timeLimit)
   global _mp_sock
   global _mp_role
@@ -1918,10 +2011,10 @@ function MP_PlatformHostGame(port, mode, skill, mapname, maxPlayers, fragLimit, 
   return true
 end function
 
-/*
-* Function: MP_PlatformJoinGame
-* Purpose: Sends UDP join request and waits with timeout for host response.
-*/
+/// Sends UDP join request and waits with timeout for host response.
+/// @param host Host value supplied to `MP_PlatformJoinGame`.
+/// @param port Port value supplied to `MP_PlatformJoinGame`.
+/// @param playerName Player name value supplied to `MP_PlatformJoinGame`.
 function MP_PlatformJoinGame(host, port, playerName)
   global _mp_sock
   global _mp_role

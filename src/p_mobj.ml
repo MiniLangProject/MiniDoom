@@ -13,9 +13,10 @@
   See the License for the specific language governing permissions and
   limitations under the License.
 
-  Script: p_mobj.ml
-  Purpose: Defines actor state, spawn/removal ownership, missile and player creation, movement, and item respawn.
 */
+
+//! Defines actor state, spawn/removal ownership, missile and player creation, movement, and item respawn.
+
 import tables
 import m_fixed
 import d_think
@@ -38,114 +39,185 @@ import p_pspr
 import r_main
 import std.math
 
-/*
-* Enum: mobjflag_t
-* Purpose: Encodes actor collision, damage, gravity, AI allegiance, pickup, and render behavior bits.
-*/
+/// Encodes actor collision, damage, gravity, AI allegiance, pickup, and render behavior bits.
 enum mobjflag_t
+  /// Represents mf special in `mobjflag_t`
   MF_SPECIAL = 1
+  /// Represents mf solid in `mobjflag_t`
   MF_SOLID = 2
+  /// Represents mf shootable in `mobjflag_t`
   MF_SHOOTABLE = 4
+  /// Represents mf nosector in `mobjflag_t`
   MF_NOSECTOR = 8
+  /// Represents mf noblockmap in `mobjflag_t`
   MF_NOBLOCKMAP = 16
+  /// Represents mf ambush in `mobjflag_t`
   MF_AMBUSH = 32
+  /// Represents mf justhit in `mobjflag_t`
   MF_JUSTHIT = 64
+  /// Represents mf justattacked in `mobjflag_t`
   MF_JUSTATTACKED = 128
+  /// Represents mf spawnceiling in `mobjflag_t`
   MF_SPAWNCEILING = 256
+  /// Represents mf nogravity in `mobjflag_t`
   MF_NOGRAVITY = 512
+  /// Represents mf dropoff in `mobjflag_t`
   MF_DROPOFF = 0x400
+  /// Represents mf pickup in `mobjflag_t`
   MF_PICKUP = 0x800
+  /// Represents mf noclip in `mobjflag_t`
   MF_NOCLIP = 0x1000
+  /// Represents mf slide in `mobjflag_t`
   MF_SLIDE = 0x2000
+  /// Represents mf float in `mobjflag_t`
   MF_FLOAT = 0x4000
+  /// Represents mf teleport in `mobjflag_t`
   MF_TELEPORT = 0x8000
+  /// Represents mf missile in `mobjflag_t`
   MF_MISSILE = 0x10000
+  /// Represents mf dropped in `mobjflag_t`
   MF_DROPPED = 0x20000
+  /// Represents mf shadow in `mobjflag_t`
   MF_SHADOW = 0x40000
+  /// Represents mf noblood in `mobjflag_t`
   MF_NOBLOOD = 0x80000
+  /// Represents mf corpse in `mobjflag_t`
   MF_CORPSE = 0x100000
+  /// Represents mf infloat in `mobjflag_t`
   MF_INFLOAT = 0x200000
+  /// Represents mf countkill in `mobjflag_t`
   MF_COUNTKILL = 0x400000
+  /// Represents mf countitem in `mobjflag_t`
   MF_COUNTITEM = 0x800000
+  /// Represents mf skullfly in `mobjflag_t`
   MF_SKULLFLY = 0x1000000
+  /// Represents mf notdmatch in `mobjflag_t`
   MF_NOTDMATCH = 0x2000000
+  /// Represents mf translation in `mobjflag_t`
   MF_TRANSLATION = 0xc000000
+  /// Represents mf transshift in `mobjflag_t`
   MF_TRANSSHIFT = 26
 end enum
 
-/*
-* Struct: mobj_t
-* Purpose: Holds one live actor's thinker link, spatial state, presentation state, combat fields, and ownership.
-*/
+/// Holds one live actor's thinker link, spatial state, presentation state, combat fields, and ownership.
 struct mobj_t
+  /// Stores thinker for `mobj_t`
   thinker
 
+  /// Horizontal map- or screen-space coordinate stored by `mobj_t`
   x
+  /// Vertical map- or screen-space coordinate stored by `mobj_t`
   y
+  /// Vertical world-space coordinate stored by `mobj_t`
   z
 
+  /// Stores snext for `mobj_t`
   snext
+  /// Stores sprev for `mobj_t`
   sprev
 
+  /// Doom binary-angle orientation stored by `mobj_t`
   angle
+  /// Stores sprite for `mobj_t`
   sprite
+  /// Stores frame for `mobj_t`
   frame
 
+  /// Stores bnext for `mobj_t`
   bnext
+  /// Stores bprev for `mobj_t`
   bprev
+  /// Stores subsector for `mobj_t`
   subsector
 
+  /// Stores floorz for `mobj_t`
   floorz
+  /// Stores ceilingz for `mobj_t`
   ceilingz
 
+  /// Stores radius for `mobj_t`
   radius
+  /// Height in pixels or map units stored by `mobj_t`
   height
 
+  /// Stores momx for `mobj_t`
   momx
+  /// Stores momy for `mobj_t`
   momy
+  /// Stores momz for `mobj_t`
   momz
 
+  /// Stores validcount for `mobj_t`
   validcount
 
+  /// Kind discriminator for this record stored by `mobj_t`
   type
+  /// Stores info for `mobj_t`
   info
 
+  /// Stores tics for `mobj_t`
   tics
+  /// Current state-machine value stored by `mobj_t`
   state
+  /// Bit flags controlling this record's behavior stored by `mobj_t`
   flags
+  /// Stores health for `mobj_t`
   health
 
+  /// Stores movedir for `mobj_t`
   movedir
+  /// Stores movecount for `mobj_t`
   movecount
 
+  /// Stores target for `mobj_t`
   target
 
+  /// Stores reactiontime for `mobj_t`
   reactiontime
+  /// Stores threshold for `mobj_t`
   threshold
 
+  /// Stores player for `mobj_t`
   player
 
+  /// Stores lastlook for `mobj_t`
   lastlook
+  /// Stores spawnpoint for `mobj_t`
   spawnpoint
+  /// Stores tracer for `mobj_t`
   tracer
+  /// Stores mpuid for `mobj_t`
   mpuid
 end struct
 
+/// Defines itemquesize for the p mobj subsystem.
 const ITEMQUESIZE = 128
+/// Stores the itemrespawnque collection used by the p mobj subsystem.
 itemrespawnque =[]
+/// Stores the itemrespawntime collection used by the p mobj subsystem.
 itemrespawntime =[]
+/// Tracks the mutable iquehead value used by the p mobj subsystem.
 iquehead = 0
+/// Tracks the mutable iquetail value used by the p mobj subsystem.
 iquetail = 0
+/// Stores the pm thinker nodes collection used by the p mobj subsystem.
+/// @internal
 _pm_thinker_nodes =[]
+/// Stores the pm thinker owners collection used by the p mobj subsystem.
+/// @internal
 _pm_thinker_owners =[]
+/// Stores the pm thinker ids collection used by the p mobj subsystem.
+/// @internal
 _pm_thinker_ids =[]
+/// Tracks the mutable pm next thinker id value used by the p mobj subsystem.
+/// @internal
 _pm_next_thinker_id = 1
+/// Tracks the mutable pm next netuid value used by the p mobj subsystem.
+/// @internal
 _pm_next_netuid = 1
 
-/*
-* Function: _InitItemRespawnQueue
-* Purpose: Allocates the bounded dropped-item mapthing/timestamp ring on first respawn-queue use.
-*/
+/// Allocates the bounded dropped-item mapthing/timestamp ring on first respawn-queue use.
+/// @internal
 function inline _InitItemRespawnQueue()
   global itemrespawnque
   global itemrespawntime
@@ -160,10 +232,10 @@ function inline _InitItemRespawnQueue()
   end if
 end function
 
-/*
-* Function: _PM_RegisterThinker
-* Purpose: Records the stable thinker-node-to-mobj association used when callbacks receive only a node.
-*/
+/// Records the stable thinker-node-to-mobj association used when callbacks receive only a node.
+/// @param node Node value supplied to `_PM_RegisterThinker`.
+/// @param owner Owner value supplied to `_PM_RegisterThinker`.
+/// @internal
 function inline _PM_RegisterThinker(node, owner)
   global _pm_thinker_nodes
   global _pm_thinker_owners
@@ -195,10 +267,9 @@ function inline _PM_RegisterThinker(node, owner)
   _pm_thinker_ids = _pm_thinker_ids +[tid]
 end function
 
-/*
-* Function: _PM_ResolveThinkerOwner
-* Purpose: Resolves either a direct mobj or its registered thinker node to the current actor owner.
-*/
+/// Resolves either a direct mobj or its registered thinker node to the current actor owner.
+/// @param node Node value supplied to `_PM_ResolveThinkerOwner`.
+/// @internal
 function inline _PM_ResolveThinkerOwner(node)
   i = len(_pm_thinker_nodes) - 1
   while i >= 0
@@ -212,10 +283,9 @@ function inline _PM_ResolveThinkerOwner(node)
   return void
 end function
 
-/*
-* Function: _PM_ResolveThinkerId
-* Purpose: Returns stable thinker registration id used for multiplayer actor mapping.
-*/
+/// Returns stable thinker registration id used for multiplayer actor mapping.
+/// @param node Node value supplied to `_PM_ResolveThinkerId`.
+/// @internal
 function inline _PM_ResolveThinkerId(node)
   i = len(_pm_thinker_nodes) - 1
   while i >= 0
@@ -230,10 +300,9 @@ function inline _PM_ResolveThinkerId(node)
   return 0
 end function
 
-/*
-* Function: _PM_UnregisterThinker
-* Purpose: Removes a thinker-node ownership entry when its mobj leaves the world.
-*/
+/// Removes a thinker-node ownership entry when its mobj leaves the world.
+/// @param node Node value supplied to `_PM_UnregisterThinker`.
+/// @internal
 function inline _PM_UnregisterThinker(node)
   global _pm_thinker_nodes
   global _pm_thinker_owners
@@ -250,10 +319,10 @@ function inline _PM_UnregisterThinker(node)
   end while
 end function
 
-/*
-* Function: _PM_IDiv
-* Purpose: Truncates actor movement quotients toward zero, returning zero for invalid operands.
-*/
+/// Truncates actor movement quotients toward zero, returning zero for invalid operands.
+/// @param a First input operand.
+/// @param b Second input operand.
+/// @internal
 function inline _PM_IDiv(a, b)
   if typeof(a) != "int" or typeof(b) != "int" or b == 0 then return 0 end if
   q = a / b
@@ -261,10 +330,10 @@ function inline _PM_IDiv(a, b)
   return std.math.ceil(q)
 end function
 
-/*
-* Function: _PM_ToInt
-* Purpose: Normalizes enum/numeric actor fields to truncating integers with a supplied fallback.
-*/
+/// Normalizes enum/numeric actor fields to truncating integers with a supplied fallback.
+/// @param v Value consumed by the operation.
+/// @param fallback Value returned when the requested conversion or lookup is unavailable.
+/// @internal
 function inline _PM_ToInt(v, fallback)
   if typeof(v) == "int" then return v end if
   if typeof(v) == "float" then
@@ -280,10 +349,9 @@ function inline _PM_ToInt(v, fallback)
   return fallback
 end function
 
-/*
-* Function: _PM_MobjTypeIndex
-* Purpose: Converts a checked mobj type enum/value to an in-range mobjinfo table index.
-*/
+/// Converts a checked mobj type enum/value to an in-range mobjinfo table index.
+/// @param v Value consumed by the operation.
+/// @internal
 function _PM_MobjTypeIndex(v)
   if typeof(v) == "int" then return v end if
 
@@ -313,10 +381,8 @@ function _PM_MobjTypeIndex(v)
   return -1
 end function
 
-/*
-* Function: _PM_AllocNetUid
-* Purpose: Allocates a positive per-mobj uid used by multiplayer replication.
-*/
+/// Allocates a positive per-mobj uid used by multiplayer replication.
+/// @internal
 function inline _PM_AllocNetUid()
   global _pm_next_netuid
   idv = _PM_ToInt(_pm_next_netuid, 1)
@@ -326,10 +392,8 @@ function inline _PM_AllocNetUid()
   return idv
 end function
 
-/*
-* Function: _Mobj_Default
-* Purpose: Constructs an unlinked inert actor whose fields satisfy mobj_t's runtime invariants.
-*/
+/// Constructs an unlinked inert actor whose fields satisfy mobj_t's runtime invariants.
+/// @internal
 function _Mobj_Default()
 
   return mobj_t(
@@ -355,10 +419,9 @@ function _Mobj_Default()
 )
 end function
 
-/*
-* Function: _PM_StateSpriteIndex
-* Purpose: Converts a state sprite enum/value to a valid sprite table index or the null sprite.
-*/
+/// Converts a state sprite enum/value to a valid sprite table index or the null sprite.
+/// @param spr Spr value supplied to `_PM_StateSpriteIndex`.
+/// @internal
 function inline _PM_StateSpriteIndex(spr)
   if typeof(spr) == "int" then return spr end if
 
@@ -375,10 +438,9 @@ function inline _PM_StateSpriteIndex(spr)
   return 0
 end function
 
-/*
-* Function: P_SetMobjState
-* Purpose: Enters a state, runs its action, and follows zero-tic transitions until a timed or null state.
-*/
+/// Enters a state, runs its action, and follows zero-tic transitions until a timed or null state.
+/// @param mobj Map object affected by the operation.
+/// @param state Subsystem state read or updated by the operation.
 function P_SetMobjState(mobj, state)
   if mobj is void then return false end if
 
@@ -463,10 +525,11 @@ function P_SetMobjState(mobj, state)
   return true
 end function
 
-/*
-* Function: P_SpawnMobj
-* Purpose: Instantiates an actor from mobjinfo, links it spatially, and registers its thinker ownership.
-*/
+/// Instantiates an actor from mobjinfo, links it spatially, and registers its thinker ownership.
+/// @param x Horizontal map- or screen-space coordinate.
+/// @param y Vertical map- or screen-space coordinate.
+/// @param z Vertical world-space coordinate.
+/// @param type Type value supplied to `P_SpawnMobj`.
 function P_SpawnMobj(x, y, z, type)
   _InitItemRespawnQueue()
 
@@ -549,10 +612,8 @@ function P_SpawnMobj(x, y, z, type)
   return mo
 end function
 
-/*
-* Function: P_ExplodeMissile
-* Purpose: Stops missile momentum, enters its death state, removes missile solidity, and plays its death cue.
-*/
+/// Stops missile momentum, enters its death state, removes missile solidity, and plays its death cue.
+/// @param mo Map object affected by the operation.
 function P_ExplodeMissile(mo)
   if mo is void then return end if
 
@@ -573,10 +634,8 @@ function P_ExplodeMissile(mo)
   end if
 end function
 
-/*
-* Function: P_CheckMissileSpawn
-* Purpose: Advances a new missile half a tic and explodes it immediately if its initial position is blocked.
-*/
+/// Advances a new missile half a tic and explodes it immediately if its initial position is blocked.
+/// @param th Th value supplied to `P_CheckMissileSpawn`.
 function P_CheckMissileSpawn(th)
   if th is void then return end if
 
@@ -595,10 +654,10 @@ function P_CheckMissileSpawn(th)
   end if
 end function
 
-/*
-* Function: P_SpawnMissile
-* Purpose: Aims a projectile from source to destination, sets owner/momentum, and validates its first step.
-*/
+/// Aims a projectile from source to destination, sets owner/momentum, and validates its first step.
+/// @param source Source value or buffer.
+/// @param dest Dest value supplied to `P_SpawnMissile`.
+/// @param type Type value supplied to `P_SpawnMissile`.
 function P_SpawnMissile(source, dest, type)
   if source is void or dest is void then return void end if
   if typeof(finecosine) != "array" or typeof(finesine) != "array" then return void end if
@@ -646,10 +705,9 @@ function P_SpawnMissile(source, dest, type)
   return th
 end function
 
-/*
-* Function: P_SpawnPlayerMissile
-* Purpose: Auto-aims a player projectile across fallback angles before spawning and validating it.
-*/
+/// Auto-aims a player projectile across fallback angles before spawning and validating it.
+/// @param source Source value or buffer.
+/// @param type Type value supplied to `P_SpawnPlayerMissile`.
 function P_SpawnPlayerMissile(source, type)
   global linetarget
 
@@ -708,10 +766,8 @@ function P_SpawnPlayerMissile(source, type)
   return th
 end function
 
-/*
-* Function: _PM_EnsurePlayerSlots
-* Purpose: Extends player and in-game arrays to MAXPLAYERS before mapthing-driven spawn access.
-*/
+/// Extends player and in-game arrays to MAXPLAYERS before mapthing-driven spawn access.
+/// @internal
 function _PM_EnsurePlayerSlots()
   global players
   global playerstarts
@@ -741,10 +797,8 @@ function _PM_EnsurePlayerSlots()
   end if
 end function
 
-/*
-* Function: P_SpawnPlayer
-* Purpose: Converts a player start mapthing into a live pawn and attaches view, health, and reborn state.
-*/
+/// Converts a player start mapthing into a live pawn and attaches view, health, and reborn state.
+/// @param mthing Mthing value supplied to `P_SpawnPlayer`.
 function P_SpawnPlayer(mthing)
   global players
 
@@ -828,10 +882,8 @@ function P_SpawnPlayer(mthing)
   end if
 end function
 
-/*
-* Function: P_SpawnMapThing
-* Purpose: Filters a mapthing by player/skill/type rules, then spawns its actor and map-derived flags.
-*/
+/// Filters a mapthing by player/skill/type rules, then spawns its actor and map-derived flags.
+/// @param mthing Mthing value supplied to `P_SpawnMapThing`.
 function P_SpawnMapThing(mthing)
   global deathmatch_p
   global deathmatchstarts
@@ -929,10 +981,8 @@ function P_SpawnMapThing(mthing)
   end if
 end function
 
-/*
-* Function: P_RemoveMobj
-* Purpose: Queues eligible specials for respawn, unlinks the actor, and unregisters its thinker safely.
-*/
+/// Queues eligible specials for respawn, unlinks the actor, and unregisters its thinker safely.
+/// @param th Th value supplied to `P_RemoveMobj`.
 function P_RemoveMobj(th)
   if th is void then return end if
 
@@ -961,13 +1011,13 @@ function P_RemoveMobj(th)
   end if
 end function
 
+/// Defines stopspeed for the p mobj subsystem.
 const STOPSPEED = 0x1000
+/// Defines friction for the p mobj subsystem.
 const FRICTION = 0xe800
 
-/*
-* Function: P_XYMovement
-* Purpose: Applies bounded XY momentum through collision/slide logic, then friction for grounded actors.
-*/
+/// Applies bounded XY momentum through collision/slide logic, then friction for grounded actors.
+/// @param mo Map object affected by the operation.
 function P_XYMovement(mo)
   if mo is void then return end if
 
@@ -1075,10 +1125,8 @@ function P_XYMovement(mo)
   end if
 end function
 
-/*
-* Function: P_ZMovement
-* Purpose: Integrates vertical momentum, gravity, floor/ceiling impacts, bouncing skulls, and missile explosions.
-*/
+/// Integrates vertical momentum, gravity, floor/ceiling impacts, bouncing skulls, and missile explosions.
+/// @param mo Map object affected by the operation.
 function P_ZMovement(mo)
   if mo is void then return end if
 
@@ -1144,10 +1192,8 @@ function P_ZMovement(mo)
   end if
 end function
 
-/*
-* Function: P_NightmareRespawn
-* Purpose: Recreates a killed monster at its original spawn point with teleport fog and reaction delay.
-*/
+/// Recreates a killed monster at its original spawn point with teleport fog and reaction delay.
+/// @param mobj Map object affected by the operation.
 function P_NightmareRespawn(mobj)
   if mobj is void then return end if
 
@@ -1193,10 +1239,10 @@ function P_NightmareRespawn(mobj)
   P_RemoveMobj(mobj)
 end function
 
-/*
-* Function: P_SpawnPuff
-* Purpose: Spawns a randomized-height bullet puff and selects its melee-safe animation variant.
-*/
+/// Spawns a randomized-height bullet puff and selects its melee-safe animation variant.
+/// @param x Horizontal map- or screen-space coordinate.
+/// @param y Vertical map- or screen-space coordinate.
+/// @param z Vertical world-space coordinate.
 function P_SpawnPuff(x, y, z)
   z = z +((P_Random() - P_Random()) << 10)
 
@@ -1212,10 +1258,11 @@ function P_SpawnPuff(x, y, z)
   end if
 end function
 
-/*
-* Function: P_SpawnBlood
-* Purpose: Spawns a randomized blood spray and selects its damage-scaled animation state.
-*/
+/// Spawns a randomized blood spray and selects its damage-scaled animation state.
+/// @param x Horizontal map- or screen-space coordinate.
+/// @param y Vertical map- or screen-space coordinate.
+/// @param z Vertical world-space coordinate.
+/// @param damage Damage value supplied to `P_SpawnBlood`.
 function P_SpawnBlood(x, y, z, damage)
   z = z +((P_Random() - P_Random()) << 10)
 
@@ -1233,10 +1280,8 @@ function P_SpawnBlood(x, y, z, damage)
   end if
 end function
 
-/*
-* Function: P_MobjThinker
-* Purpose: Advances one actor's movement/state timer and triggers nightmare respawn when eligible.
-*/
+/// Advances one actor's movement/state timer and triggers nightmare respawn when eligible.
+/// @param mo Map object affected by the operation.
 function P_MobjThinker(mo)
   if mo is void then return end if
   owner = _PM_ResolveThinkerOwner(mo)
@@ -1296,10 +1341,7 @@ function P_MobjThinker(mo)
   end if
 end function
 
-/*
-* Function: P_RespawnSpecials
-* Purpose: Respawns one queued pickup after its delay when the destination is unoccupied.
-*/
+/// Respawns one queued pickup after its delay when the destination is unoccupied.
 function P_RespawnSpecials()
   dm = deathmatch
   if typeof(dm) != "int" then dm = 0 end if

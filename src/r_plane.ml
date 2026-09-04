@@ -13,9 +13,11 @@
   See the License for the specific language governing permissions and
   limitations under the License.
 
-  Script: r_plane.ml
-  Purpose: Aggregates visible floor, ceiling, and sky regions into visplanes and rasterizes their horizontal spans or sky columns.
 */
+
+//! Aggregates visible floor, ceiling, and sky regions into visplanes and rasterizes their horizontal spans or
+//! sky columns.
+
 import r_data
 import i_system
 import z_zone
@@ -29,50 +31,87 @@ import r_upscaled
 import r_hires
 import std.math
 
+/// Holds the optional lastopening resource used by the r plane subsystem.
 lastopening = void
 
+/// Holds the optional floorfunc resource used by the r plane subsystem.
 floorfunc = void
+/// Holds the optional ceilingfunc t resource used by the r plane subsystem.
 ceilingfunc_t = void
 
+/// Stores the floorclip collection used by the r plane subsystem.
 floorclip =[]
+/// Stores the ceilingclip collection used by the r plane subsystem.
 ceilingclip =[]
 
+/// Stores the yslope collection used by the r plane subsystem.
 yslope =[]
+/// Stores the distscale collection used by the r plane subsystem.
 distscale =[]
 
+/// Defines the maximum maxvisplanes accepted by the r plane subsystem.
 const MAXVISPLANES = 128
+/// Defines the maximum maxopenings accepted by the r plane subsystem.
 const MAXOPENINGS = SCREENWIDTH * 64
+/// Defines the maximum rp maxvisplanes hard accepted by the r plane subsystem.
 const RP_MAXVISPLANES_HARD = 4096
+/// Defines rp span sentinel for the r plane subsystem.
 const RP_SPAN_SENTINEL = 2147483647
 
+/// Stores the openings collection used by the r plane subsystem.
 openings =[]
+/// Stores the visplanes collection used by the r plane subsystem.
 visplanes =[]
+/// Tracks the mutable visplanes last value used by the r plane subsystem.
 visplanes_last = 0
+/// Holds the optional rp default colormap resource used by the r plane subsystem.
+/// @internal
 _rp_default_colormap = void
 
+/// Holds the optional planezlight resource used by the r plane subsystem.
 planezlight = void
+/// Tracks the mutable planeheight value used by the r plane subsystem.
 planeheight = 0
+/// Tracks the mutable basexscale value used by the r plane subsystem.
 basexscale = 0
+/// Tracks the mutable baseyscale value used by the r plane subsystem.
 baseyscale = 0
 
+/// Holds the optional floorplane resource used by the r plane subsystem.
 floorplane = void
+/// Holds the optional ceilingplane resource used by the r plane subsystem.
 ceilingplane = void
 
+/// Stores the spanstart collection used by the r plane subsystem.
 spanstart =[]
+/// Stores the spanstop collection used by the r plane subsystem.
 spanstop =[]
+/// Stores the cachedheight collection used by the r plane subsystem.
 cachedheight =[]
+/// Stores the cacheddistance collection used by the r plane subsystem.
 cacheddistance =[]
+/// Stores the cachedxstep collection used by the r plane subsystem.
 cachedxstep =[]
+/// Stores the cachedystep collection used by the r plane subsystem.
 cachedystep =[]
+/// Tracks the mutable rp prof visplanes total value used by the r plane subsystem.
+/// @internal
 _rp_prof_visplanes_total = 0
+/// Tracks the mutable rp prof visplanes sky value used by the r plane subsystem.
+/// @internal
 _rp_prof_visplanes_sky = 0
+/// Tracks the mutable rp prof visplanes flat value used by the r plane subsystem.
+/// @internal
 _rp_prof_visplanes_flat = 0
+/// Tracks the mutable rp prof mapplane calls value used by the r plane subsystem.
+/// @internal
 _rp_prof_mapplane_calls = 0
 
-/*
-* Function: _RP_IDiv
-* Purpose: Returns a signed quotient truncated toward zero, or zero for invalid operands and a zero divisor.
-*/
+/// Returns a signed quotient truncated toward zero, or zero for invalid operands and a zero divisor in
+/// `_RP_IDiv`
+/// @param a First input operand.
+/// @param b Second input operand.
+/// @internal
 function inline _RP_IDiv(a, b)
   if typeof(a) != "int" or typeof(b) != "int" or b == 0 then return 0 end if
   q = a / b
@@ -80,10 +119,11 @@ function inline _RP_IDiv(a, b)
   return std.math.ceil(q)
 end function
 
-/*
-* Function: _RP_I
-* Purpose: Coerces numeric values to truncation-toward-zero integers and returns a caller fallback on conversion failure.
-*/
+/// Coerces numeric values to truncation-toward-zero integers and returns a caller fallback on conversion
+/// failure.
+/// @param v Value consumed by the operation.
+/// @param fallback Value returned when the requested conversion or lookup is unavailable.
+/// @internal
 function inline _RP_I(v, fallback)
   if typeof(v) == "int" then return v end if
   if typeof(v) == "float" then
@@ -99,38 +139,35 @@ function inline _RP_I(v, fallback)
   return fallback
 end function
 
-/*
-* Function: _RP_Abs
-* Purpose: Returns the non-negative integer magnitude of a possibly non-integer plane value.
-*/
+/// Returns the non-negative integer magnitude of a possibly non-integer plane value.
+/// @param v Value consumed by the operation.
+/// @internal
 function inline _RP_Abs(v)
   vi = _RP_I(v, 0)
   if vi < 0 then return - vi end if
   return vi
 end function
 
-/*
-* Function: _RP_IsSeq
-* Purpose: Recognizes both array and list containers accepted by plane tables and geometry records.
-*/
+/// Recognizes both array and list containers accepted by plane tables and geometry records.
+/// @param v Value consumed by the operation.
+/// @internal
 function inline _RP_IsSeq(v)
   t = typeof(v)
   return t == "array" or t == "list"
 end function
 
-/*
-* Function: _RP_AngNorm
-* Purpose: Normalizes a coerced angle to Doom's unsigned 32-bit binary-angle domain.
-*/
+/// Normalizes a coerced angle to Doom's unsigned 32-bit binary-angle domain.
+/// @param a First input operand.
+/// @internal
 function inline _RP_AngNorm(a)
   ai = _RP_I(a, 0)
   return ai & 0xFFFFFFFF
 end function
 
-/*
-* Function: _RP_FineAt
-* Purpose: Samples a fine-angle lookup table with wraparound and returns zero when the table is unavailable.
-*/
+/// Samples a fine-angle lookup table with wraparound and returns zero when the table is unavailable.
+/// @param tab Tab value supplied to `_RP_FineAt`.
+/// @param idx Zero-based element or table index.
+/// @internal
 function inline _RP_FineAt(tab, idx)
   if not _RP_IsSeq(tab) or len(tab) == 0 then return 0 end if
   if typeof(idx) != "int" then idx = 0 end if
@@ -142,10 +179,9 @@ function inline _RP_FineAt(tab, idx)
   return tab[idx]
 end function
 
-/*
-* Function: _RP_DefaultColorMap
-* Purpose: Caches the first 256-byte colormap for unlit sky columns, falling back to a zeroed map when assets are absent.
-*/
+/// Caches the first 256-byte colormap for unlit sky columns, falling back to a zeroed map when assets are
+/// absent.
+/// @internal
 function inline _RP_DefaultColorMap()
   global _rp_default_colormap
 
@@ -162,37 +198,33 @@ function inline _RP_DefaultColorMap()
   return _rp_default_colormap
 end function
 
-/*
-* Function: _RP_TargetWidth
-* Purpose: Returns active world render width.
-*/
+/// Returns active world render width.
+/// @internal
 function inline _RP_TargetWidth()
   if typeof(RH_IsActive) == "function" and RH_IsActive() then return RH_Width() end if
   return SCREENWIDTH
 end function
 
-/*
-* Function: _RP_TargetHeight
-* Purpose: Returns active world render height.
-*/
+/// Returns active world render height.
+/// @internal
 function inline _RP_TargetHeight()
   if typeof(RH_IsActive) == "function" and RH_IsActive() then return RH_Height() end if
   return SCREENHEIGHT
 end function
 
-/*
-* Function: _RP_NewPlane
-* Purpose: Constructs an unused visplane with target-width top/bottom arrays and sentinel horizontal bounds.
-*/
+/// Constructs an unused visplane with target-width top/bottom arrays and sentinel horizontal bounds.
+/// @param height Height of the target in pixels or map units.
+/// @param picnum Index identifying pic.
+/// @param lightlevel Lightlevel value supplied to `_RP_NewPlane`.
+/// @internal
 function inline _RP_NewPlane(height, picnum, lightlevel)
   w = _RP_TargetWidth()
   return visplane_t(height, picnum, lightlevel, w, -1, array(w, RP_SPAN_SENTINEL), array(w, 0))
 end function
 
-/*
-* Function: _RP_EnsurePlaneCapacity
-* Purpose: Geometrically grows reusable visplane storage up to a hard safety limit and initializes every new slot.
-*/
+/// Geometrically grows reusable visplane storage up to a hard safety limit and initializes every new slot.
+/// @param needIndex Index identifying need.
+/// @internal
 function _RP_EnsurePlaneCapacity(needIndex)
   global visplanes
 
@@ -222,10 +254,14 @@ function _RP_EnsurePlaneCapacity(needIndex)
   return needIndex < len(visplanes)
 end function
 
-/*
-* Function: _RP_ResetPlane
-* Purpose: Recycles a visplane for new height, texture, and light keys while clearing every covered-column marker.
-*/
+/// Recycles a visplane for new height, texture, and light keys while clearing every covered-column marker.
+/// @param pl Pl value supplied to `_RP_ResetPlane`.
+/// @param height Height of the target in pixels or map units.
+/// @param picnum Index identifying pic.
+/// @param lightlevel Lightlevel value supplied to `_RP_ResetPlane`.
+/// @param minx Minx value supplied to `_RP_ResetPlane`.
+/// @param maxx Maxx value supplied to `_RP_ResetPlane`.
+/// @internal
 function _RP_ResetPlane(pl, height, picnum, lightlevel, minx, maxx)
   if pl is void then return end if
 
@@ -257,10 +293,8 @@ function _RP_ResetPlane(pl, height, picnum, lightlevel, minx, maxx)
   end if
 end function
 
-/*
-* Function: _RP_RecomputeSlopeTables
-* Purpose: Rebuilds row distance slopes and per-column perspective correction factors for the active view geometry.
-*/
+/// Rebuilds row distance slopes and per-column perspective correction factors for the active view geometry.
+/// @internal
 function _RP_RecomputeSlopeTables()
   global viewheight
   global viewwidth
@@ -295,10 +329,8 @@ function _RP_RecomputeSlopeTables()
   end while
 end function
 
-/*
-* Function: R_InitPlanes
-* Purpose: Sizes clipping, slope, span, opening, cache, and visplane workspaces for the active logical or HD render target.
-*/
+/// Sizes clipping, slope, span, opening, cache, and visplane workspaces for the active logical or HD render
+/// target.
 function R_InitPlanes()
   global floorclip
   global ceilingclip
@@ -353,10 +385,8 @@ function R_InitPlanes()
   _rp_default_colormap = void
 end function
 
-/*
-* Function: R_ClearPlanes
-* Purpose: Resets per-column floor/ceiling clips and visplane allocation, invalidates row caches, and derives view-relative texture scales.
-*/
+/// Resets per-column floor/ceiling clips and visplane allocation, invalidates row caches, and derives
+/// view-relative texture scales.
 function R_ClearPlanes()
   global visplanes_last
   global lastopening
@@ -401,10 +431,11 @@ function R_ClearPlanes()
   end if
 end function
 
-/*
-* Function: R_MapPlane
-* Purpose: Derives perspective distance, texture stepping, origin, and lighting for one horizontal plane span before rasterization.
-*/
+/// Derives perspective distance, texture stepping, origin, and lighting for one horizontal plane span before
+/// rasterization.
+/// @param y Vertical map- or screen-space coordinate.
+/// @param x1 Horizontal coordinate of the first endpoint.
+/// @param x2 Horizontal coordinate of the second endpoint.
 function R_MapPlane(y, x1, x2)
   global ds_xstep
   global ds_ystep
@@ -484,10 +515,13 @@ function R_MapPlane(y, x1, x2)
   end if
 end function
 
-/*
-* Function: R_MakeSpans
-* Purpose: Compares adjacent visplane column bounds, closes rows that ended, and records starting columns for newly opened rows.
-*/
+/// Compares adjacent visplane column bounds, closes rows that ended, and records starting columns for newly
+/// opened rows.
+/// @param x Horizontal map- or screen-space coordinate.
+/// @param t1 T1 value supplied to `R_MakeSpans`.
+/// @param b1 B1 value supplied to `R_MakeSpans`.
+/// @param t2 T2 value supplied to `R_MakeSpans`.
+/// @param b2 B2 value supplied to `R_MakeSpans`.
 function R_MakeSpans(x, t1, b1, t2, b2)
   while t1 < t2 and t1 <= b1
     if t1 >= 0 and t1 < len(spanstart) then
@@ -514,10 +548,9 @@ function R_MakeSpans(x, t1, b1, t2, b2)
   end while
 end function
 
-/*
-* Function: _RP_DrawVisplanes
-* Purpose: Rasterizes queued sky visplanes as vertical texture columns and ordinary flats as lit horizontal spans, updating profile counts.
-*/
+/// Rasterizes queued sky visplanes as vertical texture columns and ordinary flats as lit horizontal spans,
+/// updating profile counts.
+/// @internal
 function _RP_DrawVisplanes()
   global dc_iscale
   global dc_colormap
@@ -652,18 +685,16 @@ function _RP_DrawVisplanes()
   return drew
 end function
 
-/*
-* Function: R_DrawPlanes
-* Purpose: Executes the queued visplane rasterization pass after wall clipping has finalized visible column bounds.
-*/
+/// Executes the queued visplane rasterization pass after wall clipping has finalized visible column bounds.
 function R_DrawPlanes()
   _RP_DrawVisplanes()
 end function
 
-/*
-* Function: R_FindPlane
-* Purpose: Reuses a visplane with matching height, texture, and light keys or allocates a cleared entry for a new region.
-*/
+/// Reuses a visplane with matching height, texture, and light keys or allocates a cleared entry for a new
+/// region.
+/// @param height Height of the target in pixels or map units.
+/// @param picnum Index identifying pic.
+/// @param lightlevel Lightlevel value supplied to `R_FindPlane`.
 function R_FindPlane(height, picnum, lightlevel)
   global visplanes
   global visplanes_last
@@ -693,10 +724,11 @@ function R_FindPlane(height, picnum, lightlevel)
   return pl
 end function
 
-/*
-* Function: R_CheckPlane
-* Purpose: Extends a visplane across unused columns or splits it into a duplicate when the requested range overlaps existing spans.
-*/
+/// Extends a visplane across unused columns or splits it into a duplicate when the requested range overlaps
+/// existing spans.
+/// @param pl Pl value supplied to `R_CheckPlane`.
+/// @param start Start value supplied to `R_CheckPlane`.
+/// @param stop Stop value supplied to `R_CheckPlane`.
 function R_CheckPlane(pl, start, stop)
   global visplanes
   global visplanes_last

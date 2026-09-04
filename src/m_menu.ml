@@ -13,9 +13,10 @@
   See the License for the specific language governing permissions and
   limitations under the License.
 
-  Script: m_menu.ml
-  Purpose: Implements Doom menus plus shared interactive/CLI multiplayer session startup.
 */
+
+//! Implements Doom menus plus shared interactive/CLI multiplayer session startup.
+
 import d_event
 import doomdef
 import dstrings
@@ -39,38 +40,42 @@ import mp_platform
 
 import std.fs as fs
 
+/// Defines savestringsize for the m menu subsystem.
 const SAVESTRINGSIZE = 24
 
+/// Defines skullxoff for the m menu subsystem.
 const SKULLXOFF = -32
+/// Defines lineheight for the m menu subsystem.
 const LINEHEIGHT = 16
 
+/// Defines ch space for the m menu subsystem.
 const CH_SPACE = 32
+/// Defines ch n for the m menu subsystem.
 const CH_N = 110
+/// Defines ch y for the m menu subsystem.
 const CH_Y = 121
 
-/*
-* Function: _min
-* Purpose: Returns the lower of two menu-layout coordinates.
-*/
+/// Returns the lower of two menu-layout coordinates.
+/// @param a First input operand.
+/// @param b Second input operand.
+/// @internal
 function inline _min(a, b)
   if a < b then return a end if
   return b
 end function
 
-/*
-* Function: _toupperByte
-* Purpose: Converts toupper Byte text to the required case for menu lookups.
-*/
+/// Converts toupper Byte text to the required case for menu lookups.
+/// @param c C value supplied to `_toupperByte`.
+/// @internal
 function inline _toupperByte(c)
 
   if c >= 97 and c <= 122 then return c - 32 end if
   return c
 end function
 
-/*
-* Function: _bytesOf
-* Purpose: Normalizes patch/text inputs to a byte sequence for legacy menu helpers.
-*/
+/// Normalizes patch/text inputs to a byte sequence for legacy menu helpers.
+/// @param x Horizontal map- or screen-space coordinate.
+/// @internal
 function inline _bytesOf(x)
   if typeof(x) == "bytes" then return x end if
   if typeof(x) == "string" then return bytes(x) end if
@@ -78,10 +83,10 @@ function inline _bytesOf(x)
   return bytes("")
 end function
 
-/*
-* Function: _MMENU_IDiv
-* Purpose: Truncates menu layout quotients toward zero and safely maps a zero divisor to zero.
-*/
+/// Truncates menu layout quotients toward zero and safely maps a zero divisor to zero.
+/// @param a First input operand.
+/// @param b Second input operand.
+/// @internal
 function inline _MMENU_IDiv(a, b)
   if typeof(a) != "int" or typeof(b) != "int" or b == 0 then return 0 end if
   q = a / b
@@ -89,10 +94,10 @@ function inline _MMENU_IDiv(a, b)
   return std.math.ceil(q)
 end function
 
-/*
-* Function: _MMENU_ToInt
-* Purpose: Converts values to integers with fallback handling.
-*/
+/// Converts values to integers with fallback handling.
+/// @param v Value consumed by the operation.
+/// @param fallback Value returned when the requested conversion or lookup is unavailable.
+/// @internal
 function _MMENU_ToInt(v, fallback)
   if typeof(v) == "int" then return v end if
   if typeof(v) == "float" then
@@ -108,10 +113,9 @@ function _MMENU_ToInt(v, fallback)
   return fallback
 end function
 
-/*
-* Function: _MMENU_ItemCount
-* Purpose: Reads a non-negative item count from a possibly uninitialized menu definition.
-*/
+/// Reads a non-negative item count from a possibly uninitialized menu definition.
+/// @param menu Menu value supplied to `_MMENU_ItemCount`.
+/// @internal
 function inline _MMENU_ItemCount(menu)
   if menu is void or menu == 0 then return 0 end if
   n = 0
@@ -124,10 +128,8 @@ function inline _MMENU_ItemCount(menu)
   return n
 end function
 
-/*
-* Function: _MMENU_ClampCursor
-* Purpose: Keeps the selected row inside the current menu and advances past disabled entries.
-*/
+/// Keeps the selected row inside the current menu and advances past disabled entries.
+/// @internal
 function _MMENU_ClampCursor()
   global currentMenu
   global itemOn
@@ -147,10 +149,9 @@ function _MMENU_ClampCursor()
   return n
 end function
 
-/*
-* Function: _patchWidth
-* Purpose: Reads a cached patch width without assuming the resource decoded successfully.
-*/
+/// Reads a cached patch width without assuming the resource decoded successfully.
+/// @param patch Patch value supplied to `_patchWidth`.
+/// @internal
 function inline _patchWidth(patch)
   if typeof(patch) != "bytes" then return 0 end if
   v = patch[0] +(patch[1] << 8)
@@ -158,10 +159,9 @@ function inline _patchWidth(patch)
   return v
 end function
 
-/*
-* Function: _patchHeight
-* Purpose: Reads a cached patch height without assuming the resource decoded successfully.
-*/
+/// Reads a cached patch height without assuming the resource decoded successfully.
+/// @param patch Patch value supplied to `_patchHeight`.
+/// @internal
 function inline _patchHeight(patch)
   if typeof(patch) != "bytes" then return 0 end if
   v = patch[2] +(patch[3] << 8)
@@ -169,10 +169,9 @@ function inline _patchHeight(patch)
   return v
 end function
 
-/*
-* Function: _cstrClear
-* Purpose: Clears cstr Clear state before the next menu update.
-*/
+/// Clears cstr Clear state before the next menu update.
+/// @param buf Buf value supplied to `_cstrClear`.
+/// @internal
 function _cstrClear(buf)
   if typeof(buf) != "bytes" then return end if
   for i = 0 to len(buf) - 1
@@ -180,10 +179,9 @@ function _cstrClear(buf)
   end for
 end function
 
-/*
-* Function: _cstrLen
-* Purpose: Counts bytes up to the first terminator in a fixed-size editable C string.
-*/
+/// Counts bytes up to the first terminator in a fixed-size editable C string.
+/// @param buf Buf value supplied to `_cstrLen`.
+/// @internal
 function _cstrLen(buf)
   if typeof(buf) != "bytes" then return 0 end if
   i = 0
@@ -193,10 +191,10 @@ function _cstrLen(buf)
   return i
 end function
 
-/*
-* Function: _cstrFromString
-* Purpose: Copies a MiniLang string into a bounded zero-terminated menu edit buffer.
-*/
+/// Copies a MiniLang string into a bounded zero-terminated menu edit buffer.
+/// @param buf Buf value supplied to `_cstrFromString`.
+/// @param s S value supplied to `_cstrFromString`.
+/// @internal
 function _cstrFromString(buf, s)
   if typeof(buf) != "bytes" then return end if
   _cstrClear(buf)
@@ -208,10 +206,10 @@ function _cstrFromString(buf, s)
   if len(buf) > 0 then buf[n] = 0 end if
 end function
 
-/*
-* Function: _cstrCopy
-* Purpose: Copies one bounded zero-terminated edit buffer without leaking stale suffix bytes.
-*/
+/// Copies one bounded zero-terminated edit buffer without leaking stale suffix bytes.
+/// @param dst Dst value supplied to `_cstrCopy`.
+/// @param src Src value supplied to `_cstrCopy`.
+/// @internal
 function _cstrCopy(dst, src)
   if typeof(dst) != "bytes" or typeof(src) != "bytes" then return end if
   _cstrClear(dst)
@@ -222,19 +220,19 @@ function _cstrCopy(dst, src)
   if len(dst) > 0 then dst[n] = 0 end if
 end function
 
-/*
-* Function: _cstrEqString
-* Purpose: Compares a zero-terminated menu buffer with an immutable string value.
-*/
+/// Compares a zero-terminated menu buffer with an immutable string value.
+/// @param buf Buf value supplied to `_cstrEqString`.
+/// @param s S value supplied to `_cstrEqString`.
+/// @internal
 function inline _cstrEqString(buf, s)
   if typeof(buf) != "bytes" then return false end if
   return decodeZ(buf) == s
 end function
 
-/*
-* Function: _fmt1
-* Purpose: Formats one integer as a single printable decimal character for save/menu labels.
-*/
+/// Formats one integer as a single printable decimal character for save/menu labels.
+/// @param fmt Fmt value supplied to `_fmt1`.
+/// @param arg Arg value supplied to `_fmt1`.
+/// @internal
 function _fmt1(fmt, arg)
 
   if typeof(fmt) != "string" then return "" end if
@@ -278,207 +276,343 @@ function _fmt1(fmt, arg)
   return decode(outBytes)
 end function
 
-/*
-* Struct: menuitem_t
-* Purpose: Describes one menu row's activation mode, patch label, callback, and shortcut key.
-*/
+/// Describes one menu row's activation mode, patch label, callback, and shortcut key.
 struct menuitem_t
+  /// Stores status for `menuitem_t`
   status
+  /// Stable resource or object name stored by `menuitem_t`
   name
+  /// Stores routine for `menuitem_t`
   routine
+  /// Stores alpha key for `menuitem_t`
   alphaKey
 end struct
 
-/*
-* Struct: menu_t
-* Purpose: Defines a menu page, parent navigation, drawing callback, origin, and remembered selection.
-*/
+/// Defines a menu page, parent navigation, drawing callback, origin, and remembered selection.
 struct menu_t
+  /// Stores numitems for `menu_t`
   numitems
+  /// Stores prev menu for `menu_t`
   prevMenu
+  /// Stores menuitems for `menu_t`
   menuitems
+  /// Stores routine for `menu_t`
   routine
+  /// Horizontal map- or screen-space coordinate stored by `menu_t`
   x
+  /// Vertical map- or screen-space coordinate stored by `menu_t`
   y
+  /// Stores last on for `menu_t`
   lastOn
 end struct
 
-/*
-* Function: _MI
-* Purpose: Constructs one menuitem_t while keeping table declarations concise.
-*/
+/// Constructs one menuitem_t while keeping table declarations concise.
+/// @param status Status value supplied to `_MI`.
+/// @param name Resource or object name to resolve.
+/// @param routine Routine value supplied to `_MI`.
+/// @param alphaKey Alpha key value supplied to `_MI`.
+/// @internal
 function inline _MI(status, name, routine, alphaKey)
   return menuitem_t(status, name, routine, alphaKey)
 end function
 
-/*
-* Function: _Menu
-* Purpose: Constructs one menu_t and records its initial cursor position.
-*/
+/// Constructs one menu_t and records its initial cursor position.
+/// @param numitems Numitems value supplied to `_Menu`.
+/// @param prevMenu Prev menu value supplied to `_Menu`.
+/// @param menuitems Menuitems value supplied to `_Menu`.
+/// @param routine Routine value supplied to `_Menu`.
+/// @param x Horizontal map- or screen-space coordinate.
+/// @param y Vertical map- or screen-space coordinate.
+/// @param lastOn Last on value supplied to `_Menu`.
+/// @internal
 function inline _Menu(numitems, prevMenu, menuitems, routine, x, y, lastOn)
   return menu_t(numitems, prevMenu, menuitems, routine, x, y, lastOn)
 end function
 
+/// Tracks the mutable mouse sensitivity value used by the m menu subsystem.
 mouseSensitivity = 5
+/// Tracks the mutable show messages value used by the m menu subsystem.
 showMessages = 1
 
+/// Tracks the mutable detail level value used by the m menu subsystem.
 detailLevel = 0
+/// Tracks the mutable screenblocks value used by the m menu subsystem.
 screenblocks = 10
+/// Tracks the mutable screen size value used by the m menu subsystem.
 screenSize = 0
+/// Tracks the mutable quick save slot value used by the m menu subsystem.
 quickSaveSlot = -1
 
+/// Tracks the mutable message to print value used by the m menu subsystem.
 messageToPrint = 0
+/// Stores the mutable message string text used by the m menu subsystem.
 messageString = ""
+/// Tracks the mutable messx value used by the m menu subsystem.
 messx = 0
+/// Tracks the mutable messy value used by the m menu subsystem.
 messy = 0
+/// Tracks whether message last menu active is active in the m menu subsystem.
 messageLastMenuActive = false
+/// Tracks whether message needs input is active in the m menu subsystem.
 messageNeedsInput = false
+/// Tracks the mutable message routine value used by the m menu subsystem.
 messageRoutine = 0
 
+/// Stores the gammamsg collection used by the m menu subsystem.
 gammamsg =[GAMMALVL0, GAMMALVL1, GAMMALVL2, GAMMALVL3, GAMMALVL4]
 
+/// Tracks the mutable save string enter value used by the m menu subsystem.
 saveStringEnter = 0
+/// Tracks the mutable save slot value used by the m menu subsystem.
 saveSlot = 0
+/// Tracks the mutable save char index value used by the m menu subsystem.
 saveCharIndex = 0
+/// Tracks the mutable save old string value used by the m menu subsystem.
 saveOldString = 0
+/// Tracks the mutable savegamestrings value used by the m menu subsystem.
 savegamestrings = 0
 
+/// Tracks whether inhelpscreens is active in the m menu subsystem.
 inhelpscreens = false
+/// Tracks whether menuactive is active in the m menu subsystem.
 menuactive = false
 
+/// Tracks the mutable item on value used by the m menu subsystem.
 itemOn = 0
+/// Tracks the mutable skull anim counter value used by the m menu subsystem.
 skullAnimCounter = 0
+/// Tracks the mutable which skull value used by the m menu subsystem.
 whichSkull = 0
+/// Stores the skull name collection used by the m menu subsystem.
 skullName =["M_SKULL1", "M_SKULL2"]
 
+/// Tracks the mutable current menu value used by the m menu subsystem.
 currentMenu = 0
 
+/// Stores the mutable endstring text used by the m menu subsystem.
 endstring = ""
+/// Stores the mutable tempstring text used by the m menu subsystem.
 tempstring = ""
 
+/// Tracks the mutable main menu value used by the m menu subsystem.
 MainMenu = 0
+/// Tracks the mutable main def value used by the m menu subsystem.
 MainDef = 0
+/// Tracks the mutable multiplayer menu value used by the m menu subsystem.
 MultiplayerMenu = 0
+/// Tracks the mutable multiplayer def value used by the m menu subsystem.
 MultiplayerDef = 0
+/// Tracks the mutable mphost menu value used by the m menu subsystem.
 MPHostMenu = 0
+/// Tracks the mutable mphost def value used by the m menu subsystem.
 MPHostDef = 0
+/// Tracks the mutable mpjoin menu value used by the m menu subsystem.
 MPJoinMenu = 0
+/// Tracks the mutable mpjoin def value used by the m menu subsystem.
 MPJoinDef = 0
+/// Tracks the mutable mpname menu value used by the m menu subsystem.
 MPNameMenu = 0
+/// Tracks the mutable mpname def value used by the m menu subsystem.
 MPNameDef = 0
 
+/// Tracks the mutable episode menu value used by the m menu subsystem.
 EpisodeMenu = 0
+/// Tracks the mutable epi def value used by the m menu subsystem.
 EpiDef = 0
 
+/// Tracks the mutable new game menu value used by the m menu subsystem.
 NewGameMenu = 0
+/// Tracks the mutable new def value used by the m menu subsystem.
 NewDef = 0
 
+/// Tracks the mutable options menu value used by the m menu subsystem.
 OptionsMenu = 0
+/// Tracks the mutable options def value used by the m menu subsystem.
 OptionsDef = 0
 
+/// Stores the detail names collection used by the m menu subsystem.
 detailNames =["M_GDHIGH", "M_GDLOW"]
+/// Stores the msg names collection used by the m menu subsystem.
 msgNames =["M_MSGOFF", "M_MSGON"]
 
+/// Tracks the mutable read menu1 value used by the m menu subsystem.
 ReadMenu1 = 0
+/// Tracks the mutable read def1 value used by the m menu subsystem.
 ReadDef1 = 0
+/// Tracks the mutable read menu2 value used by the m menu subsystem.
 ReadMenu2 = 0
+/// Tracks the mutable read def2 value used by the m menu subsystem.
 ReadDef2 = 0
 
+/// Tracks the mutable sound menu value used by the m menu subsystem.
 SoundMenu = 0
+/// Tracks the mutable sound def value used by the m menu subsystem.
 SoundDef = 0
 
+/// Tracks the mutable load menu value used by the m menu subsystem.
 LoadMenu = 0
+/// Tracks the mutable load def value used by the m menu subsystem.
 LoadDef = 0
 
+/// Tracks the mutable save menu value used by the m menu subsystem.
 SaveMenu = 0
+/// Tracks the mutable save def value used by the m menu subsystem.
 SaveDef = 0
 
+/// Tracks the mutable epi value used by the m menu subsystem.
 epi = 0
 
+/// Tracks the mutable quitsounds value used by the m menu subsystem.
 quitsounds = 0
+/// Tracks the mutable quitsounds2 value used by the m menu subsystem.
 quitsounds2 = 0
 
+/// Defines main newgame for the m menu subsystem.
 const main_newgame = 0
+/// Defines main multiplayer for the m menu subsystem.
 const main_multiplayer = 1
+/// Defines main options for the m menu subsystem.
 const main_options = 2
+/// Defines main loadgame for the m menu subsystem.
 const main_loadgame = 3
+/// Defines main savegame for the m menu subsystem.
 const main_savegame = 4
+/// Defines main readthis for the m menu subsystem.
 const main_readthis = 5
+/// Defines main quitdoom for the m menu subsystem.
 const main_quitdoom = 6
+/// Defines main end for the m menu subsystem.
 const main_end = 7
 
+/// Defines mp main host for the m menu subsystem.
 const mp_main_host = 0
+/// Defines mp main join for the m menu subsystem.
 const mp_main_join = 1
+/// Defines mp main name for the m menu subsystem.
 const mp_main_name = 2
+/// Defines mp main end for the m menu subsystem.
 const mp_main_end = 3
 
+/// Defines mp host mode item for the m menu subsystem.
 const mp_host_mode_item = 0
+/// Defines mp host map for the m menu subsystem.
 const mp_host_map = 1
+/// Defines mp host skill item for the m menu subsystem.
 const mp_host_skill_item = 2
+/// Defines mp host players for the m menu subsystem.
 const mp_host_players = 3
+/// Defines mp host fraglimit for the m menu subsystem.
 const mp_host_fraglimit = 4
+/// Defines mp host timelimit for the m menu subsystem.
 const mp_host_timelimit = 5
+/// Defines mp host port item for the m menu subsystem.
 const mp_host_port_item = 6
+/// Defines mp host start for the m menu subsystem.
 const mp_host_start = 7
+/// Defines mp host end for the m menu subsystem.
 const mp_host_end = 8
 
+/// Defines mp join host item for the m menu subsystem.
 const mp_join_host_item = 0
+/// Defines mp join port item for the m menu subsystem.
 const mp_join_port_item = 1
+/// Defines mp join start for the m menu subsystem.
 const mp_join_start = 2
+/// Defines mp join end for the m menu subsystem.
 const mp_join_end = 3
 
+/// Defines mp name edit for the m menu subsystem.
 const mp_name_edit = 0
+/// Defines mp name done for the m menu subsystem.
 const mp_name_done = 1
+/// Defines mp name end for the m menu subsystem.
 const mp_name_end = 2
 
+/// Defines ep1 for the m menu subsystem.
 const ep1 = 0
+/// Defines ep2 for the m menu subsystem.
 const ep2 = 1
+/// Defines ep3 for the m menu subsystem.
 const ep3 = 2
+/// Defines ep4 for the m menu subsystem.
 const ep4 = 3
+/// Defines ep end for the m menu subsystem.
 const ep_end = 4
 
+/// Defines killthings for the m menu subsystem.
 const killthings = 0
+/// Defines toorough for the m menu subsystem.
 const toorough = 1
+/// Defines hurtme for the m menu subsystem.
 const hurtme = 2
+/// Defines violence for the m menu subsystem.
 const violence = 3
+/// Defines nightmare for the m menu subsystem.
 const nightmare = 4
+/// Defines newg end for the m menu subsystem.
 const newg_end = 5
 
+/// Defines endgame for the m menu subsystem.
 const endgame = 0
+/// Defines messages for the m menu subsystem.
 const messages = 1
+/// Defines detail for the m menu subsystem.
 const detail = 2
+/// Defines scrnsize for the m menu subsystem.
 const scrnsize = 3
+/// Defines option empty1 for the m menu subsystem.
 const option_empty1 = 4
+/// Defines brightness for the m menu subsystem.
 const brightness = 5
+/// Defines option empty1b for the m menu subsystem.
 const option_empty1b = 6
+/// Defines mousesens for the m menu subsystem.
 const mousesens = 7
+/// Defines option empty2 for the m menu subsystem.
 const option_empty2 = 8
+/// Defines soundvol for the m menu subsystem.
 const soundvol = 9
+/// Defines opt end for the m menu subsystem.
 const opt_end = 10
 
+/// Defines read1 end for the m menu subsystem.
 const read1_end = 1
+/// Defines read2 end for the m menu subsystem.
 const read2_end = 1
 
+/// Defines sfx vol for the m menu subsystem.
 const sfx_vol = 0
+/// Defines music vol for the m menu subsystem.
 const music_vol = 2
+/// Defines sound end for the m menu subsystem.
 const sound_end = 4
 
+/// Defines load end for the m menu subsystem.
 const load_end = 6
 
+/// Tracks the mutable mp name enter value used by the m menu subsystem.
 mpNameEnter = 0
+/// Tracks the mutable mp name char index value used by the m menu subsystem.
 mpNameCharIndex = 0
+/// Tracks the mutable mp name buf value used by the m menu subsystem.
 mpNameBuf = 0
+/// Tracks the mutable mp name old value used by the m menu subsystem.
 mpNameOld = 0
+/// Tracks the mutable mp join host enter value used by the m menu subsystem.
 mpJoinHostEnter = 0
+/// Tracks the mutable mp join host char index value used by the m menu subsystem.
 mpJoinHostCharIndex = 0
+/// Tracks the mutable mp join host buf value used by the m menu subsystem.
 mpJoinHostBuf = 0
+/// Tracks the mutable mp join host old value used by the m menu subsystem.
 mpJoinHostOld = 0
+/// Stores the mutable mmenu mp log path text used by the m menu subsystem.
+/// @internal
 _mmenu_mp_log_path = ""
 
-/*
-* Function: _MMENU_ArgValue
-* Purpose: Returns the argument following a named CLI flag, or an empty string when absent/incomplete.
-*/
+/// Returns the argument following a named CLI flag, or an empty string when absent/incomplete.
+/// @param flag Flag value supplied to `_MMENU_ArgValue`.
+/// @internal
 function inline _MMENU_ArgValue(flag)
   p = M_CheckParm(flag)
   if p == 0 or p >= myargc - 1 then return "" end if
@@ -487,10 +621,9 @@ function inline _MMENU_ArgValue(flag)
   return v
 end function
 
-/*
-* Function: _MMENU_MPStatus
-* Purpose: Emits one stable automation status line to stdout and an optional per-process log file.
-*/
+/// Emits one stable automation status line to stdout and an optional per-process log file.
+/// @param line Map line or text line affected by the operation.
+/// @internal
 function _MMENU_MPStatus(line)
   global _mmenu_mp_log_path
   if typeof(line) != "string" or line == "" then return end if
@@ -505,10 +638,9 @@ function _MMENU_MPStatus(line)
   end if
 end function
 
-/*
-* Function: _MMENU_MPFailureCode
-* Purpose: Maps platform error text to compact failure categories used by CLI orchestration.
-*/
+/// Maps platform error text to compact failure categories used by CLI orchestration.
+/// @param reason Reason value supplied to `_MMENU_MPFailureCode`.
+/// @internal
 function _MMENU_MPFailureCode(reason)
   up = _MMENU_ToUpperAsciiString(reason)
   if _MP_StrContains(up, "WAD") and _MP_StrContains(up, "MISMATCH") then return "wad_mismatch" end if
@@ -518,10 +650,8 @@ function _MMENU_MPFailureCode(reason)
   return "startup_error"
 end function
 
-/*
-* Function: _MMENU_BuildMainMenu
-* Purpose: Creates the main menu item array including multiplayer entry.
-*/
+/// Creates the main menu item array including multiplayer entry.
+/// @internal
 function inline _MMENU_BuildMainMenu()
   return [
   _MI(1, "M_NGAME", M_NewGame, 110),
@@ -534,10 +664,8 @@ function inline _MMENU_BuildMainMenu()
 ]
 end function
 
-/*
-* Function: _MMENU_BuildMultiplayerMenu
-* Purpose: Creates the multiplayer root menu item array.
-*/
+/// Creates the multiplayer root menu item array.
+/// @internal
 function inline _MMENU_BuildMultiplayerMenu()
   return [
   _MI(1, "", M_MPHostMenuOpen, 104),
@@ -546,10 +674,8 @@ function inline _MMENU_BuildMultiplayerMenu()
 ]
 end function
 
-/*
-* Function: _MMENU_BuildMPHostMenu
-* Purpose: Creates host setup menu item array.
-*/
+/// Creates host setup menu item array.
+/// @internal
 function inline _MMENU_BuildMPHostMenu()
   return [
   _MI(2, "", M_MPHostMode, 109),
@@ -563,10 +689,8 @@ function inline _MMENU_BuildMPHostMenu()
 ]
 end function
 
-/*
-* Function: _MMENU_BuildMPJoinMenu
-* Purpose: Creates join setup menu item array.
-*/
+/// Creates join setup menu item array.
+/// @internal
 function inline _MMENU_BuildMPJoinMenu()
   return [
   _MI(1, "", M_MPJoinEditHost, 104),
@@ -575,10 +699,8 @@ function inline _MMENU_BuildMPJoinMenu()
 ]
 end function
 
-/*
-* Function: _MMENU_BuildMPNameMenu
-* Purpose: Creates player-name editor menu item array.
-*/
+/// Creates player-name editor menu item array.
+/// @internal
 function inline _MMENU_BuildMPNameMenu()
   return [
   _MI(1, "", M_MPNameEdit, 110),
@@ -586,10 +708,8 @@ function inline _MMENU_BuildMPNameMenu()
 ]
 end function
 
-/*
-* Function: _BuildMenus
-* Purpose: Constructs every static menu definition and wires its items to draw and activation callbacks.
-*/
+/// Constructs every static menu definition and wires its items to draw and activation callbacks.
+/// @internal
 function _BuildMenus()
   global MainMenu
   global MainDef
@@ -723,10 +843,7 @@ function _BuildMenus()
 ]
 end function
 
-/*
-* Function: M_ReadSaveStrings
-* Purpose: Scans each per-WAD save slot, copies its fixed title, and enables only readable load-menu rows.
-*/
+/// Scans each per-WAD save slot, copies its fixed title, and enables only readable load-menu rows.
 function M_ReadSaveStrings()
   global savegamestrings
   global saveOldString
@@ -766,10 +883,7 @@ function M_ReadSaveStrings()
   end for
 end function
 
-/*
-* Function: M_DrawLoad
-* Purpose: Renders the load-game heading, slot borders, and cached descriptions for every save row.
-*/
+/// Renders the load-game heading, slot borders, and cached descriptions for every save row.
 function M_DrawLoad()
   V_DrawPatchDirect(72, 28, 0, W_CacheLumpName("M_LOADG", PU_CACHE))
   for i = 0 to load_end - 1
@@ -778,10 +892,9 @@ function M_DrawLoad()
   end for
 end function
 
-/*
-* Function: M_DrawSaveLoadBorder
-* Purpose: Tiles the left, center, and right patches forming one 24-character save-slot frame.
-*/
+/// Tiles the left, center, and right patches forming one 24-character save-slot frame.
+/// @param x Horizontal map- or screen-space coordinate.
+/// @param y Vertical map- or screen-space coordinate.
 function M_DrawSaveLoadBorder(x, y)
   V_DrawPatchDirect(x - 8, y + 7, 0, W_CacheLumpName("M_LSLEFT", PU_CACHE))
   for i = 0 to 23
@@ -791,20 +904,16 @@ function M_DrawSaveLoadBorder(x, y)
   V_DrawPatchDirect(x, y + 7, 0, W_CacheLumpName("M_LSRGHT", PU_CACHE))
 end function
 
-/*
-* Function: M_LoadSelect
-* Purpose: Queues the selected slot's per-WAD save file for loading and closes the menu.
-*/
+/// Queues the selected slot's per-WAD save file for loading and closes the menu.
+/// @param choice Choice value supplied to `M_LoadSelect`.
 function M_LoadSelect(choice)
   name = _G_SaveFileName(choice)
   G_LoadGame(name)
   M_ClearMenus()
 end function
 
-/*
-* Function: M_LoadGame
-* Purpose: Rejects loads during netgames or opens the refreshed load-slot menu in offline play.
-*/
+/// Rejects loads during netgames or opens the refreshed load-slot menu in offline play.
+/// @param choice Choice value supplied to `M_LoadGame`.
 function M_LoadGame(choice)
   choice = choice
   if netgame then
@@ -816,10 +925,7 @@ function M_LoadGame(choice)
   M_ReadSaveStrings()
 end function
 
-/*
-* Function: M_DrawSave
-* Purpose: Saves draw Save state for the menu system.
-*/
+/// Saves draw Save state for the menu system.
 function M_DrawSave()
   V_DrawPatchDirect(72, 28, 0, W_CacheLumpName("M_SAVEG", PU_CACHE))
   for i = 0 to load_end - 1
@@ -833,10 +939,8 @@ function M_DrawSave()
   end if
 end function
 
-/*
-* Function: M_DoSave
-* Purpose: Saves do Save state for the menu system.
-*/
+/// Saves do Save state for the menu system.
+/// @param slot Slot value supplied to `M_DoSave`.
 function M_DoSave(slot)
   global quickSaveSlot
   G_SaveGame(slot, decodeZ(savegamestrings[slot]))
@@ -847,10 +951,8 @@ function M_DoSave(slot)
   end if
 end function
 
-/*
-* Function: M_SaveSelect
-* Purpose: Opens text editing for the selected save row while preserving its prior description for cancel.
-*/
+/// Opens text editing for the selected save row while preserving its prior description for cancel.
+/// @param choice Choice value supplied to `M_SaveSelect`.
 function M_SaveSelect(choice)
   global saveStringEnter
   global saveSlot
@@ -865,10 +967,8 @@ function M_SaveSelect(choice)
   saveCharIndex = _cstrLen(savegamestrings[choice])
 end function
 
-/*
-* Function: M_SaveGame
-* Purpose: Rejects invalid save contexts or opens the refreshed save-slot menu for a live level.
-*/
+/// Rejects invalid save contexts or opens the refreshed save-slot menu for a live level.
+/// @param choice Choice value supplied to `M_SaveGame`.
 function M_SaveGame(choice)
   choice = choice
 
@@ -885,10 +985,8 @@ function M_SaveGame(choice)
   M_ReadSaveStrings()
 end function
 
-/*
-* Function: M_QuickSaveResponse
-* Purpose: Saves quick Save Response state for the menu system.
-*/
+/// Saves quick Save Response state for the menu system.
+/// @param ch Ch value supplied to `M_QuickSaveResponse`.
 function M_QuickSaveResponse(ch)
   if ch == CH_Y then
     M_DoSave(quickSaveSlot)
@@ -896,10 +994,7 @@ function M_QuickSaveResponse(ch)
   end if
 end function
 
-/*
-* Function: M_QuickSave
-* Purpose: Saves quick Save state for the menu system.
-*/
+/// Saves quick Save state for the menu system.
 function M_QuickSave()
   global quickSaveSlot
   global tempstring
@@ -922,10 +1017,8 @@ function M_QuickSave()
   M_StartMessage(tempstring, M_QuickSaveResponse, true)
 end function
 
-/*
-* Function: M_QuickLoadResponse
-* Purpose: Executes the remembered quick-load slot only after an affirmative confirmation key.
-*/
+/// Executes the remembered quick-load slot only after an affirmative confirmation key.
+/// @param ch Ch value supplied to `M_QuickLoadResponse`.
 function M_QuickLoadResponse(ch)
   if ch == CH_Y then
     M_LoadSelect(quickSaveSlot)
@@ -933,10 +1026,7 @@ function M_QuickLoadResponse(ch)
   end if
 end function
 
-/*
-* Function: M_QuickLoad
-* Purpose: Validates quick-load availability and opens the confirmation prompt for its remembered slot.
-*/
+/// Validates quick-load availability and opens the confirmation prompt for its remembered slot.
 function M_QuickLoad()
   global tempstring
   if netgame then
@@ -953,10 +1043,7 @@ function M_QuickLoad()
   M_StartMessage(tempstring, M_QuickLoadResponse, true)
 end function
 
-/*
-* Function: M_DrawReadThis1
-* Purpose: Draws the first help page selected for commercial versus episodic game data.
-*/
+/// Draws the first help page selected for commercial versus episodic game data.
 function M_DrawReadThis1()
   global inhelpscreens
   inhelpscreens = true
@@ -967,10 +1054,7 @@ function M_DrawReadThis1()
   end if
 end function
 
-/*
-* Function: M_DrawReadThis2
-* Purpose: Draws the credit or second help page appropriate to the active game edition.
-*/
+/// Draws the credit or second help page appropriate to the active game edition.
 function M_DrawReadThis2()
   global inhelpscreens
   inhelpscreens = true
@@ -981,29 +1065,22 @@ function M_DrawReadThis2()
   end if
 end function
 
-/*
-* Function: M_DrawSound
-* Purpose: Draws the sound-options patch and both volume thermometers.
-*/
+/// Draws the sound-options patch and both volume thermometers.
 function M_DrawSound()
   V_DrawPatchDirect(60, 38, 0, W_CacheLumpName("M_SVOL", PU_CACHE))
   M_DrawThermo(SoundDef.x, SoundDef.y + LINEHEIGHT *(sfx_vol + 1), 16, snd_SfxVolume)
   M_DrawThermo(SoundDef.x, SoundDef.y + LINEHEIGHT *(music_vol + 1), 16, snd_MusicVolume)
 end function
 
-/*
-* Function: M_Sound
-* Purpose: Opens the sound submenu at its previously selected row.
-*/
+/// Opens the sound submenu at its previously selected row.
+/// @param choice Choice value supplied to `M_Sound`.
 function M_Sound(choice)
   choice = choice
   M_SetupNextMenu(SoundDef)
 end function
 
-/*
-* Function: M_SfxVol
-* Purpose: Adjusts the effects mixer volume and applies it immediately.
-*/
+/// Adjusts the effects mixer volume and applies it immediately.
+/// @param choice Choice value supplied to `M_SfxVol`.
 function M_SfxVol(choice)
   global snd_SfxVolume
   if choice == 0 then
@@ -1014,10 +1091,8 @@ function M_SfxVol(choice)
   S_SetSfxVolume(snd_SfxVolume)
 end function
 
-/*
-* Function: M_MusicVol
-* Purpose: Adjusts the music mixer volume and applies it immediately.
-*/
+/// Adjusts the music mixer volume and applies it immediately.
+/// @param choice Choice value supplied to `M_MusicVol`.
 function M_MusicVol(choice)
   global snd_MusicVolume
   if choice == 0 then
@@ -1028,20 +1103,18 @@ function M_MusicVol(choice)
   S_SetMusicVolume(snd_MusicVolume)
 end function
 
-/*
-* Function: M_DrawMainMenu
-* Purpose: Draws the title patch and custom multiplayer row for the root menu.
-*/
+/// Draws the title patch and custom multiplayer row for the root menu.
 function M_DrawMainMenu()
   V_DrawPatchDirect(94, 2, 0, W_CacheLumpName("M_DOOM", PU_CACHE))
   y = MainDef.y + LINEHEIGHT * main_multiplayer + 1
   _MMENU_WriteMenuSizedOrText(MainDef.x, y, "MULTIPLAYER")
 end function
 
-/*
-* Function: _MMENU_ClampInt
-* Purpose: Clamps integer values for multiplayer setup fields.
-*/
+/// Clamps integer values for multiplayer setup fields.
+/// @param v Value consumed by the operation.
+/// @param lo Inclusive lower bound.
+/// @param hi Inclusive upper bound.
+/// @internal
 function _MMENU_ClampInt(v, lo, hi)
   vi = _MMENU_ToInt(v, 0)
   lo_i = _MMENU_ToInt(lo, 0)
@@ -1056,19 +1129,17 @@ function _MMENU_ClampInt(v, lo, hi)
   return vi
 end function
 
-/*
-* Function: _MMENU_MPModeName
-* Purpose: Returns localized text for multiplayer mode value.
-*/
+/// Returns localized text for multiplayer mode value.
+/// @param mode Mode value supplied to `_MMENU_MPModeName`.
+/// @internal
 function inline _MMENU_MPModeName(mode)
   if mode == MP_MODE_DEATHMATCH then return "DEATHMATCH" end if
   return "COOPERATIVE"
 end function
 
-/*
-* Function: _MMENU_MPSkillName
-* Purpose: Returns UI text for host-selected skill level.
-*/
+/// Returns UI text for host-selected skill level.
+/// @param skill Skill value supplied to `_MMENU_MPSkillName`.
+/// @internal
 function inline _MMENU_MPSkillName(skill)
   s = _MMENU_ToInt(skill, MP_SKILL_MEDIUM)
   if s <= MP_SKILL_BABY then return "I'M TOO YOUNG TO DIE" end if
@@ -1079,20 +1150,18 @@ function inline _MMENU_MPSkillName(skill)
   return "HURT ME PLENTY"
 end function
 
-/*
-* Function: _MMENU_MPLimitText
-* Purpose: Formats deathmatch limits, including unlimited mode.
-*/
+/// Formats deathmatch limits, including unlimited mode.
+/// @param v Value consumed by the operation.
+/// @internal
 function inline _MMENU_MPLimitText(v)
   if typeof(v) != "int" then return "0" end if
   if v <= 0 then return "UNLIMITED" end if
   return v
 end function
 
-/*
-* Function: _MMENU_ToUpperAsciiString
-* Purpose: Converts a string to uppercase for ASCII letters.
-*/
+/// Converts a string to uppercase for ASCII letters.
+/// @param s0 S0 value supplied to `_MMENU_ToUpperAsciiString`.
+/// @internal
 function _MMENU_ToUpperAsciiString(s0)
   if typeof(s0) != "string" then return "" end if
   b = bytes(s0)
@@ -1104,10 +1173,10 @@ function _MMENU_ToUpperAsciiString(s0)
   return decode(b)
 end function
 
-/*
-* Function: _MMENU_ParseUnsignedTail
-* Purpose: Parses a positive integer from a string tail, returning -1 on failure.
-*/
+/// Parses a positive integer from a string tail, returning -1 on failure.
+/// @param s0 S0 value supplied to `_MMENU_ParseUnsignedTail`.
+/// @param startIdx Start idx value supplied to `_MMENU_ParseUnsignedTail`.
+/// @internal
 function _MMENU_ParseUnsignedTail(s0, startIdx)
   if typeof(s0) != "string" then return -1 end if
   b = bytes(s0)
@@ -1126,10 +1195,9 @@ function _MMENU_ParseUnsignedTail(s0, startIdx)
   return v
 end function
 
-/*
-* Function: _MMENU_ParseMapToken
-* Purpose: Parses MAPxx or ExMy map token and returns [episode,map].
-*/
+/// Parses MAPxx or ExMy map token and returns [episode,map].
+/// @param mapToken Map token value supplied to `_MMENU_ParseMapToken`.
+/// @internal
 function _MMENU_ParseMapToken(mapToken)
   up = _MMENU_ToUpperAsciiString(mapToken)
   b = bytes(up)
@@ -1148,10 +1216,12 @@ function _MMENU_ParseMapToken(mapToken)
   return [1, 1]
 end function
 
-/*
-* Function: _MMENU_StartMultiplayerGame
-* Purpose: Starts local game session immediately using current MP session settings.
-*/
+/// Starts local game session immediately using current MP session settings.
+/// @param mode Mode value supplied to `_MMENU_StartMultiplayerGame`.
+/// @param skill Skill value supplied to `_MMENU_StartMultiplayerGame`.
+/// @param mapToken Map token value supplied to `_MMENU_StartMultiplayerGame`.
+/// @param localSlot Local slot value supplied to `_MMENU_StartMultiplayerGame`.
+/// @internal
 function _MMENU_StartMultiplayerGame(mode, skill, mapToken, localSlot)
   global netgame
   global deathmatch
@@ -1223,10 +1293,8 @@ function _MMENU_StartMultiplayerGame(mode, skill, mapToken, localSlot)
   G_DeferedInitNew(sk, e, mp)
 end function
 
-/*
-* Function: _MMENU_SyncMPBuffers
-* Purpose: Synchronizes editable menu buffers with multiplayer settings.
-*/
+/// Synchronizes editable menu buffers with multiplayer settings.
+/// @internal
 function _MMENU_SyncMPBuffers()
   global mpNameBuf
   global mpNameOld
@@ -1246,10 +1314,8 @@ function _MMENU_SyncMPBuffers()
   mpJoinHostCharIndex = _cstrLen(mpJoinHostBuf)
 end function
 
-/*
-* Function: M_Multiplayer
-* Purpose: Opens the multiplayer root menu.
-*/
+/// Opens the multiplayer root menu.
+/// @param choice Choice value supplied to `M_Multiplayer`.
 function M_Multiplayer(choice)
   choice = choice
   MP_ClampSettings()
@@ -1258,10 +1324,7 @@ function M_Multiplayer(choice)
   M_SetupNextMenu(MultiplayerDef)
 end function
 
-/*
-* Function: M_DrawMultiplayerMenu
-* Purpose: Draws the multiplayer root menu.
-*/
+/// Draws the multiplayer root menu.
 function M_DrawMultiplayerMenu()
   _MMENU_WriteMenuSizedOrText(96, 20, "MULTIPLAYER")
   y0 = MultiplayerDef.y + LINEHEIGHT * mp_main_host
@@ -1272,10 +1335,8 @@ function M_DrawMultiplayerMenu()
   _MMENU_WriteMenuSizedOrText(MultiplayerDef.x, y2, "PLAYER NAME")
 end function
 
-/*
-* Function: M_MPHostMenuOpen
-* Purpose: Opens host setup menu and refreshes map/options state.
-*/
+/// Opens host setup menu and refreshes map/options state.
+/// @param choice Choice value supplied to `M_MPHostMenuOpen`.
 function M_MPHostMenuOpen(choice)
   choice = choice
   MP_ClampSettings()
@@ -1284,10 +1345,8 @@ function M_MPHostMenuOpen(choice)
   M_SetupNextMenu(MPHostDef)
 end function
 
-/*
-* Function: M_MPJoinMenuOpen
-* Purpose: Opens join setup menu and refreshes editable host values.
-*/
+/// Opens join setup menu and refreshes editable host values.
+/// @param choice Choice value supplied to `M_MPJoinMenuOpen`.
 function M_MPJoinMenuOpen(choice)
   choice = choice
   MP_ClampSettings()
@@ -1295,20 +1354,15 @@ function M_MPJoinMenuOpen(choice)
   M_SetupNextMenu(MPJoinDef)
 end function
 
-/*
-* Function: M_MPNameMenuOpen
-* Purpose: Opens player-name editor menu.
-*/
+/// Opens player-name editor menu.
+/// @param choice Choice value supplied to `M_MPNameMenuOpen`.
 function M_MPNameMenuOpen(choice)
   choice = choice
   _MMENU_SyncMPBuffers()
   M_SetupNextMenu(MPNameDef)
 end function
 
-/*
-* Function: M_DrawMPHostMenu
-* Purpose: Draws host setup values for multiplayer dedicated server start.
-*/
+/// Draws host setup values for multiplayer dedicated server start.
 function M_DrawMPHostMenu()
   MP_ClampSettings()
   MP_RebuildMapList()
@@ -1338,10 +1392,7 @@ function M_DrawMPHostMenu()
   _MMENU_WriteMenuSizedOrText(x, y7, "START HOST")
 end function
 
-/*
-* Function: M_DrawMPJoinMenu
-* Purpose: Draws join setup values and live host/name text editors.
-*/
+/// Draws join setup values and live host/name text editors.
 function M_DrawMPJoinMenu()
   _MMENU_WriteMenuSizedOrText(108, 16, "JOIN GAME")
   y = MPJoinDef.y
@@ -1360,10 +1411,7 @@ function M_DrawMPJoinMenu()
   _MMENU_WriteMenuSizedOrText(x, y2, "JOIN")
 end function
 
-/*
-* Function: M_DrawMPNameMenu
-* Purpose: Draws player name editor with caret during text entry.
-*/
+/// Draws player name editor with caret during text entry.
 function M_DrawMPNameMenu()
   _MMENU_WriteMenuSizedOrText(86, 24, "PLAYER NAME")
   y = MPNameDef.y
@@ -1380,10 +1428,8 @@ function M_DrawMPNameMenu()
   _MMENU_WriteMenuSizedOrText(x, y1, "DONE")
 end function
 
-/*
-* Function: M_MPHostMode
-* Purpose: Toggles host game mode between cooperative and deathmatch.
-*/
+/// Toggles host game mode between cooperative and deathmatch.
+/// @param choice Choice value supplied to `M_MPHostMode`.
 function M_MPHostMode(choice)
   choice = choice
   if mp_host_mode == MP_MODE_COOP then
@@ -1394,10 +1440,8 @@ function M_MPHostMode(choice)
   MP_ClampSettings()
 end function
 
-/*
-* Function: M_MPHostMap
-* Purpose: Cycles host-selected map through detected WAD map list.
-*/
+/// Cycles host-selected map through detected WAD map list.
+/// @param choice Choice value supplied to `M_MPHostMap`.
 function M_MPHostMap(choice)
   if choice == 0 then
     MP_StepMap(-1)
@@ -1406,10 +1450,8 @@ function M_MPHostMap(choice)
   end if
 end function
 
-/*
-* Function: M_MPHostSkill
-* Purpose: Adjusts host-selected skill level.
-*/
+/// Adjusts host-selected skill level.
+/// @param choice Choice value supplied to `M_MPHostSkill`.
 function M_MPHostSkill(choice)
   global mp_host_skill
   if choice == 0 then
@@ -1420,10 +1462,8 @@ function M_MPHostSkill(choice)
   mp_host_skill = _MMENU_ClampInt(mp_host_skill, MP_SKILL_BABY, MP_SKILL_NIGHTMARE)
 end function
 
-/*
-* Function: M_MPHostPlayers
-* Purpose: Adjusts host maximum players within protocol bounds.
-*/
+/// Adjusts host maximum players within protocol bounds.
+/// @param choice Choice value supplied to `M_MPHostPlayers`.
 function M_MPHostPlayers(choice)
   global mp_host_max_players
   if choice == 0 then
@@ -1434,10 +1474,8 @@ function M_MPHostPlayers(choice)
   MP_ClampSettings()
 end function
 
-/*
-* Function: M_MPHostFragLimit
-* Purpose: Adjusts deathmatch frag limit (0 means unlimited).
-*/
+/// Adjusts deathmatch frag limit (0 means unlimited).
+/// @param choice Choice value supplied to `M_MPHostFragLimit`.
 function M_MPHostFragLimit(choice)
   global mp_dm_frag_limit
   if choice == 0 then
@@ -1450,10 +1488,8 @@ function M_MPHostFragLimit(choice)
   MP_ClampSettings()
 end function
 
-/*
-* Function: M_MPHostTimeLimit
-* Purpose: Adjusts deathmatch time limit in minutes (0 means unlimited).
-*/
+/// Adjusts deathmatch time limit in minutes (0 means unlimited).
+/// @param choice Choice value supplied to `M_MPHostTimeLimit`.
 function M_MPHostTimeLimit(choice)
   global mp_dm_time_limit
   if choice == 0 then
@@ -1466,10 +1502,8 @@ function M_MPHostTimeLimit(choice)
   MP_ClampSettings()
 end function
 
-/*
-* Function: M_MPHostPort
-* Purpose: Adjusts dedicated server listen port.
-*/
+/// Adjusts dedicated server listen port.
+/// @param choice Choice value supplied to `M_MPHostPort`.
 function M_MPHostPort(choice)
   global mp_host_port
   if choice == 0 then
@@ -1480,10 +1514,9 @@ function M_MPHostPort(choice)
   MP_ClampSettings()
 end function
 
-/*
-* Function: _MMENU_MPStartHostConfigured
-* Purpose: Starts a host from normalized shared settings and reports either menu or CLI diagnostics.
-*/
+/// Starts a host from normalized shared settings and reports either menu or CLI diagnostics.
+/// @param interactive Interactive value supplied to `_MMENU_MPStartHostConfigured`.
+/// @internal
 function _MMENU_MPStartHostConfigured(interactive)
   MP_ClampSettings()
   MP_RebuildMapList()
@@ -1525,19 +1558,15 @@ function _MMENU_MPStartHostConfigured(interactive)
   return [false, reason]
 end function
 
-/*
-* Function: M_MPHostStart
-* Purpose: Starts the menu-configured host and keeps startup errors inside the menu flow.
-*/
+/// Starts the menu-configured host and keeps startup errors inside the menu flow.
+/// @param choice Choice value supplied to `M_MPHostStart`.
 function M_MPHostStart(choice)
   choice = choice
   _MMENU_MPStartHostConfigured(true)
 end function
 
-/*
-* Function: M_MPJoinEditHost
-* Purpose: Enters text edit mode for join target host string.
-*/
+/// Enters text edit mode for join target host string.
+/// @param choice Choice value supplied to `M_MPJoinEditHost`.
 function M_MPJoinEditHost(choice)
   global mpJoinHostEnter
   global mpJoinHostCharIndex
@@ -1548,10 +1577,8 @@ function M_MPJoinEditHost(choice)
   _cstrCopy(mpJoinHostOld, mpJoinHostBuf)
 end function
 
-/*
-* Function: M_MPJoinPort
-* Purpose: Adjusts join target UDP port.
-*/
+/// Adjusts join target UDP port.
+/// @param choice Choice value supplied to `M_MPJoinPort`.
 function M_MPJoinPort(choice)
   global mp_join_port
   if choice == 0 then
@@ -1562,10 +1589,9 @@ function M_MPJoinPort(choice)
   MP_ClampSettings()
 end function
 
-/*
-* Function: _MMENU_MPStartJoinConfigured
-* Purpose: Joins the configured endpoint and boots the server-confirmed map/slot on success.
-*/
+/// Joins the configured endpoint and boots the server-confirmed map/slot on success.
+/// @param interactive Interactive value supplied to `_MMENU_MPStartJoinConfigured`.
+/// @internal
 function _MMENU_MPStartJoinConfigured(interactive)
   global mp_join_host
   MP_ClampSettings()
@@ -1614,19 +1640,19 @@ function _MMENU_MPStartJoinConfigured(interactive)
   return [false, reason]
 end function
 
-/*
-* Function: M_MPJoinStart
-* Purpose: Starts the menu-configured join handshake and surfaces rejection details interactively.
-*/
+/// Starts the menu-configured join handshake and surfaces rejection details interactively.
+/// @param choice Choice value supplied to `M_MPJoinStart`.
 function M_MPJoinStart(choice)
   choice = choice
   _MMENU_MPStartJoinConfigured(true)
 end function
 
-/*
-* Function: _MMENU_MPCLIInt
-* Purpose: Parses one bounded numeric multiplayer option and returns [valid,value].
-*/
+/// Parses one bounded numeric multiplayer option and returns [valid,value].
+/// @param flag Flag value supplied to `_MMENU_MPCLIInt`.
+/// @param fallback Value returned when the requested conversion or lookup is unavailable.
+/// @param lo Inclusive lower bound.
+/// @param hi Inclusive upper bound.
+/// @internal
 function _MMENU_MPCLIInt(flag, fallback, lo, hi)
   raw = _MMENU_ArgValue(flag)
   if raw == "" then return [true, fallback] end if
@@ -1636,10 +1662,9 @@ function _MMENU_MPCLIInt(flag, fallback, lo, hi)
   return [true, n]
 end function
 
-/*
-* Function: _MMENU_MPIsNumericIPv4
-* Purpose: Validates the numerical dotted-quad form supported by the WinSock transport parser.
-*/
+/// Validates the numerical dotted-quad form supported by the WinSock transport parser.
+/// @param host Host value supplied to `_MMENU_MPIsNumericIPv4`.
+/// @internal
 function _MMENU_MPIsNumericIPv4(host)
   if typeof(host) != "string" then return false end if
   b = bytes(host)
@@ -1671,20 +1696,17 @@ function _MMENU_MPIsNumericIPv4(host)
   return parts == 3 and digits > 0
 end function
 
-/*
-* Function: _MMENU_MPCLIReportFailure
-* Purpose: Emits a machine-readable startup failure while retaining the human-readable platform reason.
-*/
+/// Emits a machine-readable startup failure while retaining the human-readable platform reason.
+/// @param role Role value supplied to `_MMENU_MPCLIReportFailure`.
+/// @param reason Reason value supplied to `_MMENU_MPCLIReportFailure`.
+/// @internal
 function _MMENU_MPCLIReportFailure(role, reason)
   code = _MMENU_MPFailureCode(reason)
   _MMENU_MPStatus("MPTEST " + role + "_FAILED status=" + code + " reason=" + reason)
 end function
 
-/*
-* Function: M_MPStartFromCommandLine
-* Purpose: Applies documented host/join CLI options and invokes the same production startup used by menus.
-* Returns: 0 when no MP role was requested, 1 after success, -1 after a requested startup failed.
-*/
+/// Applies documented host/join CLI options and invokes the same production startup used by menus. Returns: 0
+/// when no MP role was requested, 1 after success, -1 after a requested startup failed.
 function M_MPStartFromCommandLine()
   global _mmenu_mp_log_path
   global mp_join_host
@@ -1790,10 +1812,8 @@ function M_MPStartFromCommandLine()
   return -1
 end function
 
-/*
-* Function: M_MPNameEdit
-* Purpose: Enters text edit mode for multiplayer player name.
-*/
+/// Enters text edit mode for multiplayer player name.
+/// @param choice Choice value supplied to `M_MPNameEdit`.
 function M_MPNameEdit(choice)
   global mpNameEnter
   global mpNameCharIndex
@@ -1804,10 +1824,8 @@ function M_MPNameEdit(choice)
   _cstrCopy(mpNameOld, mpNameBuf)
 end function
 
-/*
-* Function: M_MPNameDone
-* Purpose: Applies name changes and closes player-name editor menu.
-*/
+/// Applies name changes and closes player-name editor menu.
+/// @param choice Choice value supplied to `M_MPNameDone`.
 function M_MPNameDone(choice)
   global mpNameEnter
   choice = choice
@@ -1819,19 +1837,14 @@ function M_MPNameDone(choice)
   M_SetupNextMenu(MultiplayerDef)
 end function
 
-/*
-* Function: M_DrawNewGame
-* Purpose: Draws the skill-selection menu title and vanilla skill rows.
-*/
+/// Draws the skill-selection menu title and vanilla skill rows.
 function M_DrawNewGame()
   V_DrawPatchDirect(96, 14, 0, W_CacheLumpName("M_NEWG", PU_CACHE))
   V_DrawPatchDirect(54, 38, 0, W_CacheLumpName("M_SKILL", PU_CACHE))
 end function
 
-/*
-* Function: M_NewGame
-* Purpose: Rejects active netgames or routes new-game selection to episode/skill menus for this IWAD.
-*/
+/// Rejects active netgames or routes new-game selection to episode/skill menus for this IWAD.
+/// @param choice Choice value supplied to `M_NewGame`.
 function M_NewGame(choice)
   choice = choice
   if netgame and not demoplayback then
@@ -1846,28 +1859,21 @@ function M_NewGame(choice)
   end if
 end function
 
-/*
-* Function: M_DrawEpisode
-* Purpose: Draws the episode-selection title above the available IWAD episodes.
-*/
+/// Draws the episode-selection title above the available IWAD episodes.
 function M_DrawEpisode()
   V_DrawPatchDirect(54, 38, 0, W_CacheLumpName("M_EPISOD", PU_CACHE))
 end function
 
-/*
-* Function: M_VerifyNightmare
-* Purpose: Confirms or cancels nightmare difficulty before starting a new game.
-*/
+/// Confirms or cancels nightmare difficulty before starting a new game.
+/// @param ch Ch value supplied to `M_VerifyNightmare`.
 function M_VerifyNightmare(ch)
   if ch != CH_Y then return end if
   G_DeferedInitNew(nightmare, epi + 1, 1)
   M_ClearMenus()
 end function
 
-/*
-* Function: M_ChooseSkill
-* Purpose: Requests nightmare confirmation or queues a new game at the chosen difficulty.
-*/
+/// Requests nightmare confirmation or queues a new game at the chosen difficulty.
+/// @param choice Choice value supplied to `M_ChooseSkill`.
 function M_ChooseSkill(choice)
   if choice == nightmare then
     M_StartMessage(NIGHTMARE, M_VerifyNightmare, true)
@@ -1878,10 +1884,8 @@ function M_ChooseSkill(choice)
   M_ClearMenus()
 end function
 
-/*
-* Function: M_Episode
-* Purpose: Validates shareware episode access and opens the skill selector for the chosen episode.
-*/
+/// Validates shareware episode access and opens the skill selector for the chosen episode.
+/// @param choice Choice value supplied to `M_Episode`.
 function M_Episode(choice)
   global epi
   if gamemode == GameMode_t.shareware and choice != 0 then
@@ -1899,10 +1903,7 @@ function M_Episode(choice)
   M_SetupNextMenu(NewDef)
 end function
 
-/*
-* Function: M_DrawOptions
-* Purpose: Draws the options page plus sensitivity and screen-size thermometers.
-*/
+/// Draws the options page plus sensitivity and screen-size thermometers.
 function M_DrawOptions()
   V_DrawPatchDirect(108, 15, 0, W_CacheLumpName("M_OPTTTL", PU_CACHE))
 
@@ -1918,19 +1919,15 @@ function M_DrawOptions()
   M_DrawThermo(OptionsDef.x, OptionsDef.y + LINEHEIGHT *(scrnsize + 1), 9, screenSize)
 end function
 
-/*
-* Function: M_Options
-* Purpose: Opens the options submenu at its remembered selection.
-*/
+/// Opens the options submenu at its remembered selection.
+/// @param choice Choice value supplied to `M_Options`.
 function M_Options(choice)
   choice = choice
   M_SetupNextMenu(OptionsDef)
 end function
 
-/*
-* Function: M_ChangeMessages
-* Purpose: Toggles gameplay messages, posts the localized result, and protects it from immediate replacement.
-*/
+/// Toggles gameplay messages, posts the localized result, and protects it from immediate replacement.
+/// @param choice Choice value supplied to `M_ChangeMessages`.
 function M_ChangeMessages(choice)
   global showMessages
   choice = choice
@@ -1948,10 +1945,8 @@ function M_ChangeMessages(choice)
   message_dontfuckwithme = true
 end function
 
-/*
-* Function: M_EndGameResponse
-* Purpose: Controls end Game Response transitions in the menu system.
-*/
+/// Controls end Game Response transitions in the menu system.
+/// @param ch Ch value supplied to `M_EndGameResponse`.
 function M_EndGameResponse(ch)
   if ch != CH_Y then return end if
   currentMenu.lastOn = itemOn
@@ -1959,10 +1954,8 @@ function M_EndGameResponse(ch)
   D_StartTitle()
 end function
 
-/*
-* Function: M_EndGame
-* Purpose: Controls end Game transitions in the menu system.
-*/
+/// Controls end Game transitions in the menu system.
+/// @param choice Choice value supplied to `M_EndGame`.
 function M_EndGame(choice)
   choice = choice
   if not usergame then
@@ -1978,37 +1971,29 @@ function M_EndGame(choice)
   M_StartMessage(ENDGAME, M_EndGameResponse, true)
 end function
 
-/*
-* Function: M_ReadThis
-* Purpose: Opens the first help/read-this menu page.
-*/
+/// Opens the first help/read-this menu page.
+/// @param choice Choice value supplied to `M_ReadThis`.
 function M_ReadThis(choice)
   choice = choice
   M_SetupNextMenu(ReadDef1)
 end function
 
-/*
-* Function: M_ReadThis2
-* Purpose: Advances from the first help page to the second page.
-*/
+/// Advances from the first help page to the second page.
+/// @param choice Choice value supplied to `M_ReadThis2`.
 function M_ReadThis2(choice)
   choice = choice
   M_SetupNextMenu(ReadDef2)
 end function
 
-/*
-* Function: M_FinishReadThis
-* Purpose: Returns from the last help page to the main menu.
-*/
+/// Returns from the last help page to the main menu.
+/// @param choice Choice value supplied to `M_FinishReadThis`.
 function M_FinishReadThis(choice)
   choice = choice
   M_SetupNextMenu(MainDef)
 end function
 
-/*
-* Function: M_QuitResponse
-* Purpose: Accepts the quit confirmation, plays the edition-specific exit cue, and terminates the process.
-*/
+/// Accepts the quit confirmation, plays the edition-specific exit cue, and terminates the process.
+/// @param ch Ch value supplied to `M_QuitResponse`.
 function M_QuitResponse(ch)
   if not(ch == CH_Y or ch == KEY_ENTER) then return end if
 
@@ -2024,10 +2009,8 @@ function M_QuitResponse(ch)
   I_Quit()
 end function
 
-/*
-* Function: M_QuitDOOM
-* Purpose: Selects a localized randomized quit message and opens its confirmation prompt.
-*/
+/// Selects a localized randomized quit message and opens its confirmation prompt.
+/// @param choice Choice value supplied to `M_QuitDOOM`.
 function M_QuitDOOM(choice)
   global endstring
   choice = choice
@@ -2042,10 +2025,8 @@ function M_QuitDOOM(choice)
   M_StartMessage(endstring, M_QuitResponse, true)
 end function
 
-/*
-* Function: M_ChangeSensitivity
-* Purpose: Adjusts mouse sensitivity by one step within the persisted 0..9 range.
-*/
+/// Adjusts mouse sensitivity by one step within the persisted 0..9 range.
+/// @param choice Choice value supplied to `M_ChangeSensitivity`.
 function M_ChangeSensitivity(choice)
   global mouseSensitivity
   if choice == 0 then
@@ -2055,10 +2036,8 @@ function M_ChangeSensitivity(choice)
   end if
 end function
 
-/*
-* Function: M_ChangeDetail
-* Purpose: Selects the supported high-detail renderer mode and posts its localized HUD message.
-*/
+/// Selects the supported high-detail renderer mode and posts its localized HUD message.
+/// @param choice Choice value supplied to `M_ChangeDetail`.
 function M_ChangeDetail(choice)
   global detailLevel
   choice = choice
@@ -2077,10 +2056,8 @@ function M_ChangeDetail(choice)
   end if
 end function
 
-/*
-* Function: M_ChangeBrightness
-* Purpose: Adjusts gamma-based brightness level from options menu.
-*/
+/// Adjusts gamma-based brightness level from options menu.
+/// @param choice Choice value supplied to `M_ChangeBrightness`.
 function M_ChangeBrightness(choice)
   global usegamma
 
@@ -2103,10 +2080,8 @@ function M_ChangeBrightness(choice)
   end if
 end function
 
-/*
-* Function: M_SizeDisplay
-* Purpose: Changes screen-block size within renderer bounds and schedules a view resize.
-*/
+/// Changes screen-block size within renderer bounds and schedules a view resize.
+/// @param choice Choice value supplied to `M_SizeDisplay`.
 function M_SizeDisplay(choice)
   global screenblocks
   global screenSize
@@ -2125,10 +2100,11 @@ function M_SizeDisplay(choice)
   R_SetViewSize(screenblocks, detailLevel)
 end function
 
-/*
-* Function: M_DrawThermo
-* Purpose: Draws a patch-based horizontal slider with a checked marker position.
-*/
+/// Draws a patch-based horizontal slider with a checked marker position.
+/// @param x Horizontal map- or screen-space coordinate.
+/// @param y Vertical map- or screen-space coordinate.
+/// @param thermWidth Width of therm width in pixels or map units.
+/// @param thermDot Therm dot value supplied to `M_DrawThermo`.
 function M_DrawThermo(x, y, thermWidth, thermDot)
   xx = x
   V_DrawPatchDirect(xx, y, 0, W_CacheLumpName("M_THERML", PU_CACHE))
@@ -2142,28 +2118,26 @@ function M_DrawThermo(x, y, thermWidth, thermDot)
   V_DrawPatchDirect((x + 8) + thermDot * 8, y, 0, W_CacheLumpName("M_THERMO", PU_CACHE))
 end function
 
-/*
-* Function: M_DrawEmptyCell
-* Purpose: Draws the left/right save-slot border for an unselected cell.
-*/
+/// Draws the left/right save-slot border for an unselected cell.
+/// @param menu Menu value supplied to `M_DrawEmptyCell`.
+/// @param item Item value supplied to `M_DrawEmptyCell`.
 function M_DrawEmptyCell(menu, item)
   V_DrawPatchDirect(menu.x - 10, menu.y + item * LINEHEIGHT - 1, 0,
   W_CacheLumpName("M_CELL1", PU_CACHE))
 end function
 
-/*
-* Function: M_DrawSelCell
-* Purpose: Draws the selected save-slot border variant at a menu row.
-*/
+/// Draws the selected save-slot border variant at a menu row.
+/// @param menu Menu value supplied to `M_DrawSelCell`.
+/// @param item Item value supplied to `M_DrawSelCell`.
 function M_DrawSelCell(menu, item)
   V_DrawPatchDirect(menu.x - 10, menu.y + item * LINEHEIGHT - 1, 0,
   W_CacheLumpName("M_CELL2", PU_CACHE))
 end function
 
-/*
-* Function: M_StartMessage
-* Purpose: Replaces the current menu with a modal prompt while remembering whether a menu was already open.
-*/
+/// Replaces the current menu with a modal prompt while remembering whether a menu was already open.
+/// @param string String value supplied to `M_StartMessage`.
+/// @param routine Routine value supplied to `M_StartMessage`.
+/// @param input Input value supplied to `M_StartMessage`.
 function M_StartMessage(string, routine, input)
   global messageLastMenuActive
   global messageToPrint
@@ -2179,10 +2153,7 @@ function M_StartMessage(string, routine, input)
   menuactive = true
 end function
 
-/*
-* Function: M_StopMessage
-* Purpose: Dismisses the modal prompt and restores the menu-active state captured when it opened.
-*/
+/// Dismisses the modal prompt and restores the menu-active state captured when it opened.
 function M_StopMessage()
   global menuactive
   global messageLastMenuActive
@@ -2195,10 +2166,8 @@ function M_StopMessage()
   end if
 end function
 
-/*
-* Function: _MMENU_RequestStatusBarRefresh
-* Purpose: Forces one full status bar redraw after menu overlays are closed.
-*/
+/// Forces one full status bar redraw after menu overlays are closed.
+/// @internal
 function inline _MMENU_RequestStatusBarRefresh()
   global st_firsttime
   if typeof(st_firsttime) == "bool" then
@@ -2206,10 +2175,8 @@ function inline _MMENU_RequestStatusBarRefresh()
   end if
 end function
 
-/*
-* Function: M_StringWidth
-* Purpose: Measures proportional menu text width using loaded HU font patches.
-*/
+/// Measures proportional menu text width using loaded HU font patches.
+/// @param string String value supplied to `M_StringWidth`.
 function M_StringWidth(string)
   b = _bytesOf(string)
   w = 0
@@ -2234,10 +2201,8 @@ function M_StringWidth(string)
   return w
 end function
 
-/*
-* Function: M_StringHeight
-* Purpose: Measures multiline menu text height using the active HU font metrics.
-*/
+/// Measures multiline menu text height using the active HU font metrics.
+/// @param string String value supplied to `M_StringHeight`.
 function M_StringHeight(string)
   b = _bytesOf(string)
   height = _patchHeight(hu_font[0])
@@ -2252,10 +2217,10 @@ function M_StringHeight(string)
   return h
 end function
 
-/*
-* Function: M_WriteText
-* Purpose: Draws patch-font glyphs with newline handling, unsupported-character spacing, and screen clipping.
-*/
+/// Draws patch-font glyphs with newline handling, unsupported-character spacing, and screen clipping.
+/// @param x Horizontal map- or screen-space coordinate.
+/// @param y Vertical map- or screen-space coordinate.
+/// @param string String value supplied to `M_WriteText`.
 function M_WriteText(x, y, string)
   b = _bytesOf(string)
 
@@ -2292,10 +2257,12 @@ function M_WriteText(x, y, string)
   end while
 end function
 
-/*
-* Function: _MMENU_DrawPatchScale2
-* Purpose: Draws a Doom patch scaled to 2x into the destination screen.
-*/
+/// Draws a Doom patch scaled to 2x into the destination screen.
+/// @param x Horizontal map- or screen-space coordinate.
+/// @param y Vertical map- or screen-space coordinate.
+/// @param scrn Scrn value supplied to `_MMENU_DrawPatchScale2`.
+/// @param patch Patch value supplied to `_MMENU_DrawPatchScale2`.
+/// @internal
 function _MMENU_DrawPatchScale2(x, y, scrn, patch)
   if typeof(patch) != "bytes" then return end if
   if len(patch) < 8 then return end if
@@ -2359,10 +2326,9 @@ function _MMENU_DrawPatchScale2(x, y, scrn, patch)
   end for
 end function
 
-/*
-* Function: _MMENU_StringWidthMenuSized
-* Purpose: Returns text width in pixels for 2x multiplayer menu font rendering.
-*/
+/// Returns text width in pixels for 2x multiplayer menu font rendering.
+/// @param string String value supplied to `_MMENU_StringWidthMenuSized`.
+/// @internal
 function _MMENU_StringWidthMenuSized(string)
   b = _bytesOf(string)
   w = 0
@@ -2382,10 +2348,9 @@ function _MMENU_StringWidthMenuSized(string)
   return w
 end function
 
-/*
-* Function: _MMENU_FontLumpName
-* Purpose: Builds the STCFN lump name for one HUD/menu font character.
-*/
+/// Builds the STCFN lump name for one HUD/menu font character.
+/// @param code Code value supplied to `_MMENU_FontLumpName`.
+/// @internal
 function _MMENU_FontLumpName(code)
   h = _MMENU_IDiv(code, 100) % 10
   t = _MMENU_IDiv(code, 10) % 10
@@ -2393,10 +2358,11 @@ function _MMENU_FontLumpName(code)
   return "STCFN" + h + t + o
 end function
 
-/*
-* Function: _MMENU_WriteTextMenuSized
-* Purpose: Draws highlighted menu text for multiplayer entries with menu-like visual weight.
-*/
+/// Draws highlighted menu text for multiplayer entries with menu-like visual weight.
+/// @param x Horizontal map- or screen-space coordinate.
+/// @param y Vertical map- or screen-space coordinate.
+/// @param string String value supplied to `_MMENU_WriteTextMenuSized`.
+/// @internal
 function _MMENU_WriteTextMenuSized(x, y, string)
   b = _bytesOf(string)
   cx = x
@@ -2433,10 +2399,11 @@ function _MMENU_WriteTextMenuSized(x, y, string)
   return drawn > 0
 end function
 
-/*
-* Function: _MMENU_RevealLogicalMenuText
-* Purpose: Keeps startup/title-screen high-res patch overlays from covering generated menu text.
-*/
+/// Keeps startup/title-screen high-res patch overlays from covering generated menu text.
+/// @param x Horizontal map- or screen-space coordinate.
+/// @param y Vertical map- or screen-space coordinate.
+/// @param string String value supplied to `_MMENU_RevealLogicalMenuText`.
+/// @internal
 function _MMENU_RevealLogicalMenuText(x, y, string)
   if not R_RendererIsOpenGL() then return end if
   if typeof(gamestate) != "void" and gamestate == gamestate_t.GS_LEVEL then return end if
@@ -2447,10 +2414,11 @@ function _MMENU_RevealLogicalMenuText(x, y, string)
   V_ClearHighresOverlayRect(x - 4, y - 4, w + 8, 24)
 end function
 
-/*
-* Function: _MMENU_WriteMenuSizedOrText
-* Purpose: Draws custom menu labels and falls back to the normal menu font if needed.
-*/
+/// Draws custom menu labels and falls back to the normal menu font if needed.
+/// @param x Horizontal map- or screen-space coordinate.
+/// @param y Vertical map- or screen-space coordinate.
+/// @param string String value supplied to `_MMENU_WriteMenuSizedOrText`.
+/// @internal
 function _MMENU_WriteMenuSizedOrText(x, y, string)
   _MMENU_RevealLogicalMenuText(x, y, string)
   if _MMENU_WriteTextMenuSized(x, y, string) then
@@ -2459,17 +2427,28 @@ function _MMENU_WriteMenuSizedOrText(x, y, string)
   M_WriteText(x, y, string)
 end function
 
+/// Tracks the mutable joywait value used by the m menu subsystem.
+/// @internal
 _joywait = 0
+/// Tracks the mutable mousewait value used by the m menu subsystem.
+/// @internal
 _mousewait = 0
+/// Tracks the mutable mousey acc value used by the m menu subsystem.
+/// @internal
 _mousey_acc = 0
+/// Tracks the mutable lasty value used by the m menu subsystem.
+/// @internal
 _lasty = 0
+/// Tracks the mutable mousex acc value used by the m menu subsystem.
+/// @internal
 _mousex_acc = 0
+/// Tracks the mutable lastx value used by the m menu subsystem.
+/// @internal
 _lastx = 0
 
-/*
-* Function: _MMENU_HandleMPNameEditKey
-* Purpose: Handles key input while multiplayer player-name editor is active.
-*/
+/// Handles key input while multiplayer player-name editor is active.
+/// @param ch Ch value supplied to `_MMENU_HandleMPNameEditKey`.
+/// @internal
 function _MMENU_HandleMPNameEditKey(ch)
   global mpNameEnter
   global mpNameCharIndex
@@ -2505,10 +2484,9 @@ function _MMENU_HandleMPNameEditKey(ch)
   return true
 end function
 
-/*
-* Function: _MMENU_HandleMPJoinHostEditKey
-* Purpose: Handles key input while multiplayer join-host editor is active.
-*/
+/// Handles key input while multiplayer join-host editor is active.
+/// @param ch Ch value supplied to `_MMENU_HandleMPJoinHostEditKey`.
+/// @internal
 function _MMENU_HandleMPJoinHostEditKey(ch)
   global mpJoinHostEnter
   global mpJoinHostCharIndex
@@ -2546,10 +2524,8 @@ function _MMENU_HandleMPJoinHostEditKey(ch)
   return true
 end function
 
-/*
-* Function: M_Responder
-* Purpose: Routes modal/editor/navigation keys and invokes the selected menu item's callback.
-*/
+/// Routes modal/editor/navigation keys and invokes the selected menu item's callback.
+/// @param ev Input event to process.
 function M_Responder(ev)
   global _joywait
   global _mousewait
@@ -2895,10 +2871,7 @@ function M_Responder(ev)
       return false
     end function
 
-    /*
-    * Function: M_StartControlPanel
-    * Purpose: Opens the main menu at its remembered row and clamps the cursor to enabled items.
-    */
+    /// Opens the main menu at its remembered row and clamps the cursor to enabled items.
     function M_StartControlPanel()
       global menuactive
       global currentMenu
@@ -2910,10 +2883,7 @@ function M_Responder(ev)
       _MMENU_ClampCursor()
     end function
 
-    /*
-* Function: M_Drawer
-* Purpose: Draws the active menu page, modal message, and animated selection skull.
-    */
+    /// Draws the active menu page, modal message, and animated selection skull.
     function M_Drawer()
       global inhelpscreens
       inhelpscreens = false
@@ -2973,10 +2943,7 @@ function M_Responder(ev)
       W_CacheLumpName(skullName[whichSkull], PU_CACHE))
     end function
 
-    /*
-* Function: M_ClearMenus
-* Purpose: Closes menu and multiplayer text editors, requesting a status-bar refresh when needed.
-    */
+/// Closes menu and multiplayer text editors, requesting a status-bar refresh when needed.
 function M_ClearMenus()
   global menuactive
   global mpNameEnter
@@ -2991,10 +2958,8 @@ function M_ClearMenus()
   end if
 end function
 
-    /*
-* Function: M_SetupNextMenu
-* Purpose: Switches menu definition, restores its remembered cursor, and exits active text editors.
-    */
+    /// Switches menu definition, restores its remembered cursor, and exits active text editors.
+    /// @param menudef Menudef value supplied to `M_SetupNextMenu`.
     function M_SetupNextMenu(menudef)
       global currentMenu
       global itemOn
@@ -3008,10 +2973,7 @@ end function
       _MMENU_ClampCursor()
     end function
 
-    /*
-* Function: M_Ticker
-* Purpose: Pumps multiplayer handshakes and flips the selection skull every eight menu tics.
-    */
+/// Pumps multiplayer handshakes and flips the selection skull every eight menu tics.
 function M_Ticker()
   global skullAnimCounter
   global whichSkull
@@ -3025,10 +2987,7 @@ function M_Ticker()
       end if
     end function
 
-    /*
-    * Function: M_Init
-    * Purpose: Constructs menu definitions and edit buffers, restores defaults, and seeds cursor/animation state.
-    */
+    /// Constructs menu definitions and edit buffers, restores defaults, and seeds cursor/animation state.
     function M_Init()
       global currentMenu
       global menuactive

@@ -13,9 +13,10 @@
   See the License for the specific language governing permissions and
   limitations under the License.
 
-  Script: console_ui.ml
-  Purpose: Owns console animation, history, input capture, scrolling, and drawing while delegating command execution.
 */
+
+//! Owns console animation, history, input capture, scrolling, and drawing while delegating command execution.
+
 import d_event
 import doomdef
 import doomstat
@@ -26,40 +27,87 @@ import std.time
 import std.math
 import std.string as str
 
+/// Defines cui panel height for the console ui subsystem.
 const CUI_PANEL_HEIGHT = 68
+/// Defines cui animation ms for the console ui subsystem.
 const CUI_ANIMATION_MS = 200
+/// Defines the maximum cui max log lines accepted by the console ui subsystem.
 const CUI_MAX_LOG_LINES = 256
+/// Defines the maximum cui max history accepted by the console ui subsystem.
 const CUI_MAX_HISTORY = 32
+/// Defines the maximum cui max input accepted by the console ui subsystem.
 const CUI_MAX_INPUT = 60
+/// Defines cui visible lines for the console ui subsystem.
 const CUI_VISIBLE_LINES = 5
+/// Defines cui line step for the console ui subsystem.
 const CUI_LINE_STEP = 9
+/// Defines the Doom palette selection for cui background color.
 const CUI_BACKGROUND_COLOR = 0
+/// Defines the Doom palette selection for cui border color.
 const CUI_BORDER_COLOR = 176
 
+/// Tracks whether cui initialized is active in the console ui subsystem.
+/// @internal
 _cui_initialized = false
+/// Stores the cui font collection used by the console ui subsystem.
+/// @internal
 _cui_font =[]
+/// Tracks the mutable cui font start value used by the console ui subsystem.
+/// @internal
 _cui_font_start = 33
+/// Stores the cui log collection used by the console ui subsystem.
+/// @internal
 _cui_log =[]
+/// Stores the cui history collection used by the console ui subsystem.
+/// @internal
 _cui_history =[]
+/// Stores the mutable cui input text used by the console ui subsystem.
+/// @internal
 _cui_input = ""
+/// Tracks the mutable cui history pos value used by the console ui subsystem.
+/// @internal
 _cui_history_pos = 0
+/// Tracks the mutable cui scroll value used by the console ui subsystem.
+/// @internal
 _cui_scroll = 0
+/// Tracks whether cui wanted open is active in the console ui subsystem.
+/// @internal
 _cui_wanted_open = false
+/// Tracks the mutable cui height value used by the console ui subsystem.
+/// @internal
 _cui_height = 0
+/// Tracks the mutable cui anim start height value used by the console ui subsystem.
+/// @internal
 _cui_anim_start_height = 0
+/// Tracks the mutable cui anim target height value used by the console ui subsystem.
+/// @internal
 _cui_anim_target_height = 0
+/// Tracks the mutable cui anim started value used by the console ui subsystem.
+/// @internal
 _cui_anim_started = 0
+/// Tracks the mutable cui anim duration value used by the console ui subsystem.
+/// @internal
 _cui_anim_duration = CUI_ANIMATION_MS
+/// Tracks whether cui pause owned is active in the console ui subsystem.
+/// @internal
 _cui_pause_owned = false
+/// Tracks whether cui pause restore is active in the console ui subsystem.
+/// @internal
 _cui_pause_restore = false
+/// Holds the optional cui fps line resource used by the console ui subsystem.
+/// @internal
 _cui_fps_line = void
+/// Tracks the mutable cui fps value value used by the console ui subsystem.
+/// @internal
 _cui_fps_value = -1
+/// Tracks whether cui shift down is active in the console ui subsystem.
+/// @internal
 _cui_shift_down = false
 
-/*
-* Function: _CUI_IDiv
-* Purpose: Divides animation integers with truncation toward zero and a safe zero-divisor fallback.
-*/
+/// Divides animation integers with truncation toward zero and a safe zero-divisor fallback.
+/// @param a First input operand.
+/// @param b Second input operand.
+/// @internal
 function inline _CUI_IDiv(a, b)
   if typeof(a) != "int" or typeof(b) != "int" or b == 0 then return 0 end if
   q = a / b
@@ -67,19 +115,15 @@ function inline _CUI_IDiv(a, b)
   return std.math.ceil(q)
 end function
 
-/*
-* Function: _CUI_Abs
-* Purpose: Returns a non-negative animation distance.
-*/
+/// Returns a non-negative animation distance.
+/// @param v Value consumed by the operation.
+/// @internal
 function inline _CUI_Abs(v)
   if v < 0 then return - v end if
   return v
 end function
 
-/*
-* Function: CUI_Init
-* Purpose: Initializes bounded console collections and seeds the first informational log line exactly once.
-*/
+/// Initializes bounded console collections and seeds the first informational log line exactly once.
 function CUI_Init()
   global _cui_initialized
   global _cui_log
@@ -93,10 +137,9 @@ function CUI_Init()
   _cui_history_pos = 0
 end function
 
-/*
-* Function: CUI_SetFont
-* Purpose: Receives the already cached STCFN HUD font so console text exactly matches one-line game messages.
-*/
+/// Receives the already cached STCFN HUD font so console text exactly matches one-line game messages.
+/// @param font Font value supplied to `CUI_SetFont`.
+/// @param startchar Startchar value supplied to `CUI_SetFont`.
 function CUI_SetFont(font, startchar)
   global _cui_font
   global _cui_font_start
@@ -110,10 +153,8 @@ function CUI_SetFont(font, startchar)
   _cui_fps_value = -1
 end function
 
-/*
-* Function: CUI_Log
-* Purpose: Splits and appends chronological system, error, chat, or command text to bounded scrollback.
-*/
+/// Splits and appends chronological system, error, chat, or command text to bounded scrollback.
+/// @param message Message text or payload to process.
 function CUI_Log(message)
   global _cui_log
   global _cui_scroll
@@ -135,10 +176,7 @@ function CUI_Log(message)
   _cui_scroll = 0
 end function
 
-/*
-* Function: CUI_ClearLog
-* Purpose: Clears console scrollback without altering command history or current input.
-*/
+/// Clears console scrollback without altering command history or current input.
 function CUI_ClearLog()
   global _cui_log
   global _cui_scroll
@@ -146,20 +184,17 @@ function CUI_ClearLog()
   _cui_scroll = 0
 end function
 
-/*
-* Function: _CUI_MaxScroll
-* Purpose: Computes the oldest valid viewport offset for the fixed visible line count.
-*/
+/// Computes the oldest valid viewport offset for the fixed visible line count.
+/// @internal
 function inline _CUI_MaxScroll()
   n = len(_cui_log) - CUI_VISIBLE_LINES
   if n < 0 then return 0 end if
   return n
 end function
 
-/*
-* Function: _CUI_SetInput
-* Purpose: Replaces the editable command text with a bounded history entry.
-*/
+/// Replaces the editable command text with a bounded history entry.
+/// @param text Text to process.
+/// @internal
 function _CUI_SetInput(text)
   global _cui_input
   if typeof(text) != "string" then
@@ -173,10 +208,8 @@ function _CUI_SetInput(text)
   end if
 end function
 
-/*
-* Function: _CUI_ReleasePause
-* Purpose: Restores the pause state that existed before the console began capturing input.
-*/
+/// Restores the pause state that existed before the console began capturing input.
+/// @internal
 function _CUI_ReleasePause()
   global paused
   global _cui_pause_owned
@@ -186,10 +219,8 @@ function _CUI_ReleasePause()
   _cui_pause_owned = false
 end function
 
-/*
-* Function: _CUI_UpdateAnimation
-* Purpose: Advances the time-based slide and releases the owned pause only after the closing panel fully exits.
-*/
+/// Advances the time-based slide and releases the owned pause only after the closing panel fully exits.
+/// @internal
 function _CUI_UpdateAnimation()
   global _cui_height
 
@@ -215,10 +246,8 @@ function _CUI_UpdateAnimation()
   end if
 end function
 
-/*
-* Function: CUI_SetOpen
-* Purpose: Starts a reversible constant-speed slide and acquires or eventually restores the gameplay pause.
-*/
+/// Starts a reversible constant-speed slide and acquires or eventually restores the gameplay pause.
+/// @param openConsole Open console value supplied to `CUI_SetOpen`.
 function CUI_SetOpen(openConsole)
   global paused
   global _cui_wanted_open
@@ -253,27 +282,20 @@ function CUI_SetOpen(openConsole)
   _cui_anim_started = std.time.ticks()
 end function
 
-/*
-* Function: CUI_Toggle
-* Purpose: Reverses the current console target while preserving in-flight animation continuity.
-*/
+/// Reverses the current console target while preserving in-flight animation continuity.
 function CUI_Toggle()
   CUI_SetOpen(not _cui_wanted_open)
 end function
 
-/*
-* Function: CUI_IsCapturing
-* Purpose: Reports whether visible or animating console UI must consume all gameplay input.
-*/
+/// Reports whether visible or animating console UI must consume all gameplay input.
 function CUI_IsCapturing()
   _CUI_UpdateAnimation()
   return _cui_wanted_open or _cui_height > 0
 end function
 
-/*
-* Function: _CUI_RecordHistory
-* Purpose: Adds one submitted command to bounded navigation history, avoiding adjacent duplicates.
-*/
+/// Adds one submitted command to bounded navigation history, avoiding adjacent duplicates.
+/// @param command Command value supplied to `_CUI_RecordHistory`.
+/// @internal
 function _CUI_RecordHistory(command)
   global _cui_history
   global _cui_history_pos
@@ -288,10 +310,8 @@ function _CUI_RecordHistory(command)
   _cui_history_pos = len(_cui_history)
 end function
 
-/*
-* Function: _CUI_Submit
-* Purpose: Sends the current line across the parser boundary and applies only the returned UI requests.
-*/
+/// Sends the current line across the parser boundary and applies only the returned UI requests.
+/// @internal
 function _CUI_Submit()
   global _cui_input
 
@@ -311,10 +331,8 @@ function _CUI_Submit()
   if result.closeConsole then CUI_SetOpen(false) end if
 end function
 
-/*
-* Function: _CUI_HistoryUp
-* Purpose: Loads the preceding submitted command into the editable line.
-*/
+/// Loads the preceding submitted command into the editable line.
+/// @internal
 function _CUI_HistoryUp()
   global _cui_history_pos
   if len(_cui_history) == 0 then return end if
@@ -322,10 +340,8 @@ function _CUI_HistoryUp()
   _CUI_SetInput(_cui_history[_cui_history_pos])
 end function
 
-/*
-* Function: _CUI_HistoryDown
-* Purpose: Loads the following submitted command or returns to a blank newest entry.
-*/
+/// Loads the following submitted command or returns to a blank newest entry.
+/// @internal
 function _CUI_HistoryDown()
   global _cui_history_pos
   if len(_cui_history) == 0 then return end if
@@ -338,10 +354,8 @@ function _CUI_HistoryDown()
   end if
 end function
 
-/*
-* Function: CUI_Responder
-* Purpose: Toggles on tilde/O-umlaut, edits commands, scrolls output, and consumes every event while captured.
-*/
+/// Toggles on tilde/O-umlaut, edits commands, scrolls output, and consumes every event while captured.
+/// @param ev Input event to process.
 function CUI_Responder(ev)
   global _cui_input
   global _cui_scroll
@@ -384,10 +398,12 @@ function CUI_Responder(ev)
   return true
 end function
 
-/*
-* Function: _CUI_DrawText
-* Purpose: Draws one clipped STCFN text line at logical coordinates with an optional underscore cursor.
-*/
+/// Draws one clipped STCFN text line at logical coordinates with an optional underscore cursor.
+/// @param x Horizontal map- or screen-space coordinate.
+/// @param y Vertical map- or screen-space coordinate.
+/// @param text Text to process.
+/// @param cursor Cursor value supplied to `_CUI_DrawText`.
+/// @internal
 function _CUI_DrawText(x, y, text, cursor)
   if typeof(_cui_font) != "array" or len(_cui_font) == 0 then return end if
   if typeof(text) != "string" then return end if
@@ -403,10 +419,9 @@ function _CUI_DrawText(x, y, text, cursor)
   HUlib_drawTextLine(line, cursor)
 end function
 
-/*
-* Function: _CUI_DrawFPS
-* Purpose: Reuses one text widget until the sampled FPS changes, keeping the closed-console overlay inexpensive.
-*/
+/// Reuses one text widget until the sampled FPS changes, keeping the closed-console overlay inexpensive.
+/// @param y Vertical map- or screen-space coordinate.
+/// @internal
 function _CUI_DrawFPS(y)
   global _cui_fps_line
   global _cui_fps_value
@@ -430,10 +445,7 @@ function _CUI_DrawFPS(y)
   HUlib_drawTextLine(_cui_fps_line, false)
 end function
 
-/*
-* Function: CUI_Drawer
-* Purpose: Renders the animated translucent panel, scrollback, separator, input line, and optional FPS counter.
-*/
+/// Renders the animated translucent panel, scrollback, separator, input line, and optional FPS counter.
 function CUI_Drawer()
   CUI_Init()
   _CUI_UpdateAnimation()

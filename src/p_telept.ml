@@ -13,9 +13,10 @@
   See the License for the specific language governing permissions and
   limitations under the License.
 
-  Script: p_telept.ml
-  Purpose: Executes tagged line teleports, destination lookup, fog effects, and player view/momentum reset.
 */
+
+//! Executes tagged line teleports, destination lookup, fog effects, and player view/momentum reset.
+
 import doomdef
 import tables
 import s_sound
@@ -25,10 +26,9 @@ import p_tick
 import sounds
 import r_state
 
-/*
-* Function: _PTP_ResolveThinkerMobj
-* Purpose: Resolves a thinker node to its owning mobj across direct-owner and legacy thinker layouts.
-*/
+/// Resolves a thinker node to its owning mobj across direct-owner and legacy thinker layouts.
+/// @param th Th value supplied to `_PTP_ResolveThinkerMobj`.
+/// @internal
 function _PTP_ResolveThinkerMobj(th)
   if th is void then return void end if
   if th.func is void or th.func.acp1 != P_MobjThinker then return void end if
@@ -46,10 +46,11 @@ function _PTP_ResolveThinkerMobj(th)
   return void
 end function
 
-/*
-* Function: EV_Teleport
-* Purpose: Finds a destination marker with the trigger tag, relocates the activator, spawns fog effects, and resets player view and momentum.
-*/
+/// Finds a destination marker with the trigger tag, relocates the activator, spawns fog effects, and resets
+/// player view and momentum.
+/// @param line Map line or text line affected by the operation.
+/// @param side Map side affected by the operation.
+/// @param thing World object affected by the operation.
 function EV_Teleport(line, side, thing)
   if line is void or thing is void then return 0 end if
   if typeof(thing.flags) != "int" then return 0 end if

@@ -13,9 +13,10 @@
   See the License for the specific language governing permissions and
   limitations under the License.
 
-  Script: p_user.ml
-  Purpose: Applies player commands to turning, thrust, view height, jumping, weapon use, and power timers.
 */
+
+//! Applies player commands to turning, thrust, view height, jumping, weapon use, and power timers.
+
 import doomdef
 import d_event
 import p_local
@@ -26,18 +27,24 @@ import p_mobj
 import p_pspr
 import r_main
 
+/// Defines the Doom palette selection for inversecolormap.
 const INVERSECOLORMAP = 32
 
+/// Defines the maximum maxbob accepted by the p user subsystem.
 const MAXBOB = 0x100000
+/// Defines p bobanglestep for the p user subsystem.
+/// @internal
 const _P_BOBANGLESTEP = 409
+/// Defines p ang5 for the p user subsystem.
+/// @internal
 const _P_ANG5 = 59652323
 
+/// Tracks whether onground is active in the p user subsystem.
 onground = false
 
-/*
-* Function: _P_FineIndexFromAngle
-* Purpose: Converts a Doom binary angle to a wrapped fine-angle table index.
-*/
+/// Converts a Doom binary angle to a wrapped fine-angle table index.
+/// @param angle Doom binary-angle measurement.
+/// @internal
 function inline _P_FineIndexFromAngle(angle)
   if typeof(angle) != "int" then return 0 end if
   idx =(angle >> ANGLETOFINESHIFT) & FINEMASK
@@ -48,10 +55,9 @@ function inline _P_FineIndexFromAngle(angle)
   return idx
 end function
 
-/*
-* Function: _PU_WeaponIndex
-* Purpose: Validates and clamps an arbitrary weapon identifier to the player weapon-array range.
-*/
+/// Validates and clamps an arbitrary weapon identifier to the player weapon-array range.
+/// @param w W value supplied to `_PU_WeaponIndex`.
+/// @internal
 function _PU_WeaponIndex(w)
   if typeof(w) == "int" then
     if w >= 0 and w < NUMWEAPONS then return w end if
@@ -69,10 +75,9 @@ function _PU_WeaponIndex(w)
   return -1
 end function
 
-/*
-* Function: _PU_PowerIndex
-* Purpose: Validates a power-up identifier before indexing the player's power timer array.
-*/
+/// Validates a power-up identifier before indexing the player's power timer array.
+/// @param pw Pw value supplied to `_PU_PowerIndex`.
+/// @internal
 function _PU_PowerIndex(pw)
   if typeof(pw) == "int" then
     if pw >= 0 and pw < NUMPOWERS then return pw end if
@@ -92,10 +97,11 @@ function _PU_PowerIndex(pw)
   return -1
 end function
 
-/*
-* Function: _PU_GetPower
-* Purpose: Resolves a power enum safely and returns the player's remaining counter, defaulting to zero for malformed state.
-*/
+/// Resolves a power enum safely and returns the player's remaining counter, defaulting to zero for malformed
+/// state.
+/// @param player Player state affected by the operation.
+/// @param pw Pw value supplied to `_PU_GetPower`.
+/// @internal
 function _PU_GetPower(player, pw)
   if player is void then return 0 end if
   idx = _PU_PowerIndex(pw)
@@ -112,10 +118,11 @@ function _PU_GetPower(player, pw)
   return v
 end function
 
-/*
-* Function: _PU_SetPower
-* Purpose: Resolves a power enum safely and replaces its counter only when the player's power table can hold it.
-*/
+/// Resolves a power enum safely and replaces its counter only when the player's power table can hold it.
+/// @param player Player state affected by the operation.
+/// @param pw Pw value supplied to `_PU_SetPower`.
+/// @param value Value consumed by the operation.
+/// @internal
 function _PU_SetPower(player, pw, value)
   if player is void then return end if
   idx = _PU_PowerIndex(pw)
@@ -130,10 +137,10 @@ function _PU_SetPower(player, pw, value)
   player.powers[idx] = value
 end function
 
-/*
-* Function: _PU_HasWeapon
-* Purpose: Resolves a weapon enum and reports ownership without indexing malformed player tables.
-*/
+/// Resolves a weapon enum and reports ownership without indexing malformed player tables.
+/// @param player Player state affected by the operation.
+/// @param w W value supplied to `_PU_HasWeapon`.
+/// @internal
 function inline _PU_HasWeapon(player, w)
   if player is void then return false end if
   idx = _PU_WeaponIndex(w)
@@ -142,10 +149,11 @@ function inline _PU_HasWeapon(player, w)
   return player.weaponowned[idx]
 end function
 
-/*
-* Function: P_Thrust
-* Purpose: Projects a movement magnitude through fine-angle sine/cosine tables and adds it to player horizontal momentum.
-*/
+/// Projects a movement magnitude through fine-angle sine/cosine tables and adds it to player horizontal
+/// momentum.
+/// @param player Player state affected by the operation.
+/// @param angle Doom binary-angle measurement.
+/// @param move Move value supplied to `P_Thrust`.
 function P_Thrust(player, angle, move)
   if player is void or player.mo is void then return end if
   if finecosine is void or finesine is void then return end if
@@ -158,10 +166,8 @@ function P_Thrust(player, angle, move)
   player.mo.momy = player.mo.momy + FixedMul(move, finesine[ai])
 end function
 
-/*
-* Function: P_CalcHeight
-* Purpose: Derives weapon bob and eye height from horizontal momentum, stance, airborne state, and ceiling clearance.
-*/
+/// Derives weapon bob and eye height from horizontal momentum, stance, airborne state, and ceiling clearance.
+/// @param player Player state affected by the operation.
 function P_CalcHeight(player)
   if player is void or player.mo is void then return end if
 
@@ -216,10 +222,9 @@ function P_CalcHeight(player)
   end if
 end function
 
-/*
-* Function: P_MovePlayer
-* Purpose: Applies command turning and grounded forward/side thrust, then enters the run animation when movement is requested.
-*/
+/// Applies command turning and grounded forward/side thrust, then enters the run animation when movement is
+/// requested.
+/// @param player Player state affected by the operation.
 function P_MovePlayer(player)
   global onground
 
@@ -251,10 +256,8 @@ function P_MovePlayer(player)
   end if
 end function
 
-/*
-* Function: P_DeathThink
-* Purpose: Lowers the dead player's view, turns toward the attacker, and requests rebirth when use is pressed.
-*/
+/// Lowers the dead player's view, turns toward the attacker, and requests rebirth when use is pressed.
+/// @param player Player state affected by the operation.
 function P_DeathThink(player)
   global onground
 
@@ -294,10 +297,9 @@ function P_DeathThink(player)
   end if
 end function
 
-/*
-* Function: P_PlayerThink
-* Purpose: Applies one tic command to player movement, view, weapon, use, power timers, and death or live-state transitions.
-*/
+/// Applies one tic command to player movement, view, weapon, use, power timers, and death or live-state
+/// transitions.
+/// @param player Player state affected by the operation.
 function P_PlayerThink(player)
   if player is void then return end if
   if player.mo is void then return end if

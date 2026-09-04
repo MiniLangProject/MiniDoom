@@ -13,18 +13,24 @@
   See the License for the specific language governing permissions and
   limitations under the License.
 
-  Script: dstrings.ml
-  Purpose: Selects the active localized Doom text constants and defines savegame/developer resource names.
 */
+
+//! Selects the active localized Doom text constants and defines savegame/developer resource names.
+
 import d_englsh
 import dstrings
 
+/// Defines the savegamename text used by the dstrings subsystem.
 const SAVEGAMENAME = "doomsav"
+/// Defines the devmaps text used by the dstrings subsystem.
 const DEVMAPS = "devmaps"
+/// Defines the devdata text used by the dstrings subsystem.
 const DEVDATA = "devdata"
+/// Defines the num quitmessages count used by the dstrings subsystem.
 const NUM_QUITMESSAGES = 22
 import d_englsh
 
+/// Stores the endmsg collection used by the dstrings subsystem.
 endmsg =[
 QUITMSG,
 "please don't leave, there's more\ndemons to toast!",

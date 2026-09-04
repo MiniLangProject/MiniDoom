@@ -13,9 +13,11 @@
   See the License for the specific language governing permissions and
   limitations under the License.
 
-  Script: r_main.ml
-  Purpose: Builds view/projection tables, derives interpolated camera state, and orchestrates software or OpenGL player-view rendering.
 */
+
+//! Builds view/projection tables, derives interpolated camera state, and orchestrates software or OpenGL
+//! player-view rendering.
+
 import d_player
 import r_data
 import doomdef
@@ -31,81 +33,152 @@ import r_renderer
 import std.math
 import std.time
 
+/// Tracks the mutable viewcos value used by the r main subsystem.
 viewcos = 0
+/// Tracks the mutable viewsin value used by the r main subsystem.
 viewsin = 0
 
+/// Tracks the mutable viewwidth value used by the r main subsystem.
 viewwidth = 0
+/// Tracks the mutable viewheight value used by the r main subsystem.
 viewheight = 0
+/// Tracks the mutable viewwindowx value used by the r main subsystem.
 viewwindowx = 0
+/// Tracks the mutable viewwindowy value used by the r main subsystem.
 viewwindowy = 0
 
+/// Tracks the mutable centerx value used by the r main subsystem.
 centerx = 0
+/// Tracks the mutable centery value used by the r main subsystem.
 centery = 0
+/// Tracks the mutable centerxfrac value used by the r main subsystem.
 centerxfrac = 0
+/// Tracks the mutable centeryfrac value used by the r main subsystem.
 centeryfrac = 0
+/// Tracks the mutable projection value used by the r main subsystem.
 projection = 0
 
+/// Tracks the mutable validcount value used by the r main subsystem.
 validcount = 1
 
+/// Tracks the mutable linecount value used by the r main subsystem.
 linecount = 0
+/// Tracks the mutable loopcount value used by the r main subsystem.
 loopcount = 0
 
+/// Defines lightlevels for the r main subsystem.
 const LIGHTLEVELS = 16
+/// Defines lightsegshift for the r main subsystem.
 const LIGHTSEGSHIFT = 4
+/// Defines the maximum maxlightscale accepted by the r main subsystem.
 const MAXLIGHTSCALE = 48
+/// Defines lightscaleshift for the r main subsystem.
 const LIGHTSCALESHIFT = 12
+/// Defines the maximum maxlightz accepted by the r main subsystem.
 const MAXLIGHTZ = 128
+/// Defines lightzshift for the r main subsystem.
 const LIGHTZSHIFT = 20
+/// Defines the numcolormaps count used by the r main subsystem.
 const NUMCOLORMAPS = 32
 
+/// Holds the optional scalelight resource used by the r main subsystem.
 scalelight = void
+/// Holds the optional scalelightfixed resource used by the r main subsystem.
 scalelightfixed = void
+/// Holds the optional zlight resource used by the r main subsystem.
 zlight = void
 
+/// Tracks the mutable extralight value used by the r main subsystem.
 extralight = 0
+/// Holds the optional fixedcolormap resource used by the r main subsystem.
 fixedcolormap = void
 
+/// Tracks the mutable detailshift value used by the r main subsystem.
 detailshift = 0
+/// Tracks whether setsizeneeded is active in the r main subsystem.
 setsizeneeded = false
+/// Tracks the mutable setblocks value used by the r main subsystem.
 setblocks = 10
+/// Tracks the mutable setdetail value used by the r main subsystem.
 setdetail = 0
 
+/// Holds the optional colfunc resource used by the r main subsystem.
 colfunc = void
+/// Holds the optional basecolfunc resource used by the r main subsystem.
 basecolfunc = void
+/// Holds the optional fuzzcolfunc resource used by the r main subsystem.
 fuzzcolfunc = void
+/// Holds the optional transcolfunc resource used by the r main subsystem.
 transcolfunc = void
+/// Holds the optional spanfunc resource used by the r main subsystem.
 spanfunc = void
 
+/// Defines fieldofview for the r main subsystem.
 const FIELDOFVIEW = 2048
 
+/// Tracks the mutable viewangleoffset value used by the r main subsystem.
 viewangleoffset = 0
 
+/// Tracks the mutable framecount value used by the r main subsystem.
 framecount = 0
+/// Tracks the mutable sscount value used by the r main subsystem.
 sscount = 0
 
+/// Tracks whether r prof enabled is active in the r main subsystem.
+/// @internal
 _r_prof_enabled = false
+/// Tracks the mutable r prof t0 value used by the r main subsystem.
+/// @internal
 _r_prof_t0 = 0
+/// Tracks the mutable r prof frames value used by the r main subsystem.
+/// @internal
 _r_prof_frames = 0
+/// Tracks the mutable r prof clear ms value used by the r main subsystem.
+/// @internal
 _r_prof_clear_ms = 0
+/// Tracks the mutable r prof bsp ms value used by the r main subsystem.
+/// @internal
 _r_prof_bsp_ms = 0
+/// Tracks the mutable r prof planes ms value used by the r main subsystem.
+/// @internal
 _r_prof_planes_ms = 0
+/// Tracks the mutable r prof masked ms value used by the r main subsystem.
+/// @internal
 _r_prof_masked_ms = 0
 
+/// Holds the optional r interp player resource used by the r main subsystem.
+/// @internal
 _r_interp_player = void
+/// Tracks the mutable r interp last tic value used by the r main subsystem.
+/// @internal
 _r_interp_last_tic = -1
+/// Tracks the mutable r interp prev x value used by the r main subsystem.
+/// @internal
 _r_interp_prev_x = 0
+/// Tracks the mutable r interp prev y value used by the r main subsystem.
+/// @internal
 _r_interp_prev_y = 0
+/// Tracks the mutable r interp prev z value used by the r main subsystem.
+/// @internal
 _r_interp_prev_z = 0
+/// Tracks the mutable r interp prev angle value used by the r main subsystem.
+/// @internal
 _r_interp_prev_angle = 0
+/// Tracks the mutable r interp cur x value used by the r main subsystem.
+/// @internal
 _r_interp_cur_x = 0
+/// Tracks the mutable r interp cur y value used by the r main subsystem.
+/// @internal
 _r_interp_cur_y = 0
+/// Tracks the mutable r interp cur z value used by the r main subsystem.
+/// @internal
 _r_interp_cur_z = 0
+/// Tracks the mutable r interp cur angle value used by the r main subsystem.
+/// @internal
 _r_interp_cur_angle = 0
 
-/*
-* Function: R_ResetViewInterpolation
-* Purpose: Discards the previous camera sample so a spawn or level transition cannot interpolate from stale world coordinates.
-*/
+/// Discards the previous camera sample so a spawn or level transition cannot interpolate from stale world
+/// coordinates.
 function R_ResetViewInterpolation()
   global _r_interp_player
   global _r_interp_last_tic
@@ -114,19 +187,15 @@ function R_ResetViewInterpolation()
   _r_interp_last_tic = -1
 end function
 
-/*
-* Function: _R_TimeMs
-* Purpose: Returns the platform tick counter as an integer millisecond timestamp for render profiling.
-*/
+/// Returns the platform tick counter as an integer millisecond timestamp for render profiling.
+/// @internal
 function inline _R_TimeMs()
   t = std.time.ticks()
   return _R_ToIntOr(t, 0)
 end function
 
-/*
-* Function: _R_ProfileFlushMaybe
-* Purpose: Once per second, prints accumulated pipeline counters and resets renderer, BSP, and draw profiling windows.
-*/
+/// Once per second, prints accumulated pipeline counters and resets renderer, BSP, and draw profiling windows.
+/// @internal
 function _R_ProfileFlushMaybe()
   global _r_prof_t0
   global _r_prof_frames
@@ -238,20 +307,20 @@ function _R_ProfileFlushMaybe()
   if typeof(R_BspProfileReset) == "function" then R_BspProfileReset() end if
 end function
 
-/*
-* Function: _R_Abs
-* Purpose: Converts an arbitrary numeric value to an integer and returns its non-negative magnitude.
-*/
+/// Converts an arbitrary numeric value to an integer and returns its non-negative magnitude.
+/// @param x Horizontal map- or screen-space coordinate.
+/// @internal
 function inline _R_Abs(x)
   xi = _R_ToIntOr(x, 0)
   if xi < 0 then return - xi end if
   return xi
 end function
 
-/*
-* Function: _R_IDiv
-* Purpose: Coerces numeric operands and returns their signed quotient truncated toward zero, using zero for a zero divisor.
-*/
+/// Coerces numeric operands and returns their signed quotient truncated toward zero, using zero for a zero
+/// divisor.
+/// @param a First input operand.
+/// @param b Second input operand.
+/// @internal
 function inline _R_IDiv(a, b)
   a = _R_ToIntOr(a, 0)
   b = _R_ToIntOr(b, 0)
@@ -261,10 +330,10 @@ function inline _R_IDiv(a, b)
   return std.math.ceil(q)
 end function
 
-/*
-* Function: _R_ToIntOr
-* Purpose: Coerces numbers and numeric values to a truncation-toward-zero integer, returning fallback on failure.
-*/
+/// Coerces numbers and numeric values to a truncation-toward-zero integer, returning fallback on failure.
+/// @param v Value consumed by the operation.
+/// @param fallback Value returned when the requested conversion or lookup is unavailable.
+/// @internal
 function inline _R_ToIntOr(v, fallback)
   if typeof(v) == "int" then return v end if
   if typeof(v) == "float" then
@@ -280,36 +349,33 @@ function inline _R_ToIntOr(v, fallback)
   return fallback
 end function
 
-/*
-* Function: _R_IsSeq
-* Purpose: Recognizes the array and list containers accepted by renderer lookup tables.
-*/
+/// Recognizes the array and list containers accepted by renderer lookup tables.
+/// @param v Value consumed by the operation.
+/// @internal
 function inline _R_IsSeq(v)
   t = typeof(v)
   return t == "array" or t == "list"
 end function
 
-/*
-* Function: _R_AngNorm
-* Purpose: Normalizes an angle or numeric input to Doom's unsigned 32-bit binary-angle domain.
-*/
+/// Normalizes an angle or numeric input to Doom's unsigned 32-bit binary-angle domain.
+/// @param a First input operand.
+/// @internal
 function inline _R_AngNorm(a)
   ai = _R_ToIntOr(a, 0)
   return ai & 0xFFFFFFFF
 end function
 
-/*
-* Function: _R_AngSub
-* Purpose: Subtracts two binary angles with unsigned 32-bit wraparound.
-*/
+/// Subtracts two binary angles with unsigned 32-bit wraparound.
+/// @param a First input operand.
+/// @param b Second input operand.
+/// @internal
 function inline _R_AngSub(a, b)
   return _R_AngNorm(_R_AngNorm(a) - _R_AngNorm(b))
 end function
 
-/*
-* Function: _R_FineSineAt
-* Purpose: Samples the wrapped fine-sine table for a binary angle, returning zero if tables are unavailable.
-*/
+/// Samples the wrapped fine-sine table for a binary angle, returning zero if tables are unavailable.
+/// @param angle Doom binary-angle measurement.
+/// @internal
 function inline _R_FineSineAt(angle)
   if not _R_IsSeq(finesine) or len(finesine) == 0 then return 0 end if
   idx = angle >> ANGLETOFINESHIFT
@@ -321,10 +387,10 @@ function inline _R_FineSineAt(angle)
   return finesine[idx]
 end function
 
-/*
-* Function: _R_TanToAngle
-* Purpose: Converts a non-negative slope ratio into a clamped lookup-table binary angle.
-*/
+/// Converts a non-negative slope ratio into a clamped lookup-table binary angle.
+/// @param num Index identifying the requested item.
+/// @param den Den value supplied to `_R_TanToAngle`.
+/// @internal
 function inline _R_TanToAngle(num, den)
   if not _R_IsSeq(tantoangle) or len(tantoangle) == 0 then return 0 end if
   num = _R_ToIntOr(num, 0)
@@ -338,10 +404,9 @@ function inline _R_TanToAngle(num, den)
   return tantoangle[idx]
 end function
 
-/*
-* Function: _R_ColorMapAt
-* Purpose: Returns one clamped 256-entry lighting colormap, or a black fallback when COLORMAP data is missing.
-*/
+/// Returns one clamped 256-entry lighting colormap, or a black fallback when COLORMAP data is missing.
+/// @param level Level value supplied to `_R_ColorMapAt`.
+/// @internal
 function inline _R_ColorMapAt(level)
   if typeof(colormaps) != "bytes" or len(colormaps) < 256 then
     return bytes(256, 0)
@@ -354,18 +419,16 @@ function inline _R_ColorMapAt(level)
   return slice(colormaps, level * 256, 256)
 end function
 
-/*
-* Function: _R_HasSignBit
-* Purpose: Tests the high bit of a normalized binary angle or wrapped 32-bit delta.
-*/
+/// Tests the high bit of a normalized binary angle or wrapped 32-bit delta.
+/// @param v Value consumed by the operation.
+/// @internal
 function inline _R_HasSignBit(v)
   return (_R_AngNorm(v) & 0x80000000) != 0
 end function
 
-/*
-* Function: _R_S32
-* Purpose: Coerces a numeric value and reinterprets its low 32 bits as a signed integer.
-*/
+/// Coerces a numeric value and reinterprets its low 32 bits as a signed integer.
+/// @param v Value consumed by the operation.
+/// @internal
 function _R_S32(v)
   vi = 0
   if typeof(v) == "int" then
@@ -395,10 +458,9 @@ function _R_S32(v)
   return x
 end function
 
-/*
-* Function: _R_ToFrac
-* Purpose: Converts the render interpolation control to a scalar clamped to [0,1], defaulting invalid inputs to one.
-*/
+/// Converts the render interpolation control to a scalar clamped to [0,1], defaulting invalid inputs to one.
+/// @param v Value consumed by the operation.
+/// @internal
 function inline _R_ToFrac(v)
   if typeof(v) == "float" then
     if v < 0 then return 0 end if
@@ -422,10 +484,11 @@ function inline _R_ToFrac(v)
   return 1
 end function
 
-/*
-* Function: _R_LerpS32
-* Purpose: Linearly interpolates signed 32-bit coordinates and preserves signed wrap semantics at the result.
-*/
+/// Linearly interpolates signed 32-bit coordinates and preserves signed wrap semantics at the result.
+/// @param a First input operand.
+/// @param b Second input operand.
+/// @param frac Frac value supplied to `_R_LerpS32`.
+/// @internal
 function inline _R_LerpS32(a, b, frac)
   if frac <= 0 then return _R_S32(a) end if
   if frac >= 1 then return _R_S32(b) end if
@@ -434,10 +497,11 @@ function inline _R_LerpS32(a, b, frac)
   return _R_S32(_R_ToIntOr(da +(db - da) * frac, da))
 end function
 
-/*
-* Function: _R_LerpAngle
-* Purpose: Interpolates along the shortest wrapped path between two 32-bit binary angles.
-*/
+/// Interpolates along the shortest wrapped path between two 32-bit binary angles.
+/// @param a First input operand.
+/// @param b Second input operand.
+/// @param frac Frac value supplied to `_R_LerpAngle`.
+/// @internal
 function inline _R_LerpAngle(a, b, frac)
   if frac <= 0 then return _R_AngNorm(_R_ToIntOr(a, 0)) end if
   if frac >= 1 then return _R_AngNorm(_R_ToIntOr(b, 0)) end if
@@ -448,10 +512,11 @@ function inline _R_LerpAngle(a, b, frac)
   return _R_AngNorm(aa + _R_ToIntOr(d * frac, 0))
 end function
 
-/*
-* Function: R_PointOnSide
-* Purpose: Classifies a fixed-point position against a BSP partition, using axis fast paths and overflow-safe sign tests.
-*/
+/// Classifies a fixed-point position against a BSP partition, using axis fast paths and overflow-safe sign
+/// tests.
+/// @param x Horizontal map- or screen-space coordinate.
+/// @param y Vertical map- or screen-space coordinate.
+/// @param node Node value supplied to `R_PointOnSide`.
 function inline R_PointOnSide(x, y, node)
 
   if node is void then return 0 end if
@@ -491,10 +556,10 @@ function inline R_PointOnSide(x, y, node)
   if right < left then return 0 else return 1 end if
 end function
 
-/*
-* Function: R_PointOnSegSide
-* Purpose: Classifies a fixed-point position against an oriented seg for clipping and sprite-side decisions.
-*/
+/// Classifies a fixed-point position against an oriented seg for clipping and sprite-side decisions.
+/// @param x Horizontal map- or screen-space coordinate.
+/// @param y Vertical map- or screen-space coordinate.
+/// @param seg Seg value supplied to `R_PointOnSegSide`.
 function inline R_PointOnSegSide(x, y, seg)
   if seg is void then return 0 end if
   v1 = seg.v1
@@ -538,10 +603,9 @@ function inline R_PointOnSegSide(x, y, seg)
   if right < left then return 0 else return 1 end if
 end function
 
-/*
-* Function: R_PointToAngle
-* Purpose: Computes the wrapped binary angle from the current view origin to a world point via octant slope lookup.
-*/
+/// Computes the wrapped binary angle from the current view origin to a world point via octant slope lookup.
+/// @param x Horizontal map- or screen-space coordinate.
+/// @param y Vertical map- or screen-space coordinate.
 function R_PointToAngle(x, y)
   global viewx
   global viewy
@@ -589,10 +653,12 @@ function R_PointToAngle(x, y)
   return _R_AngNorm(a)
 end function
 
-/*
-* Function: R_PointToAngle2
-* Purpose: Computes the binary angle between arbitrary endpoints while restoring the renderer's global view origin afterward.
-*/
+/// Computes the binary angle between arbitrary endpoints while restoring the renderer's global view origin
+/// afterward.
+/// @param x1 Horizontal coordinate of the first endpoint.
+/// @param y1 Vertical coordinate of the first endpoint.
+/// @param x2 Horizontal coordinate of the second endpoint.
+/// @param y2 Vertical coordinate of the second endpoint.
 function inline R_PointToAngle2(x1, y1, x2, y2)
   global viewx
   global viewy
@@ -607,10 +673,9 @@ function inline R_PointToAngle2(x1, y1, x2, y2)
   return a
 end function
 
-/*
-* Function: R_PointToDist
-* Purpose: Computes fixed-point planar distance from the view origin using slope and sine lookup tables.
-*/
+/// Computes fixed-point planar distance from the view origin using slope and sine lookup tables.
+/// @param x Horizontal map- or screen-space coordinate.
+/// @param y Vertical map- or screen-space coordinate.
 function inline R_PointToDist(x, y)
   global viewx
   global viewy
@@ -644,10 +709,8 @@ function inline R_PointToDist(x, y)
   return FixedDiv(dx, sinv)
 end function
 
-/*
-* Function: R_ScaleFromGlobalAngle
-* Purpose: Derives the perspective scale for a wall column and clamps it to Doom's supported fixed-point range.
-*/
+/// Derives the perspective scale for a wall column and clamps it to Doom's supported fixed-point range.
+/// @param visangle Visangle value supplied to `R_ScaleFromGlobalAngle`.
 function R_ScaleFromGlobalAngle(visangle)
   global rw_distance
   global viewangle
@@ -694,10 +757,9 @@ function R_ScaleFromGlobalAngle(visangle)
   return 64 * FRACUNIT
 end function
 
-/*
-* Function: R_PointInSubsector
-* Purpose: Walks the BSP from its root to locate the leaf subsector containing a world coordinate.
-*/
+/// Walks the BSP from its root to locate the leaf subsector containing a world coordinate.
+/// @param x Horizontal map- or screen-space coordinate.
+/// @param y Vertical map- or screen-space coordinate.
 function R_PointInSubsector(x, y)
   if numnodes <= 0 then
     if typeof(subsectors) == "array" and len(subsectors) > 0 then return subsectors[0] end if
@@ -718,10 +780,10 @@ function R_PointInSubsector(x, y)
   return void
 end function
 
-/*
-* Function: R_AddPointToBox
-* Purpose: Expands a four-entry BOXLEFT/RIGHT/BOTTOM/TOP bounds array to include a point.
-*/
+/// Expands a four-entry BOXLEFT/RIGHT/BOTTOM/TOP bounds array to include a point.
+/// @param x Horizontal map- or screen-space coordinate.
+/// @param y Vertical map- or screen-space coordinate.
+/// @param box Bounding-box array to read or update.
 function R_AddPointToBox(x, y, box)
 
   if box is void or len(box) < 4 then return end if
@@ -739,10 +801,7 @@ function R_AddPointToBox(x, y, box)
   end if
 end function
 
-/*
-* Function: R_Init
-* Purpose: Initializes render data, geometry/light tables, view sizing, translations, and optional profiling hooks.
-*/
+/// Initializes render data, geometry/light tables, view sizing, translations, and optional profiling hooks.
 function R_Init()
   global _r_prof_enabled
   global detailLevel
@@ -781,10 +840,10 @@ function R_Init()
   end if
 end function
 
-/*
-* Function: R_SetViewSize
-* Purpose: Clamps and applies a view-block request, rebuilding projection, draw callbacks, buffers, sprite scale, and light tables.
-*/
+/// Clamps and applies a view-block request, rebuilding projection, draw callbacks, buffers, sprite scale, and
+/// light tables.
+/// @param blocks Blocks value supplied to `R_SetViewSize`.
+/// @param detail Detail value supplied to `R_SetViewSize`.
 function R_SetViewSize(blocks, detail)
   global detailshift
   global setsizeneeded
@@ -893,35 +952,23 @@ function R_SetViewSize(blocks, detail)
   setsizeneeded = false
 end function
 
-/*
-* Function: R_ExecuteSetViewSize
-* Purpose: Applies the deferred block/detail request only when a view-size rebuild is pending.
-*/
+/// Applies the deferred block/detail request only when a view-size rebuild is pending.
 function R_ExecuteSetViewSize()
   if not setsizeneeded then return end if
   R_SetViewSize(setblocks, setdetail)
 end function
 
-/*
-* Function: R_InitPointToAngle
-* Purpose: Ensures the trigonometric tables required by point-to-angle calculations are populated.
-*/
+/// Ensures the trigonometric tables required by point-to-angle calculations are populated.
 function R_InitPointToAngle()
   if typeof(Tables_Init) == "function" then Tables_Init() end if
 end function
 
-/*
-* Function: R_InitTables
-* Purpose: Initializes the shared fine-angle, tangent, sine, and slope lookup tables.
-*/
+/// Initializes the shared fine-angle, tangent, sine, and slope lookup tables.
 function R_InitTables()
   if typeof(Tables_Init) == "function" then Tables_Init() end if
 end function
 
-/*
-* Function: R_InitLightTables
-* Purpose: Builds distance-indexed, scale-indexed, and fixed-colormap lighting lookup matrices.
-*/
+/// Builds distance-indexed, scale-indexed, and fixed-colormap lighting lookup matrices.
 function R_InitLightTables()
   global zlight
   global scalelight
@@ -957,10 +1004,8 @@ function R_InitLightTables()
   end while
 end function
 
-/*
-* Function: _R_RebuildScaleLight
-* Purpose: Recomputes scale-indexed wall colormaps for the active view width and detail shift.
-*/
+/// Recomputes scale-indexed wall colormaps for the active view width and detail shift.
+/// @internal
 function _R_RebuildScaleLight()
   global scalelight
 
@@ -985,26 +1030,21 @@ function _R_RebuildScaleLight()
   end while
 end function
 
-/*
-* Function: R_InitTextureMapping
-* Purpose: Rebuilds the public view-column-to-angle and angle-to-column mapping tables.
-*/
+/// Rebuilds the public view-column-to-angle and angle-to-column mapping tables.
 function R_InitTextureMapping()
   _R_InitTextureMapping()
 end function
 
-/*
-* Function: R_SetupFrame
-* Purpose: Public entry point that derives view position, angle, lighting, and interpolation state for one player frame.
-*/
+/// Public entry point that derives view position, angle, lighting, and interpolation state for one player
+/// frame.
+/// @param player Player state affected by the operation.
 function R_SetupFrame(player)
   _R_SetupFrame(player)
 end function
 
-/*
-* Function: _R_RenderOpenGLPlayerView
-* Purpose: Attempts to draw the current player view with the active OpenGL renderer.
-*/
+/// Attempts to draw the current player view with the active OpenGL renderer.
+/// @param player Player state affected by the operation.
+/// @internal
 function _R_RenderOpenGLPlayerView(player)
   global _r_prof_enabled
   global _r_prof_frames
@@ -1035,10 +1075,8 @@ function _R_RenderOpenGLPlayerView(player)
   return false
 end function
 
-/*
-* Function: R_RenderClassicPlayerView
-* Purpose: Draws the current player view with the classic CPU renderer only.
-*/
+/// Draws the current player view with the classic CPU renderer only.
+/// @param player Player state affected by the operation.
 function R_RenderClassicPlayerView(player)
   global _r_prof_enabled
   global _r_prof_frames
@@ -1139,10 +1177,8 @@ function R_RenderClassicPlayerView(player)
   end if
 end function
 
-/*
-* Function: R_RenderPlayerView
-* Purpose: Dispatches the player view to exactly one active renderer.
-*/
+/// Dispatches the player view to exactly one active renderer.
+/// @param player Player state affected by the operation.
 function R_RenderPlayerView(player)
   if R_RendererIsOpenGL() then
     if _R_RenderOpenGLPlayerView(player) then return end if
@@ -1151,10 +1187,10 @@ function R_RenderPlayerView(player)
   R_RenderClassicPlayerView(player)
 end function
 
-/*
-* Function: _R_SetupFrame
-* Purpose: Derives the camera from player state, interpolates uncapped frames, selects fixed lighting, and advances frame validity counters.
-*/
+/// Derives the camera from player state, interpolates uncapped frames, selects fixed lighting, and advances
+/// frame validity counters.
+/// @param player Player state affected by the operation.
+/// @internal
 function _R_SetupFrame(player)
   global viewplayer
   global viewx
@@ -1297,10 +1333,9 @@ function _R_SetupFrame(player)
   validcount = validcount + 1
 end function
 
-/*
-* Function: _R_InitTextureMapping
-* Purpose: Builds inverse screen-column/binary-angle tables from the current projection and establishes the horizontal clip angle.
-*/
+/// Builds inverse screen-column/binary-angle tables from the current projection and establishes the horizontal
+/// clip angle.
+/// @internal
 function _R_InitTextureMapping()
   global viewangletox
   global xtoviewangle

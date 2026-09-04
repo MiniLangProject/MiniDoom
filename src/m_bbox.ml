@@ -13,24 +13,29 @@
   See the License for the specific language governing permissions and
   limitations under the License.
 
-  Script: m_bbox.ml
-  Purpose: Maintains fixed-point top, bottom, left, and right bounds for renderer and map geometry.
 */
+
+//! Maintains fixed-point top, bottom, left, and right bounds for renderer and map geometry.
+
 import m_fixed
 import m_bbox
 
+/// Defines the minimum bbox minint accepted by the m bbox subsystem.
 const BBOX_MININT = -2147483648
+/// Defines the maximum bbox maxint accepted by the m bbox subsystem.
 const BBOX_MAXINT = 2147483647
 
+/// Defines boxtop for the m bbox subsystem.
 const BOXTOP = 0
+/// Defines boxbottom for the m bbox subsystem.
 const BOXBOTTOM = 1
+/// Defines boxleft for the m bbox subsystem.
 const BOXLEFT = 2
+/// Defines boxright for the m bbox subsystem.
 const BOXRIGHT = 3
 
-/*
-* Function: M_ClearBox
-* Purpose: Resets a four-entry bounding box to inverted extremes so the next point establishes every edge.
-*/
+/// Resets a four-entry bounding box to inverted extremes so the next point establishes every edge.
+/// @param box Bounding-box array to read or update.
 function M_ClearBox(box)
 
   if box is void then return end if
@@ -42,10 +47,10 @@ function M_ClearBox(box)
   box[BOXLEFT] = BBOX_MAXINT
 end function
 
-/*
-* Function: M_AddToBox
-* Purpose: Expands a four-entry bounding box in place to include one fixed-point coordinate.
-*/
+/// Expands a four-entry bounding box in place to include one fixed-point coordinate.
+/// @param box Bounding-box array to read or update.
+/// @param x Horizontal map- or screen-space coordinate.
+/// @param y Vertical map- or screen-space coordinate.
 function M_AddToBox(box, x, y)
   if box is void then return end if
   if len(box) < 4 then return end if

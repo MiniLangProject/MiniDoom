@@ -13,30 +13,32 @@
   See the License for the specific language governing permissions and
   limitations under the License.
 
-  Script: r_renderer.ml
-  Purpose: Tracks the selected renderer and whether high-resolution assets may be used.
 */
 
+//! Tracks the selected renderer and whether high-resolution assets may be used.
+
+
+/// Defines renderer classic for the r renderer subsystem.
 const RENDERER_CLASSIC = 0
+/// Defines renderer opengl for the r renderer subsystem.
 const RENDERER_OPENGL = 1
 
+/// Tracks the mutable r renderer requested value used by the r renderer subsystem.
 r_renderer_requested = RENDERER_CLASSIC
+/// Tracks the mutable r renderer active value used by the r renderer subsystem.
 r_renderer_active = RENDERER_CLASSIC
+/// Tracks whether r renderer hd assets is active in the r renderer subsystem.
 r_renderer_hd_assets = false
 
-/*
-* Function: R_RendererNormalize
-* Purpose: Converts unknown renderer values to a supported renderer mode.
-*/
+/// Converts unknown renderer values to a supported renderer mode.
+/// @param mode Mode value supplied to `R_RendererNormalize`.
 function R_RendererNormalize(mode)
   if mode == RENDERER_OPENGL then return RENDERER_OPENGL end if
   return RENDERER_CLASSIC
 end function
 
-/*
-* Function: R_RendererRequest
-* Purpose: Records the renderer mode requested by startup flags or hotkeys.
-*/
+/// Records the renderer mode requested by startup flags or hotkeys.
+/// @param mode Mode value supplied to `R_RendererRequest`.
 function R_RendererRequest(mode)
   global r_renderer_requested
 
@@ -44,26 +46,18 @@ function R_RendererRequest(mode)
   return r_renderer_requested
 end function
 
-/*
-* Function: R_RendererRequested
-* Purpose: Returns the renderer mode requested by startup flags or hotkeys.
-*/
+/// Returns the renderer mode requested by startup flags or hotkeys.
 function R_RendererRequested()
   return r_renderer_requested
 end function
 
-/*
-* Function: R_RendererRequestedOpenGL
-* Purpose: Returns true when the user requested the OpenGL renderer.
-*/
+/// Returns true when the user requested the OpenGL renderer.
 function R_RendererRequestedOpenGL()
   return r_renderer_requested == RENDERER_OPENGL
 end function
 
-/*
-* Function: R_RendererSetActive
-* Purpose: Selects the renderer that will draw the next frames.
-*/
+/// Selects the renderer that will draw the next frames.
+/// @param mode Mode value supplied to `R_RendererSetActive`.
 function R_RendererSetActive(mode)
   global r_renderer_active
   global r_renderer_hd_assets
@@ -73,34 +67,23 @@ function R_RendererSetActive(mode)
   return r_renderer_active
 end function
 
-/*
-* Function: R_RendererActive
-* Purpose: Returns the renderer that is currently drawing frames.
-*/
+/// Returns the renderer that is currently drawing frames.
 function R_RendererActive()
   return r_renderer_active
 end function
 
-/*
-* Function: R_RendererIsOpenGL
-* Purpose: Returns true when OpenGL is the active renderer.
-*/
+/// Returns true when OpenGL is the active renderer.
 function R_RendererIsOpenGL()
   return r_renderer_active == RENDERER_OPENGL
 end function
 
-/*
-* Function: R_RendererUsesHDAssets
-* Purpose: Returns true when high-resolution assets may be used for rendering.
-*/
+/// Returns true when high-resolution assets may be used for rendering.
 function R_RendererUsesHDAssets()
   return r_renderer_hd_assets
 end function
 
-/*
-* Function: R_RendererSetHDAssetsEnabled
-* Purpose: Overrides HD asset usage for transitional renderer setup and teardown.
-*/
+/// Overrides HD asset usage for transitional renderer setup and teardown.
+/// @param enabled Whether the requested feature should be enabled.
 function R_RendererSetHDAssetsEnabled(enabled)
   global r_renderer_hd_assets
 
@@ -109,10 +92,8 @@ function R_RendererSetHDAssetsEnabled(enabled)
   return r_renderer_hd_assets
 end function
 
-/*
-* Function: R_RendererName
-* Purpose: Returns a user-readable renderer name.
-*/
+/// Returns a user-readable renderer name.
+/// @param mode Mode value supplied to `R_RendererName`.
 function R_RendererName(mode)
   if R_RendererNormalize(mode) == RENDERER_OPENGL then return "OpenGL" end if
   return "classic"

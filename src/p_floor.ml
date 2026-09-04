@@ -13,9 +13,10 @@
   See the License for the specific language governing permissions and
   limitations under the License.
 
-  Script: p_floor.ml
-  Purpose: Moves sector planes with collision handling and drives tagged floor-change thinkers.
 */
+
+//! Moves sector planes with collision handling and drives tagged floor-change thinkers.
+
 import z_zone
 import doomdef
 import p_local
@@ -24,45 +25,42 @@ import doomstat
 import r_state
 import sounds
 
-/*
-* Function: _FloorMakeThinker
-* Purpose: Creates a floor-mover thinker with canonical links, callback, direction, speed, and destination defaults.
-*/
+/// Creates a floor-mover thinker with canonical links, callback, direction, speed, and destination defaults.
+/// @param fn Fn value supplied to `_FloorMakeThinker`.
+/// @internal
 function inline _FloorMakeThinker(fn)
   return thinker_t(void, void, actionf_t(fn, void, void), void)
 end function
 
-/*
-* Function: _FloorAddThinkerIfPossible
-* Purpose: Registers a floor thinker only when the thinker API is available, preserving compatibility with reduced test harnesses.
-*/
+/// Registers a floor thinker only when the thinker API is available, preserving compatibility with reduced test
+/// harnesses.
+/// @param th Th value supplied to `_FloorAddThinkerIfPossible`.
+/// @internal
 function inline _FloorAddThinkerIfPossible(th)
   if typeof(P_AddThinker) == "function" then P_AddThinker(th) end if
 end function
 
-/*
-* Function: _FloorStartSound
-* Purpose: Emits a positional floor-movement sound only when the sound subsystem is available.
-*/
+/// Emits a positional floor-movement sound only when the sound subsystem is available.
+/// @param origin Origin value supplied to `_FloorStartSound`.
+/// @param snd Snd value supplied to `_FloorStartSound`.
+/// @internal
 function inline _FloorStartSound(origin, snd)
   if typeof(S_StartSound) == "function" then
     S_StartSound(origin, snd)
   end if
 end function
 
-/*
-* Function: _FloorSoundOrg
-* Purpose: Returns a sector sound origin when present, otherwise uses the sector itself as the positional sound source.
-*/
+/// Returns a sector sound origin when present, otherwise uses the sector itself as the positional sound source.
+/// @param sec Sec value supplied to `_FloorSoundOrg`.
+/// @internal
 function inline _FloorSoundOrg(sec)
   if sec is void then return void end if
   return sec.soundorg
 end function
 
-/*
-* Function: _FloorSectorIndex
-* Purpose: Resolves a sector object to its map-array index for neighbor and tag traversal.
-*/
+/// Resolves a sector object to its map-array index for neighbor and tag traversal.
+/// @param sec Sec value supplied to `_FloorSectorIndex`.
+/// @internal
 function _FloorSectorIndex(sec)
   if sec is void then return -1 end if
   if typeof(sectors) != "array" then return -1 end if
@@ -74,20 +72,24 @@ function _FloorSectorIndex(sec)
   return -1
 end function
 
-/*
-* Function: _FloorTextureHeight
-* Purpose: Looks up a floor texture's pixel height and converts it to fixed-point movement units, with a 64-unit fallback.
-*/
+/// Looks up a floor texture's pixel height and converts it to fixed-point movement units, with a 64-unit
+/// fallback.
+/// @param tex Texture identifier or texture data to process.
+/// @internal
 function inline _FloorTextureHeight(tex)
   if typeof(textureheight) != "array" then return 0 end if
   if tex < 0 or tex >= len(textureheight) then return 0 end if
   return textureheight[tex]
 end function
 
-/*
-* Function: T_MovePlane
-* Purpose: Steps a floor or ceiling toward a destination, rolls back blocked non-crushing moves, and reports progress, arrival, or crushing.
-*/
+/// Steps a floor or ceiling toward a destination, rolls back blocked non-crushing moves, and reports progress,
+/// arrival, or crushing.
+/// @param sector Map sector affected by the operation.
+/// @param speed Speed value supplied to `T_MovePlane`.
+/// @param dest Dest value supplied to `T_MovePlane`.
+/// @param crush Crush value supplied to `T_MovePlane`.
+/// @param floorOrCeiling Floor or ceiling value supplied to `T_MovePlane`.
+/// @param direction Direction value supplied to `T_MovePlane`.
 function T_MovePlane(sector, speed, dest, crush, floorOrCeiling, direction)
   if sector is void then return result_e.pastdest end if
 
@@ -195,10 +197,9 @@ function T_MovePlane(sector, speed, dest, crush, floorOrCeiling, direction)
   return result_e.ok
 end function
 
-/*
-* Function: T_MoveFloor
-* Purpose: Advances one floor thinker, applies endpoint texture/special changes, emits movement sounds, and removes it at the destination.
-*/
+/// Advances one floor thinker, applies endpoint texture/special changes, emits movement sounds, and removes it
+/// at the destination.
+/// @param floor Floor value supplied to `T_MoveFloor`.
 function T_MoveFloor(floor)
   if floor is void or floor.sector is void then return end if
 
@@ -239,10 +240,9 @@ function T_MoveFloor(floor)
   end if
 end function
 
-/*
-* Function: EV_DoFloor
-* Purpose: Configures and starts the selected floor movement for all sectors matching a trigger tag.
-*/
+/// Configures and starts the selected floor movement for all sectors matching a trigger tag.
+/// @param line Map line or text line affected by the operation.
+/// @param floortype Floortype value supplied to `EV_DoFloor`.
 function EV_DoFloor(line, floortype)
   if line is void then return 0 end if
 
@@ -412,10 +412,9 @@ function EV_DoFloor(line, floortype)
     return rtn
   end function
 
-  /*
-* Function: EV_BuildStairs
-* Purpose: Chains adjacent sectors with the same floor texture into progressively offset stair movers.
-  */
+  /// Chains adjacent sectors with the same floor texture into progressively offset stair movers.
+  /// @param line Map line or text line affected by the operation.
+  /// @param type Type value supplied to `EV_BuildStairs`.
   function EV_BuildStairs(line, type)
     if line is void then return 0 end if
 

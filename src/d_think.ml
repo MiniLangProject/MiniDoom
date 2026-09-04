@@ -13,28 +13,31 @@
   See the License for the specific language governing permissions and
   limitations under the License.
 
-  Script: d_think.ml
-  Purpose: Defines callback wrappers and linked-list nodes used by Doom's per-tic thinker scheduler.
 */
 
-/*
-* Struct: actionf_t
-* Purpose: Wraps the optional single-argument callback invoked for an active thinker node.
-*/
+//! Defines callback wrappers and linked-list nodes used by Doom's per-tic thinker scheduler.
+
+
+/// Wraps the optional single-argument callback invoked for an active thinker node.
 struct actionf_t
+  /// Stores acp1 for `actionf_t`
   acp1
+  /// Stores acv for `actionf_t`
   acv
+  /// Stores acp2 for `actionf_t`
   acp2
 end struct
 
-/*
-* Struct: thinker_t
-* Purpose: Forms one node of the doubly linked thinker list and associates it with a callback and optional owning object.
-*/
+/// Forms one node of the doubly linked thinker list and associates it with a callback and optional owning
+/// object.
 struct thinker_t
+  /// Previous linked record in traversal order stored by `thinker_t`
   prev
+  /// Next linked record in traversal order stored by `thinker_t`
   next
+  /// Stores func for `thinker_t`
   func
+  /// Stores owner for `thinker_t`
   owner
 end struct
 

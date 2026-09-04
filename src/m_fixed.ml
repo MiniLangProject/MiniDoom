@@ -13,25 +13,32 @@
   See the License for the specific language governing permissions and
   limitations under the License.
 
-  Script: m_fixed.ml
-  Purpose: Implements Doom's signed 16.16 fixed-point multiply and divide with explicit 32-bit wrap, saturation, and zero handling.
 */
+
+//! Implements Doom's signed 16.16 fixed-point multiply and divide with explicit 32-bit wrap, saturation, and
+//! zero handling.
+
 import stdlib
 import doomtype
 import i_system
 
 import std.math
 
+/// Defines fracbits for the m fixed subsystem.
 const FRACBITS = 16
+/// Defines fracunit for the m fixed subsystem.
 const FRACUNIT = 1 << FRACBITS
 
+/// Defines the minimum s32 min accepted by the m fixed subsystem.
+/// @internal
 const _S32_MIN = -2147483648
+/// Defines the maximum s32 max accepted by the m fixed subsystem.
+/// @internal
 const _S32_MAX = 2147483647
 
-/*
-* Function: _u32
-* Purpose: Normalizes an integer to its unsigned 32-bit representation.
-*/
+/// Normalizes an integer to its unsigned 32-bit representation.
+/// @param x Horizontal map- or screen-space coordinate.
+/// @internal
 function inline _u32(x)
   if typeof(x) == "int" then
     return x & 0xFFFFFFFF
@@ -51,10 +58,9 @@ function inline _u32(x)
   return 0
 end function
 
-/*
-* Function: _s32
-* Purpose: Reinterprets the low 32 bits of an integer as a signed two's-complement value.
-*/
+/// Reinterprets the low 32 bits of an integer as a signed two's-complement value.
+/// @param x Horizontal map- or screen-space coordinate.
+/// @internal
 function _s32(x)
   xi = 0
   if typeof(x) == "int" then
@@ -86,20 +92,19 @@ function _s32(x)
   return v
 end function
 
-/*
-* Function: _absS32
-* Purpose: Returns a signed 32-bit magnitude while saturating the unrepresentable INT32_MIN case.
-*/
+/// Returns a signed 32-bit magnitude while saturating the unrepresentable INT32_MIN case.
+/// @param x Horizontal map- or screen-space coordinate.
+/// @internal
 function inline _absS32(x)
   x = _s32(x)
   if x < 0 then return - x end if
   return x
 end function
 
-/*
-* Function: _idivS32
-* Purpose: Returns a signed integer quotient truncated toward zero, or zero for invalid operands and a zero divisor.
-*/
+/// Returns a signed integer quotient truncated toward zero, or zero for invalid operands and a zero divisor.
+/// @param a First input operand.
+/// @param b Second input operand.
+/// @internal
 function inline _idivS32(a, b)
   if typeof(a) != "int" or typeof(b) != "int" or b == 0 then return 0 end if
   q = a / b
@@ -107,10 +112,10 @@ function inline _idivS32(a, b)
   return std.math.ceil(q)
 end function
 
-/*
-* Function: FixedMul
-* Purpose: Multiplies two 16.16 fixed-point operands with a 64-bit intermediate and returns a signed 32-bit fixed-point result.
-*/
+/// Multiplies two 16.16 fixed-point operands with a 64-bit intermediate and returns a signed 32-bit fixed-point
+/// result.
+/// @param a First input operand.
+/// @param b Second input operand.
 function inline FixedMul(a, b)
 
   a = _s32(a)
@@ -118,10 +123,10 @@ function inline FixedMul(a, b)
   return _s32((a * b) >> FRACBITS)
 end function
 
-/*
-* Function: FixedDiv
-* Purpose: Divides two signed 16.16 values, saturating results whose shifted numerator would overflow signed 32-bit range.
-*/
+/// Divides two signed 16.16 values, saturating results whose shifted numerator would overflow signed 32-bit
+/// range.
+/// @param a First input operand.
+/// @param b Second input operand.
 function FixedDiv(a, b)
   a = _s32(a)
   b = _s32(b)
@@ -136,10 +141,10 @@ function FixedDiv(a, b)
   return FixedDiv2(a, b)
 end function
 
-/*
-* Function: FixedDiv2
-* Purpose: Scales a signed numerator by FRACUNIT, divides with truncation toward zero, and reports a zero divisor through I_Error.
-*/
+/// Scales a signed numerator by FRACUNIT, divides with truncation toward zero, and reports a zero divisor
+/// through I_Error.
+/// @param a First input operand.
+/// @param b Second input operand.
 function inline FixedDiv2(a, b)
   a = _s32(a)
   b = _s32(b)

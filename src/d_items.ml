@@ -13,27 +13,30 @@
   See the License for the specific language governing permissions and
   limitations under the License.
 
-  Script: d_items.ml
-  Purpose: Defines weapon state-machine metadata and the canonical table describing every player weapon.
 */
+
+//! Defines weapon state-machine metadata and the canonical table describing every player weapon.
+
 import doomdef
 import info
 
-/*
-* Struct: weaponinfo_t
-* Purpose: Describes a weapon's ammo type and ready, fire, lower, and raise states for the player weapon state machine.
-*/
+/// Describes a weapon's ammo type and ready, fire, lower, and raise states for the player weapon state machine.
 struct weaponinfo_t
+  /// Stores ammo for `weaponinfo_t`
   ammo
+  /// Stores upstate for `weaponinfo_t`
   upstate
+  /// Stores downstate for `weaponinfo_t`
   downstate
+  /// Stores readystate for `weaponinfo_t`
   readystate
+  /// Stores atkstate for `weaponinfo_t`
   atkstate
+  /// Stores flashstate for `weaponinfo_t`
   flashstate
 end struct
 
-weaponinfo = void
-
+/// Stores the weaponinfo collection used by the d items subsystem.
 weaponinfo =[
 
 weaponinfo_t(

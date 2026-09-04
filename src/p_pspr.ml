@@ -13,9 +13,10 @@
   See the License for the specific language governing permissions and
   limitations under the License.
 
-  Script: p_pspr.ml
-  Purpose: Drives first-person weapon sprites, ammo/state transitions, hitscan attacks, and player-fired projectiles.
 */
+
+//! Drives first-person weapon sprites, ammo/state transitions, hitscan attacks, and player-fired projectiles.
+
 import m_fixed
 import tables
 import info
@@ -34,60 +35,88 @@ import sounds
 import m_argv
 import p_pspr
 
+/// Defines ff fullbright for the p pspr subsystem.
 const FF_FULLBRIGHT = 0x8000
+/// Defines ff framemask for the p pspr subsystem.
 const FF_FRAMEMASK = 0x7fff
 
-/*
-* Enum: psprnum_t
-* Purpose: Assigns the two player-sprite layers used for the held weapon and its synchronized muzzle flash.
-*/
+/// Assigns the two player-sprite layers used for the held weapon and its synchronized muzzle flash.
 enum psprnum_t
+  /// Represents ps weapon in `psprnum_t`
   ps_weapon
+  /// Represents ps flash in `psprnum_t`
   ps_flash
+  /// Marks the number of values represented by `psprnum_t`
   NUMPSPRITES
 end enum
 
+/// Tracks the mutable ps weapon value used by the p pspr subsystem.
 ps_weapon = 0
+/// Tracks the mutable ps flash value used by the p pspr subsystem.
 ps_flash = 1
+/// Tracks the mutable numpsprites value used by the p pspr subsystem.
 NUMPSPRITES = 2
 
-/*
-* Struct: pspdef_t
-* Purpose: Holds one player-sprite state machine with remaining tics and fixed-point screen coordinates.
-*/
+/// Holds one player-sprite state machine with remaining tics and fixed-point screen coordinates.
 struct pspdef_t
+  /// Current state-machine value stored by `pspdef_t`
   state
+  /// Stores tics for `pspdef_t`
   tics
+  /// Stores sx for `pspdef_t`
   sx
+  /// Stores sy for `pspdef_t`
   sy
 end struct
 
+/// Defines lowerspeed for the p pspr subsystem.
 const LOWERSPEED = 393216
+/// Defines raisespeed for the p pspr subsystem.
 const RAISESPEED = 393216
 
+/// Defines weaponbottom for the p pspr subsystem.
 const WEAPONBOTTOM = 8388608
+/// Defines weapontop for the p pspr subsystem.
 const WEAPONTOP = 2097152
 
+/// Defines bfgcells for the p pspr subsystem.
 const BFGCELLS = 40
+/// Defines ps swingstep for the p pspr subsystem.
+/// @internal
 const _PS_SWINGSTEP = 117
+/// Defines ps half fineangles for the p pspr subsystem.
+/// @internal
 const _PS_HALF_FINEANGLES = 4096
+/// Defines ps ang90 div20 for the p pspr subsystem.
+/// @internal
 const _PS_ANG90_DIV20 = 53687091
+/// Defines ps ang90 div21 for the p pspr subsystem.
+/// @internal
 const _PS_ANG90_DIV21 = 51130563
+/// Defines ps ang90 div40 for the p pspr subsystem.
+/// @internal
 const _PS_ANG90_DIV40 = 26843545
 
+/// Tracks the mutable swingx value used by the p pspr subsystem.
 swingx = 0
+/// Tracks the mutable swingy value used by the p pspr subsystem.
 swingy = 0
 
+/// Tracks the mutable bulletslope value used by the p pspr subsystem.
 bulletslope = 0
 
+/// Tracks whether ps diag fire init is active in the p pspr subsystem.
+/// @internal
 _psDiagFireInit = false
+/// Tracks whether ps diag fire is active in the p pspr subsystem.
+/// @internal
 _psDiagFire = false
+/// Tracks the mutable ps diag fire count value used by the p pspr subsystem.
+/// @internal
 _psDiagFireCount = 0
 
-/*
-* Function: _PS_DiagFireEnabled
-* Purpose: Lazily parses the -diagfire option once and announces whether throttled weapon-fire tracing is enabled.
-*/
+/// Lazily parses the -diagfire option once and announces whether throttled weapon-fire tracing is enabled.
+/// @internal
 function _PS_DiagFireEnabled()
   global _psDiagFireInit
   global _psDiagFire
@@ -105,10 +134,9 @@ function _PS_DiagFireEnabled()
   return _psDiagFire
 end function
 
-/*
-* Function: _PS_DiagFireLog
-* Purpose: Emits bounded diagnostic fire messages for the first 120 events and every 256th event thereafter.
-*/
+/// Emits bounded diagnostic fire messages for the first 120 events and every 256th event thereafter.
+/// @param msg Msg value supplied to `_PS_DiagFireLog`.
+/// @internal
 function inline _PS_DiagFireLog(msg)
   global _psDiagFireCount
   if not _PS_DiagFireEnabled() then return end if
@@ -119,10 +147,9 @@ function inline _PS_DiagFireLog(msg)
   end if
 end function
 
-/*
-* Function: _PS_WeaponIndex
-* Purpose: Maps either a weapon enum or validated integer to the nine-entry weapon table, returning -1 on failure.
-*/
+/// Maps either a weapon enum or validated integer to the nine-entry weapon table, returning -1 on failure.
+/// @param w W value supplied to `_PS_WeaponIndex`.
+/// @internal
 function _PS_WeaponIndex(w)
   if typeof(w) == "int" then
     if w >= 0 and w < 9 then return w end if
@@ -140,10 +167,9 @@ function _PS_WeaponIndex(w)
   return -1
 end function
 
-/*
-* Function: _PS_AmmoIndex
-* Purpose: Maps clip, shell, cell, or missile ammo identifiers to the player's four ammo slots.
-*/
+/// Maps clip, shell, cell, or missile ammo identifiers to the player's four ammo slots.
+/// @param a First input operand.
+/// @internal
 function inline _PS_AmmoIndex(a)
   if typeof(a) == "int" then
     if a >= 0 and a < 4 then return a end if
@@ -156,10 +182,9 @@ function inline _PS_AmmoIndex(a)
   return -1
 end function
 
-/*
-* Function: _PS_PowerIndex
-* Purpose: Maps a player power enum or validated integer to its six-entry powers array slot.
-*/
+/// Maps a player power enum or validated integer to its six-entry powers array slot.
+/// @param pw Pw value supplied to `_PS_PowerIndex`.
+/// @internal
 function _PS_PowerIndex(pw)
   if typeof(pw) == "int" then
     if pw >= 0 and pw < 6 then return pw end if
@@ -174,10 +199,9 @@ function _PS_PowerIndex(pw)
   return -1
 end function
 
-/*
-* Function: _PS_WeaponInfo
-* Purpose: Resolves a validated weapon identifier to its weaponinfo entry.
-*/
+/// Resolves a validated weapon identifier to its weaponinfo entry.
+/// @param w W value supplied to `_PS_WeaponInfo`.
+/// @internal
 function inline _PS_WeaponInfo(w)
   wi = _PS_WeaponIndex(w)
   if wi < 0 then return void end if
@@ -186,10 +210,10 @@ function inline _PS_WeaponInfo(w)
   return weaponinfo[wi]
 end function
 
-/*
-* Function: _PS_GetAmmoCount
-* Purpose: Reads a player's validated ammo slot as an integer count, accepting legacy boolean entries.
-*/
+/// Reads a player's validated ammo slot as an integer count, accepting legacy boolean entries.
+/// @param player Player state affected by the operation.
+/// @param ammoType Ammo type value supplied to `_PS_GetAmmoCount`.
+/// @internal
 function inline _PS_GetAmmoCount(player, ammoType)
   if player is void then return 0 end if
   ai = _PS_AmmoIndex(ammoType)
@@ -202,10 +226,11 @@ function inline _PS_GetAmmoCount(player, ammoType)
   return 0
 end function
 
-/*
-* Function: _PS_SetAmmoCount
-* Purpose: Stores a non-negative integer in a validated player ammo slot.
-*/
+/// Stores a non-negative integer in a validated player ammo slot.
+/// @param player Player state affected by the operation.
+/// @param ammoType Ammo type value supplied to `_PS_SetAmmoCount`.
+/// @param value Value consumed by the operation.
+/// @internal
 function inline _PS_SetAmmoCount(player, ammoType, value)
   if player is void then return end if
   ai = _PS_AmmoIndex(ammoType)
@@ -217,10 +242,10 @@ function inline _PS_SetAmmoCount(player, ammoType, value)
   player.ammo[ai] = value
 end function
 
-/*
-* Function: _PS_HasWeapon
-* Purpose: Tests a validated weapon-owned slot without assuming the ownership table is present or complete.
-*/
+/// Tests a validated weapon-owned slot without assuming the ownership table is present or complete.
+/// @param player Player state affected by the operation.
+/// @param weaponType Weapon type value supplied to `_PS_HasWeapon`.
+/// @internal
 function inline _PS_HasWeapon(player, weaponType)
   if player is void then return false end if
   wi = _PS_WeaponIndex(weaponType)
@@ -231,10 +256,9 @@ function inline _PS_HasWeapon(player, weaponType)
   return false
 end function
 
-/*
-* Function: _PS_StateObjectIndex
-* Purpose: Finds a state object's identity-based index in the global states table, returning -1 if absent.
-*/
+/// Finds a state object's identity-based index in the global states table, returning -1 if absent.
+/// @param stobj Stobj value supplied to `_PS_StateObjectIndex`.
+/// @internal
 function _PS_StateObjectIndex(stobj)
   if stobj is void then return -1 end if
   if typeof(states) != "array" then return -1 end if
@@ -246,10 +270,10 @@ function _PS_StateObjectIndex(stobj)
   return -1
 end function
 
-/*
-* Function: _PS_PSpriteInState
-* Purpose: Tests whether a player-sprite currently references the resolved state for a state identifier.
-*/
+/// Tests whether a player-sprite currently references the resolved state for a state identifier.
+/// @param psp Psp value supplied to `_PS_PSpriteInState`.
+/// @param stnum Index identifying st.
+/// @internal
 function inline _PS_PSpriteInState(psp, stnum)
   if psp is void then return false end if
   if psp.state is void then return false end if
@@ -258,10 +282,10 @@ function inline _PS_PSpriteInState(psp, stnum)
   return psp.state == s
 end function
 
-/*
-* Function: _PS_MobjInState
-* Purpose: Tests whether an mobj currently references the resolved state for a state identifier.
-*/
+/// Tests whether an mobj currently references the resolved state for a state identifier.
+/// @param mo Map object affected by the operation.
+/// @param stnum Index identifying st.
+/// @internal
 function inline _PS_MobjInState(mo, stnum)
   if mo is void then return false end if
   if mo.state is void then return false end if
@@ -270,20 +294,19 @@ function inline _PS_MobjInState(mo, stnum)
   return mo.state == s
 end function
 
-/*
-* Function: _PS_PlaySound
-* Purpose: Starts a weapon sound when the audio subsystem is linked, otherwise leaves weapon logic unaffected.
-*/
+/// Starts a weapon sound when the audio subsystem is linked, otherwise leaves weapon logic unaffected.
+/// @param origin Origin value supplied to `_PS_PlaySound`.
+/// @param sfx Sound-effect descriptor to process.
+/// @internal
 function inline _PS_PlaySound(origin, sfx)
   if typeof(S_StartSound) == "function" then
     S_StartSound(origin, sfx)
   end if
 end function
 
-/*
-* Function: _ensurePsprites
-* Purpose: Ensures every player owns initialized weapon and flash sprite slots without replacing existing state.
-*/
+/// Ensures every player owns initialized weapon and flash sprite slots without replacing existing state.
+/// @param player Player state affected by the operation.
+/// @internal
 function _ensurePsprites(player)
   if player is void then return end if
   if player.psprites is void then
@@ -297,10 +320,11 @@ function _ensurePsprites(player)
   end while
 end function
 
-/*
-* Function: P_SetPsprite
-* Purpose: Enters a player-sprite state, applies offsets and actions, and immediately follows zero-tic transitions until stable or null.
-*/
+/// Enters a player-sprite state, applies offsets and actions, and immediately follows zero-tic transitions
+/// until stable or null.
+/// @param player Player state affected by the operation.
+/// @param position Position value supplied to `P_SetPsprite`.
+/// @param stnum Index identifying st.
 function P_SetPsprite(player, position, stnum)
   _ensurePsprites(player)
   if player is void then return end if
@@ -358,10 +382,8 @@ function P_SetPsprite(player, position, stnum)
     end loop
   end function
 
-  /*
-* Function: P_CalcSwing
-* Purpose: Computes fixed-point weapon sway from player bob amplitude and level-time sine phases.
-  */
+  /// Computes fixed-point weapon sway from player bob amplitude and level-time sine phases.
+  /// @param player Player state affected by the operation.
   function P_CalcSwing(player)
     global swingx
     global swingy
@@ -385,10 +407,9 @@ function P_SetPsprite(player, position, stnum)
     swingy = -FixedMul(swingx, finesine[angle])
   end function
 
-  /*
-* Function: P_BringUpWeapon
-* Purpose: Commits the pending weapon, lowers its sprite origin to WEAPONBOTTOM, clears flash state, and enters its raise state.
-  */
+  /// Commits the pending weapon, lowers its sprite origin to WEAPONBOTTOM, clears flash state, and enters its
+  /// raise state.
+  /// @param player Player state affected by the operation.
   function P_BringUpWeapon(player)
     if player is void then return end if
     _ensurePsprites(player)
@@ -413,10 +434,9 @@ function P_SetPsprite(player, position, stnum)
     P_SetPsprite(player, ps_weapon, newstate)
   end function
 
-  /*
-* Function: P_CheckAmmo
-* Purpose: Verifies the ready weapon's per-shot ammo cost or selects a usable fallback and starts lowering the empty weapon.
-  */
+  /// Verifies the ready weapon's per-shot ammo cost or selects a usable fallback and starts lowering the empty
+  /// weapon.
+  /// @param player Player state affected by the operation.
   function P_CheckAmmo(player)
     if player is void then return true end if
 
@@ -461,10 +481,8 @@ function P_SetPsprite(player, position, stnum)
     return false
   end function
 
-  /*
-* Function: P_FireWeapon
-* Purpose: After an ammo check, enters attack states and alerts nearby monsters unless persistent notarget is active.
-  */
+  /// After an ammo check, enters attack states and alerts nearby monsters unless persistent notarget is active.
+  /// @param player Player state affected by the operation.
   function P_FireWeapon(player)
     if player is void then return end if
     if not P_CheckAmmo(player) then return end if
@@ -483,10 +501,8 @@ function P_SetPsprite(player, position, stnum)
     end if
   end function
 
-  /*
-* Function: P_DropWeapon
-* Purpose: Starts the ready weapon's lowering state, typically during death or an explicit switch.
-  */
+  /// Starts the ready weapon's lowering state, typically during death or an explicit switch.
+  /// @param player Player state affected by the operation.
   function P_DropWeapon(player)
     if player is void then return end if
     wi = _PS_WeaponInfo(player.readyweapon)
@@ -494,10 +510,8 @@ function P_SetPsprite(player, position, stnum)
     P_SetPsprite(player, ps_weapon, wi.downstate)
   end function
 
-  /*
-* Function: P_SetupPsprites
-* Purpose: Clears both player-sprite layers and initializes the ready weapon through the normal bring-up transition.
-  */
+  /// Clears both player-sprite layers and initializes the ready weapon through the normal bring-up transition.
+  /// @param player Player state affected by the operation.
   function P_SetupPsprites(player)
     if player is void then return end if
     _ensurePsprites(player)
@@ -512,10 +526,8 @@ function P_SetPsprite(player, position, stnum)
     P_BringUpWeapon(player)
   end function
 
-  /*
-  * Function: P_MovePsprites
-  * Purpose: Advances weapon/flash state tics and keeps the flash layer aligned to the weapon sprite.
-  */
+  /// Advances weapon/flash state tics and keeps the flash layer aligned to the weapon sprite.
+  /// @param player Player state affected by the operation.
   function P_MovePsprites(player)
     if player is void then return end if
     _ensurePsprites(player)
@@ -541,10 +553,10 @@ function P_SetPsprite(player, position, stnum)
     player.psprites[ps_flash].sy = player.psprites[ps_weapon].sy
   end function
 
-  /*
-* Function: A_WeaponReady
-* Purpose: Restores the player idle state, handles attack/switch input, and applies the ready weapon's bobbing offsets.
-  */
+  /// Restores the player idle state, handles attack/switch input, and applies the ready weapon's bobbing
+  /// offsets.
+  /// @param player Player state affected by the operation.
+  /// @param psp Psp value supplied to `A_WeaponReady`.
   function A_WeaponReady(player, psp)
     if player is void or psp is void then return end if
 
@@ -594,10 +606,10 @@ function P_SetPsprite(player, position, stnum)
     end if
   end function
 
-  /*
-* Function: A_ReFire
-* Purpose: Continues held-trigger fire while alive and not switching, otherwise resets refire spread and rechecks ammo.
-  */
+  /// Continues held-trigger fire while alive and not switching, otherwise resets refire spread and rechecks
+  /// ammo.
+  /// @param player Player state affected by the operation.
+  /// @param psp Psp value supplied to `A_ReFire`.
   function A_ReFire(player, psp)
     psp = psp
     if player is void then return end if
@@ -616,20 +628,19 @@ function P_SetPsprite(player, position, stnum)
     end if
   end function
 
-  /*
-* Function: A_CheckReload
-* Purpose: Rechecks the current weapon's ammo at a reload state and initiates fallback selection when empty.
-  */
+  /// Rechecks the current weapon's ammo at a reload state and initiates fallback selection when empty.
+  /// @param player Player state affected by the operation.
+  /// @param psp Psp value supplied to `A_CheckReload`.
   function A_CheckReload(player, psp)
     psp = psp
     if player is void then return end if
     P_CheckAmmo(player)
   end function
 
-  /*
-* Function: A_Lower
-* Purpose: Moves the weapon toward the screen bottom, then removes it on death or commits and raises the pending weapon.
-  */
+  /// Moves the weapon toward the screen bottom, then removes it on death or commits and raises the pending
+  /// weapon.
+  /// @param player Player state affected by the operation.
+  /// @param psp Psp value supplied to `A_Lower`.
   function A_Lower(player, psp)
     if player is void or psp is void then return end if
     psp.sy = psp.sy + LOWERSPEED
@@ -654,10 +665,9 @@ function P_SetPsprite(player, position, stnum)
     P_BringUpWeapon(player)
   end function
 
-  /*
-* Function: A_Raise
-* Purpose: Moves the weapon toward WEAPONTOP and enters its ready state when fully raised.
-  */
+  /// Moves the weapon toward WEAPONTOP and enters its ready state when fully raised.
+  /// @param player Player state affected by the operation.
+  /// @param psp Psp value supplied to `A_Raise`.
   function A_Raise(player, psp)
     if player is void or psp is void then return end if
     psp.sy = psp.sy - RAISESPEED
@@ -669,10 +679,9 @@ function P_SetPsprite(player, position, stnum)
     P_SetPsprite(player, ps_weapon, wi.readystate)
   end function
 
-  /*
-* Function: A_GunFlash
-* Purpose: Switches the player mobj to its flash attack pose and starts the ready weapon's muzzle-flash sprite.
-  */
+  /// Switches the player mobj to its flash attack pose and starts the ready weapon's muzzle-flash sprite.
+  /// @param player Player state affected by the operation.
+  /// @param psp Psp value supplied to `A_GunFlash`.
   function A_GunFlash(player, psp)
     psp = psp
     if player is void then return end if
@@ -684,10 +693,9 @@ function P_SetPsprite(player, position, stnum)
     P_SetPsprite(player, ps_flash, wi.flashstate)
   end function
 
-  /*
-* Function: A_Punch
-* Purpose: Performs a randomized melee hitscan, applies berserk damage scaling, and turns toward a struck target.
-  */
+  /// Performs a randomized melee hitscan, applies berserk damage scaling, and turns toward a struck target.
+  /// @param player Player state affected by the operation.
+  /// @param psp Psp value supplied to `A_Punch`.
   function A_Punch(player, psp)
     psp = psp
     if player is void or player.mo is void then return end if
@@ -714,10 +722,10 @@ function P_SetPsprite(player, position, stnum)
     end if
   end function
 
-  /*
-* Function: A_Saw
-* Purpose: Performs the chainsaw melee trace, selects idle/hit audio, steers toward a target, and sets the just-attacked flag.
-  */
+  /// Performs the chainsaw melee trace, selects idle/hit audio, steers toward a target, and sets the
+  /// just-attacked flag.
+  /// @param player Player state affected by the operation.
+  /// @param psp Psp value supplied to `A_Saw`.
   function A_Saw(player, psp)
     psp = psp
     if player is void or player.mo is void then return end if
@@ -760,10 +768,10 @@ function P_SetPsprite(player, position, stnum)
     player.mo.flags = player.mo.flags | 128
   end function
 
-  /*
-* Function: A_FirePistol
-* Purpose: Consumes one bullet, plays the pistol/flash animations, computes auto-aim, and fires one refire-sensitive hitscan.
-  */
+  /// Consumes one bullet, plays the pistol/flash animations, computes auto-aim, and fires one refire-sensitive
+  /// hitscan.
+  /// @param player Player state affected by the operation.
+  /// @param psp Psp value supplied to `A_FirePistol`.
   function A_FirePistol(player, psp)
     psp = psp
     if player is void or player.mo is void then return end if
@@ -784,10 +792,9 @@ function P_SetPsprite(player, position, stnum)
     P_GunShot(player.mo, player.refire == 0)
   end function
 
-  /*
-* Function: A_FireShotgun
-* Purpose: Consumes one shell and fires seven spread hitscans after starting the shotgun sound and flash.
-  */
+  /// Consumes one shell and fires seven spread hitscans after starting the shotgun sound and flash.
+  /// @param player Player state affected by the operation.
+  /// @param psp Psp value supplied to `A_FireShotgun`.
   function A_FireShotgun(player, psp)
     psp = psp
     if player is void or player.mo is void then return end if
@@ -812,10 +819,9 @@ function P_SetPsprite(player, position, stnum)
     end while
   end function
 
-  /*
-* Function: A_FireShotgun2
-* Purpose: Consumes two shells and fires twenty independently randomized damage, angle, and slope pellets.
-  */
+  /// Consumes two shells and fires twenty independently randomized damage, angle, and slope pellets.
+  /// @param player Player state affected by the operation.
+  /// @param psp Psp value supplied to `A_FireShotgun2`.
   function A_FireShotgun2(player, psp)
     psp = psp
     if player is void or player.mo is void then return end if
@@ -842,10 +848,9 @@ function P_SetPsprite(player, position, stnum)
     end while
   end function
 
-  /*
-* Function: A_FireCGun
-* Purpose: Consumes one bullet, selects the alternating chaingun flash, and fires one refire-sensitive hitscan.
-  */
+  /// Consumes one bullet, selects the alternating chaingun flash, and fires one refire-sensitive hitscan.
+  /// @param player Player state affected by the operation.
+  /// @param psp Psp value supplied to `A_FireCGun`.
   function A_FireCGun(player, psp)
     if player is void or player.mo is void then return end if
     wi = _PS_WeaponInfo(player.readyweapon)
@@ -877,10 +882,9 @@ function P_SetPsprite(player, position, stnum)
     P_GunShot(player.mo, player.refire == 0)
   end function
 
-  /*
-* Function: A_FireMissile
-* Purpose: Consumes one rocket and spawns a player-owned rocket projectile.
-  */
+  /// Consumes one rocket and spawns a player-owned rocket projectile.
+  /// @param player Player state affected by the operation.
+  /// @param psp Psp value supplied to `A_FireMissile`.
   function A_FireMissile(player, psp)
     psp = psp
     if player is void or player.mo is void then return end if
@@ -892,10 +896,9 @@ function P_SetPsprite(player, position, stnum)
     end if
   end function
 
-  /*
-* Function: A_FirePlasma
-* Purpose: Consumes one cell, randomly selects one of two flash states, and spawns a plasma projectile.
-  */
+  /// Consumes one cell, randomly selects one of two flash states, and spawns a plasma projectile.
+  /// @param player Player state affected by the operation.
+  /// @param psp Psp value supplied to `A_FirePlasma`.
   function A_FirePlasma(player, psp)
     psp = psp
     if player is void or player.mo is void then return end if
@@ -911,10 +914,9 @@ function P_SetPsprite(player, position, stnum)
     end if
   end function
 
-  /*
-* Function: A_FireBFG
-* Purpose: Consumes BFGCELLS cells and spawns the BFG projectile from the player mobj.
-  */
+  /// Consumes BFGCELLS cells and spawns the BFG projectile from the player mobj.
+  /// @param player Player state affected by the operation.
+  /// @param psp Psp value supplied to `A_FireBFG`.
   function A_FireBFG(player, psp)
     psp = psp
     if player is void or player.mo is void then return end if
@@ -926,20 +928,18 @@ function P_SetPsprite(player, position, stnum)
     end if
   end function
 
-  /*
-* Function: A_BFGsound
-* Purpose: Starts the BFG firing sound at the player's mobj during the weapon animation.
-  */
+  /// Starts the BFG firing sound at the player's mobj during the weapon animation.
+  /// @param player Player state affected by the operation.
+  /// @param psp Psp value supplied to `A_BFGsound`.
   function A_BFGsound(player, psp)
     psp = psp
     if player is void then return end if
     _PS_PlaySound(player.mo, sfxenum_t.sfx_bfg)
   end function
 
-  /*
-* Function: A_BFGSpray
-* Purpose: Traces forty rays across a 90-degree arc, spawning impact effects and applying fifteen-die damage to each target.
-  */
+  /// Traces forty rays across a 90-degree arc, spawning impact effects and applying fifteen-die damage to each
+  /// target.
+  /// @param mo Map object affected by the operation.
   function A_BFGSpray(mo)
     if mo is void then return end if
     if mo.target is void then return end if
@@ -974,40 +974,36 @@ function P_SetPsprite(player, position, stnum)
     end while
   end function
 
-  /*
-* Function: A_Light0
-* Purpose: Restores the player's weapon-flash extra light to zero.
-  */
+  /// Restores the player's weapon-flash extra light to zero.
+  /// @param player Player state affected by the operation.
+  /// @param psp Psp value supplied to `A_Light0`.
   function A_Light0(player, psp)
     psp = psp
     if player is void then return end if
     player.extralight = 0
   end function
 
-  /*
-* Function: A_Light1
-* Purpose: Sets the player's weapon-flash extra light to level one.
-  */
+  /// Sets the player's weapon-flash extra light to level one.
+  /// @param player Player state affected by the operation.
+  /// @param psp Psp value supplied to `A_Light1`.
   function A_Light1(player, psp)
     psp = psp
     if player is void then return end if
     player.extralight = 1
   end function
 
-  /*
-* Function: A_Light2
-* Purpose: Sets the player's weapon-flash extra light to level two.
-  */
+  /// Sets the player's weapon-flash extra light to level two.
+  /// @param player Player state affected by the operation.
+  /// @param psp Psp value supplied to `A_Light2`.
   function A_Light2(player, psp)
     psp = psp
     if player is void then return end if
     player.extralight = 2
   end function
 
-  /*
-* Function: P_BulletSlope
-* Purpose: Computes the shared hitscan auto-aim slope, retrying slightly right and left when the forward trace finds no target.
-  */
+  /// Computes the shared hitscan auto-aim slope, retrying slightly right and left when the forward trace finds
+  /// no target.
+  /// @param mo Map object affected by the operation.
   function P_BulletSlope(mo)
     global bulletslope
 
@@ -1030,10 +1026,10 @@ function P_SetPsprite(player, position, stnum)
     end if
   end function
 
-  /*
-* Function: P_GunShot
-* Purpose: Fires one randomized-damage hitscan at the cached bullet slope, adding horizontal spread unless accurate is true.
-  */
+  /// Fires one randomized-damage hitscan at the cached bullet slope, adding horizontal spread unless accurate
+  /// is true.
+  /// @param mo Map object affected by the operation.
+  /// @param accurate Accurate value supplied to `P_GunShot`.
   function P_GunShot(mo, accurate)
     if mo is void then return end if
     damage = 5 *((P_Random() % 3) + 1)

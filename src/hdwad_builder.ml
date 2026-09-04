@@ -13,50 +13,69 @@
   See the License for the specific language governing permissions and
   limitations under the License.
 
-  Script: hdwad_builder.ml
-  Purpose: Builds MiniDoom HDWAD cache files inside the game executable.
 */
+
+//! Builds MiniDoom HDWAD cache files inside the game executable.
+
 import std.fs as fs
 import std.math
 
+/// Defines up magic0 for the hdwad builder subsystem.
 const UP_MAGIC0 = 77
+/// Defines up magic1 for the hdwad builder subsystem.
 const UP_MAGIC1 = 68
+/// Defines up magic2 for the hdwad builder subsystem.
 const UP_MAGIC2 = 85
+/// Defines up magic3 for the hdwad builder subsystem.
 const UP_MAGIC3 = 80
+/// Defines hd magic0 for the hdwad builder subsystem.
 const HD_MAGIC0 = 77
+/// Defines hd magic1 for the hdwad builder subsystem.
 const HD_MAGIC1 = 68
+/// Defines hd magic2 for the hdwad builder subsystem.
 const HD_MAGIC2 = 72
+/// Defines hd magic3 for the hdwad builder subsystem.
 const HD_MAGIC3 = 68
+/// Defines up version for the hdwad builder subsystem.
 const UP_VERSION = 6
 
+/// Defines up type patch for the hdwad builder subsystem.
 const UP_TYPE_PATCH = 1
+/// Defines up type flat for the hdwad builder subsystem.
 const UP_TYPE_FLAT = 2
+/// Defines up type texture for the hdwad builder subsystem.
 const UP_TYPE_TEXTURE = 3
+/// Defines up type sprite for the hdwad builder subsystem.
 const UP_TYPE_SPRITE = 4
 
+/// Defines up flag transparent for the hdwad builder subsystem.
 const UP_FLAG_TRANSPARENT = 1
+/// Defines up transparent index for the hdwad builder subsystem.
 const UP_TRANSPARENT_INDEX = 255
+/// Defines up opaque 255 remap for the hdwad builder subsystem.
 const UP_OPAQUE_255_REMAP = 254
+/// Defines up xbrz dist limit for the hdwad builder subsystem.
 const UP_XBRZ_DIST_LIMIT = 4200
+/// Defines up xbrz blend none for the hdwad builder subsystem.
 const UP_XBRZ_BLEND_NONE = 0
+/// Defines up xbrz blend normal for the hdwad builder subsystem.
 const UP_XBRZ_BLEND_NORMAL = 1
+/// Defines up xbrz blend dominant for the hdwad builder subsystem.
 const UP_XBRZ_BLEND_DOMINANT = 2
+/// Defines the Doom palette selection for up xbrz equal color tolerance.
 const UP_XBRZ_EQUAL_COLOR_TOLERANCE = 30.0
+/// Defines up xbrz dominant direction threshold for the hdwad builder subsystem.
 const UP_XBRZ_DOMINANT_DIRECTION_THRESHOLD = 3.6
+/// Defines up xbrz steep direction threshold for the hdwad builder subsystem.
 const UP_XBRZ_STEEP_DIRECTION_THRESHOLD = 2.2
 
-/*
-* Function: UP_LoadingPulse
-* Purpose: Pumps the host window while HDWAD generation performs long CPU-bound work.
-*/
+/// Pumps the host window while HDWAD generation performs long CPU-bound work.
 function inline UP_LoadingPulse()
   if typeof(I_LoadingPulse) == "function" then I_LoadingPulse() end if
 end function
 
-/*
-* Function: UP_ReportProgress
-* Purpose: Reports one or more HDWAD generation units to the frontend progress display.
-*/
+/// Reports one or more HDWAD generation units to the frontend progress display.
+/// @param units Units value supplied to `UP_ReportProgress`.
 function inline UP_ReportProgress(units)
   if typeof(D_HDWADProgressStep) == "function" then
     D_HDWADProgressStep(units)
@@ -65,92 +84,94 @@ function inline UP_ReportProgress(units)
   end if
 end function
 
-/*
-* Struct: up_lump_t
-* Purpose: Stores one WAD directory entry.
-*/
+/// Stores one WAD directory entry.
 struct up_lump_t
+  /// Stable resource or object name stored by `up_lump_t`
   name
+  /// Stores filepos for `up_lump_t`
   filepos
+  /// Stores size for `up_lump_t`
   size
 end struct
 
-/*
-* Struct: up_image_t
-* Purpose: Stores one extracted image for the output package.
-*/
+/// Stores one extracted image for the output package.
 struct up_image_t
+  /// Stores kind for `up_image_t`
   kind
+  /// Stable resource or object name stored by `up_image_t`
   name
+  /// Width in pixels or map units stored by `up_image_t`
   width
+  /// Height in pixels or map units stored by `up_image_t`
   height
+  /// Stores xoffset for `up_image_t`
   xoffset
+  /// Stores yoffset for `up_image_t`
   yoffset
+  /// Bit flags controlling this record's behavior stored by `up_image_t`
   flags
+  /// Payload owned or referenced by this record stored by `up_image_t`
   data
 end struct
 
-/*
-* Struct: up_texpatch_t
-* Purpose: Stores one patch placement inside a wall texture.
-*/
+/// Stores one patch placement inside a wall texture.
 struct up_texpatch_t
+  /// Stores originx for `up_texpatch_t`
   originx
+  /// Stores originy for `up_texpatch_t`
   originy
+  /// Stores patch for `up_texpatch_t`
   patch
 end struct
 
-/*
-* Struct: up_texture_t
-* Purpose: Stores one parsed TEXTURE1/TEXTURE2 definition.
-*/
+/// Stores one parsed TEXTURE1/TEXTURE2 definition.
 struct up_texture_t
+  /// Stable resource or object name stored by `up_texture_t`
   name
+  /// Width in pixels or map units stored by `up_texture_t`
   width
+  /// Height in pixels or map units stored by `up_texture_t`
   height
+  /// Stores patches for `up_texture_t`
   patches
 end struct
 
-/*
-* Function: UP_ReadU16
-* Purpose: Reads a little-endian u16.
-*/
+/// Reads a little-endian u16.
+/// @param b Second input operand.
+/// @param off Zero-based byte or element offset.
 function inline UP_ReadU16(b, off)
   return b[off] +(b[off + 1] << 8)
 end function
 
-/*
-* Function: UP_ReadS16
-* Purpose: Reads a little-endian s16.
-*/
+/// Reads a little-endian s16.
+/// @param b Second input operand.
+/// @param off Zero-based byte or element offset.
 function inline UP_ReadS16(b, off)
   v = UP_ReadU16(b, off)
   if v >= 32768 then v = v - 65536 end if
   return v
 end function
 
-/*
-* Function: UP_ReadU32
-* Purpose: Reads a little-endian u32.
-*/
+/// Reads a little-endian u32.
+/// @param b Second input operand.
+/// @param off Zero-based byte or element offset.
 function inline UP_ReadU32(b, off)
   return b[off] +(b[off + 1] << 8) +(b[off + 2] << 16) +(b[off + 3] << 24)
 end function
 
-/*
-* Function: UP_ReadS32
-* Purpose: Reads a little-endian s32.
-*/
+/// Reads a little-endian s32.
+/// @param b Second input operand.
+/// @param off Zero-based byte or element offset.
 function inline UP_ReadS32(b, off)
   v = UP_ReadU32(b, off)
   if v >= 2147483648 then v = v - 4294967296 end if
   return v
 end function
 
-/*
-* Function: UP_WriteU32
-* Purpose: Writes a little-endian u32.
-*/
+/// Writes a little-endian u32.
+/// @param b Second input operand.
+/// @param off Zero-based byte or element offset.
+/// @param value Value consumed by the operation.
 function inline UP_WriteU32(b, off, value)
   if value < 0 then value = value + 4294967296 end if
   b[off] = value & 255
@@ -159,10 +180,9 @@ function inline UP_WriteU32(b, off, value)
   b[off + 3] =(value >> 24) & 255
 end function
 
-/*
-* Function: UP_ToIntOr
-* Purpose: Converts a value to int with fallback.
-*/
+/// Converts a value to int with fallback.
+/// @param v Value consumed by the operation.
+/// @param fallback Value returned when the requested conversion or lookup is unavailable.
 function UP_ToIntOr(v, fallback)
   if typeof(v) == "int" then return v end if
   if typeof(v) == "float" then
@@ -178,10 +198,8 @@ function UP_ToIntOr(v, fallback)
   return fallback
 end function
 
-/*
-* Function: UP_ClampScale
-* Purpose: Keeps output scale inside the supported package range.
-*/
+/// Keeps output scale inside the supported package range.
+/// @param v Value consumed by the operation.
 function inline UP_ClampScale(v)
   s = UP_ToIntOr(v, 2)
   if s < 2 then s = 2 end if
@@ -189,10 +207,8 @@ function inline UP_ClampScale(v)
   return s
 end function
 
-/*
-* Function: UP_Name8
-* Purpose: Decodes a WAD name.
-*/
+/// Decodes a WAD name.
+/// @param b Second input operand.
 function UP_Name8(b)
   src = b
   if typeof(b) == "string" then
@@ -210,10 +226,12 @@ function UP_Name8(b)
   return decodeZ(outName)
 end function
 
-/*
-* Function: UP_CopyBytes
-* Purpose: Copies a byte range.
-*/
+/// Copies a byte range.
+/// @param dst Dst value supplied to `UP_CopyBytes`.
+/// @param dstOff Dst off value supplied to `UP_CopyBytes`.
+/// @param src Src value supplied to `UP_CopyBytes`.
+/// @param srcOff Src off value supplied to `UP_CopyBytes`.
+/// @param count Number of elements or iterations to process.
 function UP_CopyBytes(dst, dstOff, src, srcOff, count)
   i = 0
   while i < count
@@ -222,10 +240,9 @@ function UP_CopyBytes(dst, dstOff, src, srcOff, count)
   end while
 end function
 
-/*
-* Function: UP_FindMarker
-* Purpose: Finds the first lump marker with the given name.
-*/
+/// Finds the first lump marker with the given name.
+/// @param lumps Lumps value supplied to `UP_FindMarker`.
+/// @param name Resource or object name to resolve.
 function UP_FindMarker(lumps, name)
   n = UP_Name8(name)
   i = 0
@@ -236,10 +253,9 @@ function UP_FindMarker(lumps, name)
   return -1
 end function
 
-/*
-* Function: UP_FindLump
-* Purpose: Finds a lump by name.
-*/
+/// Finds a lump by name.
+/// @param lumps Lumps value supplied to `UP_FindLump`.
+/// @param name Resource or object name to resolve.
 function UP_FindLump(lumps, name)
   n = UP_Name8(name)
   i = len(lumps) - 1
@@ -250,10 +266,10 @@ function UP_FindLump(lumps, name)
   return -1
 end function
 
-/*
-* Function: UP_LumpBytes
-* Purpose: Returns a lump payload or void.
-*/
+/// Returns a lump payload or void.
+/// @param wadData Wad data value supplied to `UP_LumpBytes`.
+/// @param lumps Lumps value supplied to `UP_LumpBytes`.
+/// @param idx Zero-based element or table index.
 function UP_LumpBytes(wadData, lumps, idx)
   if typeof(idx) != "int" or idx < 0 or idx >= len(lumps) then return void end if
   l = lumps[idx]
@@ -261,10 +277,7 @@ function UP_LumpBytes(wadData, lumps, idx)
   return slice(wadData, l.filepos, l.size)
 end function
 
-/*
-* Function: UP_DefaultPalette
-* Purpose: Builds a grayscale fallback palette.
-*/
+/// Builds a grayscale fallback palette.
 function UP_DefaultPalette()
   pal = bytes(768, 0)
   i = 0
@@ -278,10 +291,9 @@ function UP_DefaultPalette()
   return pal
 end function
 
-/*
-* Function: UP_LoadPalette
-* Purpose: Extracts the first PLAYPAL palette from the WAD.
-*/
+/// Extracts the first PLAYPAL palette from the WAD.
+/// @param wadData Wad data value supplied to `UP_LoadPalette`.
+/// @param lumps Lumps value supplied to `UP_LoadPalette`.
 function UP_LoadPalette(wadData, lumps)
   idx = UP_FindLump(lumps, "PLAYPAL")
   if idx < 0 then return UP_DefaultPalette() end if
@@ -292,10 +304,8 @@ function UP_LoadPalette(wadData, lumps)
   return slice(wadData, l.filepos, 768)
 end function
 
-/*
-* Function: UP_IsLikelyPatch
-* Purpose: Performs conservative validation for Doom patch data.
-*/
+/// Performs conservative validation for Doom patch data.
+/// @param data Binary or structured data to process.
 function UP_IsLikelyPatch(data)
   if typeof(data) != "bytes" or len(data) < 13 then return false end if
   w = UP_ReadS16(data, 0)
@@ -308,10 +318,10 @@ function UP_IsLikelyPatch(data)
   return true
 end function
 
-/*
-* Function: UP_DecodePatch
-* Purpose: Converts a Doom patch lump into a palettized rectangular image.
-*/
+/// Converts a Doom patch lump into a palettized rectangular image.
+/// @param name Resource or object name to resolve.
+/// @param kind Kind value supplied to `UP_DecodePatch`.
+/// @param lumpData Lump data value supplied to `UP_DecodePatch`.
 function UP_DecodePatch(name, kind, lumpData)
   if not UP_IsLikelyPatch(lumpData) then return void end if
 
@@ -351,10 +361,9 @@ function UP_DecodePatch(name, kind, lumpData)
   return up_image_t(kind, UP_Name8(name), w, h, left, top, UP_FLAG_TRANSPARENT, pixels)
 end function
 
-/*
-* Function: UP_ParsePnames
-* Purpose: Builds PNAMES patch-name to lump-index mapping.
-*/
+/// Builds PNAMES patch-name to lump-index mapping.
+/// @param wadData Wad data value supplied to `UP_ParsePnames`.
+/// @param lumps Lumps value supplied to `UP_ParsePnames`.
 function UP_ParsePnames(wadData, lumps)
   result =[]
   pidx = UP_FindLump(lumps, "PNAMES")
@@ -374,10 +383,11 @@ function UP_ParsePnames(wadData, lumps)
   return result
 end function
 
-/*
-* Function: UP_ParseTextureLump
-* Purpose: Parses TEXTURE1/TEXTURE2 wall texture definitions.
-*/
+/// Parses TEXTURE1/TEXTURE2 wall texture definitions.
+/// @param wadData Wad data value supplied to `UP_ParseTextureLump`.
+/// @param lumps Lumps value supplied to `UP_ParseTextureLump`.
+/// @param lumpName Lump name value supplied to `UP_ParseTextureLump`.
+/// @param patchLookup Patch lookup value supplied to `UP_ParseTextureLump`.
 function UP_ParseTextureLump(wadData, lumps, lumpName, patchLookup)
   result =[]
   tidx = UP_FindLump(lumps, lumpName)
@@ -431,10 +441,13 @@ function UP_ParseTextureLump(wadData, lumps, lumpName, patchLookup)
   return result
 end function
 
-/*
-* Function: UP_DrawPatchToTexture
-* Purpose: Draws a decoded patch image into an indexed texture canvas.
-*/
+/// Draws a decoded patch image into an indexed texture canvas.
+/// @param patch Patch value supplied to `UP_DrawPatchToTexture`.
+/// @param canvas Canvas value supplied to `UP_DrawPatchToTexture`.
+/// @param texW Tex w value supplied to `UP_DrawPatchToTexture`.
+/// @param texH Tex h value supplied to `UP_DrawPatchToTexture`.
+/// @param originX Horizontal coordinate or vector component represented by origin x.
+/// @param originY Vertical coordinate or vector component represented by origin y.
 function UP_DrawPatchToTexture(patch, canvas, texW, texH, originX, originY)
   if patch is void or typeof(patch.data) != "bytes" then return end if
   y = 0
@@ -457,10 +470,10 @@ function UP_DrawPatchToTexture(patch, canvas, texW, texH, originX, originY)
   end while
 end function
 
-/*
-* Function: UP_BuildTextureImage
-* Purpose: Composites a wall texture from its source patch placements.
-*/
+/// Composites a wall texture from its source patch placements.
+/// @param tex Texture identifier or texture data to process.
+/// @param wadData Wad data value supplied to `UP_BuildTextureImage`.
+/// @param lumps Lumps value supplied to `UP_BuildTextureImage`.
 function UP_BuildTextureImage(tex, wadData, lumps)
   if tex is void then return void end if
   canvas = bytes(tex.width * tex.height, UP_TRANSPARENT_INDEX)
@@ -481,18 +494,18 @@ function UP_BuildTextureImage(tex, wadData, lumps)
   return up_image_t(UP_TYPE_TEXTURE, tex.name, tex.width, tex.height, 0, 0, UP_FLAG_TRANSPARENT, canvas)
 end function
 
-/*
-* Function: UP_IsTransparent
-* Purpose: Checks whether an indexed pixel is transparent for patch-like images.
-*/
+/// Checks whether an indexed pixel is transparent for patch-like images.
+/// @param idx Zero-based element or table index.
+/// @param hasAlpha Whether has alpha holds.
 function inline UP_IsTransparent(idx, hasAlpha)
   return hasAlpha and idx == UP_TRANSPARENT_INDEX
 end function
 
-/*
-* Function: UP_ColorDistance
-* Purpose: Computes weighted RGB distance for xBRZ edge decisions.
-*/
+/// Computes weighted RGB distance for xBRZ edge decisions.
+/// @param pal Pal value supplied to `UP_ColorDistance`.
+/// @param a First input operand.
+/// @param b Second input operand.
+/// @param hasAlpha Whether has alpha holds.
 function UP_ColorDistance(pal, a, b, hasAlpha)
   if a == b then return 0 end if
   if UP_IsTransparent(a, hasAlpha) or UP_IsTransparent(b, hasAlpha) then return 1000000000 end if
@@ -505,10 +518,12 @@ function UP_ColorDistance(pal, a, b, hasAlpha)
   return dr * dr * 3 + dg * dg * 4 + db * db * 2
 end function
 
-/*
-* Function: UP_ColorDistanceCached
-* Purpose: Computes palette distance with a per-image 256x256 cache.
-*/
+/// Computes palette distance with a per-image 256x256 cache.
+/// @param pal Pal value supplied to `UP_ColorDistanceCached`.
+/// @param cache Cache value supplied to `UP_ColorDistanceCached`.
+/// @param a First input operand.
+/// @param b Second input operand.
+/// @param hasAlpha Whether has alpha holds.
 function UP_ColorDistanceCached(pal, cache, a, b, hasAlpha)
   if a == b then return 0 end if
   key = a * 256 + b
@@ -522,26 +537,31 @@ function UP_ColorDistanceCached(pal, cache, a, b, hasAlpha)
   return d
 end function
 
-/*
-* Function: UP_SimilarColor
-* Purpose: Evaluates xBRZ-style color equality with a distance threshold.
-*/
+/// Evaluates xBRZ-style color equality with a distance threshold.
+/// @param pal Pal value supplied to `UP_SimilarColor`.
+/// @param a First input operand.
+/// @param b Second input operand.
+/// @param hasAlpha Whether has alpha holds.
 function inline UP_SimilarColor(pal, a, b, hasAlpha)
   return UP_ColorDistance(pal, a, b, hasAlpha) <= UP_XBRZ_DIST_LIMIT
 end function
 
-/*
-* Function: UP_SimilarColorCached
-* Purpose: Evaluates xBRZ-style equality using the per-image distance cache.
-*/
+/// Evaluates xBRZ-style equality using the per-image distance cache.
+/// @param pal Pal value supplied to `UP_SimilarColorCached`.
+/// @param cache Cache value supplied to `UP_SimilarColorCached`.
+/// @param a First input operand.
+/// @param b Second input operand.
+/// @param hasAlpha Whether has alpha holds.
 function inline UP_SimilarColorCached(pal, cache, a, b, hasAlpha)
   return UP_ColorDistanceCached(pal, cache, a, b, hasAlpha) <= UP_XBRZ_DIST_LIMIT
 end function
 
-/*
-* Function: UP_PixelAt
-* Purpose: Reads a clamped source pixel.
-*/
+/// Reads a clamped source pixel.
+/// @param src Src value supplied to `UP_PixelAt`.
+/// @param w W value supplied to `UP_PixelAt`.
+/// @param h H value supplied to `UP_PixelAt`.
+/// @param x Horizontal map- or screen-space coordinate.
+/// @param y Vertical map- or screen-space coordinate.
 function inline UP_PixelAt(src, w, h, x, y)
   if x < 0 then x = 0 end if
   if y < 0 then y = 0 end if
@@ -550,10 +570,12 @@ function inline UP_PixelAt(src, w, h, x, y)
   return src[y * w + x]
 end function
 
-/*
-* Function: UP_NearestPaletteIndex
-* Purpose: Quantizes an RGB color back to the Doom palette.
-*/
+/// Quantizes an RGB color back to the Doom palette.
+/// @param pal Pal value supplied to `UP_NearestPaletteIndex`.
+/// @param r R value supplied to `UP_NearestPaletteIndex`.
+/// @param g G value supplied to `UP_NearestPaletteIndex`.
+/// @param b Second input operand.
+/// @param hasAlpha Whether has alpha holds.
 function UP_NearestPaletteIndex(pal, r, g, b, hasAlpha)
   best = 0
   bestDist = 2147483647
@@ -578,10 +600,13 @@ function UP_NearestPaletteIndex(pal, r, g, b, hasAlpha)
   return best
 end function
 
-/*
-* Function: UP_BlendIndex
-* Purpose: Blends two palette indices and quantizes the result.
-*/
+/// Blends two palette indices and quantizes the result.
+/// @param pal Pal value supplied to `UP_BlendIndex`.
+/// @param cache Cache value supplied to `UP_BlendIndex`.
+/// @param base Base value supplied to `UP_BlendIndex`.
+/// @param edge Edge value supplied to `UP_BlendIndex`.
+/// @param edgeWeight Edge weight value supplied to `UP_BlendIndex`.
+/// @param hasAlpha Whether has alpha holds.
 function UP_BlendIndex(pal, cache, base, edge, edgeWeight, hasAlpha)
   if edgeWeight <= 0 or base == edge then return base end if
   if edgeWeight > 3 then edgeWeight = 3 end if
@@ -605,10 +630,12 @@ function UP_BlendIndex(pal, cache, base, edge, edgeWeight, hasAlpha)
   return outIdx
 end function
 
-/*
-* Function: UP_XbrzDistanceCached
-* Purpose: Computes the palette distance used by the original xBRZ rules.
-*/
+/// Computes the palette distance used by the original xBRZ rules.
+/// @param pal Pal value supplied to `UP_XbrzDistanceCached`.
+/// @param cache Cache value supplied to `UP_XbrzDistanceCached`.
+/// @param a First input operand.
+/// @param b Second input operand.
+/// @param hasAlpha Whether has alpha holds.
 function UP_XbrzDistanceCached(pal, cache, a, b, hasAlpha)
   if a == b then return 0.0 end if
   key = a * 256 + b
@@ -638,18 +665,23 @@ function UP_XbrzDistanceCached(pal, cache, a, b, hasAlpha)
   return d
 end function
 
-/*
-* Function: UP_XbrzEq
-* Purpose: Tests palette equality using xBRZ's perceptual tolerance.
-*/
+/// Tests palette equality using xBRZ's perceptual tolerance.
+/// @param pal Pal value supplied to `UP_XbrzEq`.
+/// @param cache Cache value supplied to `UP_XbrzEq`.
+/// @param a First input operand.
+/// @param b Second input operand.
+/// @param hasAlpha Whether has alpha holds.
 function inline UP_XbrzEq(pal, cache, a, b, hasAlpha)
   return UP_XbrzDistanceCached(pal, cache, a, b, hasAlpha) < UP_XBRZ_EQUAL_COLOR_TOLERANCE
 end function
 
-/*
-* Function: UP_BlendIndexRatio
-* Purpose: Controls blend Index Ratio transitions in the HDWAD builder system.
-*/
+/// Controls blend Index Ratio transitions in the HDWAD builder system.
+/// @param pal Pal value supplied to `UP_BlendIndexRatio`.
+/// @param cache Cache value supplied to `UP_BlendIndexRatio`.
+/// @param base Base value supplied to `UP_BlendIndexRatio`.
+/// @param edge Edge value supplied to `UP_BlendIndexRatio`.
+/// @param ratioCode Ratio code value supplied to `UP_BlendIndexRatio`.
+/// @param hasAlpha Whether has alpha holds.
 function UP_BlendIndexRatio(pal, cache, base, edge, ratioCode, hasAlpha)
   if base == edge then return base end if
   if UP_IsTransparent(base, hasAlpha) then return edge end if
@@ -686,74 +718,61 @@ function UP_BlendIndexRatio(pal, cache, base, edge, ratioCode, hasAlpha)
   return outIdx
 end function
 
-/*
-* Function: UP_XbrzGetTopL
-* Purpose: Extracts the two-bit top-left corner blend classification from a packed xBRZ blend byte.
-*/
+/// Extracts the two-bit top-left corner blend classification from a packed xBRZ blend byte.
+/// @param b Second input operand.
 function inline UP_XbrzGetTopL(b)
   return b & 3
 end function
 
-/*
-* Function: UP_XbrzGetTopR
-* Purpose: Extracts the two-bit top-right corner blend classification from a packed xBRZ blend byte.
-*/
+/// Extracts the two-bit top-right corner blend classification from a packed xBRZ blend byte.
+/// @param b Second input operand.
 function inline UP_XbrzGetTopR(b)
   return (b >> 2) & 3
 end function
 
-/*
-* Function: UP_XbrzGetBottomR
-* Purpose: Extracts the two-bit bottom-right corner blend classification from a packed xBRZ blend byte.
-*/
+/// Extracts the two-bit bottom-right corner blend classification from a packed xBRZ blend byte.
+/// @param b Second input operand.
 function inline UP_XbrzGetBottomR(b)
   return (b >> 4) & 3
 end function
 
-/*
-* Function: UP_XbrzGetBottomL
-* Purpose: Extracts the two-bit bottom-left corner blend classification from a packed xBRZ blend byte.
-*/
+/// Extracts the two-bit bottom-left corner blend classification from a packed xBRZ blend byte.
+/// @param b Second input operand.
 function inline UP_XbrzGetBottomL(b)
   return (b >> 6) & 3
 end function
 
-/*
-* Function: UP_XbrzSetTopL
-* Purpose: Adds a top-left two-bit classification to a packed xBRZ blend byte.
-*/
+/// Adds a top-left two-bit classification to a packed xBRZ blend byte.
+/// @param b Second input operand.
+/// @param bt Bt value supplied to `UP_XbrzSetTopL`.
 function inline UP_XbrzSetTopL(b, bt)
   return b | bt
 end function
 
-/*
-* Function: UP_XbrzSetTopR
-* Purpose: Adds a top-right two-bit classification to a packed xBRZ blend byte.
-*/
+/// Adds a top-right two-bit classification to a packed xBRZ blend byte.
+/// @param b Second input operand.
+/// @param bt Bt value supplied to `UP_XbrzSetTopR`.
 function inline UP_XbrzSetTopR(b, bt)
   return b |(bt << 2)
 end function
 
-/*
-* Function: UP_XbrzSetBottomR
-* Purpose: Adds a bottom-right two-bit classification to a packed xBRZ blend byte.
-*/
+/// Adds a bottom-right two-bit classification to a packed xBRZ blend byte.
+/// @param b Second input operand.
+/// @param bt Bt value supplied to `UP_XbrzSetBottomR`.
 function inline UP_XbrzSetBottomR(b, bt)
   return b |(bt << 4)
 end function
 
-/*
-* Function: UP_XbrzSetBottomL
-* Purpose: Adds a bottom-left two-bit classification to a packed xBRZ blend byte.
-*/
+/// Adds a bottom-left two-bit classification to a packed xBRZ blend byte.
+/// @param b Second input operand.
+/// @param bt Bt value supplied to `UP_XbrzSetBottomL`.
 function inline UP_XbrzSetBottomL(b, bt)
   return b |(bt << 6)
 end function
 
-/*
-* Function: UP_XbrzRotateBlendInfo
-* Purpose: Controls xbrz Rotate Blend Info transitions in the HDWAD builder system.
-*/
+/// Controls xbrz Rotate Blend Info transitions in the HDWAD builder system.
+/// @param b Second input operand.
+/// @param rot Rot value supplied to `UP_XbrzRotateBlendInfo`.
 function UP_XbrzRotateBlendInfo(b, rot)
   if rot == 1 then return ((b << 2) |(b >> 6)) & 255 end if
   if rot == 2 then return ((b << 4) |(b >> 4)) & 255 end if
@@ -761,10 +780,27 @@ function UP_XbrzRotateBlendInfo(b, rot)
   return b
 end function
 
-/*
-* Function: UP_XbrzPreProcessCorners
-* Purpose: Compares color-distance paths through a 4x4 neighborhood and classifies normal or dominant edge blends for the central corners.
-*/
+/// Compares color-distance paths through a 4x4 neighborhood and classifies normal or dominant edge blends for
+/// the central corners.
+/// @param pal Pal value supplied to `UP_XbrzPreProcessCorners`.
+/// @param cache Cache value supplied to `UP_XbrzPreProcessCorners`.
+/// @param a First input operand.
+/// @param b Second input operand.
+/// @param c C value supplied to `UP_XbrzPreProcessCorners`.
+/// @param d Divisor or direction value used by the operation.
+/// @param e E value supplied to `UP_XbrzPreProcessCorners`.
+/// @param f F value supplied to `UP_XbrzPreProcessCorners`.
+/// @param g G value supplied to `UP_XbrzPreProcessCorners`.
+/// @param h H value supplied to `UP_XbrzPreProcessCorners`.
+/// @param ii Ii value supplied to `UP_XbrzPreProcessCorners`.
+/// @param j Secondary zero-based iteration index.
+/// @param k K value supplied to `UP_XbrzPreProcessCorners`.
+/// @param l L value supplied to `UP_XbrzPreProcessCorners`.
+/// @param m M value supplied to `UP_XbrzPreProcessCorners`.
+/// @param n Number of values to process.
+/// @param o O value supplied to `UP_XbrzPreProcessCorners`.
+/// @param p Object or data record consumed by the operation.
+/// @param hasAlpha Whether has alpha holds.
 function UP_XbrzPreProcessCorners(pal, cache, a, b, c, d, e, f, g, h, ii, j, k, l, m, n, o, p, hasAlpha)
   if (f == g and j == k) or(f == j and g == k) then return 0 end if
 
@@ -787,10 +823,19 @@ function UP_XbrzPreProcessCorners(pal, cache, a, b, c, d, e, f, g, h, ii, j, k, 
   return result
 end function
 
-/*
-* Function: UP_XbrzRotGet
-* Purpose: Returns a 3x3 neighborhood sample through a requested quarter-turn so one blend kernel handles all four orientations.
-*/
+/// Returns a 3x3 neighborhood sample through a requested quarter-turn so one blend kernel handles all four
+/// orientations.
+/// @param rot Rot value supplied to `UP_XbrzRotGet`.
+/// @param pos Pos value supplied to `UP_XbrzRotGet`.
+/// @param a First input operand.
+/// @param b Second input operand.
+/// @param c C value supplied to `UP_XbrzRotGet`.
+/// @param d Divisor or direction value used by the operation.
+/// @param e E value supplied to `UP_XbrzRotGet`.
+/// @param f F value supplied to `UP_XbrzRotGet`.
+/// @param g G value supplied to `UP_XbrzRotGet`.
+/// @param h H value supplied to `UP_XbrzRotGet`.
+/// @param ii Ii value supplied to `UP_XbrzRotGet`.
 function UP_XbrzRotGet(rot, pos, a, b, c, d, e, f, g, h, ii)
   if rot == 1 then
     if pos == 0 then return g end if
@@ -835,10 +880,13 @@ function UP_XbrzRotGet(rot, pos, a, b, c, d, e, f, g, h, ii)
   return ii
 end function
 
-/*
-* Function: UP_XbrzRefIndex3
-* Purpose: Rotates a 3x3 xBRZ neighbor coordinate and returns its linear index in the source image.
-*/
+/// Rotates a 3x3 xBRZ neighbor coordinate and returns its linear index in the source image.
+/// @param dw Dw value supplied to `UP_XbrzRefIndex3`.
+/// @param blockX Horizontal coordinate or vector component represented by block x.
+/// @param blockY Vertical coordinate or vector component represented by block y.
+/// @param rot Rot value supplied to `UP_XbrzRefIndex3`.
+/// @param i Zero-based iteration index.
+/// @param j Secondary zero-based iteration index.
 function UP_XbrzRefIndex3(dw, blockX, blockY, rot, i, j)
   rr = i
   cc = j
@@ -855,27 +903,47 @@ function UP_XbrzRefIndex3(dw, blockX, blockY, rot, i, j)
   return (blockY + rr) * dw + blockX + cc
 end function
 
-/*
-* Function: UP_XbrzBlendRef3
-* Purpose: Controls xbrz Blend Ref3 transitions in the HDWAD builder system.
-*/
+/// Controls xbrz Blend Ref3 transitions in the HDWAD builder system.
+/// @param dst Dst value supplied to `UP_XbrzBlendRef3`.
+/// @param dw Dw value supplied to `UP_XbrzBlendRef3`.
+/// @param blockX Horizontal coordinate or vector component represented by block x.
+/// @param blockY Vertical coordinate or vector component represented by block y.
+/// @param rot Rot value supplied to `UP_XbrzBlendRef3`.
+/// @param i Zero-based iteration index.
+/// @param j Secondary zero-based iteration index.
+/// @param col Col value supplied to `UP_XbrzBlendRef3`.
+/// @param pal Pal value supplied to `UP_XbrzBlendRef3`.
+/// @param blendCache Blend cache value supplied to `UP_XbrzBlendRef3`.
+/// @param hasAlpha Whether has alpha holds.
+/// @param ratioCode Ratio code value supplied to `UP_XbrzBlendRef3`.
 function UP_XbrzBlendRef3(dst, dw, blockX, blockY, rot, i, j, col, pal, blendCache, hasAlpha, ratioCode)
   idx = UP_XbrzRefIndex3(dw, blockX, blockY, rot, i, j)
   dst[idx] = UP_BlendIndexRatio(pal, blendCache, dst[idx], col, ratioCode, hasAlpha)
 end function
 
-/*
-* Function: UP_XbrzSetRef3
-* Purpose: Writes one output color to a rotation-relative cell of the current 3x3 destination block.
-*/
+/// Writes one output color to a rotation-relative cell of the current 3x3 destination block.
+/// @param dst Dst value supplied to `UP_XbrzSetRef3`.
+/// @param dw Dw value supplied to `UP_XbrzSetRef3`.
+/// @param blockX Horizontal coordinate or vector component represented by block x.
+/// @param blockY Vertical coordinate or vector component represented by block y.
+/// @param rot Rot value supplied to `UP_XbrzSetRef3`.
+/// @param i Zero-based iteration index.
+/// @param j Secondary zero-based iteration index.
+/// @param col Col value supplied to `UP_XbrzSetRef3`.
 function inline UP_XbrzSetRef3(dst, dw, blockX, blockY, rot, i, j, col)
   dst[UP_XbrzRefIndex3(dw, blockX, blockY, rot, i, j)] = col
 end function
 
-/*
-* Function: UP_XbrzBlendLineShallow3
-* Purpose: Applies the xBRZ 3x shallow-edge coverage pattern with weighted blends and one fully replaced corner pixel.
-*/
+/// Applies the xBRZ 3x shallow-edge coverage pattern with weighted blends and one fully replaced corner pixel.
+/// @param dst Dst value supplied to `UP_XbrzBlendLineShallow3`.
+/// @param dw Dw value supplied to `UP_XbrzBlendLineShallow3`.
+/// @param blockX Horizontal coordinate or vector component represented by block x.
+/// @param blockY Vertical coordinate or vector component represented by block y.
+/// @param rot Rot value supplied to `UP_XbrzBlendLineShallow3`.
+/// @param col Col value supplied to `UP_XbrzBlendLineShallow3`.
+/// @param pal Pal value supplied to `UP_XbrzBlendLineShallow3`.
+/// @param blendCache Blend cache value supplied to `UP_XbrzBlendLineShallow3`.
+/// @param hasAlpha Whether has alpha holds.
 function UP_XbrzBlendLineShallow3(dst, dw, blockX, blockY, rot, col, pal, blendCache, hasAlpha)
   UP_XbrzBlendRef3(dst, dw, blockX, blockY, rot, 2, 0, col, pal, blendCache, hasAlpha, 0)
   UP_XbrzBlendRef3(dst, dw, blockX, blockY, rot, 1, 2, col, pal, blendCache, hasAlpha, 0)
@@ -883,10 +951,16 @@ function UP_XbrzBlendLineShallow3(dst, dw, blockX, blockY, rot, col, pal, blendC
   UP_XbrzSetRef3(dst, dw, blockX, blockY, rot, 2, 2, col)
 end function
 
-/*
-* Function: UP_XbrzBlendLineSteep3
-* Purpose: Applies the rotated xBRZ 3x steep-edge coverage pattern to the current destination block.
-*/
+/// Applies the rotated xBRZ 3x steep-edge coverage pattern to the current destination block.
+/// @param dst Dst value supplied to `UP_XbrzBlendLineSteep3`.
+/// @param dw Dw value supplied to `UP_XbrzBlendLineSteep3`.
+/// @param blockX Horizontal coordinate or vector component represented by block x.
+/// @param blockY Vertical coordinate or vector component represented by block y.
+/// @param rot Rot value supplied to `UP_XbrzBlendLineSteep3`.
+/// @param col Col value supplied to `UP_XbrzBlendLineSteep3`.
+/// @param pal Pal value supplied to `UP_XbrzBlendLineSteep3`.
+/// @param blendCache Blend cache value supplied to `UP_XbrzBlendLineSteep3`.
+/// @param hasAlpha Whether has alpha holds.
 function UP_XbrzBlendLineSteep3(dst, dw, blockX, blockY, rot, col, pal, blendCache, hasAlpha)
   UP_XbrzBlendRef3(dst, dw, blockX, blockY, rot, 0, 2, col, pal, blendCache, hasAlpha, 0)
   UP_XbrzBlendRef3(dst, dw, blockX, blockY, rot, 2, 1, col, pal, blendCache, hasAlpha, 0)
@@ -894,10 +968,16 @@ function UP_XbrzBlendLineSteep3(dst, dw, blockX, blockY, rot, col, pal, blendCac
   UP_XbrzSetRef3(dst, dw, blockX, blockY, rot, 2, 2, col)
 end function
 
-/*
-* Function: UP_XbrzBlendLineSteepAndShallow3
-* Purpose: Applies the combined xBRZ 3x corner pattern when both steep and shallow edge tests succeed.
-*/
+/// Applies the combined xBRZ 3x corner pattern when both steep and shallow edge tests succeed.
+/// @param dst Dst value supplied to `UP_XbrzBlendLineSteepAndShallow3`.
+/// @param dw Dw value supplied to `UP_XbrzBlendLineSteepAndShallow3`.
+/// @param blockX Horizontal coordinate or vector component represented by block x.
+/// @param blockY Vertical coordinate or vector component represented by block y.
+/// @param rot Rot value supplied to `UP_XbrzBlendLineSteepAndShallow3`.
+/// @param col Col value supplied to `UP_XbrzBlendLineSteepAndShallow3`.
+/// @param pal Pal value supplied to `UP_XbrzBlendLineSteepAndShallow3`.
+/// @param blendCache Blend cache value supplied to `UP_XbrzBlendLineSteepAndShallow3`.
+/// @param hasAlpha Whether has alpha holds.
 function UP_XbrzBlendLineSteepAndShallow3(dst, dw, blockX, blockY, rot, col, pal, blendCache, hasAlpha)
   UP_XbrzBlendRef3(dst, dw, blockX, blockY, rot, 2, 0, col, pal, blendCache, hasAlpha, 0)
   UP_XbrzBlendRef3(dst, dw, blockX, blockY, rot, 0, 2, col, pal, blendCache, hasAlpha, 0)
@@ -906,28 +986,56 @@ function UP_XbrzBlendLineSteepAndShallow3(dst, dw, blockX, blockY, rot, col, pal
   UP_XbrzSetRef3(dst, dw, blockX, blockY, rot, 2, 2, col)
 end function
 
-/*
-* Function: UP_XbrzBlendLineDiagonal3
-* Purpose: Applies the xBRZ 3x diagonal-edge weights to the two adjacent cells and corner cell.
-*/
+/// Applies the xBRZ 3x diagonal-edge weights to the two adjacent cells and corner cell.
+/// @param dst Dst value supplied to `UP_XbrzBlendLineDiagonal3`.
+/// @param dw Dw value supplied to `UP_XbrzBlendLineDiagonal3`.
+/// @param blockX Horizontal coordinate or vector component represented by block x.
+/// @param blockY Vertical coordinate or vector component represented by block y.
+/// @param rot Rot value supplied to `UP_XbrzBlendLineDiagonal3`.
+/// @param col Col value supplied to `UP_XbrzBlendLineDiagonal3`.
+/// @param pal Pal value supplied to `UP_XbrzBlendLineDiagonal3`.
+/// @param blendCache Blend cache value supplied to `UP_XbrzBlendLineDiagonal3`.
+/// @param hasAlpha Whether has alpha holds.
 function UP_XbrzBlendLineDiagonal3(dst, dw, blockX, blockY, rot, col, pal, blendCache, hasAlpha)
   UP_XbrzBlendRef3(dst, dw, blockX, blockY, rot, 1, 2, col, pal, blendCache, hasAlpha, 2)
   UP_XbrzBlendRef3(dst, dw, blockX, blockY, rot, 2, 1, col, pal, blendCache, hasAlpha, 2)
   UP_XbrzBlendRef3(dst, dw, blockX, blockY, rot, 2, 2, col, pal, blendCache, hasAlpha, 3)
 end function
 
-/*
-* Function: UP_XbrzBlendCorner3
-* Purpose: Controls xbrz Blend Corner3 transitions in the HDWAD builder system.
-*/
+/// Controls xbrz Blend Corner3 transitions in the HDWAD builder system.
+/// @param dst Dst value supplied to `UP_XbrzBlendCorner3`.
+/// @param dw Dw value supplied to `UP_XbrzBlendCorner3`.
+/// @param blockX Horizontal coordinate or vector component represented by block x.
+/// @param blockY Vertical coordinate or vector component represented by block y.
+/// @param rot Rot value supplied to `UP_XbrzBlendCorner3`.
+/// @param col Col value supplied to `UP_XbrzBlendCorner3`.
+/// @param pal Pal value supplied to `UP_XbrzBlendCorner3`.
+/// @param blendCache Blend cache value supplied to `UP_XbrzBlendCorner3`.
+/// @param hasAlpha Whether has alpha holds.
 function UP_XbrzBlendCorner3(dst, dw, blockX, blockY, rot, col, pal, blendCache, hasAlpha)
   UP_XbrzBlendRef3(dst, dw, blockX, blockY, rot, 2, 2, col, pal, blendCache, hasAlpha, 4)
 end function
 
-/*
-* Function: UP_XbrzBlendPixel3
-* Purpose: Controls xbrz Blend Pixel3 transitions in the HDWAD builder system.
-*/
+/// Controls xbrz Blend Pixel3 transitions in the HDWAD builder system.
+/// @param dst Dst value supplied to `UP_XbrzBlendPixel3`.
+/// @param dw Dw value supplied to `UP_XbrzBlendPixel3`.
+/// @param blockX Horizontal coordinate or vector component represented by block x.
+/// @param blockY Vertical coordinate or vector component represented by block y.
+/// @param blendInfo Blend info value supplied to `UP_XbrzBlendPixel3`.
+/// @param rot Rot value supplied to `UP_XbrzBlendPixel3`.
+/// @param pal Pal value supplied to `UP_XbrzBlendPixel3`.
+/// @param distCache Dist cache value supplied to `UP_XbrzBlendPixel3`.
+/// @param blendCache Blend cache value supplied to `UP_XbrzBlendPixel3`.
+/// @param hasAlpha Whether has alpha holds.
+/// @param a0 A0 value supplied to `UP_XbrzBlendPixel3`.
+/// @param b0 B0 value supplied to `UP_XbrzBlendPixel3`.
+/// @param c0 C0 value supplied to `UP_XbrzBlendPixel3`.
+/// @param d0 D0 value supplied to `UP_XbrzBlendPixel3`.
+/// @param e0 E0 value supplied to `UP_XbrzBlendPixel3`.
+/// @param f0 F0 value supplied to `UP_XbrzBlendPixel3`.
+/// @param g0 G0 value supplied to `UP_XbrzBlendPixel3`.
+/// @param h0 H0 value supplied to `UP_XbrzBlendPixel3`.
+/// @param i0 I0 value supplied to `UP_XbrzBlendPixel3`.
 function UP_XbrzBlendPixel3(dst, dw, blockX, blockY, blendInfo, rot, pal, distCache, blendCache, hasAlpha, a0, b0, c0, d0, e0, f0, g0, h0, i0)
   blend = UP_XbrzRotateBlendInfo(blendInfo, rot)
   if UP_XbrzGetBottomR(blend) < UP_XBRZ_BLEND_NORMAL then return end if
@@ -977,10 +1085,10 @@ function UP_XbrzBlendPixel3(dst, dw, blockX, blockY, blendInfo, rot, pal, distCa
   end if
 end function
 
-/*
-* Function: UP_XbrzScaleIndexed3
-* Purpose: Upscales one indexed image by exactly 3x using cached palette distances, preclassified corners, and rotation-invariant xBRZ edge blending.
-*/
+/// Upscales one indexed image by exactly 3x using cached palette distances, preclassified corners, and
+/// rotation-invariant xBRZ edge blending.
+/// @param img Img value supplied to `UP_XbrzScaleIndexed3`.
+/// @param pal Pal value supplied to `UP_XbrzScaleIndexed3`.
 function UP_XbrzScaleIndexed3(img, pal)
   if img is void then return void end if
   sw = img.width
@@ -1070,10 +1178,12 @@ function UP_XbrzScaleIndexed3(img, pal)
   return up_image_t(img.kind, img.name, dw, dh, img.xoffset * 3, img.yoffset * 3, img.flags, dst)
 end function
 
-/*
-* Function: UP_BestEdgeColor
-* Purpose: Chooses the closer edge color for a corner blend.
-*/
+/// Chooses the closer edge color for a corner blend.
+/// @param pal Pal value supplied to `UP_BestEdgeColor`.
+/// @param center Center value supplied to `UP_BestEdgeColor`.
+/// @param a First input operand.
+/// @param b Second input operand.
+/// @param hasAlpha Whether has alpha holds.
 function UP_BestEdgeColor(pal, center, a, b, hasAlpha)
   da = UP_ColorDistance(pal, center, a, hasAlpha)
   db = UP_ColorDistance(pal, center, b, hasAlpha)
@@ -1081,10 +1191,13 @@ function UP_BestEdgeColor(pal, center, a, b, hasAlpha)
   return b
 end function
 
-/*
-* Function: UP_BestEdgeColorCached
-* Purpose: Chooses the closer edge color using cached palette distances.
-*/
+/// Chooses the closer edge color using cached palette distances.
+/// @param pal Pal value supplied to `UP_BestEdgeColorCached`.
+/// @param cache Cache value supplied to `UP_BestEdgeColorCached`.
+/// @param center Center value supplied to `UP_BestEdgeColorCached`.
+/// @param a First input operand.
+/// @param b Second input operand.
+/// @param hasAlpha Whether has alpha holds.
 function UP_BestEdgeColorCached(pal, cache, center, a, b, hasAlpha)
   da = UP_ColorDistanceCached(pal, cache, center, a, hasAlpha)
   db = UP_ColorDistanceCached(pal, cache, center, b, hasAlpha)
@@ -1092,10 +1205,9 @@ function UP_BestEdgeColorCached(pal, cache, center, a, b, hasAlpha)
   return b
 end function
 
-/*
-* Function: UP_CornerWeight
-* Purpose: Returns the local xBRZ corner blend weight for one block coordinate.
-*/
+/// Returns the local xBRZ corner blend weight for one block coordinate.
+/// @param dist Dist value supplied to `UP_CornerWeight`.
+/// @param scale Scale value supplied to `UP_CornerWeight`.
 function inline UP_CornerWeight(dist, scale)
   if dist >= scale then return 0 end if
   w = 3 - std.math.floor((dist * 3) / scale)
@@ -1104,10 +1216,18 @@ function inline UP_CornerWeight(dist, scale)
   return w
 end function
 
-/*
-* Function: UP_BlendCorner
-* Purpose: Applies a triangular xBRZ corner blend inside one scaled block.
-*/
+/// Applies a triangular xBRZ corner blend inside one scaled block.
+/// @param dst Dst value supplied to `UP_BlendCorner`.
+/// @param dw Dw value supplied to `UP_BlendCorner`.
+/// @param blockX Horizontal coordinate or vector component represented by block x.
+/// @param blockY Vertical coordinate or vector component represented by block y.
+/// @param scale Scale value supplied to `UP_BlendCorner`.
+/// @param corner Corner value supplied to `UP_BlendCorner`.
+/// @param base Base value supplied to `UP_BlendCorner`.
+/// @param edge Edge value supplied to `UP_BlendCorner`.
+/// @param pal Pal value supplied to `UP_BlendCorner`.
+/// @param cache Cache value supplied to `UP_BlendCorner`.
+/// @param hasAlpha Whether has alpha holds.
 function UP_BlendCorner(dst, dw, blockX, blockY, scale, corner, base, edge, pal, cache, hasAlpha)
   yy = 0
   while yy < scale
@@ -1140,10 +1260,19 @@ function UP_BlendCorner(dst, dw, blockX, blockY, scale, corner, base, edge, pal,
   end while
 end function
 
-/*
-* Function: UP_BlendEdgeRow
-* Purpose: Blends one horizontal edge of a scaled block toward a neighboring edge color.
-*/
+/// Blends one horizontal edge of a scaled block toward a neighboring edge color.
+/// @param dst Dst value supplied to `UP_BlendEdgeRow`.
+/// @param dw Dw value supplied to `UP_BlendEdgeRow`.
+/// @param blockX Horizontal coordinate or vector component represented by block x.
+/// @param blockY Vertical coordinate or vector component represented by block y.
+/// @param scale Scale value supplied to `UP_BlendEdgeRow`.
+/// @param row Row value supplied to `UP_BlendEdgeRow`.
+/// @param base Base value supplied to `UP_BlendEdgeRow`.
+/// @param edge Edge value supplied to `UP_BlendEdgeRow`.
+/// @param pal Pal value supplied to `UP_BlendEdgeRow`.
+/// @param cache Cache value supplied to `UP_BlendEdgeRow`.
+/// @param hasAlpha Whether has alpha holds.
+/// @param weight Weight value supplied to `UP_BlendEdgeRow`.
 function UP_BlendEdgeRow(dst, dw, blockX, blockY, scale, row, base, edge, pal, cache, hasAlpha, weight)
   if edge == base or UP_IsTransparent(edge, hasAlpha) then return end if
   yy = blockY + row
@@ -1155,10 +1284,19 @@ function UP_BlendEdgeRow(dst, dw, blockX, blockY, scale, row, base, edge, pal, c
   end while
 end function
 
-/*
-* Function: UP_BlendEdgeColumn
-* Purpose: Blends one vertical edge of a scaled block toward a neighboring edge color.
-*/
+/// Blends one vertical edge of a scaled block toward a neighboring edge color.
+/// @param dst Dst value supplied to `UP_BlendEdgeColumn`.
+/// @param dw Dw value supplied to `UP_BlendEdgeColumn`.
+/// @param blockX Horizontal coordinate or vector component represented by block x.
+/// @param blockY Vertical coordinate or vector component represented by block y.
+/// @param scale Scale value supplied to `UP_BlendEdgeColumn`.
+/// @param col Col value supplied to `UP_BlendEdgeColumn`.
+/// @param base Base value supplied to `UP_BlendEdgeColumn`.
+/// @param edge Edge value supplied to `UP_BlendEdgeColumn`.
+/// @param pal Pal value supplied to `UP_BlendEdgeColumn`.
+/// @param cache Cache value supplied to `UP_BlendEdgeColumn`.
+/// @param hasAlpha Whether has alpha holds.
+/// @param weight Weight value supplied to `UP_BlendEdgeColumn`.
 function UP_BlendEdgeColumn(dst, dw, blockX, blockY, scale, col, base, edge, pal, cache, hasAlpha, weight)
   if edge == base or UP_IsTransparent(edge, hasAlpha) then return end if
   xx = blockX + col
@@ -1170,30 +1308,33 @@ function UP_BlendEdgeColumn(dst, dw, blockX, blockY, scale, col, base, edge, pal
   end while
 end function
 
-/*
-* Function: UP_StrongEdgeWeight
-* Purpose: Chooses a slightly stronger blend for hard pixel-art edges.
-*/
+/// Chooses a slightly stronger blend for hard pixel-art edges.
+/// @param pal Pal value supplied to `UP_StrongEdgeWeight`.
+/// @param base Base value supplied to `UP_StrongEdgeWeight`.
+/// @param edge Edge value supplied to `UP_StrongEdgeWeight`.
+/// @param hasAlpha Whether has alpha holds.
 function inline UP_StrongEdgeWeight(pal, base, edge, hasAlpha)
   dist = UP_ColorDistance(pal, base, edge, hasAlpha)
   if dist > 26000 then return 2 end if
   return 1
 end function
 
-/*
-* Function: UP_StrongEdgeWeightCached
-* Purpose: Chooses blend strength using cached palette distances.
-*/
+/// Chooses blend strength using cached palette distances.
+/// @param pal Pal value supplied to `UP_StrongEdgeWeightCached`.
+/// @param cache Cache value supplied to `UP_StrongEdgeWeightCached`.
+/// @param base Base value supplied to `UP_StrongEdgeWeightCached`.
+/// @param edge Edge value supplied to `UP_StrongEdgeWeightCached`.
+/// @param hasAlpha Whether has alpha holds.
 function inline UP_StrongEdgeWeightCached(pal, cache, base, edge, hasAlpha)
   dist = UP_ColorDistanceCached(pal, cache, base, edge, hasAlpha)
   if dist > 26000 then return 2 end if
   return 1
 end function
 
-/*
-* Function: UP_XbrzScaleIndexed
-* Purpose: Scales an indexed image with palette-aware xBRZ-style edge reconstruction.
-*/
+/// Scales an indexed image with palette-aware xBRZ-style edge reconstruction.
+/// @param img Img value supplied to `UP_XbrzScaleIndexed`.
+/// @param scale Scale value supplied to `UP_XbrzScaleIndexed`.
+/// @param pal Pal value supplied to `UP_XbrzScaleIndexed`.
 function UP_XbrzScaleIndexed(img, scale, pal)
   if img is void then return void end if
   s = UP_ClampScale(scale)
@@ -1277,10 +1418,8 @@ function UP_XbrzScaleIndexed(img, scale, pal)
   return up_image_t(img.kind, img.name, dw, dh, img.xoffset * s, img.yoffset * s, img.flags, dst)
 end function
 
-/*
-* Function: UP_LoadWad
-* Purpose: Reads a WAD and returns [data, lumps].
-*/
+/// Reads a WAD and returns [data, lumps].
+/// @param path Filesystem path to process.
 function UP_LoadWad(path)
   dataTry = try(fs.readAllBytes(path))
   if typeof(dataTry) == "error" then
@@ -1317,10 +1456,14 @@ function UP_LoadWad(path)
   return [data, lumps]
 end function
 
-/*
-* Function: UP_AddFlatRange
-* Purpose: Extracts flat images from a marker range.
-*/
+/// Extracts flat images from a marker range.
+/// @param images Images value supplied to `UP_AddFlatRange`.
+/// @param wadData Wad data value supplied to `UP_AddFlatRange`.
+/// @param lumps Lumps value supplied to `UP_AddFlatRange`.
+/// @param startName Start name value supplied to `UP_AddFlatRange`.
+/// @param endName End name value supplied to `UP_AddFlatRange`.
+/// @param scale Scale value supplied to `UP_AddFlatRange`.
+/// @param pal Pal value supplied to `UP_AddFlatRange`.
 function UP_AddFlatRange(images, wadData, lumps, startName, endName, scale, pal)
   start = UP_FindMarker(lumps, startName)
   finish = UP_FindMarker(lumps, endName)
@@ -1340,10 +1483,15 @@ function UP_AddFlatRange(images, wadData, lumps, startName, endName, scale, pal)
   return images
 end function
 
-/*
-* Function: UP_AddPatchRange
-* Purpose: Extracts Doom patch images from a marker range.
-*/
+/// Extracts Doom patch images from a marker range.
+/// @param images Images value supplied to `UP_AddPatchRange`.
+/// @param wadData Wad data value supplied to `UP_AddPatchRange`.
+/// @param lumps Lumps value supplied to `UP_AddPatchRange`.
+/// @param startName Start name value supplied to `UP_AddPatchRange`.
+/// @param endName End name value supplied to `UP_AddPatchRange`.
+/// @param kind Kind value supplied to `UP_AddPatchRange`.
+/// @param scale Scale value supplied to `UP_AddPatchRange`.
+/// @param pal Pal value supplied to `UP_AddPatchRange`.
 function UP_AddPatchRange(images, wadData, lumps, startName, endName, kind, scale, pal)
   start = UP_FindMarker(lumps, startName)
   finish = UP_FindMarker(lumps, endName)
@@ -1365,10 +1513,10 @@ function UP_AddPatchRange(images, wadData, lumps, startName, endName, kind, scal
   return images
 end function
 
-/*
-* Function: UP_HasImage
-* Purpose: Checks whether an image with the same kind/name was already emitted.
-*/
+/// Checks whether an image with the same kind/name was already emitted.
+/// @param images Images value supplied to `UP_HasImage`.
+/// @param kind Kind value supplied to `UP_HasImage`.
+/// @param name Resource or object name to resolve.
 function UP_HasImage(images, kind, name)
   n = UP_Name8(name)
   i = 0
@@ -1380,10 +1528,8 @@ function UP_HasImage(images, kind, name)
   return false
 end function
 
-/*
-* Function: UP_IsMarkerName
-* Purpose: Avoids trying marker/control lumps as patch images.
-*/
+/// Avoids trying marker/control lumps as patch images.
+/// @param name Resource or object name to resolve.
 function UP_IsMarkerName(name)
   if name == "" then return true end if
   if name == "P_START" or name == "P_END" or name == "PP_START" or name == "PP_END" then return true end if
@@ -1393,10 +1539,12 @@ function UP_IsMarkerName(name)
   return false
 end function
 
-/*
-* Function: UP_AddAllPatchLumps
-* Purpose: Extracts all remaining Doom patch-format graphics such as HUD, menu, title, finale and fonts.
-*/
+/// Extracts all remaining Doom patch-format graphics such as HUD, menu, title, finale and fonts.
+/// @param images Images value supplied to `UP_AddAllPatchLumps`.
+/// @param wadData Wad data value supplied to `UP_AddAllPatchLumps`.
+/// @param lumps Lumps value supplied to `UP_AddAllPatchLumps`.
+/// @param scale Scale value supplied to `UP_AddAllPatchLumps`.
+/// @param pal Pal value supplied to `UP_AddAllPatchLumps`.
 function UP_AddAllPatchLumps(images, wadData, lumps, scale, pal)
   i = 0
   added = 0
@@ -1419,10 +1567,14 @@ function UP_AddAllPatchLumps(images, wadData, lumps, scale, pal)
   return images
 end function
 
-/*
-* Function: UP_AddTextureLump
-* Purpose: Adds composited wall textures from TEXTURE1/TEXTURE2.
-*/
+/// Adds composited wall textures from TEXTURE1/TEXTURE2.
+/// @param images Images value supplied to `UP_AddTextureLump`.
+/// @param wadData Wad data value supplied to `UP_AddTextureLump`.
+/// @param lumps Lumps value supplied to `UP_AddTextureLump`.
+/// @param lumpName Lump name value supplied to `UP_AddTextureLump`.
+/// @param patchLookup Patch lookup value supplied to `UP_AddTextureLump`.
+/// @param scale Scale value supplied to `UP_AddTextureLump`.
+/// @param pal Pal value supplied to `UP_AddTextureLump`.
 function UP_AddTextureLump(images, wadData, lumps, lumpName, patchLookup, scale, pal)
   textures = UP_ParseTextureLump(wadData, lumps, lumpName, patchLookup)
   i = 0
@@ -1438,10 +1590,10 @@ function UP_AddTextureLump(images, wadData, lumps, lumpName, patchLookup, scale,
   return images
 end function
 
-/*
-* Function: UP_CountMarkerRange
-* Purpose: Counts WAD lumps between two marker names for progress estimation.
-*/
+/// Counts WAD lumps between two marker names for progress estimation.
+/// @param lumps Lumps value supplied to `UP_CountMarkerRange`.
+/// @param startName Start name value supplied to `UP_CountMarkerRange`.
+/// @param endName End name value supplied to `UP_CountMarkerRange`.
 function UP_CountMarkerRange(lumps, startName, endName)
   start = UP_FindMarker(lumps, startName)
   finish = UP_FindMarker(lumps, endName)
@@ -1449,10 +1601,10 @@ function UP_CountMarkerRange(lumps, startName, endName)
   return finish - start - 1
 end function
 
-/*
-* Function: HDB_EstimateImageProgressUnits
-* Purpose: Estimates the progress units emitted while HDWAD graphics are built.
-*/
+/// Estimates the progress units emitted while HDWAD graphics are built.
+/// @param wadData Wad data value supplied to `HDB_EstimateImageProgressUnits`.
+/// @param lumps Lumps value supplied to `HDB_EstimateImageProgressUnits`.
+/// @param scale Scale value supplied to `HDB_EstimateImageProgressUnits`.
 function HDB_EstimateImageProgressUnits(wadData, lumps, scale)
   patchLookup = UP_ParsePnames(wadData, lumps)
   total = len(UP_ParseTextureLump(wadData, lumps, "TEXTURE1", patchLookup))
@@ -1467,10 +1619,10 @@ function HDB_EstimateImageProgressUnits(wadData, lumps, scale)
   return total
 end function
 
-/*
-* Function: UP_WritePackage
-* Purpose: Writes extracted images as a MiniDoom upscaled package.
-*/
+/// Writes extracted images as a MiniDoom upscaled package.
+/// @param path Filesystem path to process.
+/// @param images Images value supplied to `UP_WritePackage`.
+/// @param scale Scale value supplied to `UP_WritePackage`.
 function UP_WritePackage(path, images, scale)
   count = len(images)
   pixelBytes = 0
@@ -1538,18 +1690,25 @@ function UP_WritePackage(path, images, scale)
   return true
 end function
 
-/*
-* Function: UP_WriteHDWADPackage
-* Purpose: Emits a complete HDWAD containing original lumps and upscaled images by delegating with no synthetic lumps.
-*/
+/// Emits a complete HDWAD containing original lumps and upscaled images by delegating with no synthetic lumps.
+/// @param path Filesystem path to process.
+/// @param wadData Wad data value supplied to `UP_WriteHDWADPackage`.
+/// @param lumps Lumps value supplied to `UP_WriteHDWADPackage`.
+/// @param images Images value supplied to `UP_WriteHDWADPackage`.
+/// @param scale Scale value supplied to `UP_WriteHDWADPackage`.
 function UP_WriteHDWADPackage(path, wadData, lumps, images, scale)
   return UP_WriteHDWADPackageWithExtraLumps(path, wadData, lumps, images, [], [], scale)
 end function
 
-/*
-* Function: UP_WriteHDWADPackageWithExtraLumps
-* Purpose: Lays out an HDWAD header, original and synthetic lump payloads, image payloads, and both directories before saving atomically.
-*/
+/// Lays out an HDWAD header, original and synthetic lump payloads, image payloads, and both directories before
+/// saving atomically.
+/// @param path Filesystem path to process.
+/// @param wadData Wad data value supplied to `UP_WriteHDWADPackageWithExtraLumps`.
+/// @param lumps Lumps value supplied to `UP_WriteHDWADPackageWithExtraLumps`.
+/// @param images Images value supplied to `UP_WriteHDWADPackageWithExtraLumps`.
+/// @param extraNames Extra names value supplied to `UP_WriteHDWADPackageWithExtraLumps`.
+/// @param extraDatas Extra datas value supplied to `UP_WriteHDWADPackageWithExtraLumps`.
+/// @param scale Scale value supplied to `UP_WriteHDWADPackageWithExtraLumps`.
 function UP_WriteHDWADPackageWithExtraLumps(path, wadData, lumps, images, extraNames, extraDatas, scale)
   lumpCount = len(lumps)
   extraCount = 0
@@ -1688,10 +1847,11 @@ function UP_WriteHDWADPackageWithExtraLumps(path, wadData, lumps, images, extraN
   return true
 end function
 
-/*
-* Function: HDB_BuildImages
-* Purpose: Loads the palette and patch namespace, then builds the complete HD image set from wall textures, flats, sprites, and remaining patch lumps.
-*/
+/// Loads the palette and patch namespace, then builds the complete HD image set from wall textures, flats,
+/// sprites, and remaining patch lumps.
+/// @param wadData Wad data value supplied to `HDB_BuildImages`.
+/// @param lumps Lumps value supplied to `HDB_BuildImages`.
+/// @param scale Scale value supplied to `HDB_BuildImages`.
 function HDB_BuildImages(wadData, lumps, scale)
   UP_LoadingPulse()
   pal = UP_LoadPalette(wadData, lumps)
@@ -1714,26 +1874,27 @@ function HDB_BuildImages(wadData, lumps, scale)
   return images
 end function
 
-/*
-* Function: HDB_LoadWadForBuild
-* Purpose: Loads and validates the source WAD bytes and directory through the builder's shared WAD parser.
-*/
+/// Loads and validates the source WAD bytes and directory through the builder's shared WAD parser.
+/// @param path Filesystem path to process.
 function HDB_LoadWadForBuild(path)
   return UP_LoadWad(path)
 end function
 
-/*
-* Function: HDB_WriteHDWAD
-* Purpose: Exposes full HDWAD packaging, including synthetic lumps, through the builder module's stable public entry point.
-*/
+/// Exposes full HDWAD packaging, including synthetic lumps, through the builder module's stable public entry
+/// point.
+/// @param path Filesystem path to process.
+/// @param wadData Wad data value supplied to `HDB_WriteHDWAD`.
+/// @param lumps Lumps value supplied to `HDB_WriteHDWAD`.
+/// @param images Images value supplied to `HDB_WriteHDWAD`.
+/// @param extraNames Extra names value supplied to `HDB_WriteHDWAD`.
+/// @param extraDatas Extra datas value supplied to `HDB_WriteHDWAD`.
+/// @param scale Scale value supplied to `HDB_WriteHDWAD`.
 function HDB_WriteHDWAD(path, wadData, lumps, images, extraNames, extraDatas, scale)
   return UP_WriteHDWADPackageWithExtraLumps(path, wadData, lumps, images, extraNames, extraDatas, scale)
 end function
 
-/*
-* Function: HDB_LegacyToolMain
-* Purpose: Legacy helper kept for manual module testing.
-*/
+/// Legacy helper kept for manual module testing.
+/// @param args Args value supplied to `HDB_LegacyToolMain`.
 function HDB_LegacyToolMain(args)
   if typeof(args) != "array" or len(args) < 1 then
     print "Usage: hdwad_builder <input.wad> [output.hdwad] [scale]"

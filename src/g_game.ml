@@ -13,9 +13,10 @@
   See the License for the specific language governing permissions and
   limitations under the License.
 
-  Script: g_game.ml
-  Purpose: Implements high-level game loop control, transitions, and session state.
 */
+
+//! Implements high-level game loop control, transitions, and session state.
+
 import doomdef
 import d_event
 import doomdef
@@ -54,23 +55,22 @@ import platform_linux
 #endif
 
 #if TARGET_OS == "windows"
-/*
-* Function: G_CreateDirectoryW
-* Purpose: Creates a directory for per-WAD savegame storage.
-*/
+/// Creates a directory for per-WAD savegame storage.
+/// @param path Filesystem path to process.
+/// @param security Optional native security-attributes pointer.
+/// @returns The resulting directory for per-WAD savegame storage.
 extern function G_CreateDirectoryW(path as wstr, security as ptr) from "kernel32.dll" symbol "CreateDirectoryW" returns bool
 
-/*
-* Function: G_GetEnvironmentVariableW
-* Purpose: Reads Windows environment variables for user-specific savegame storage.
-*/
+/// Reads Windows environment variables for user-specific savegame storage.
+/// @param name Resource or object name to resolve.
+/// @param buffer Buffer that supplies or receives data.
+/// @param size Requested size in bytes or elements.
+/// @returns The requested Windows environment variables for user-specific savegame storage.
 extern function G_GetEnvironmentVariableW(name as wstr, buffer as bytes, size as int) from "kernel32.dll" symbol "GetEnvironmentVariableW" returns int
 #endif
 
-/*
-* Function: G_DeathMatchSpawnPlayer
-* Purpose: Tries random unoccupied deathmatch starts before falling back to the player's cooperative start.
-*/
+/// Tries random unoccupied deathmatch starts before falling back to the player's cooperative start.
+/// @param playernum Index identifying player.
 function G_DeathMatchSpawnPlayer(playernum)
   if typeof(playernum) != "int" then return end if
   if playernum < 0 or playernum >= MAXPLAYERS then return end if
@@ -117,10 +117,10 @@ function G_DeathMatchSpawnPlayer(playernum)
   end if
 end function
 
-/*
-* Function: G_InitNew
-* Purpose: Commits skill/map selection, resets player run state, and queues the selected level for loading.
-*/
+/// Commits skill/map selection, resets player run state, and queues the selected level for loading.
+/// @param skill Skill value supplied to `G_InitNew`.
+/// @param episode Episode value supplied to `G_InitNew`.
+/// @param map Map value supplied to `G_InitNew`.
 function G_InitNew(skill, episode, map)
   global gameskill
   global gameepisode
@@ -181,10 +181,10 @@ function G_InitNew(skill, episode, map)
   gamestate = gamestate_t.GS_LEVEL
 end function
 
-/*
-* Function: G_DeferedInitNew
-* Purpose: Stores a requested skill/episode/map triple for execution at the next game-action boundary.
-*/
+/// Stores a requested skill/episode/map triple for execution at the next game-action boundary.
+/// @param skill Skill value supplied to `G_DeferedInitNew`.
+/// @param episode Episode value supplied to `G_DeferedInitNew`.
+/// @param map Map value supplied to `G_DeferedInitNew`.
 function G_DeferedInitNew(skill, episode, map)
   global _G_defSkill
   global _G_defEpisode
@@ -197,10 +197,8 @@ function G_DeferedInitNew(skill, episode, map)
   gameaction = gameaction_t.ga_newgame
 end function
 
-/*
-* Function: G_DeferedPlayDemo
-* Purpose: Queues a named demo lump for playback on the next game-action pass.
-*/
+/// Queues a named demo lump for playback on the next game-action pass.
+/// @param demo Demo value supplied to `G_DeferedPlayDemo`.
 function G_DeferedPlayDemo(demo)
   global _G_defDemo
   global gameaction
@@ -209,10 +207,8 @@ function G_DeferedPlayDemo(demo)
   gameaction = gameaction_t.ga_playdemo
 end function
 
-/*
-* Function: G_LoadGame
-* Purpose: Records a save path and defers deserialization to the central game-action dispatcher.
-*/
+/// Records a save path and defers deserialization to the central game-action dispatcher.
+/// @param name Resource or object name to resolve.
 function G_LoadGame(name)
   global _G_loadName
   global gameaction
@@ -221,8 +217,11 @@ function G_LoadGame(name)
   gameaction = gameaction_t.ga_loadgame
 end function
 
+/// Defines versionsize for the g game subsystem.
 const VERSIONSIZE = 16
 
+/// Stores the g pars collection used by the g game subsystem.
+/// @internal
 _G_pars =[
 [0],
 [0, 30, 75, 120, 90, 165, 180, 180, 30, 165],
@@ -230,6 +229,8 @@ _G_pars =[
 [0, 90, 45, 90, 150, 90, 90, 165, 30, 135]
 ]
 
+/// Stores the g cpars collection used by the g game subsystem.
+/// @internal
 _G_cpars =[
 30, 90, 120, 120, 90, 150, 120, 120, 270, 90,
 210, 150, 150, 150, 210, 150, 420, 150, 210, 150,
@@ -237,10 +238,10 @@ _G_cpars =[
 120, 30
 ]
 
-/*
-* Function: _G_ParTimeTics
-* Purpose: Looks up the vanilla par time for the active episode and map in game tics.
-*/
+/// Looks up the vanilla par time for the active episode and map in game tics.
+/// @param episode Episode value supplied to `_G_ParTimeTics`.
+/// @param map Map value supplied to `_G_ParTimeTics`.
+/// @internal
 function _G_ParTimeTics(episode, map)
   if typeof(map) != "int" then return 0 end if
 
@@ -262,10 +263,9 @@ function _G_ParTimeTics(episode, map)
   return 0
 end function
 
-/*
-* Function: _G_CopyFrags
-* Purpose: Copies a frag row into a fixed MAXPLAYERS array without retaining the caller's storage.
-*/
+/// Copies a frag row into a fixed MAXPLAYERS array without retaining the caller's storage.
+/// @param fr Fr value supplied to `_G_CopyFrags`.
+/// @internal
 function _G_CopyFrags(fr)
   arr =[0, 0, 0, 0]
   if typeof(fr) != "array" and typeof(fr) != "list" then return arr end if
@@ -277,10 +277,9 @@ function _G_CopyFrags(fr)
   return arr
 end function
 
-/*
-* Function: _G_EnvString
-* Purpose: Reads a Windows environment variable as a MiniLang string.
-*/
+/// Reads a Windows environment variable as a MiniLang string.
+/// @param name Resource or object name to resolve.
+/// @internal
 function _G_EnvString(name)
   if typeof(name) != "string" or name == "" then return "" end if
   buf = bytes(32768, 0)
@@ -289,10 +288,9 @@ function _G_EnvString(name)
   return decode16Z(buf)
 end function
 
-/*
-* Function: _G_PathBaseName
-* Purpose: Extracts the final filename component from a WAD path.
-*/
+/// Extracts the final filename component from a WAD path.
+/// @param path Filesystem path to process.
+/// @internal
 function _G_PathBaseName(path)
   if typeof(path) != "string" or path == "" then return "unknown.wad" end if
   b = bytes(path)
@@ -306,10 +304,9 @@ function _G_PathBaseName(path)
   return path
 end function
 
-/*
-* Function: _G_SanitizeSaveDirName
-* Purpose: Converts a WAD filename into a safe directory name.
-*/
+/// Converts a WAD filename into a safe directory name.
+/// @param name Resource or object name to resolve.
+/// @internal
 function _G_SanitizeSaveDirName(name)
   if typeof(name) != "string" or name == "" then return "unknown.wad" end if
   b = bytes(name)
@@ -326,10 +323,9 @@ function _G_SanitizeSaveDirName(name)
   return decode(clean)
 end function
 
-/*
-* Function: _G_EnsureDir
-* Purpose: Creates a directory if it is missing.
-*/
+/// Creates a directory if it is missing.
+/// @param path Filesystem path to process.
+/// @internal
 function _G_EnsureDir(path)
   if typeof(path) != "string" or path == "" then return false end if
   if fs.isDir(path) then return true end if
@@ -338,10 +334,8 @@ function _G_EnsureDir(path)
   return ok or fs.isDir(path)
 end function
 
-/*
-* Function: _G_SaveDir
-* Purpose: Resolves and creates the per-WAD savegame directory.
-*/
+/// Resolves and creates the per-WAD savegame directory.
+/// @internal
 function _G_SaveDir()
 #if TARGET_OS == "linux"
   // Follow XDG when configured and otherwise keep saves in one hidden folder
@@ -370,10 +364,9 @@ function _G_SaveDir()
   return dir
 end function
 
-/*
-* Function: _G_SaveFileName
-* Purpose: Builds the per-WAD savegame path under %APPDATA%\MiniDoom.
-*/
+/// Builds the per-WAD savegame path under %APPDATA%\MiniDoom.
+/// @param slot Slot value supplied to `_G_SaveFileName`.
+/// @internal
 function _G_SaveFileName(slot)
   s = slot
   if typeof(s) != "int" then s = 0 end if
@@ -383,10 +376,7 @@ function _G_SaveFileName(slot)
   return name
 end function
 
-/*
-* Function: G_DoLoadGame
-* Purpose: Validates a save header, rebuilds the map, and restores archived players, world, thinkers, and specials.
-*/
+/// Validates a save header, rebuilds the map, and restores archived players, world, thinkers, and specials.
 function G_DoLoadGame()
   global gameaction
   global gameskill
@@ -452,10 +442,8 @@ function G_DoLoadGame()
   gameaction = gameaction_t.ga_nothing
 end function
 
-/*
-* Function: G_CmdChecksum
-* Purpose: Folds all serialized ticcmd fields into the consistency checksum used by demo/network checks.
-*/
+/// Folds all serialized ticcmd fields into the consistency checksum used by demo/network checks.
+/// @param cmd Cmd value supplied to `G_CmdChecksum`.
 function G_CmdChecksum(cmd)
   if cmd is void then return 0 end if
   s = 0
@@ -466,10 +454,8 @@ function G_CmdChecksum(cmd)
   return s & 0xFFFF
 end function
 
-/*
-* Function: G_InitPlayer
-* Purpose: Resets one player's counters, view state, inventory defaults, and transient powers for a new run.
-*/
+/// Resets one player's counters, view state, inventory defaults, and transient powers for a new run.
+/// @param playernum Index identifying player.
 function G_InitPlayer(playernum)
   if typeof(players) != "array" then return end if
   if typeof(playernum) != "int" or playernum < 0 or playernum >= len(players) then return end if
@@ -481,10 +467,8 @@ function G_InitPlayer(playernum)
   players[playernum] = p
 end function
 
-/*
-* Function: G_PlayerFinishLevel
-* Purpose: Controls player Finish Level transitions in the gameplay system.
-*/
+/// Controls player Finish Level transitions in the gameplay system.
+/// @param playernum Index identifying player.
 function G_PlayerFinishLevel(playernum)
   if typeof(players) != "array" then return end if
   if typeof(playernum) != "int" or playernum < 0 or playernum >= len(players) then return end if
@@ -518,10 +502,8 @@ function G_PlayerFinishLevel(playernum)
   players[playernum] = p
 end function
 
-/*
-* Function: G_PlayerReborn
-* Purpose: Reinitializes a dead player loadout while preserving accumulated level/frags statistics.
-*/
+/// Reinitializes a dead player loadout while preserving accumulated level/frags statistics.
+/// @param playernum Index identifying player.
 function G_PlayerReborn(playernum)
   if typeof(players) != "array" then return end if
   if typeof(playernum) != "int" or playernum < 0 or playernum >= len(players) then return end if
@@ -615,10 +597,9 @@ function G_PlayerReborn(playernum)
   players[playernum] = p
 end function
 
-/*
-* Function: G_CheckSpot
-* Purpose: Rejects occupied multiplayer spawn points using the current player mobj as collision probe.
-*/
+/// Rejects occupied multiplayer spawn points using the current player mobj as collision probe.
+/// @param playernum Index identifying player.
+/// @param mthing Mthing value supplied to `G_CheckSpot`.
 function G_CheckSpot(playernum, mthing)
   if typeof(playernum) != "int" or playernum < 0 or playernum >= MAXPLAYERS then return false end if
   if typeof(mthing) != "struct" then return false end if
@@ -651,10 +632,7 @@ function G_CheckSpot(playernum, mthing)
   return true
 end function
 
-/*
-* Function: G_DoLoadLevel
-* Purpose: Clears per-level player state, runs map setup, and starts the status bar, HUD, and renderer view.
-*/
+/// Clears per-level player state, runs map setup, and starts the status bar, HUD, and renderer view.
 function G_DoLoadLevel()
   global gamestate
   global gameaction
@@ -670,10 +648,9 @@ function G_DoLoadLevel()
   gameaction = gameaction_t.ga_nothing
 end function
 
-/*
-* Function: _G_ShowLoadingFrame
-* Purpose: Presents a loading label and forces one renderer/event pulse during synchronous map setup.
-*/
+/// Presents a loading label and forces one renderer/event pulse during synchronous map setup.
+/// @param text Text to process.
+/// @internal
 function _G_ShowLoadingFrame(text)
   if typeof(I_SetLoadingStatus) == "function" then
     I_SetLoadingStatus(text)
@@ -686,10 +663,8 @@ function _G_ShowLoadingFrame(text)
   end if
 end function
 
-/*
-* Function: G_DoReborn
-* Purpose: Respawns a dead player at a valid deathmatch or cooperative start while preserving netgame rules.
-*/
+/// Respawns a dead player at a valid deathmatch or cooperative start while preserving netgame rules.
+/// @param playernum Index identifying player.
 function G_DoReborn(playernum)
   global gameaction
   if not netgame then
@@ -734,10 +709,7 @@ function G_DoReborn(playernum)
   end if
 end function
 
-/*
-* Function: G_DoCompleted
-* Purpose: Finalizes player totals, resolves the next map, builds wminfo, and enters intermission.
-*/
+/// Finalizes player totals, resolves the next map, builds wminfo, and enters intermission.
 function G_DoCompleted()
   global players
   global playeringame
@@ -867,10 +839,7 @@ function G_DoCompleted()
   gameaction = gameaction_t.ga_nothing
 end function
 
-/*
-* Function: G_DoWorldDone
-* Purpose: Applies the intermission's next-map result and synchronously loads the destination level.
-*/
+/// Applies the intermission's next-map result and synchronously loads the destination level.
 function G_DoWorldDone()
   global gamemap
   global wminfo
@@ -891,10 +860,7 @@ function G_DoWorldDone()
   G_DoLoadLevel()
 end function
 
-/*
-* Function: G_DoSaveGame
-* Purpose: Saves do Save Game state for the gameplay system.
-*/
+/// Saves do Save Game state for the gameplay system.
 function G_DoSaveGame()
   global gameaction
   global savebuffer
@@ -947,20 +913,14 @@ function G_DoSaveGame()
   gameaction = gameaction_t.ga_nothing
 end function
 
-/*
-* Function: G_DoNewGame
-* Purpose: Consumes the deferred new-game parameters and clears the pending game action.
-*/
+/// Consumes the deferred new-game parameters and clears the pending game action.
 function G_DoNewGame()
   global gameaction
   G_InitNew(_G_defSkill, _G_defEpisode, _G_defMap)
   gameaction = gameaction_t.ga_nothing
 end function
 
-/*
-* Function: G_DoPlayDemo
-* Purpose: Parses a demo header, configures recorded game flags/players, and starts playback on its map.
-*/
+/// Parses a demo header, configures recorded game flags/players, and starts playback on its map.
 function G_DoPlayDemo()
   global gameaction
   global demobuffer
@@ -1033,10 +993,9 @@ function G_DoPlayDemo()
   gameaction = gameaction_t.ga_nothing
 end function
 
-/*
-* Function: G_SaveGame
-* Purpose: Stores a slot/description pair and defers serialization to the central game-action dispatcher.
-*/
+/// Stores a slot/description pair and defers serialization to the central game-action dispatcher.
+/// @param slot Slot value supplied to `G_SaveGame`.
+/// @param description Description value supplied to `G_SaveGame`.
 function G_SaveGame(slot, description)
   global _G_saveSlot
   global _G_saveDesc
@@ -1047,10 +1006,8 @@ function G_SaveGame(slot, description)
   gameaction = gameaction_t.ga_savegame
 end function
 
-/*
-* Function: _G_DemoReadU8
-* Purpose: Consumes one unsigned demo byte, returning zero past the buffer while keeping the cursor monotonic.
-*/
+/// Consumes one unsigned demo byte, returning zero past the buffer while keeping the cursor monotonic.
+/// @internal
 function inline _G_DemoReadU8()
   if typeof(demobuffer) != "bytes" or _G_demo_p < 0 or _G_demo_p >= len(demobuffer) then
     global _G_demo_p
@@ -1062,10 +1019,9 @@ function inline _G_DemoReadU8()
   return b
 end function
 
-/*
-* Function: _G_DemoWriteU8
-* Purpose: Appends one masked byte to the bounded demo recording buffer and advances its cursor.
-*/
+/// Appends one masked byte to the bounded demo recording buffer and advances its cursor.
+/// @param v Value consumed by the operation.
+/// @internal
 function inline _G_DemoWriteU8(v)
   if typeof(demobuffer) != "bytes" then return end if
   if _G_demo_p < 0 or _G_demo_p >= len(demobuffer) then return end if
@@ -1079,10 +1035,8 @@ function inline _G_DemoWriteU8(v)
   _G_demo_p = _G_demo_p + 1
 end function
 
-/*
-* Function: G_ReadDemoTiccmd
-* Purpose: Decodes one four-byte Doom demo command or terminates playback at the marker/end of buffer.
-*/
+/// Decodes one four-byte Doom demo command or terminates playback at the marker/end of buffer.
+/// @param cmd Cmd value supplied to `G_ReadDemoTiccmd`.
 function G_ReadDemoTiccmd(cmd)
   if cmd is void then return end if
   if typeof(demobuffer) != "bytes" or len(demobuffer) == 0 then return end if
@@ -1107,10 +1061,8 @@ function G_ReadDemoTiccmd(cmd)
   cmd.buttons = _G_DemoReadU8()
 end function
 
-/*
-* Function: G_WriteDemoTiccmd
-* Purpose: Encodes one ticcmd into the four-byte Doom demo format or stops cleanly near buffer capacity.
-*/
+/// Encodes one ticcmd into the four-byte Doom demo format or stops cleanly near buffer capacity.
+/// @param cmd Cmd value supplied to `G_WriteDemoTiccmd`.
 function G_WriteDemoTiccmd(cmd)
   if cmd is void then return end if
   if not demorecording then return end if
@@ -1131,10 +1083,8 @@ function G_WriteDemoTiccmd(cmd)
   _G_DemoWriteU8(cmd.buttons)
 end function
 
-/*
-* Function: G_RecordDemo
-* Purpose: Allocates a recording buffer, writes the Doom demo header, and marks play as non-user recording.
-*/
+/// Allocates a recording buffer, writes the Doom demo header, and marks play as non-user recording.
+/// @param name Resource or object name to resolve.
 function G_RecordDemo(name)
   global usergame
   global demoname
@@ -1163,10 +1113,7 @@ function G_RecordDemo(name)
   demorecording = true
 end function
 
-/*
-* Function: G_BeginRecording
-* Purpose: Writes the deterministic demo header and arms command recording for subsequent tics.
-*/
+/// Writes the deterministic demo header and arms command recording for subsequent tics.
 function G_BeginRecording()
   if typeof(demobuffer) != "bytes" or len(demobuffer) == 0 then
     global demobuffer
@@ -1193,10 +1140,8 @@ function G_BeginRecording()
   end for
 end function
 
-/*
-* Function: G_PlayDemo
-* Purpose: Stores the requested demo lump and defers playback setup through the game-action dispatcher.
-*/
+/// Stores the requested demo lump and defers playback setup through the game-action dispatcher.
+/// @param name Resource or object name to resolve.
 function G_PlayDemo(name)
   global demoplayback
   global _G_defDemo
@@ -1207,10 +1152,8 @@ function G_PlayDemo(name)
   gameaction = gameaction_t.ga_playdemo
 end function
 
-/*
-* Function: G_TimeDemo
-* Purpose: Starts timed demo playback with rendering/tic counters reset for benchmark reporting.
-*/
+/// Starts timed demo playback with rendering/tic counters reset for benchmark reporting.
+/// @param name Resource or object name to resolve.
 function G_TimeDemo(name)
   global nodrawers
   global noblit
@@ -1227,10 +1170,7 @@ function G_TimeDemo(name)
   gameaction = gameaction_t.ga_playdemo
 end function
 
-/*
-* Function: G_CheckDemoStatus
-* Purpose: Ends active demo recording/playback flags and reports that the transition was handled.
-*/
+/// Ends active demo recording/playback flags and reports that the transition was handled.
 function G_CheckDemoStatus()
   global demorecording
   global demoplayback
@@ -1240,10 +1180,7 @@ function G_CheckDemoStatus()
   return true
 end function
 
-/*
-* Function: G_ExitLevel
-* Purpose: Queues normal map completion while clearing any previously selected secret-exit route.
-*/
+/// Queues normal map completion while clearing any previously selected secret-exit route.
 function G_ExitLevel()
   global gameaction
   global secretexit
@@ -1252,10 +1189,7 @@ function G_ExitLevel()
   gameaction = gameaction_t.ga_completed
 end function
 
-/*
-* Function: G_SecretExitLevel
-* Purpose: Queues normal map completion and clears any pending secret-exit route.
-*/
+/// Queues normal map completion and clears any pending secret-exit route.
 function G_SecretExitLevel()
   global gameaction
   global secretexit
@@ -1268,10 +1202,7 @@ function G_SecretExitLevel()
   gameaction = gameaction_t.ga_completed
 end function
 
-/*
-* Function: G_WorldDone
-* Purpose: Advances from intermission to the next level or commercial finale route.
-*/
+/// Advances from intermission to the next level or commercial finale route.
 function G_WorldDone()
   global players
   global consoleplayer
@@ -1292,10 +1223,7 @@ function G_WorldDone()
   end if
 end function
 
-/*
-* Function: G_ProcessPendingGameAction
-* Purpose: Executes deferred game actions without advancing world simulation.
-*/
+/// Executes deferred game actions without advancing world simulation.
 function G_ProcessPendingGameAction()
   global gameaction
 
@@ -1328,18 +1256,12 @@ function G_ProcessPendingGameAction()
   end if
 end function
 
-/*
-* Function: G_ProcessGameActionOnly
-* Purpose: Processes deferred game actions while skipping gameplay tick simulation.
-*/
+/// Processes deferred game actions while skipping gameplay tick simulation.
 function G_ProcessGameActionOnly()
   G_ProcessPendingGameAction()
 end function
 
-/*
-* Function: G_Ticker
-* Purpose: Dispatches pending actions, net respawns, and exactly one subsystem ticker for the current gamestate.
-*/
+/// Dispatches pending actions, net respawns, and exactly one subsystem ticker for the current gamestate.
 function G_Ticker()
   global demoplayback
   global gamestate
@@ -1372,10 +1294,8 @@ function G_Ticker()
 
 end function
 
-/*
-* Function: _G_EnsureInputState
-* Purpose: Guarantees fixed keyboard, mouse, and joystick state buffers before responder or ticcmd access.
-*/
+/// Guarantees fixed keyboard, mouse, and joystick state buffers before responder or ticcmd access.
+/// @internal
 function _G_EnsureInputState()
   global _G_keydown
   global _G_mousebuttons
@@ -1394,10 +1314,10 @@ function _G_EnsureInputState()
   end if
 end function
 
-/*
-* Function: _G_IDiv
-* Purpose: Truncates movement/input quotients toward zero and returns zero for invalid divisors.
-*/
+/// Truncates movement/input quotients toward zero and returns zero for invalid divisors.
+/// @param a First input operand.
+/// @param b Second input operand.
+/// @internal
 function inline _G_IDiv(a, b)
   if typeof(a) != "int" or typeof(b) != "int" or b == 0 then return 0 end if
   q = a / b
@@ -1405,20 +1325,18 @@ function inline _G_IDiv(a, b)
   return std.math.ceil(q)
 end function
 
-/*
-* Function: _G_KeyIndex
-* Purpose: Rejects key codes outside the fixed input-state byte table.
-*/
+/// Rejects key codes outside the fixed input-state byte table.
+/// @param k K value supplied to `_G_KeyIndex`.
+/// @internal
 function inline _G_KeyIndex(k)
   if typeof(k) != "int" then return -1 end if
   if k < 0 or k >= 256 then return -1 end if
   return k
 end function
 
-/*
-* Function: _G_KeyIsDown
-* Purpose: Reads one checked keyboard state bit from the current input snapshot.
-*/
+/// Reads one checked keyboard state bit from the current input snapshot.
+/// @param k K value supplied to `_G_KeyIsDown`.
+/// @internal
 function inline _G_KeyIsDown(k)
   _G_EnsureInputState()
   idx = _G_KeyIndex(k)
@@ -1426,10 +1344,10 @@ function inline _G_KeyIsDown(k)
   return (_G_keydown[idx] != 0)
 end function
 
-/*
-* Function: _G_ButtonIsDown
-* Purpose: Reads one checked mouse/joystick button from an arbitrary button sequence.
-*/
+/// Reads one checked mouse/joystick button from an arbitrary button sequence.
+/// @param arr Arr value supplied to `_G_ButtonIsDown`.
+/// @param idx Zero-based element or table index.
+/// @internal
 function inline _G_ButtonIsDown(arr, idx)
   if typeof(arr) != "array" then return false end if
   if typeof(idx) != "int" then return false end if
@@ -1437,10 +1355,7 @@ function inline _G_ButtonIsDown(arr, idx)
   return (arr[idx] != 0)
 end function
 
-/*
-* Function: G_ClearInputState
-* Purpose: Releases every latched gameplay control when an exclusive UI captures input.
-*/
+/// Releases every latched gameplay control when an exclusive UI captures input.
 function G_ClearInputState()
   global _G_keydown
   global _G_mousebuttons
@@ -1462,10 +1377,8 @@ function G_ClearInputState()
   _G_turnheld = 0
 end function
 
-/*
-* Function: _G_InitDevInputTweaks
-* Purpose: Parses developer auto-input flags once and seeds their persistent movement/fire toggles.
-*/
+/// Parses developer auto-input flags once and seeds their persistent movement/fire toggles.
+/// @internal
 function _G_InitDevInputTweaks()
   global _G_devInputInit
   global _G_devAutoForward
@@ -1501,10 +1414,8 @@ function _G_InitDevInputTweaks()
   end if
 end function
 
-/*
-* Function: G_Responder
-* Purpose: Applies keyboard/mouse/joystick events and handles screenshot, pause, and spy controls.
-*/
+/// Applies keyboard/mouse/joystick events and handles screenshot, pause, and spy controls.
+/// @param ev Input event to process.
 function G_Responder(ev)
   global sendpause
   global _G_mousex
@@ -1586,20 +1497,15 @@ function G_Responder(ev)
     return false
   end function
 
-  /*
-* Function: G_ScreenShot
-* Purpose: Queues a uniquely named PCX screenshot through the deferred action system.
-  */
+  /// Queues a uniquely named PCX screenshot through the deferred action system.
   function G_ScreenShot()
     global gameaction
 
     gameaction = gameaction_t.ga_screenshot
   end function
 
-  /*
-* Function: G_BuildTiccmd
-* Purpose: Samples current controls into a bounded Doom ticcmd, including pause/save special commands.
-  */
+  /// Samples current controls into a bounded Doom ticcmd, including pause/save special commands.
+  /// @param cmd Cmd value supplied to `G_BuildTiccmd`.
   function G_BuildTiccmd(cmd)
     global _G_turnheld
     global _G_mousex
@@ -1740,72 +1646,156 @@ function G_Responder(ev)
     end if
   end function
 
+  /// Exposes `gameaction_t.ga_nothing` through the legacy `gameaction` alias.
   gameaction = gameaction_t.ga_nothing
+  /// Tracks whether secretexit is active in the g game subsystem.
   secretexit = false
 
+  /// Exposes `skill_t.sk_medium` through the legacy `_G_defSkill` alias.
+  /// @internal
   _G_defSkill = skill_t.sk_medium
+  /// Tracks the mutable g def episode value used by the g game subsystem.
+  /// @internal
   _G_defEpisode = 1
+  /// Tracks the mutable g def map value used by the g game subsystem.
+  /// @internal
   _G_defMap = 1
+  /// Stores the mutable g def demo text used by the g game subsystem.
+  /// @internal
   _G_defDemo = ""
+  /// Stores the mutable g load name text used by the g game subsystem.
+  /// @internal
   _G_loadName = ""
+  /// Tracks the mutable g save slot value used by the g game subsystem.
+  /// @internal
   _G_saveSlot = 0
+  /// Stores the mutable g save desc text used by the g game subsystem.
+  /// @internal
   _G_saveDesc = ""
+  /// Tracks the mutable g demo p value used by the g game subsystem.
+  /// @internal
   _G_demo_p = 0
+  /// Tracks the mutable g demoend value used by the g game subsystem.
+  /// @internal
   _G_demoend = 0
+  /// Stores the mutable demoname text used by the g game subsystem.
   demoname = ""
+  /// Holds the optional demobuffer resource used by the g game subsystem.
   demobuffer = void
+  /// Tracks whether netdemo is active in the g game subsystem.
   netdemo = false
+  /// Tracks whether timingdemo is active in the g game subsystem.
   timingdemo = false
+  /// Tracks the mutable starttime value used by the g game subsystem.
   starttime = 0
 
+  /// Defines the numkeys count used by the g game subsystem.
   const NUMKEYS = 256
+  /// Defines slowturntics for the g game subsystem.
   const SLOWTURNTICS = 6
+  /// Defines turbothreshold for the g game subsystem.
   const TURBOTHRESHOLD = 0x32
+  /// Defines demomarker for the g game subsystem.
   const DEMOMARKER = 0x80
 
+  /// Stores the forwardmove collection used by the g game subsystem.
   forwardmove =[0x19, 0x32]
+  /// Stores the sidemove collection used by the g game subsystem.
   sidemove =[0x18, 0x28]
+  /// Stores the angleturn collection used by the g game subsystem.
   angleturn =[640, 1280, 320]
+  /// Tracks the mutable maxplmove value used by the g game subsystem.
   MAXPLMOVE = 0x32
 
+  /// Tracks the mutable key right value used by the g game subsystem.
   key_right = KEY_RIGHTARROW
+  /// Tracks the mutable key left value used by the g game subsystem.
   key_left = KEY_LEFTARROW
+  /// Tracks the mutable key up value used by the g game subsystem.
   key_up = KEY_UPARROW
+  /// Tracks the mutable key down value used by the g game subsystem.
   key_down = KEY_DOWNARROW
+  /// Tracks the mutable key strafeleft value used by the g game subsystem.
   key_strafeleft = 44
+  /// Tracks the mutable key straferight value used by the g game subsystem.
   key_straferight = 46
+  /// Tracks the mutable key fire value used by the g game subsystem.
   key_fire = KEY_RCTRL
+  /// Tracks the mutable key use value used by the g game subsystem.
   key_use = 32
+  /// Tracks the mutable key strafe value used by the g game subsystem.
   key_strafe = KEY_RALT
+  /// Tracks the mutable key speed value used by the g game subsystem.
   key_speed = KEY_RSHIFT
 
+  /// Tracks the mutable mousebfire value used by the g game subsystem.
   mousebfire = 0
+  /// Tracks the mutable mousebstrafe value used by the g game subsystem.
   mousebstrafe = 1
+  /// Tracks the mutable mousebforward value used by the g game subsystem.
   mousebforward = 2
 
+  /// Tracks the mutable joybfire value used by the g game subsystem.
   joybfire = 0
+  /// Tracks the mutable joybstrafe value used by the g game subsystem.
   joybstrafe = 1
+  /// Tracks the mutable joybuse value used by the g game subsystem.
   joybuse = 3
+  /// Tracks the mutable joybspeed value used by the g game subsystem.
   joybspeed = 2
 
+  /// Tracks whether sendpause is active in the g game subsystem.
   sendpause = false
+  /// Tracks whether sendsave is active in the g game subsystem.
   sendsave = false
 
+  /// Tracks the mutable g keydown value used by the g game subsystem.
+  /// @internal
   _G_keydown = bytes(NUMKEYS, 0)
+  /// Tracks the mutable g turnheld value used by the g game subsystem.
+  /// @internal
   _G_turnheld = 0
+  /// Stores the g mousebuttons collection used by the g game subsystem.
+  /// @internal
   _G_mousebuttons =[0, 0, 0]
+  /// Tracks the mutable g mousex value used by the g game subsystem.
+  /// @internal
   _G_mousex = 0
+  /// Tracks the mutable g mousey value used by the g game subsystem.
+  /// @internal
   _G_mousey = 0
+  /// Stores the g joybuttons collection used by the g game subsystem.
+  /// @internal
   _G_joybuttons =[0, 0, 0, 0]
+  /// Tracks the mutable g joyxmove value used by the g game subsystem.
+  /// @internal
   _G_joyxmove = 0
+  /// Tracks the mutable g joyymove value used by the g game subsystem.
+  /// @internal
   _G_joyymove = 0
+  /// Tracks whether g dev input init is active in the g game subsystem.
+  /// @internal
   _G_devInputInit = false
+  /// Tracks whether g dev auto forward is active in the g game subsystem.
+  /// @internal
   _G_devAutoForward = false
+  /// Tracks whether g dev auto turn is active in the g game subsystem.
+  /// @internal
   _G_devAutoTurn = false
+  /// Tracks whether g dev auto fire is active in the g game subsystem.
+  /// @internal
   _G_devAutoFire = false
+  /// Tracks whether g dev auto use is active in the g game subsystem.
+  /// @internal
   _G_devAutoUse = false
+  /// Tracks the mutable g dev auto use ticker value used by the g game subsystem.
+  /// @internal
   _G_devAutoUseTicker = 0
+  /// Tracks the mutable g dev print ticker value used by the g game subsystem.
+  /// @internal
   _G_devPrintTicker = 0
+  /// Tracks the mutable g dclicks value used by the g game subsystem.
+  /// @internal
   _G_dclicks = 0
 
 

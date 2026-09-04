@@ -13,9 +13,10 @@
   See the License for the specific language governing permissions and
   limitations under the License.
 
-  Script: v_video.ml
-  Purpose: Provides video buffer and palette helper routines used by renderer and UI.
 */
+
+//! Provides video buffer and palette helper routines used by renderer and UI.
+
 import doomtype
 import doomdef
 import r_data
@@ -30,30 +31,53 @@ import r_upscaled
 import r_renderer
 import i_gl
 
+/// Stores the screens collection used by the v video subsystem.
 screens =[0, 0, 0, 0, 0]
 
+/// Stores the dirtybox collection used by the v video subsystem.
 dirtybox =[-2147483648, 2147483647, 2147483647, -2147483648]
+/// Holds the optional v overlaymask resource used by the v video subsystem.
 v_overlaymask = void
+/// Tracks the mutable v overlay minx value used by the v video subsystem.
 v_overlay_minx = SCREENWIDTH
+/// Tracks the mutable v overlay miny value used by the v video subsystem.
 v_overlay_miny = SCREENHEIGHT
+/// Tracks the mutable v overlay maxx value used by the v video subsystem.
 v_overlay_maxx = -1
+/// Tracks the mutable v overlay maxy value used by the v video subsystem.
 v_overlay_maxy = -1
+/// Tracks whether v overlay active is active in the v video subsystem.
 v_overlay_active = false
+/// Holds the optional v hioverlay resource used by the v video subsystem.
 v_hioverlay = void
+/// Holds the optional v hioverlaymask resource used by the v video subsystem.
 v_hioverlaymask = void
+/// Tracks the mutable v hioverlay scale value used by the v video subsystem.
 v_hioverlay_scale = 1
+/// Tracks the mutable v hioverlay minx value used by the v video subsystem.
 v_hioverlay_minx = 0
+/// Tracks the mutable v hioverlay miny value used by the v video subsystem.
 v_hioverlay_miny = 0
+/// Tracks the mutable v hioverlay maxx value used by the v video subsystem.
 v_hioverlay_maxx = -1
+/// Tracks the mutable v hioverlay maxy value used by the v video subsystem.
 v_hioverlay_maxy = -1
+/// Stores the mutable v hioverlay cached name text used by the v video subsystem.
 v_hioverlay_cached_name = ""
+/// Tracks the mutable v hioverlay cached x value used by the v video subsystem.
 v_hioverlay_cached_x = 0
+/// Tracks the mutable v hioverlay cached y value used by the v video subsystem.
 v_hioverlay_cached_y = 0
+/// Tracks whether v hioverlay cached flipped is active in the v video subsystem.
 v_hioverlay_cached_flipped = false
+/// Tracks the mutable v hioverlay cached scale value used by the v video subsystem.
 v_hioverlay_cached_scale = 0
+/// Tracks whether v hioverlay cached valid is active in the v video subsystem.
 v_hioverlay_cached_valid = false
+/// Tracks whether v highres patch overlay enabled is active in the v video subsystem.
 v_highres_patch_overlay_enabled = true
 
+/// Stores the gammatable collection used by the v video subsystem.
 gammatable =[
 [
 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16,
@@ -146,48 +170,48 @@ gammatable =[
 247, 248, 248, 249, 249, 250, 250, 251, 251, 252, 252, 253, 254, 254, 255, 255
 ]
 ]
+/// Tracks the mutable usegamma value used by the v video subsystem.
 usegamma = 0
 
-/*
-* Function: _u16le
-* Purpose: Decodes an unsigned 16-bit little-endian field from Doom patch bytes.
-*/
+/// Decodes an unsigned 16-bit little-endian field from Doom patch bytes.
+/// @param b Second input operand.
+/// @param off Zero-based byte or element offset.
+/// @internal
 function inline _u16le(b, off)
   return b[off] +(b[off + 1] << 8)
 end function
 
-/*
-* Function: _s16le
-* Purpose: Decodes a two-byte little-endian patch field with signed 16-bit interpretation.
-*/
+/// Decodes a two-byte little-endian patch field with signed 16-bit interpretation.
+/// @param b Second input operand.
+/// @param off Zero-based byte or element offset.
+/// @internal
 function inline _s16le(b, off)
   v = _u16le(b, off)
   if v >= 32768 then v = v - 65536 end if
   return v
 end function
 
-/*
-* Function: _u32le
-* Purpose: Decodes an unsigned 32-bit little-endian patch-column offset.
-*/
+/// Decodes an unsigned 32-bit little-endian patch-column offset.
+/// @param b Second input operand.
+/// @param off Zero-based byte or element offset.
+/// @internal
 function inline _u32le(b, off)
   return b[off] +(b[off + 1] << 8) +(b[off + 2] << 16) +(b[off + 3] << 24)
 end function
 
-/*
-* Function: _clampInt
-* Purpose: Restricts a pixel coordinate or extent to caller-supplied inclusive bounds.
-*/
+/// Restricts a pixel coordinate or extent to caller-supplied inclusive bounds.
+/// @param x Horizontal map- or screen-space coordinate.
+/// @param lo Inclusive lower bound.
+/// @param hi Inclusive upper bound.
+/// @internal
 function inline _clampInt(x, lo, hi)
   if x < lo then return lo end if
   if x > hi then return hi end if
   return x
 end function
 
-/*
-* Function: V_Init
-* Purpose: Allocates five logical indexed screens and resets dirty-rectangle plus late-overlay tracking for a fresh video session.
-*/
+/// Allocates five logical indexed screens and resets dirty-rectangle plus late-overlay tracking for a fresh
+/// video session.
 function V_Init()
   global screens
   global dirtybox
@@ -214,10 +238,7 @@ function V_Init()
   v_overlay_active = false
 end function
 
-/*
-* Function: V_ClearOverlayMask
-* Purpose: Clears the per-frame mask of logical pixels drawn by late UI patches.
-*/
+/// Clears the per-frame mask of logical pixels drawn by late UI patches.
 function V_ClearOverlayMask()
   global v_overlay_minx
   global v_overlay_miny
@@ -244,19 +265,13 @@ function V_ClearOverlayMask()
   v_overlay_active = true
 end function
 
-/*
-* Function: V_EndOverlayMask
-* Purpose: Stops recording late UI overlay pixels while keeping the recorded mask for presentation.
-*/
+/// Stops recording late UI overlay pixels while keeping the recorded mask for presentation.
 function V_EndOverlayMask()
   global v_overlay_active
   v_overlay_active = false
 end function
 
-/*
-* Function: V_EnsureHighresOverlay
-* Purpose: Lazily allocates high-resolution patch overlay buffers.
-*/
+/// Lazily allocates high-resolution patch overlay buffers.
 function V_EnsureHighresOverlay()
   global v_hioverlay
   global v_hioverlaymask
@@ -277,10 +292,7 @@ function V_EnsureHighresOverlay()
   return true
 end function
 
-/*
-* Function: V_ClearHighresOverlay
-* Purpose: Clears high-resolution prepared patch overlay pixels from the previous frame.
-*/
+/// Clears high-resolution prepared patch overlay pixels from the previous frame.
 function V_ClearHighresOverlay()
   global v_hioverlay_minx
   global v_hioverlay_miny
@@ -310,10 +322,7 @@ function V_ClearHighresOverlay()
   v_hioverlay_cached_name = ""
 end function
 
-/*
-* Function: V_HighresOverlayCanReuse
-* Purpose: Reports whether the previous high-resolution page overlay is still intact.
-*/
+/// Reports whether the previous high-resolution page overlay is still intact.
 function V_HighresOverlayCanReuse()
   if not v_hioverlay_cached_valid then return false end if
   if typeof(v_hioverlaymask) != "bytes" then return false end if
@@ -321,10 +330,9 @@ function V_HighresOverlayCanReuse()
   return true
 end function
 
-/*
-* Function: V_ClearHighresOverlayKeepLogicalY
-* Purpose: Clears high-resolution overlay pixels above a logical Y coordinate while preserving the lower persistent area.
-*/
+/// Clears high-resolution overlay pixels above a logical Y coordinate while preserving the lower persistent
+/// area.
+/// @param logicalY Vertical coordinate or vector component represented by logical y.
 function V_ClearHighresOverlayKeepLogicalY(logicalY)
   global v_hioverlay_minx
   global v_hioverlay_miny
@@ -374,10 +382,11 @@ function V_ClearHighresOverlayKeepLogicalY(logicalY)
   v_hioverlay_cached_name = ""
 end function
 
-/*
-* Function: V_ClearHighresOverlayRect
-* Purpose: Clears one logical rectangle from the high-resolution overlay mask.
-*/
+/// Clears one logical rectangle from the high-resolution overlay mask.
+/// @param x Horizontal map- or screen-space coordinate.
+/// @param y Vertical map- or screen-space coordinate.
+/// @param width Width of the target in pixels or map units.
+/// @param height Height of the target in pixels or map units.
 function V_ClearHighresOverlayRect(x, y, width, height)
   global v_hioverlay_cached_valid
   global v_hioverlay_cached_name
@@ -405,19 +414,18 @@ function V_ClearHighresOverlayRect(x, y, width, height)
   end while
 end function
 
-/*
-* Function: V_SetHighresPatchOverlayEnabled
-* Purpose: Lets dense logical UI batches skip redundant per-glyph HD preparation while preserving normal HUD assets by default.
-*/
+/// Lets dense logical UI batches skip redundant per-glyph HD preparation while preserving normal HUD assets by
+/// default.
+/// @param enabled Whether the requested feature should be enabled.
 function V_SetHighresPatchOverlayEnabled(enabled)
   global v_highres_patch_overlay_enabled
   if typeof(enabled) == "bool" then v_highres_patch_overlay_enabled = enabled end if
 end function
 
-/*
-* Function: V_MarkHighresOverlayPixel
-* Purpose: Marks one prepared high-resolution overlay pixel as valid.
-*/
+/// Marks one prepared high-resolution overlay pixel as valid.
+/// @param idx Zero-based element or table index.
+/// @param x Horizontal map- or screen-space coordinate.
+/// @param y Vertical map- or screen-space coordinate.
 function inline V_MarkHighresOverlayPixel(idx, x, y)
   global v_hioverlay_minx
   global v_hioverlay_miny
@@ -439,10 +447,8 @@ function inline V_MarkHighresOverlayPixel(idx, x, y)
   if y > v_hioverlay_maxy then v_hioverlay_maxy = y end if
 end function
 
-/*
-* Function: V_DrawUpscaledFlatOverlay
-* Purpose: Draws a prepared upscaled flat image into the high-resolution overlay.
-*/
+/// Draws a prepared upscaled flat image into the high-resolution overlay.
+/// @param name Resource or object name to resolve.
 function V_DrawUpscaledFlatOverlay(name)
   global v_hioverlay_cached_valid
   global v_hioverlay_cached_name
@@ -475,10 +481,11 @@ function V_DrawUpscaledFlatOverlay(name)
   return true
 end function
 
-/*
-* Function: V_DrawNamedUpscaledPatchOverlay
-* Purpose: Draws a prepared upscaled patch image into the high-resolution overlay.
-*/
+/// Draws a prepared upscaled patch image into the high-resolution overlay.
+/// @param x Horizontal map- or screen-space coordinate.
+/// @param y Vertical map- or screen-space coordinate.
+/// @param name Resource or object name to resolve.
+/// @param flipped Flipped value supplied to `V_DrawNamedUpscaledPatchOverlay`.
 function V_DrawNamedUpscaledPatchOverlay(x, y, name, flipped)
   global v_hioverlay_cached_name
   global v_hioverlay_cached_x
@@ -533,10 +540,12 @@ function V_DrawNamedUpscaledPatchOverlay(x, y, name, flipped)
   return true
 end function
 
-/*
-* Function: V_DrawNamedUpscaledPatchOverlayLogicalScale
-* Purpose: Draws a prepared HDWAD patch at a Doom-layout scale without running any scaler.
-*/
+/// Draws a prepared HDWAD patch at a Doom-layout scale without running any scaler.
+/// @param x Horizontal map- or screen-space coordinate.
+/// @param y Vertical map- or screen-space coordinate.
+/// @param name Resource or object name to resolve.
+/// @param flipped Flipped value supplied to `V_DrawNamedUpscaledPatchOverlayLogicalScale`.
+/// @param logicalScale Logical scale value supplied to `V_DrawNamedUpscaledPatchOverlayLogicalScale`.
 function V_DrawNamedUpscaledPatchOverlayLogicalScale(x, y, name, flipped, logicalScale)
   if typeof(name) != "string" or name == "" or not V_EnsureHighresOverlay() then return false end if
   if typeof(logicalScale) != "int" or logicalScale < 1 then logicalScale = 1 end if
@@ -586,10 +595,11 @@ function V_DrawNamedUpscaledPatchOverlayLogicalScale(x, y, name, flipped, logica
   return true
 end function
 
-/*
-* Function: V_DrawUpscaledPatchOverlay
-* Purpose: Resolves a cached patch's lump name and delegates its optional HD replacement into the late UI overlay.
-*/
+/// Resolves a cached patch's lump name and delegates its optional HD replacement into the late UI overlay.
+/// @param x Horizontal map- or screen-space coordinate.
+/// @param y Vertical map- or screen-space coordinate.
+/// @param patch Patch value supplied to `V_DrawUpscaledPatchOverlay`.
+/// @param flipped Flipped value supplied to `V_DrawUpscaledPatchOverlay`.
 function V_DrawUpscaledPatchOverlay(x, y, patch, flipped)
   if typeof(patch) != "bytes" or not V_EnsureHighresOverlay() then return false end if
   if typeof(W_NameForCachedData) != "function" or typeof(RU_GetPatch) != "function" then return false end if
@@ -598,10 +608,10 @@ function V_DrawUpscaledPatchOverlay(x, y, patch, flipped)
   return V_DrawNamedUpscaledPatchOverlay(x, y, name, flipped)
 end function
 
-/*
-* Function: V_MarkOverlayPixel
-* Purpose: Marks one logical pixel as part of the late UI overlay.
-*/
+/// Marks one logical pixel as part of the late UI overlay.
+/// @param idx Zero-based element or table index.
+/// @param x Horizontal map- or screen-space coordinate.
+/// @param y Vertical map- or screen-space coordinate.
 function inline V_MarkOverlayPixel(idx, x, y)
   global v_overlay_minx
   global v_overlay_miny
@@ -617,10 +627,11 @@ function inline V_MarkOverlayPixel(idx, x, y)
   if y > v_overlay_maxy then v_overlay_maxy = y end if
 end function
 
-/*
-* Function: V_MarkRect
-* Purpose: Expands the global dirty bounds to cover both corners of a modified logical-screen rectangle.
-*/
+/// Expands the global dirty bounds to cover both corners of a modified logical-screen rectangle.
+/// @param x Horizontal map- or screen-space coordinate.
+/// @param y Vertical map- or screen-space coordinate.
+/// @param width Width of the target in pixels or map units.
+/// @param height Height of the target in pixels or map units.
 function V_MarkRect(x, y, width, height)
 
   x2 = x + width - 1
@@ -637,10 +648,16 @@ function V_MarkRect(x, y, width, height)
   if y2 > dirtybox[0] then dirtybox[0] = y2 end if
 end function
 
-/*
-* Function: V_CopyRect
-* Purpose: Copies an indexed rectangle between logical screens and invalidates overlapping HD overlay content on the visible screen.
-*/
+/// Copies an indexed rectangle between logical screens and invalidates overlapping HD overlay content on the
+/// visible screen.
+/// @param srcx Srcx value supplied to `V_CopyRect`.
+/// @param srcy Srcy value supplied to `V_CopyRect`.
+/// @param srcscrn Srcscrn value supplied to `V_CopyRect`.
+/// @param width Width of the target in pixels or map units.
+/// @param height Height of the target in pixels or map units.
+/// @param destx Destx value supplied to `V_CopyRect`.
+/// @param desty Desty value supplied to `V_CopyRect`.
+/// @param destscrn Destscrn value supplied to `V_CopyRect`.
 function V_CopyRect(srcx, srcy, srcscrn, width, height, destx, desty, destscrn)
   src = screens[srcscrn]
   dest = screens[destscrn]
@@ -658,10 +675,12 @@ function V_CopyRect(srcx, srcy, srcscrn, width, height, destx, desty, destscrn)
   end if
 end function
 
-/*
-* Function: V_DrawPatch
-* Purpose: Decodes clipped Doom patch-column posts into an indexed screen while tracking visible dirty and HD-overlay regions.
-*/
+/// Decodes clipped Doom patch-column posts into an indexed screen while tracking visible dirty and HD-overlay
+/// regions.
+/// @param x Horizontal map- or screen-space coordinate.
+/// @param y Vertical map- or screen-space coordinate.
+/// @param scrn Scrn value supplied to `V_DrawPatch`.
+/// @param patch Patch value supplied to `V_DrawPatch`.
 function V_DrawPatch(x, y, scrn, patch)
   if typeof(patch) != "bytes" then
 
@@ -717,18 +736,23 @@ function V_DrawPatch(x, y, scrn, patch)
   end for
 end function
 
-/*
-* Function: V_DrawPatchDirect
-* Purpose: Preserves the legacy direct-patch entry point by forwarding to the normal clipped patch renderer.
-*/
+/// Preserves the legacy direct-patch entry point by forwarding to the normal clipped patch renderer.
+/// @param x Horizontal map- or screen-space coordinate.
+/// @param y Vertical map- or screen-space coordinate.
+/// @param scrn Scrn value supplied to `V_DrawPatchDirect`.
+/// @param patch Patch value supplied to `V_DrawPatchDirect`.
 function V_DrawPatchDirect(x, y, scrn, patch)
   V_DrawPatch(x, y, scrn, patch)
 end function
 
-/*
-* Function: V_DrawBlock
-* Purpose: Copies a tightly packed indexed block into a logical screen and marks visible pixels for dirty and late-overlay composition.
-*/
+/// Copies a tightly packed indexed block into a logical screen and marks visible pixels for dirty and
+/// late-overlay composition.
+/// @param x Horizontal map- or screen-space coordinate.
+/// @param y Vertical map- or screen-space coordinate.
+/// @param scrn Scrn value supplied to `V_DrawBlock`.
+/// @param width Width of the target in pixels or map units.
+/// @param height Height of the target in pixels or map units.
+/// @param src Src value supplied to `V_DrawBlock`.
 function V_DrawBlock(x, y, scrn, width, height, src)
   if typeof(src) != "bytes" then return end if
   dest = screens[scrn]
@@ -753,10 +777,12 @@ function V_DrawBlock(x, y, scrn, width, height, src)
   end if
 end function
 
-/*
-* Function: V_DrawDitheredOverlayRect
-* Purpose: Draws a clipped checkerboard shade whose unmarked pixels preserve the world as palette-safe transparency.
-*/
+/// Draws a clipped checkerboard shade whose unmarked pixels preserve the world as palette-safe transparency.
+/// @param x Horizontal map- or screen-space coordinate.
+/// @param y Vertical map- or screen-space coordinate.
+/// @param width Width of the target in pixels or map units.
+/// @param height Height of the target in pixels or map units.
+/// @param color Doom palette index used for drawing.
 function V_DrawDitheredOverlayRect(x, y, width, height, color)
   global v_overlay_minx
   global v_overlay_miny
@@ -800,10 +826,12 @@ function V_DrawDitheredOverlayRect(x, y, width, height, color)
   V_ClearHighresOverlayRect(x0, y0, x1 - x0, y1 - y0)
 end function
 
-/*
-* Function: V_DrawSolidOverlayRect
-* Purpose: Fills and marks a clipped opaque late-overlay rectangle, primarily for UI borders and separators.
-*/
+/// Fills and marks a clipped opaque late-overlay rectangle, primarily for UI borders and separators.
+/// @param x Horizontal map- or screen-space coordinate.
+/// @param y Vertical map- or screen-space coordinate.
+/// @param width Width of the target in pixels or map units.
+/// @param height Height of the target in pixels or map units.
+/// @param color Doom palette index used for drawing.
 function V_DrawSolidOverlayRect(x, y, width, height, color)
   global v_overlay_minx
   global v_overlay_miny
@@ -844,10 +872,13 @@ function V_DrawSolidOverlayRect(x, y, width, height, color)
   V_ClearHighresOverlayRect(x0, y0, x1 - x0, y1 - y0)
 end function
 
-/*
-* Function: V_GetBlock
-* Purpose: Copies a logical-screen rectangle into a tightly packed caller-provided byte buffer.
-*/
+/// Copies a logical-screen rectangle into a tightly packed caller-provided byte buffer.
+/// @param x Horizontal map- or screen-space coordinate.
+/// @param y Vertical map- or screen-space coordinate.
+/// @param scrn Scrn value supplied to `V_GetBlock`.
+/// @param width Width of the target in pixels or map units.
+/// @param height Height of the target in pixels or map units.
+/// @param destBuf Dest buf value supplied to `V_GetBlock`.
 function V_GetBlock(x, y, scrn, width, height, destBuf)
   if typeof(destBuf) != "bytes" then return end if
   src = screens[scrn]
@@ -860,10 +891,12 @@ function V_GetBlock(x, y, scrn, width, height, destBuf)
   end for
 end function
 
-/*
-* Function: V_DrawPatchFlipped
-* Purpose: Decodes a Doom patch with reversed source-column order while retaining normal placement, clipping, and overlay tracking.
-*/
+/// Decodes a Doom patch with reversed source-column order while retaining normal placement, clipping, and
+/// overlay tracking.
+/// @param x Horizontal map- or screen-space coordinate.
+/// @param y Vertical map- or screen-space coordinate.
+/// @param scrn Scrn value supplied to `V_DrawPatchFlipped`.
+/// @param patch Patch value supplied to `V_DrawPatchFlipped`.
 function V_DrawPatchFlipped(x, y, scrn, patch)
   if typeof(patch) != "bytes" then return end if
 

@@ -13,29 +13,36 @@
   See the License for the specific language governing permissions and
   limitations under the License.
 
-  Script: f_wipe.ml
-  Purpose: Captures transition screens and incrementally blends or melts the old image into the new one.
 */
+
+//! Captures transition screens and incrementally blends or melts the old image into the new one.
+
 import z_zone
 import i_video
 import v_video
 import m_random
 import doomdef
 
+/// Defines the Doom palette selection for wipe color xform.
 const wipe_ColorXForm = 0
+/// Defines wipe melt for the f wipe subsystem.
 const wipe_Melt = 1
 
+/// Tracks whether wipe go is active in the f wipe subsystem.
 wipe_go = false
+/// Holds the optional wipe scr resource used by the f wipe subsystem.
 wipe_scr = void
+/// Holds the optional wipe scr start resource used by the f wipe subsystem.
 wipe_scr_start = void
+/// Holds the optional wipe scr end resource used by the f wipe subsystem.
 wipe_scr_end = void
+/// Holds the optional wipe y resource used by the f wipe subsystem.
 wipe_y = void
+/// Tracks the mutable wipe seed value used by the f wipe subsystem.
 wipe_seed = 1234567
 
-/*
-* Function: _wipeRand
-* Purpose: Produces deterministic 15-bit fallback randomness for melt-column delays when the game RNG is unavailable.
-*/
+/// Produces deterministic 15-bit fallback randomness for melt-column delays when the game RNG is unavailable.
+/// @internal
 function inline _wipeRand()
   global wipe_seed
 
@@ -43,10 +50,10 @@ function inline _wipeRand()
   return (wipe_seed >> 16) & 32767
 end function
 
-/*
-* Function: _FW_ReadU16LE
-* Purpose: Reads one bounds-checked little-endian 16-bit pixel pair from a byte buffer.
-*/
+/// Reads one bounds-checked little-endian 16-bit pixel pair from a byte buffer.
+/// @param buf Buf value supplied to `_FW_ReadU16LE`.
+/// @param wordIndex Index identifying word.
+/// @internal
 function inline _FW_ReadU16LE(buf, wordIndex)
   bi = wordIndex * 2
   if typeof(buf) != "bytes" then return 0 end if
@@ -54,10 +61,11 @@ function inline _FW_ReadU16LE(buf, wordIndex)
   return buf[bi] +(buf[bi + 1] << 8)
 end function
 
-/*
-* Function: _FW_WriteU16LE
-* Purpose: Writes one bounds-checked little-endian 16-bit pixel pair into a byte buffer.
-*/
+/// Writes one bounds-checked little-endian 16-bit pixel pair into a byte buffer.
+/// @param buf Buf value supplied to `_FW_WriteU16LE`.
+/// @param wordIndex Index identifying word.
+/// @param v Value consumed by the operation.
+/// @internal
 function inline _FW_WriteU16LE(buf, wordIndex, v)
   bi = wordIndex * 2
   if typeof(buf) != "bytes" then return end if
@@ -67,10 +75,11 @@ function inline _FW_WriteU16LE(buf, wordIndex, v)
   buf[bi + 1] =(v >> 8) & 255
 end function
 
-/*
-* Function: _FW_ByteCopy
-* Purpose: Copies the common bounded prefix of two byte buffers without overrunning either allocation.
-*/
+/// Copies the common bounded prefix of two byte buffers without overrunning either allocation.
+/// @param dst Dst value supplied to `_FW_ByteCopy`.
+/// @param src Src value supplied to `_FW_ByteCopy`.
+/// @param count Number of elements or iterations to process.
+/// @internal
 function _FW_ByteCopy(dst, src, count)
   if typeof(dst) != "bytes" or typeof(src) != "bytes" then return end if
   if typeof(count) != "int" or count <= 0 then return end if
@@ -83,10 +92,11 @@ function _FW_ByteCopy(dst, src, count)
   end while
 end function
 
-/*
-* Function: wipe_shittyColMajorXform
-* Purpose: Transposes packed two-pixel words in place from row-major to column-major order for independent melt columns.
-*/
+/// Transposes packed two-pixel words in place from row-major to column-major order for independent melt
+/// columns.
+/// @param array16 Array16 value supplied to `wipe_shittyColMajorXform`.
+/// @param width Width of the target in pixels or map units.
+/// @param height Height of the target in pixels or map units.
 function wipe_shittyColMajorXform(array16, width, height)
 
   if typeof(array16) != "bytes" then return end if
@@ -117,10 +127,10 @@ function wipe_shittyColMajorXform(array16, width, height)
   end while
 end function
 
-/*
-* Function: wipe_initColorXForm
-* Purpose: Seeds the live framebuffer from the captured start image before a palette-index crossfade.
-*/
+/// Seeds the live framebuffer from the captured start image before a palette-index crossfade.
+/// @param width Width of the target in pixels or map units.
+/// @param height Height of the target in pixels or map units.
+/// @param ticks Ticks value supplied to `wipe_initColorXForm`.
 function wipe_initColorXForm(width, height, ticks)
   ticks = ticks
   if typeof(wipe_scr) != "bytes" or typeof(wipe_scr_start) != "bytes" then return 0 end if
@@ -128,10 +138,11 @@ function wipe_initColorXForm(width, height, ticks)
   return 0
 end function
 
-/*
-* Function: wipe_doColorXForm
-* Purpose: Moves every live palette index toward its target by at most ticks and reports when no differing pixels remain.
-*/
+/// Moves every live palette index toward its target by at most ticks and reports when no differing pixels
+/// remain.
+/// @param width Width of the target in pixels or map units.
+/// @param height Height of the target in pixels or map units.
+/// @param ticks Ticks value supplied to `wipe_doColorXForm`.
 function wipe_doColorXForm(width, height, ticks)
   if typeof(wipe_scr) != "bytes" or typeof(wipe_scr_end) != "bytes" then return 1 end if
   if typeof(ticks) != "int" or ticks < 0 then ticks = 0 end if
@@ -169,10 +180,10 @@ function wipe_doColorXForm(width, height, ticks)
   return not changed
 end function
 
-/*
-* Function: wipe_exitColorXForm
-* Purpose: Completes the color-wipe lifecycle; this mode owns no temporary state requiring release.
-*/
+/// Completes the color-wipe lifecycle; this mode owns no temporary state requiring release.
+/// @param width Width of the target in pixels or map units.
+/// @param height Height of the target in pixels or map units.
+/// @param ticks Ticks value supplied to `wipe_exitColorXForm`.
 function wipe_exitColorXForm(width, height, ticks)
   width = width
   height = height
@@ -180,10 +191,11 @@ function wipe_exitColorXForm(width, height, ticks)
   return 0
 end function
 
-/*
-* Function: wipe_initMelt
-* Purpose: Copies the start image, converts snapshots to column-major pairs, and assigns correlated random delays to melt columns.
-*/
+/// Copies the start image, converts snapshots to column-major pairs, and assigns correlated random delays to
+/// melt columns.
+/// @param width Width of the target in pixels or map units.
+/// @param height Height of the target in pixels or map units.
+/// @param ticks Ticks value supplied to `wipe_initMelt`.
 function wipe_initMelt(width, height, ticks)
   global wipe_y
 
@@ -217,10 +229,11 @@ function wipe_initMelt(width, height, ticks)
   return 0
 end function
 
-/*
-* Function: wipe_doMelt
-* Purpose: Advances each delayed two-pixel melt column, exposing target pixels above and retaining source pixels below its frontier.
-*/
+/// Advances each delayed two-pixel melt column, exposing target pixels above and retaining source pixels below
+/// its frontier.
+/// @param width Width of the target in pixels or map units.
+/// @param height Height of the target in pixels or map units.
+/// @param ticks Ticks value supplied to `wipe_doMelt`.
 function wipe_doMelt(width, height, ticks)
   if typeof(wipe_scr) != "bytes" or typeof(wipe_scr_start) != "bytes" or typeof(wipe_scr_end) != "bytes" then
     return 1
@@ -281,10 +294,10 @@ function wipe_doMelt(width, height, ticks)
   return done
 end function
 
-/*
-* Function: wipe_exitMelt
-* Purpose: Releases the per-column melt-frontier array after the transition reaches the bottom of the screen.
-*/
+/// Releases the per-column melt-frontier array after the transition reaches the bottom of the screen.
+/// @param width Width of the target in pixels or map units.
+/// @param height Height of the target in pixels or map units.
+/// @param ticks Ticks value supplied to `wipe_exitMelt`.
 function wipe_exitMelt(width, height, ticks)
   global wipe_y
 
@@ -295,10 +308,12 @@ function wipe_exitMelt(width, height, ticks)
   return 0
 end function
 
-/*
-* Function: wipe_StartScreen
-* Purpose: Captures the current display into the start snapshot and selects screen zero as the transition output buffer.
-*/
+/// Captures the current display into the start snapshot and selects screen zero as the transition output
+/// buffer.
+/// @param x Horizontal map- or screen-space coordinate.
+/// @param y Vertical map- or screen-space coordinate.
+/// @param width Width of the target in pixels or map units.
+/// @param height Height of the target in pixels or map units.
 function wipe_StartScreen(x, y, width, height)
   global wipe_scr
   global wipe_scr_start
@@ -316,10 +331,12 @@ function wipe_StartScreen(x, y, width, height)
   return 0
 end function
 
-/*
-* Function: wipe_EndScreen
-* Purpose: Captures the newly drawn display as the target snapshot, then restores the start image before animation begins.
-*/
+/// Captures the newly drawn display as the target snapshot, then restores the start image before animation
+/// begins.
+/// @param x Horizontal map- or screen-space coordinate.
+/// @param y Vertical map- or screen-space coordinate.
+/// @param width Width of the target in pixels or map units.
+/// @param height Height of the target in pixels or map units.
 function wipe_EndScreen(x, y, width, height)
   global wipe_scr_end
 
@@ -333,10 +350,12 @@ function wipe_EndScreen(x, y, width, height)
   return 0
 end function
 
-/*
-* Function: wipe_EndScreenFromBuffer
-* Purpose: Uses a supplied target snapshot and restores the captured start image, avoiding a display readback.
-*/
+/// Uses a supplied target snapshot and restores the captured start image, avoiding a display readback.
+/// @param x Horizontal map- or screen-space coordinate.
+/// @param y Vertical map- or screen-space coordinate.
+/// @param width Width of the target in pixels or map units.
+/// @param height Height of the target in pixels or map units.
+/// @param buf Buf value supplied to `wipe_EndScreenFromBuffer`.
 function wipe_EndScreenFromBuffer(x, y, width, height, buf)
   global wipe_scr_end
 
@@ -350,10 +369,14 @@ function wipe_EndScreenFromBuffer(x, y, width, height, buf)
   return 0
 end function
 
-/*
-* Function: wipe_ScreenWipe
-* Purpose: Initializes, advances, and finalizes the selected wipe mode; returns true only after the transition completes.
-*/
+/// Initializes, advances, and finalizes the selected wipe mode; returns true only after the transition
+/// completes.
+/// @param wipeno Wipeno value supplied to `wipe_ScreenWipe`.
+/// @param x Horizontal map- or screen-space coordinate.
+/// @param y Vertical map- or screen-space coordinate.
+/// @param width Width of the target in pixels or map units.
+/// @param height Height of the target in pixels or map units.
+/// @param ticks Ticks value supplied to `wipe_ScreenWipe`.
 function wipe_ScreenWipe(wipeno, x, y, width, height, ticks)
   global wipe_go
   global wipe_scr

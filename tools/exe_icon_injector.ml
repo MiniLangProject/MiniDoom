@@ -15,43 +15,54 @@ limitations under the License.
 
 */
 
-/*
-Script: exe_icon_injector.ml
-Purpose: Injects one .ico file into a Windows .exe using Win32 resource APIs.
-*/
+//! Injects one .ico file into a Windows .exe using Win32 resource APIs.
 
 import std.fs as fs
 
+/// Win32 resource type identifier for one encoded icon image.
 const RT_ICON = 3
+/// Win32 resource type identifier for an icon directory.
 const RT_GROUP_ICON = 14
+/// Default numeric identifier of the emitted icon group.
 const DEFAULT_GROUP_ID = 1
+/// Default en-US language identifier assigned to icon resources.
 const DEFAULT_LANG_ID = 1033
+/// First resource identifier reserved for individual icon images.
 const FIRST_ICON_ID = 1
 
-/*
-Struct: IcoImageEntry
-Purpose: Holds one decoded ICO directory entry plus its exact encoded image bytes for RT_ICON emission.
-*/
+/// Holds one decoded ICO directory entry plus its exact encoded image bytes for RT_ICON emission.
 struct IcoImageEntry
+  /// Width in pixels or map units stored by `IcoImageEntry`
   width
+  /// Height in pixels or map units stored by `IcoImageEntry`
   height
+  /// Stores color count for `IcoImageEntry`
   colorCount
+  /// Stores reserved for `IcoImageEntry`
   reserved
+  /// Stores planes for `IcoImageEntry`
   planes
+  /// Stores bit count for `IcoImageEntry`
   bitCount
+  /// Stores bytes in res for `IcoImageEntry`
   bytesInRes
+  /// Payload owned or referenced by this record stored by `IcoImageEntry`
   data
 end struct
 
-/*
-Function: BeginUpdateResourceW
-Purpose: Opens an executable's Win32 resource table for transactional updates while preserving unrelated resources.
-*/
+/// Opens an executable's Win32 resource table for transactional updates while preserving unrelated resources.
+/// @param fileName Filesystem name of the target resource.
+/// @param deleteExisting `bool` value supplied as delete existing to `BeginUpdateResourceW`.
+/// @returns Result returned by the native `BeginUpdateResourceW` binding as `ptr`.
 extern function BeginUpdateResourceW(fileName as wstr, deleteExisting as bool) from "kernel32.dll" returns ptr
-/*
-Function: UpdateResourceW
-Purpose: Adds or replaces one language-specific icon/group resource in an open executable update transaction.
-*/
+/// Adds or replaces one language-specific icon/group resource in an open executable update transaction.
+/// @param hUpdate `ptr` value supplied as h update to `UpdateResourceW`.
+/// @param typeId `int` value supplied as type id to `UpdateResourceW`.
+/// @param nameId `int` value supplied as name id to `UpdateResourceW`.
+/// @param language `int` value supplied as language to `UpdateResourceW`.
+/// @param data Binary or structured data to process.
+/// @param size Requested size in bytes or elements.
+/// @returns Result returned by the native `UpdateResourceW` binding as `bool`.
 extern function UpdateResourceW(
 hUpdate as ptr,
 typeId as int,
@@ -60,21 +71,19 @@ language as int,
 data as bytes,
 size as int
 ) from "kernel32.dll" returns bool
-/*
-Function: EndUpdateResourceW
-Purpose: Commits or discards the open executable resource transaction and releases its Win32 handle.
-*/
+/// Commits or discards the open executable resource transaction and releases its Win32 handle.
+/// @param hUpdate `ptr` value supplied as h update to `EndUpdateResourceW`.
+/// @param discard `bool` value supplied as discard to `EndUpdateResourceW`.
+/// @returns Result returned by the native `EndUpdateResourceW` binding as `bool`.
 extern function EndUpdateResourceW(hUpdate as ptr, discard as bool) from "kernel32.dll" returns bool
-/*
-Function: GetLastError
-Purpose: Returns the calling thread's Win32 error code after a failed resource API operation.
-*/
+/// Returns the calling thread's Win32 error code after a failed resource API operation.
+/// @returns The calling thread's Win32 error code after a failed resource API operation.
 extern function GetLastError() from "kernel32.dll" returns int
 
-/*
-Function: _u16le
-Purpose: Reads a little-endian uint16 from a bytes buffer.
-*/
+/// Reads a little-endian uint16 from a bytes buffer.
+/// @param b Second input operand.
+/// @param off Zero-based byte or element offset.
+/// @internal
 function _u16le(b, off)
   if typeof(b) != "bytes" then
     return
@@ -88,10 +97,10 @@ function _u16le(b, off)
   return b[off] |(b[off + 1] << 8)
 end function
 
-/*
-Function: _u32le
-Purpose: Reads a little-endian uint32 from a bytes buffer.
-*/
+/// Reads a little-endian uint32 from a bytes buffer.
+/// @param b Second input operand.
+/// @param off Zero-based byte or element offset.
+/// @internal
 function _u32le(b, off)
   if typeof(b) != "bytes" then
     return
@@ -105,19 +114,21 @@ function _u32le(b, off)
   return b[off] |(b[off + 1] << 8) |(b[off + 2] << 16) |(b[off + 3] << 24)
 end function
 
-/*
-Function: _setU16le
-Purpose: Writes a little-endian uint16 into a bytes buffer.
-*/
+/// Writes a little-endian uint16 into a bytes buffer.
+/// @param b Second input operand.
+/// @param off Zero-based byte or element offset.
+/// @param value Value consumed by the operation.
+/// @internal
 function _setU16le(b, off, value)
   b[off] = value & 255
   b[off + 1] =(value >> 8) & 255
 end function
 
-/*
-Function: _setU32le
-Purpose: Writes a little-endian uint32 into a bytes buffer.
-*/
+/// Writes a little-endian uint32 into a bytes buffer.
+/// @param b Second input operand.
+/// @param off Zero-based byte or element offset.
+/// @param value Value consumed by the operation.
+/// @internal
 function _setU32le(b, off, value)
   b[off] = value & 255
   b[off + 1] =(value >> 8) & 255
@@ -125,10 +136,9 @@ function _setU32le(b, off, value)
   b[off + 3] =(value >> 24) & 255
 end function
 
-/*
-Function: _fail
-Purpose: Prints a formatted error and returns non-zero exit code.
-*/
+/// Prints a formatted error and returns non-zero exit code.
+/// @param msg Msg value supplied to `_fail`.
+/// @internal
 function _fail(msg)
   if typeof(msg) != "string" then
     print("Error.")
@@ -138,10 +148,8 @@ function _fail(msg)
   return 1
 end function
 
-/*
-Function: _usage
-Purpose: Prints usage information.
-*/
+/// Prints usage information.
+/// @internal
 function _usage()
   print("Usage:")
   print("  exe_icon_injector.exe <target.exe> <icon.ico> [groupId] [langId]")
@@ -151,10 +159,11 @@ function _usage()
   print("  langId  = 1033 (en-US)")
 end function
 
-/*
-Function: _parseIntArg
-Purpose: Converts an optional CLI argument to int or returns fallback.
-*/
+/// Converts an optional CLI argument to int or returns fallback.
+/// @param args Args value supplied to `_parseIntArg`.
+/// @param idx Zero-based element or table index.
+/// @param fallback Value returned when the requested conversion or lookup is unavailable.
+/// @internal
 function _parseIntArg(args, idx, fallback)
   if typeof(args) != "array" then
     return
@@ -175,10 +184,9 @@ function _parseIntArg(args, idx, fallback)
   return n
 end function
 
-/*
-Function: _parseIco
-Purpose: Parses a .ico file and returns image entries.
-*/
+/// Parses a .ico file and returns image entries.
+/// @param icoBytes Ico bytes value supplied to `_parseIco`.
+/// @internal
 function _parseIco(icoBytes)
   if typeof(icoBytes) != "bytes" then
     return error(1, "ICO data is not bytes")
@@ -259,10 +267,10 @@ function _parseIco(icoBytes)
   return entries
 end function
 
-/*
-Function: _buildGroupIconResource
-Purpose: Builds RT_GROUP_ICON payload from parsed ICO entries.
-*/
+/// Builds RT_GROUP_ICON payload from parsed ICO entries.
+/// @param entries Entries value supplied to `_buildGroupIconResource`.
+/// @param firstIconId First icon id value supplied to `_buildGroupIconResource`.
+/// @internal
 function _buildGroupIconResource(entries, firstIconId)
   if typeof(entries) != "array" then
     return
@@ -301,10 +309,12 @@ function _buildGroupIconResource(entries, firstIconId)
   return grp
 end function
 
-/*
-Function: _injectIcoIntoExe
-Purpose: Replaces/creates icon resources in the target executable.
-*/
+/// Replaces/creates icon resources in the target executable.
+/// @param exePath Exe path value supplied to `_injectIcoIntoExe`.
+/// @param icoPath Ico path value supplied to `_injectIcoIntoExe`.
+/// @param groupId Group id value supplied to `_injectIcoIntoExe`.
+/// @param langId Lang id value supplied to `_injectIcoIntoExe`.
+/// @internal
 function _injectIcoIntoExe(exePath, icoPath, groupId, langId)
   if typeof(exePath) != "string" or len(exePath) == 0 then
     return error(1, "Invalid exe path")
@@ -399,10 +409,9 @@ function _injectIcoIntoExe(exePath, icoPath, groupId, langId)
   return true
 end function
 
-/*
-Function: main
-Purpose: Validates CLI paths/resource identifiers, injects the ICO transactionally, and returns a shell-compatible status code.
-*/
+/// Validates CLI paths/resource identifiers, injects the ICO transactionally, and returns a shell-compatible
+/// status code.
+/// @param args Args value supplied to `main`.
 function main(args)
   if typeof(args) != "array" or len(args) < 2 then
     _usage()

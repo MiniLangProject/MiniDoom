@@ -13,27 +13,36 @@
   See the License for the specific language governing permissions and
   limitations under the License.
 
-  Script: doomtype.ml
-  Purpose: Defines primitive numeric limits, byte masks, booleans, and legacy aliases used by translated Doom code.
 */
 
+//! Defines primitive numeric limits, byte masks, booleans, and legacy aliases used by translated Doom code.
+
+
+/// Defines the maximum byte max accepted by the doomtype subsystem.
 const BYTE_MAX = 0xFF
+/// Defines byte mask for the doomtype subsystem.
 const BYTE_MASK = 0xFF
 
+/// Defines the maximum maxchar accepted by the doomtype subsystem.
 const MAXCHAR = 0x7f
+/// Defines the maximum maxshort accepted by the doomtype subsystem.
 const MAXSHORT = 0x7fff
+/// Defines the maximum maxint accepted by the doomtype subsystem.
 const MAXINT = 0x7fffffff
+/// Defines the maximum maxlong accepted by the doomtype subsystem.
 const MAXLONG = 0x7fffffff
 
+/// Defines the minimum minchar accepted by the doomtype subsystem.
 const MINCHAR = 0x80
+/// Defines the minimum minshort accepted by the doomtype subsystem.
 const MINSHORT = 0x8000
+/// Defines the minimum minint accepted by the doomtype subsystem.
 const MININT = 0x80000000
+/// Defines the minimum minlong accepted by the doomtype subsystem.
 const MINLONG = 0x80000000
 
-/*
-* Function: asByte
-* Purpose: Converts byte values for the engine.
-*/
+/// Converts byte values for the engine.
+/// @param x Horizontal map- or screen-space coordinate.
 function inline asByte(x)
   return x & BYTE_MASK
 end function

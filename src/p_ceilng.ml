@@ -13,9 +13,10 @@
   See the License for the specific language governing permissions and
   limitations under the License.
 
-  Script: p_ceilng.ml
-  Purpose: Runs moving and crushing ceiling thinkers, including active-slot tracking and tagged stasis control.
 */
+
+//! Runs moving and crushing ceiling thinkers, including active-slot tracking and tagged stasis control.
+
 import z_zone
 import doomdef
 import p_local
@@ -24,12 +25,11 @@ import doomstat
 import r_state
 import sounds
 
+/// Stores the activeceilings collection used by the p ceilng subsystem.
 activeceilings =[]
 
-/*
-* Function: _InitActiveCeilings
-* Purpose: Lazily creates the fixed-size active-ceiling slot table expected by tag and stasis operations.
-*/
+/// Lazily creates the fixed-size active-ceiling slot table expected by tag and stasis operations.
+/// @internal
 function _InitActiveCeilings()
   global activeceilings
 
@@ -42,18 +42,18 @@ function _InitActiveCeilings()
   end while
 end function
 
-/*
-* Function: _CeilingMakeThinker
-* Purpose: Creates a ceiling-mover thinker with list links, callback, direction, speed, and sector state initialized for activation.
-*/
+/// Creates a ceiling-mover thinker with list links, callback, direction, speed, and sector state initialized
+/// for activation.
+/// @param fn Fn value supplied to `_CeilingMakeThinker`.
+/// @internal
 function inline _CeilingMakeThinker(fn)
   return thinker_t(void, void, actionf_t(fn, void, void), void)
 end function
 
-/*
-* Function: _CeilingSetSlot
-* Purpose: Rebuilds the active-ceiling sequence with one validated slot replaced, preserving list compatibility.
-*/
+/// Rebuilds the active-ceiling sequence with one validated slot replaced, preserving list compatibility.
+/// @param idx Zero-based element or table index.
+/// @param v Value consumed by the operation.
+/// @internal
 function inline _CeilingSetSlot(idx, v)
   global activeceilings
   if typeof(activeceilings) != "array" then return end if
@@ -67,10 +67,8 @@ function inline _CeilingSetSlot(idx, v)
   activeceilings = left +[v] + right
 end function
 
-/*
-* Function: P_AddActiveCeiling
-* Purpose: Places a ceiling mover in the first free active slot so tagged stop and resume events can find it.
-*/
+/// Places a ceiling mover in the first free active slot so tagged stop and resume events can find it.
+/// @param c C value supplied to `P_AddActiveCeiling`.
 function P_AddActiveCeiling(c)
   _InitActiveCeilings()
   i = 0
@@ -83,10 +81,8 @@ function P_AddActiveCeiling(c)
   end while
 end function
 
-/*
-* Function: P_RemoveActiveCeiling
-* Purpose: Clears the slot holding a completed ceiling mover so it no longer participates in tagged control.
-*/
+/// Clears the slot holding a completed ceiling mover so it no longer participates in tagged control.
+/// @param c C value supplied to `P_RemoveActiveCeiling`.
 function P_RemoveActiveCeiling(c)
   _InitActiveCeilings()
   i = 0
@@ -99,10 +95,8 @@ function P_RemoveActiveCeiling(c)
   end while
 end function
 
-/*
-* Function: P_ActivateInStasisCeiling
-* Purpose: Resumes every stopped ceiling matching a trigger tag by restoring its saved direction.
-*/
+/// Resumes every stopped ceiling matching a trigger tag by restoring its saved direction.
+/// @param line Map line or text line affected by the operation.
 function P_ActivateInStasisCeiling(line)
   if line is void then return end if
   _InitActiveCeilings()
@@ -116,10 +110,8 @@ function P_ActivateInStasisCeiling(line)
   end while
 end function
 
-/*
-* Function: EV_CeilingCrushStop
-* Purpose: Puts every active ceiling with the trigger tag into stasis and reports whether any mover was stopped.
-*/
+/// Puts every active ceiling with the trigger tag into stasis and reports whether any mover was stopped.
+/// @param line Map line or text line affected by the operation.
 function EV_CeilingCrushStop(line)
 
   if line is void then return 0 end if
@@ -140,10 +132,9 @@ function EV_CeilingCrushStop(line)
   return stopped
 end function
 
-/*
-* Function: T_MoveCeiling
-* Purpose: Moves a ceiling toward its current bound, reverses cyclic crushers at endpoints, and removes one-shot movers on completion.
-*/
+/// Moves a ceiling toward its current bound, reverses cyclic crushers at endpoints, and removes one-shot movers
+/// on completion.
+/// @param ceiling Ceiling value supplied to `T_MoveCeiling`.
 function T_MoveCeiling(ceiling)
   if ceiling is void or ceiling.sector is void then return end if
 
@@ -176,10 +167,10 @@ function T_MoveCeiling(ceiling)
   end if
 end function
 
-/*
-* Function: EV_DoCeiling
-* Purpose: Starts the requested ceiling action in every sector matching a trigger line's tag and reports whether any mover was created.
-*/
+/// Starts the requested ceiling action in every sector matching a trigger line's tag and reports whether any
+/// mover was created.
+/// @param line Map line or text line affected by the operation.
+/// @param type Type value supplied to `EV_DoCeiling`.
 function EV_DoCeiling(line, type)
   if line is void then return 0 end if
 

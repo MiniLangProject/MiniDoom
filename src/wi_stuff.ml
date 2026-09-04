@@ -13,9 +13,10 @@
   See the License for the specific language governing permissions and
   limitations under the License.
 
-  Script: wi_stuff.ml
-  Purpose: Implements intermission flow, counters, and transition screens.
 */
+
+//! Implements intermission flow, counters, and transition screens.
+
 import doomdef
 import z_zone
 import m_random
@@ -31,82 +32,86 @@ import v_video
 import d_player
 import r_defs
 
-/*
-* Enum: stateenum_t
-* Purpose: Identifies scoreboard counting, next-map display, and terminal intermission hold phases.
-*/
+/// Identifies scoreboard counting, next-map display, and terminal intermission hold phases.
 enum stateenum_t
-  NoState = -1
+  /// Represents no state in `stateenum_t`
+  NoState = 0 - 1
+  /// Represents stat count in `stateenum_t`
   StatCount = 0
+  /// Represents show next loc in `stateenum_t`
   ShowNextLoc = 1
 end enum
 
-/*
-* Enum: animenum_t
-* Purpose: Selects looping, randomized-delay, or level-triggered background animation scheduling.
-*/
+/// Selects looping, randomized-delay, or level-triggered background animation scheduling.
 enum animenum_t
+  /// Represents anim always in `animenum_t`
   ANIM_ALWAYS
+  /// Represents anim random in `animenum_t`
   ANIM_RANDOM
+  /// Represents anim level in `animenum_t`
   ANIM_LEVEL
 end enum
 
-/*
-* Struct: point_t
-* Purpose: Describes point geometry or asset data used by the intermission system.
-*/
+/// Describes point geometry or asset data used by the intermission system.
 struct point_t
+  /// Horizontal map- or screen-space coordinate stored by `point_t`
   x
+  /// Vertical map- or screen-space coordinate stored by `point_t`
   y
 end struct
 
-/*
-* Struct: anim_t
-* Purpose: Tracks one intermission background animation's timing, frames, map trigger, and origin.
-*/
+/// Tracks one intermission background animation's timing, frames, map trigger, and origin.
 struct anim_t
+  /// Kind discriminator for this record stored by `anim_t`
   type
+  /// Stores period for `anim_t`
   period
+  /// Stores nanims for `anim_t`
   nanims
+  /// Stores loc for `anim_t`
   loc
+  /// Stores data1 for `anim_t`
   data1
+  /// Stores data2 for `anim_t`
   data2
+  /// Stores p for `anim_t`
   p
+  /// Stores nexttic for `anim_t`
   nexttic
+  /// Stores lastdrawn for `anim_t`
   lastdrawn
+  /// Stores ctr for `anim_t`
   ctr
+  /// Current state-machine value stored by `anim_t`
   state
 end struct
 
-/*
-* Function: _WI_Point
-* Purpose: Constructs an immutable two-coordinate map-node position.
-*/
+/// Constructs an immutable two-coordinate map-node position.
+/// @param x Horizontal map- or screen-space coordinate.
+/// @param y Vertical map- or screen-space coordinate.
+/// @internal
 function inline _WI_Point(x, y)
   return point_t(x, y)
 end function
 
-/*
-* Function: _WI_AnimDefault
-* Purpose: Creates an inert animation record used to preallocate episode animation tables.
-*/
+/// Creates an inert animation record used to preallocate episode animation tables.
+/// @internal
 function inline _WI_AnimDefault()
   return anim_t(animenum_t.ANIM_ALWAYS, _WI_IDiv(TICRATE, 3), 1, _WI_Point(0, 0), 0, 0,[void, void, void], 0, -1, 0, 0)
 end function
 
-/*
-* Function: _WI_Abs
-* Purpose: Returns a signed integer magnitude for counter animation and layout math.
-*/
+/// Returns a signed integer magnitude for counter animation and layout math.
+/// @param v Value consumed by the operation.
+/// @internal
 function inline _WI_Abs(v)
   if v < 0 then return - v end if
   return v
 end function
 
-/*
-* Function: _WI_ToInt
-* Purpose: Normalizes values to int for intermission math and counters.
-*/
+/// Normalizes values to int for intermission math and counters.
+/// @param v Value consumed by the operation.
+/// @param fallback Value returned when the requested conversion or lookup is unavailable.
+/// @internal
 function _WI_ToInt(v, fallback)
   if typeof(v) == "int" then return v end if
   if typeof(v) == "float" then
@@ -122,10 +127,10 @@ function _WI_ToInt(v, fallback)
   return fallback
 end function
 
-/*
-* Function: _WI_IDiv
-* Purpose: Truncates intermission percentage/time quotients toward zero and returns zero on invalid input.
-*/
+/// Truncates intermission percentage/time quotients toward zero and returns zero on invalid input.
+/// @param a First input operand.
+/// @param b Second input operand.
+/// @internal
 function inline _WI_IDiv(a, b)
   ai = _WI_ToInt(a, 0)
   bi = _WI_ToInt(b, 0)
@@ -135,40 +140,40 @@ function inline _WI_IDiv(a, b)
   return std.math.ceil(q)
 end function
 
-/*
-* Function: _WI_Clamp
-* Purpose: Bounds animated counters between their scoreboard-specific minimum and target value.
-*/
+/// Bounds animated counters between their scoreboard-specific minimum and target value.
+/// @param v Value consumed by the operation.
+/// @param lo Inclusive lower bound.
+/// @param hi Inclusive upper bound.
+/// @internal
 function inline _WI_Clamp(v, lo, hi)
   if v < lo then return lo end if
   if v > hi then return hi end if
   return v
 end function
 
-/*
-* Function: _WI_PatchW
-* Purpose: Reads a patch width safely for intermission alignment calculations.
-*/
+/// Reads a patch width safely for intermission alignment calculations.
+/// @param p Object or data record consumed by the operation.
+/// @internal
 function inline _WI_PatchW(p)
   if p is void then return 8 end if
   if typeof(Patch_Width) == "function" then return Patch_Width(p) end if
   return 8
 end function
 
-/*
-* Function: _WI_PatchH
-* Purpose: Reads a patch height safely for intermission alignment calculations.
-*/
+/// Reads a patch height safely for intermission alignment calculations.
+/// @param p Object or data record consumed by the operation.
+/// @internal
 function inline _WI_PatchH(p)
   if p is void then return 8 end if
   if typeof(Patch_Height) == "function" then return Patch_Height(p) end if
   return 8
 end function
 
-/*
-* Function: _WI_SafeDrawPatch
-* Purpose: Draws a patch only when its decoded resource and destination coordinates are valid.
-*/
+/// Draws a patch only when its decoded resource and destination coordinates are valid.
+/// @param x Horizontal map- or screen-space coordinate.
+/// @param y Vertical map- or screen-space coordinate.
+/// @param patch Patch value supplied to `_WI_SafeDrawPatch`.
+/// @internal
 function inline _WI_SafeDrawPatch(x, y, patch)
   if patch is void then return end if
   if typeof(V_DrawPatch) == "function" then
@@ -176,10 +181,12 @@ function inline _WI_SafeDrawPatch(x, y, patch)
   end if
 end function
 
-/*
-* Function: _WI_SafeDrawNamedPatch
-* Purpose: Draws an intermission patch and its OpenGL high-resolution package image.
-*/
+/// Draws an intermission patch and its OpenGL high-resolution package image.
+/// @param x Horizontal map- or screen-space coordinate.
+/// @param y Vertical map- or screen-space coordinate.
+/// @param patch Patch value supplied to `_WI_SafeDrawNamedPatch`.
+/// @param name Resource or object name to resolve.
+/// @internal
 function inline _WI_SafeDrawNamedPatch(x, y, patch, name)
   _WI_SafeDrawPatch(x, y, patch)
   if typeof(name) == "string" and name != "" and typeof(V_DrawNamedUpscaledPatchOverlay) == "function" then
@@ -193,20 +200,20 @@ function inline _WI_SafeDrawNamedPatch(x, y, patch, name)
   end if
 end function
 
-/*
-* Function: _WI_SafeStartSound
-* Purpose: Plays an intermission cue only when the sound backend is available.
-*/
+/// Plays an intermission cue only when the sound backend is available.
+/// @param origin Origin value supplied to `_WI_SafeStartSound`.
+/// @param sfx Sound-effect descriptor to process.
+/// @internal
 function inline _WI_SafeStartSound(origin, sfx)
   if typeof(S_StartSound) == "function" then
     S_StartSound(origin, sfx)
   end if
 end function
 
-/*
-* Function: _WI_CacheOrVoid
-* Purpose: Looks up an optional patch lump and caches it with the requested zone tag.
-*/
+/// Looks up an optional patch lump and caches it with the requested zone tag.
+/// @param name Resource or object name to resolve.
+/// @param tag Zone-memory or resource-lifetime tag.
+/// @internal
 function inline _WI_CacheOrVoid(name, tag)
   if typeof(W_CheckNumForName) == "function" then
     ln = W_CheckNumForName(name)
@@ -216,123 +223,225 @@ function inline _WI_CacheOrVoid(name, tag)
   return W_CacheLumpName(name, tag)
 end function
 
+/// Defines the numepisodes count used by the wi stuff subsystem.
 const NUMEPISODES = 4
+/// Defines the nummaps count used by the wi stuff subsystem.
 const NUMMAPS = 9
 
+/// Defines wi titley for the wi stuff subsystem.
 const WI_TITLEY = 2
+/// Defines wi spacingy for the wi stuff subsystem.
 const WI_SPACINGY = 33
 
+/// Defines sp statsx for the wi stuff subsystem.
 const SP_STATSX = 50
+/// Defines sp statsy for the wi stuff subsystem.
 const SP_STATSY = 50
+/// Defines sp timex for the wi stuff subsystem.
 const SP_TIMEX = 16
+/// Defines sp timey for the wi stuff subsystem.
 const SP_TIMEY =(SCREENHEIGHT - 32)
 
+/// Defines ng statsy for the wi stuff subsystem.
 const NG_STATSY = 50
+/// Defines ng statsx for the wi stuff subsystem.
 const NG_STATSX = 32
+/// Defines ng spacingx for the wi stuff subsystem.
 const NG_SPACINGX = 64
+/// Defines ng namex for the wi stuff subsystem.
 const NG_NAMEX = 6
+/// Defines ng nameyoff for the wi stuff subsystem.
 const NG_NAMEYOFF = 10
 
+/// Defines dm matrixx for the wi stuff subsystem.
 const DM_MATRIXX = 42
+/// Defines dm matrixy for the wi stuff subsystem.
 const DM_MATRIXY = 68
+/// Defines dm spacingx for the wi stuff subsystem.
 const DM_SPACINGX = 40
+/// Defines dm totalsx for the wi stuff subsystem.
 const DM_TOTALSX = 269
+/// Defines dm killersx for the wi stuff subsystem.
 const DM_KILLERSX = 10
+/// Defines dm killersy for the wi stuff subsystem.
 const DM_KILLERSY = 100
+/// Defines dm victimsx for the wi stuff subsystem.
 const DM_VICTIMSX = 5
+/// Defines dm victimsy for the wi stuff subsystem.
 const DM_VICTIMSY = 50
 
+/// Defines shownextlocdelay for the wi stuff subsystem.
 const SHOWNEXTLOCDELAY = 4
+/// Defines wi fb for the wi stuff subsystem.
 const WI_FB = 0
 
+/// Defines sp kills for the wi stuff subsystem.
 const SP_KILLS = 0
+/// Defines sp items for the wi stuff subsystem.
 const SP_ITEMS = 2
+/// Defines sp secret for the wi stuff subsystem.
 const SP_SECRET = 4
+/// Defines sp frags for the wi stuff subsystem.
 const SP_FRAGS = 6
+/// Defines sp time for the wi stuff subsystem.
 const SP_TIME = 8
+/// Defines sp par for the wi stuff subsystem.
 const SP_PAR = 8
+/// Defines sp pause for the wi stuff subsystem.
 const SP_PAUSE = 1
 
+/// Tracks the mutable acceleratestage value used by the wi stuff subsystem.
 acceleratestage = 0
+/// Tracks the mutable me value used by the wi stuff subsystem.
 me = 0
+/// Exposes `stateenum_t.NoState` through the legacy `state` alias.
 state = stateenum_t.NoState
+/// Holds the optional wbs resource used by the wi stuff subsystem.
 wbs = void
+/// Stores the plrs collection used by the wi stuff subsystem.
 plrs =[]
+/// Tracks the mutable cnt value used by the wi stuff subsystem.
 cnt = 0
+/// Tracks the mutable bcnt value used by the wi stuff subsystem.
 bcnt = 0
+/// Tracks the mutable firstrefresh value used by the wi stuff subsystem.
 firstrefresh = 1
+/// Tracks the mutable sp state value used by the wi stuff subsystem.
 sp_state = 0
+/// Tracks the mutable ng state value used by the wi stuff subsystem.
 ng_state = 0
+/// Tracks the mutable dm state value used by the wi stuff subsystem.
 dm_state = 0
 
+/// Stores the cnt kills collection used by the wi stuff subsystem.
 cnt_kills =[0, 0, 0, 0]
+/// Stores the cnt items collection used by the wi stuff subsystem.
 cnt_items =[0, 0, 0, 0]
+/// Stores the cnt secret collection used by the wi stuff subsystem.
 cnt_secret =[0, 0, 0, 0]
+/// Stores the cnt frags collection used by the wi stuff subsystem.
 cnt_frags =[0, 0, 0, 0]
+/// Stores the dm totals collection used by the wi stuff subsystem.
 dm_totals =[0, 0, 0, 0]
+/// Stores the dm frags collection used by the wi stuff subsystem.
 dm_frags =[
 [0, 0, 0, 0],
 [0, 0, 0, 0],
 [0, 0, 0, 0],
 [0, 0, 0, 0]
 ]
+/// Tracks whether dofrags is active in the wi stuff subsystem.
 dofrags = false
+/// Tracks the mutable cnt time value used by the wi stuff subsystem.
 cnt_time = 0
+/// Tracks the mutable cnt par value used by the wi stuff subsystem.
 cnt_par = 0
+/// Tracks the mutable cnt pause value used by the wi stuff subsystem.
 cnt_pause = 0
 
+/// Tracks the mutable numcmaps value used by the wi stuff subsystem.
 NUMCMAPS = 32
 
+/// Holds the optional bg resource used by the wi stuff subsystem.
 bg = void
+/// Stores the mutable bg name text used by the wi stuff subsystem.
 bg_name = ""
+/// Stores the yah collection used by the wi stuff subsystem.
 yah =[void, void]
+/// Stores the yah names collection used by the wi stuff subsystem.
 yah_names =["", ""]
+/// Holds the optional splat resource used by the wi stuff subsystem.
 splat = void
+/// Stores the mutable splat name text used by the wi stuff subsystem.
 splat_name = ""
+/// Holds the optional percent resource used by the wi stuff subsystem.
 percent = void
+/// Stores the mutable percent name text used by the wi stuff subsystem.
 percent_name = ""
+/// Holds the optional colon resource used by the wi stuff subsystem.
 colon = void
+/// Stores the mutable colon name text used by the wi stuff subsystem.
 colon_name = ""
+/// Stores the num collection used by the wi stuff subsystem.
 num =[void, void, void, void, void, void, void, void, void, void]
+/// Stores the num names collection used by the wi stuff subsystem.
 num_names =["WINUM0", "WINUM1", "WINUM2", "WINUM3", "WINUM4", "WINUM5", "WINUM6", "WINUM7", "WINUM8", "WINUM9"]
+/// Holds the optional wiminus resource used by the wi stuff subsystem.
 wiminus = void
+/// Stores the mutable wiminus name text used by the wi stuff subsystem.
 wiminus_name = ""
+/// Holds the optional finished resource used by the wi stuff subsystem.
 finished = void
+/// Stores the mutable finished name text used by the wi stuff subsystem.
 finished_name = ""
+/// Holds the optional entering resource used by the wi stuff subsystem.
 entering = void
+/// Stores the mutable entering name text used by the wi stuff subsystem.
 entering_name = ""
+/// Holds the optional sp secret resource used by the wi stuff subsystem.
 sp_secret = void
+/// Stores the mutable sp secret name text used by the wi stuff subsystem.
 sp_secret_name = ""
+/// Holds the optional kills resource used by the wi stuff subsystem.
 kills = void
+/// Stores the mutable kills name text used by the wi stuff subsystem.
 kills_name = ""
+/// Holds the optional secret resource used by the wi stuff subsystem.
 secret = void
+/// Stores the mutable secret name text used by the wi stuff subsystem.
 secret_name = ""
+/// Holds the optional items resource used by the wi stuff subsystem.
 items = void
+/// Stores the mutable items name text used by the wi stuff subsystem.
 items_name = ""
+/// Holds the optional frags resource used by the wi stuff subsystem.
 frags = void
+/// Stores the mutable frags name text used by the wi stuff subsystem.
 frags_name = ""
+/// Holds the optional timepatch resource used by the wi stuff subsystem.
 timepatch = void
+/// Stores the mutable timepatch name text used by the wi stuff subsystem.
 timepatch_name = ""
+/// Holds the optional par resource used by the wi stuff subsystem.
 par = void
+/// Stores the mutable par name text used by the wi stuff subsystem.
 par_name = ""
+/// Holds the optional sucks resource used by the wi stuff subsystem.
 sucks = void
+/// Stores the mutable sucks name text used by the wi stuff subsystem.
 sucks_name = ""
+/// Holds the optional killers resource used by the wi stuff subsystem.
 killers = void
+/// Stores the mutable killers name text used by the wi stuff subsystem.
 killers_name = ""
+/// Holds the optional victims resource used by the wi stuff subsystem.
 victims = void
+/// Stores the mutable victims name text used by the wi stuff subsystem.
 victims_name = ""
+/// Holds the optional total resource used by the wi stuff subsystem.
 total = void
+/// Stores the mutable total name text used by the wi stuff subsystem.
 total_name = ""
+/// Holds the optional star resource used by the wi stuff subsystem.
 star = void
+/// Stores the mutable star name text used by the wi stuff subsystem.
 star_name = ""
+/// Holds the optional bstar resource used by the wi stuff subsystem.
 bstar = void
+/// Stores the mutable bstar name text used by the wi stuff subsystem.
 bstar_name = ""
+/// Stores the wi p collection used by the wi stuff subsystem.
 wi_p =[void, void, void, void]
+/// Stores the wi p names collection used by the wi stuff subsystem.
 wi_p_names =["STPB0", "STPB1", "STPB2", "STPB3"]
+/// Stores the wi bp collection used by the wi stuff subsystem.
 wi_bp =[void, void, void, void]
+/// Stores the wi bp names collection used by the wi stuff subsystem.
 wi_bp_names =["WIBP1", "WIBP2", "WIBP3", "WIBP4"]
+/// Stores the lnames collection used by the wi stuff subsystem.
 lnames =[]
 
+/// Stores the lnodes collection used by the wi stuff subsystem.
 lnodes =[
 [_WI_Point(185, 164), _WI_Point(148, 143), _WI_Point(69, 122), _WI_Point(209, 102), _WI_Point(116, 89), _WI_Point(166, 55), _WI_Point(71, 56), _WI_Point(135, 29), _WI_Point(71, 24)],
 [_WI_Point(254, 25), _WI_Point(97, 50), _WI_Point(188, 64), _WI_Point(128, 78), _WI_Point(214, 92), _WI_Point(133, 130), _WI_Point(208, 136), _WI_Point(148, 140), _WI_Point(235, 158)],
@@ -340,25 +449,26 @@ lnodes =[
 [_WI_Point(0, 0), _WI_Point(0, 0), _WI_Point(0, 0), _WI_Point(0, 0), _WI_Point(0, 0), _WI_Point(0, 0), _WI_Point(0, 0), _WI_Point(0, 0), _WI_Point(0, 0)]
 ]
 
+/// Stores the anims collection used by the wi stuff subsystem.
 anims =[[],[],[],[]]
 
+/// Tracks whether wi started is active in the wi stuff subsystem.
 wi_started = false
+/// Holds the optional wi wbstart resource used by the wi stuff subsystem.
 wi_wbstart = void
 
-/*
-* Function: _WI_GetPlr
-* Purpose: Returns a checked wminfo player row, falling back to an empty scoreboard record.
-*/
+/// Returns a checked wminfo player row, falling back to an empty scoreboard record.
+/// @param index Zero-based element or table index.
+/// @internal
 function inline _WI_GetPlr(index)
   if typeof(plrs) != "array" then return void end if
   if index < 0 or index >= len(plrs) then return void end if
   return plrs[index]
 end function
 
-/*
-* Function: _WI_PlayerIngame
-* Purpose: Returns whether a player slot is active for intermission tables.
-*/
+/// Returns whether a player slot is active for intermission tables.
+/// @param index Zero-based element or table index.
+/// @internal
 function inline _WI_PlayerIngame(index)
   if typeof(plrs) == "array" and index >= 0 and index < len(plrs) and typeof(plrs[index]) == "struct" then
     iv = plrs[index].inum
@@ -371,10 +481,10 @@ function inline _WI_PlayerIngame(index)
   return playeringame[index]
 end function
 
-/*
-* Function: _WI_GetPlrFrag
-* Purpose: Reads one frag-matrix entry from wb player stats safely.
-*/
+/// Reads one frag-matrix entry from wb player stats safely.
+/// @param playernum Index identifying player.
+/// @param target Target value supplied to `_WI_GetPlrFrag`.
+/// @internal
 function inline _WI_GetPlrFrag(playernum, target)
   p = _WI_GetPlr(playernum)
   if typeof(p) != "struct" or typeof(p.frags) != "array" then return 0 end if
@@ -382,10 +492,9 @@ function inline _WI_GetPlrFrag(playernum, target)
   return _WI_ToInt(p.frags[target], 0)
 end function
 
-/*
-* Function: _WI_TargetKills
-* Purpose: Computes the bounded final kill percentage for the local single-player row.
-*/
+/// Computes the bounded final kill percentage for the local single-player row.
+/// @param index Zero-based element or table index.
+/// @internal
 function _WI_TargetKills(index)
   p = _WI_GetPlr(index)
   if p is not void and wbs is not void and wbs.maxkills > 0 then
@@ -401,10 +510,9 @@ function _WI_TargetKills(index)
   return 0
 end function
 
-/*
-* Function: _WI_TargetItems
-* Purpose: Computes the bounded final item percentage for the local single-player row.
-*/
+/// Computes the bounded final item percentage for the local single-player row.
+/// @param index Zero-based element or table index.
+/// @internal
 function _WI_TargetItems(index)
   p = _WI_GetPlr(index)
   if p is not void and wbs is not void and wbs.maxitems > 0 then
@@ -420,10 +528,9 @@ function _WI_TargetItems(index)
   return 0
 end function
 
-/*
-* Function: _WI_TargetSecrets
-* Purpose: Computes the bounded final secret percentage for the local single-player row.
-*/
+/// Computes the bounded final secret percentage for the local single-player row.
+/// @param index Zero-based element or table index.
+/// @internal
 function _WI_TargetSecrets(index)
   p = _WI_GetPlr(index)
   if p is not void and wbs is not void and wbs.maxsecret > 0 then
@@ -439,10 +546,9 @@ function _WI_TargetSecrets(index)
   return 0
 end function
 
-/*
-* Function: _WI_TargetTime
-* Purpose: Converts the player's completion time from tics to scoreboard seconds.
-*/
+/// Converts the player's completion time from tics to scoreboard seconds.
+/// @param index Zero-based element or table index.
+/// @internal
 function inline _WI_TargetTime(index)
   p = _WI_GetPlr(index)
   if p is not void and typeof(p.stime) == "int" then return _WI_IDiv(p.stime, TICRATE) end if
@@ -452,19 +558,14 @@ function inline _WI_TargetTime(index)
   return 0
 end function
 
-/*
-* Function: _WI_TargetPar
-* Purpose: Converts the map par time from tics to scoreboard seconds.
-*/
+/// Converts the map par time from tics to scoreboard seconds.
+/// @internal
 function inline _WI_TargetPar()
   if wbs is not void and typeof(wbs.partime) == "int" then return _WI_IDiv(wbs.partime, TICRATE) end if
   return 0
 end function
 
-/*
-* Function: WI_slamBackground
-* Purpose: Copies the cached intermission background into the active framebuffer.
-*/
+/// Copies the cached intermission background into the active framebuffer.
 function WI_slamBackground()
   if bg is not void then
     _WI_SafeDrawNamedPatch(0, 0, bg, bg_name)
@@ -483,10 +584,8 @@ function WI_slamBackground()
   end if
 end function
 
-/*
-* Function: WI_Responder
-* Purpose: Records attack/use acceleration requests from every active player during intermission.
-*/
+/// Records attack/use acceleration requests from every active player during intermission.
+/// @param ev Input event to process.
 function WI_Responder(ev)
   if ev is void then return false end if
   if ev.type == evtype_t.ev_keydown then
@@ -497,30 +596,23 @@ function WI_Responder(ev)
   return false
 end function
 
-/*
-* Function: WI_drawLF
-* Purpose: Draws the localized finished-map heading and current map name.
-*/
+/// Draws the localized finished-map heading and current map name.
 function WI_drawLF()
   if finished is not void then
     _WI_SafeDrawNamedPatch(10, WI_TITLEY, finished, finished_name)
   end if
 end function
 
-/*
-* Function: WI_drawEL
-* Purpose: Draws the localized entering-map heading and next map name.
-*/
+/// Draws the localized entering-map heading and next map name.
 function WI_drawEL()
   if entering is not void then
     _WI_SafeDrawNamedPatch(10, WI_TITLEY, entering, entering_name)
   end if
 end function
 
-/*
-* Function: WI_drawOnLnode
-* Purpose: Places one map marker on a node while keeping its patch inside screen bounds.
-*/
+/// Places one map marker on a node while keeping its patch inside screen bounds.
+/// @param n Number of values to process.
+/// @param c C value supplied to `WI_drawOnLnode`.
 function WI_drawOnLnode(n, c)
   c = c
   if wbs is void then return end if
@@ -539,10 +631,7 @@ function WI_drawOnLnode(n, c)
   end if
 end function
 
-/*
-* Function: WI_initAnimatedBack
-* Purpose: Resets per-animation frame indices and schedules their first episode-specific background tick.
-*/
+/// Resets per-animation frame indices and schedules their first episode-specific background tick.
 function WI_initAnimatedBack()
   if wbs is void then return end if
   ep = _WI_Clamp(wbs.epsd, 0, NUMEPISODES - 1)
@@ -557,10 +646,7 @@ function WI_initAnimatedBack()
   end while
 end function
 
-/*
-* Function: WI_updateAnimatedBack
-* Purpose: Advances looping, one-shot, and level-gated background animations at their configured cadence.
-*/
+/// Advances looping, one-shot, and level-gated background animations at their configured cadence.
 function WI_updateAnimatedBack()
   if wbs is void then return end if
   ep = _WI_Clamp(wbs.epsd, 0, NUMEPISODES - 1)
@@ -577,10 +663,7 @@ function WI_updateAnimatedBack()
   end while
 end function
 
-/*
-* Function: WI_drawAnimatedBack
-* Purpose: Draws each active episode-map background animation frame.
-*/
+/// Draws each active episode-map background animation frame.
 function WI_drawAnimatedBack()
   if wbs is void then return end if
   ep = _WI_Clamp(wbs.epsd, 0, NUMEPISODES - 1)
@@ -595,10 +678,11 @@ function WI_drawAnimatedBack()
   end while
 end function
 
-/*
-* Function: WI_drawNum
-* Purpose: Draws a signed decimal counter using WI digit/minus patches and right alignment.
-*/
+/// Draws a signed decimal counter using WI digit/minus patches and right alignment.
+/// @param x Horizontal map- or screen-space coordinate.
+/// @param y Vertical map- or screen-space coordinate.
+/// @param n Number of values to process.
+/// @param digits Digits value supplied to `WI_drawNum`.
 function WI_drawNum(x, y, n, digits)
   if digits < 0 then digits = 0 end if
 
@@ -636,10 +720,10 @@ function WI_drawNum(x, y, n, digits)
   return x
 end function
 
-/*
-* Function: _WI_NumPixelWidth
-* Purpose: Computes rendered pixel width for one WI number, matching WI_drawNum semantics.
-*/
+/// Computes rendered pixel width for one WI number, matching WI_drawNum semantics.
+/// @param n Number of values to process.
+/// @param digits Digits value supplied to `_WI_NumPixelWidth`.
+/// @internal
 function _WI_NumPixelWidth(n, digits)
   if typeof(n) != "int" then n = _WI_ToInt(n, 0) end if
   if typeof(digits) != "int" then digits = _WI_ToInt(digits, 0) end if
@@ -675,19 +759,20 @@ function _WI_NumPixelWidth(n, digits)
   return w
 end function
 
-/*
-* Function: WI_drawNumRight
-* Purpose: Draws number right-aligned to xRight.
-*/
+/// Draws number right-aligned to xRight.
+/// @param xRight X right value supplied to `WI_drawNumRight`.
+/// @param y Vertical map- or screen-space coordinate.
+/// @param n Number of values to process.
+/// @param digits Digits value supplied to `WI_drawNumRight`.
 function WI_drawNumRight(xRight, y, n, digits)
   w = _WI_NumPixelWidth(n, digits)
   return WI_drawNum(xRight - w, y, n, digits)
 end function
 
-/*
-* Function: WI_drawPercent
-* Purpose: Draws a percentage value followed by the percent patch at the requested anchor.
-*/
+/// Draws a percentage value followed by the percent patch at the requested anchor.
+/// @param x Horizontal map- or screen-space coordinate.
+/// @param y Vertical map- or screen-space coordinate.
+/// @param p Object or data record consumed by the operation.
 function WI_drawPercent(x, y, p)
   n = _WI_ToInt(p, 0)
   if n < 0 then n = -n end if
@@ -706,10 +791,10 @@ function WI_drawPercent(x, y, p)
   return x
 end function
 
-/*
-* Function: WI_drawPercentAligned
-* Purpose: Draws percent with numeric part right-aligned before the percent sign.
-*/
+/// Draws percent with numeric part right-aligned before the percent sign.
+/// @param x Horizontal map- or screen-space coordinate.
+/// @param y Vertical map- or screen-space coordinate.
+/// @param p Object or data record consumed by the operation.
 function WI_drawPercentAligned(x, y, p)
   WI_drawNumRight(x, y, p, 0)
   if percent is not void then
@@ -717,10 +802,10 @@ function WI_drawPercentAligned(x, y, p)
   end if
 end function
 
-/*
-* Function: _WI_Substr
-* Purpose: Returns at most n bytes from the beginning of s.
-*/
+/// Returns at most n bytes from the beginning of s.
+/// @param s S value supplied to `_WI_Substr`.
+/// @param n Number of values to process.
+/// @internal
 function inline _WI_Substr(s, n)
   if typeof(s) != "string" then return "" end if
   if typeof(n) != "int" or n <= 0 then return "" end if
@@ -729,10 +814,9 @@ function inline _WI_Substr(s, n)
   return decode(slice(b, 0, n))
 end function
 
-/*
-* Function: _WI_PlayerRowName
-* Purpose: Resolves readable player name for intermission net rows.
-*/
+/// Resolves readable player name for intermission net rows.
+/// @param slot Slot value supplied to `_WI_PlayerRowName`.
+/// @internal
 function _WI_PlayerRowName(slot)
   s = _WI_ToInt(slot, -1)
   if s < 0 then return "P?" end if
@@ -749,10 +833,11 @@ function _WI_PlayerRowName(slot)
   return _WI_Substr(nm, 12)
 end function
 
-/*
-* Function: _WI_DrawRowName
-* Purpose: Draws one player name at netgame row start.
-*/
+/// Draws one player name at netgame row start.
+/// @param slot Slot value supplied to `_WI_DrawRowName`.
+/// @param x Horizontal map- or screen-space coordinate.
+/// @param y Vertical map- or screen-space coordinate.
+/// @internal
 function inline _WI_DrawRowName(slot, x, y)
   nm = _WI_PlayerRowName(slot)
   if nm == "" then return end if
@@ -762,10 +847,10 @@ function inline _WI_DrawRowName(slot, x, y)
   end if
 end function
 
-/*
-* Function: WI_drawTime
-* Purpose: Draws mm:ss completion/par time or the overflow label for very long runs.
-*/
+/// Draws mm:ss completion/par time or the overflow label for very long runs.
+/// @param x Horizontal map- or screen-space coordinate.
+/// @param y Vertical map- or screen-space coordinate.
+/// @param t T value supplied to `WI_drawTime`.
 function WI_drawTime(x, y, t)
   if t < 0 then
     if sucks is not void then
@@ -796,20 +881,14 @@ function WI_drawTime(x, y, t)
   WI_drawNum(xx, y, s, 2)
 end function
 
-/*
-* Function: WI_End
-* Purpose: Controls end transitions in the intermission system.
-*/
+/// Controls end transitions in the intermission system.
 function WI_End()
   WI_unloadData()
   global wi_started
   wi_started = false
 end function
 
-/*
-* Function: WI_initNoState
-* Purpose: Enters the final ten-tic intermission hold before handing control back to world progression.
-*/
+/// Enters the final ten-tic intermission hold before handing control back to world progression.
 function WI_initNoState()
   global state
   state = stateenum_t.NoState
@@ -817,10 +896,7 @@ function WI_initNoState()
   cnt = 10
 end function
 
-/*
-* Function: WI_updateNoState
-* Purpose: Counts down the terminal hold and invokes G_WorldDone exactly when it expires.
-*/
+/// Counts down the terminal hold and invokes G_WorldDone exactly when it expires.
 function WI_updateNoState()
   if cnt > 0 then
     global cnt
@@ -834,10 +910,7 @@ function WI_updateNoState()
   end if
 end function
 
-/*
-* Function: WI_initShowNextLoc
-* Purpose: Enters the next-location map screen with its fixed delay and pointer blink state reset.
-*/
+/// Enters the next-location map screen with its fixed delay and pointer blink state reset.
 function WI_initShowNextLoc()
   global state
   state = stateenum_t.ShowNextLoc
@@ -847,10 +920,7 @@ function WI_initShowNextLoc()
   cnt = SHOWNEXTLOCDELAY * TICRATE
 end function
 
-/*
-* Function: WI_updateShowNextLoc
-* Purpose: Animates the map pointer and transitions to the terminal hold after the location delay.
-*/
+/// Animates the map pointer and transitions to the terminal hold after the location delay.
 function WI_updateShowNextLoc()
   if cnt > 0 then
     global cnt
@@ -861,10 +931,7 @@ function WI_updateShowNextLoc()
   end if
 end function
 
-/*
-* Function: WI_drawShowNextLoc
-* Purpose: Draws the world map, completed splats, blinking pointer, and entering heading.
-*/
+/// Draws the world map, completed splats, blinking pointer, and entering heading.
 function WI_drawShowNextLoc()
   WI_slamBackground()
   WI_drawAnimatedBack()
@@ -879,18 +946,13 @@ function WI_drawShowNextLoc()
   WI_drawEL()
 end function
 
-/*
-* Function: WI_drawNoState
-* Purpose: Draws the final static world-map frame before leaving intermission.
-*/
+/// Draws the final static world-map frame before leaving intermission.
 function WI_drawNoState()
   WI_drawShowNextLoc()
 end function
 
-/*
-* Function: WI_fragSum
-* Purpose: Sums one player's net frags with Doom self-frag subtraction semantics.
-*/
+/// Sums one player's net frags with Doom self-frag subtraction semantics.
+/// @param playernum Index identifying player.
 function WI_fragSum(playernum)
   sum = 0
   i = 0
@@ -904,10 +966,7 @@ function WI_fragSum(playernum)
   return sum
 end function
 
-/*
-* Function: WI_initDeathmatchStats
-* Purpose: Seeds the deathmatch frag matrix counters and opens the first staged scoreboard pause.
-*/
+/// Seeds the deathmatch frag matrix counters and opens the first staged scoreboard pause.
 function WI_initDeathmatchStats()
   global state
   state = stateenum_t.StatCount
@@ -934,10 +993,7 @@ function WI_initDeathmatchStats()
   end while
 end function
 
-/*
-* Function: WI_updateDeathmatchStats
-* Purpose: Animates each frag cell and total toward authoritative values, honoring accelerate-to-finish.
-*/
+/// Animates each frag cell and total toward authoritative values, honoring accelerate-to-finish.
 function WI_updateDeathmatchStats()
   global acceleratestage
   global dm_state
@@ -1011,10 +1067,7 @@ function WI_updateDeathmatchStats()
   end if
 end function
 
-/*
-* Function: WI_drawDeathmatchStats
-* Purpose: Draws the deathmatch frag matrix, totals, and host-synchronized player names.
-*/
+/// Draws the deathmatch frag matrix, totals, and host-synchronized player names.
 function WI_drawDeathmatchStats()
   WI_slamBackground()
   WI_drawAnimatedBack()
@@ -1057,10 +1110,7 @@ function WI_drawDeathmatchStats()
   end while
 end function
 
-/*
-* Function: WI_initNetgameStats
-* Purpose: Clears cooperative kill/item/secret counters and starts their staged count-up sequence.
-*/
+/// Clears cooperative kill/item/secret counters and starts their staged count-up sequence.
 function WI_initNetgameStats()
   global state
   state = stateenum_t.StatCount
@@ -1086,10 +1136,7 @@ function WI_initNetgameStats()
   end while
 end function
 
-/*
-* Function: WI_updateNetgameStats
-* Purpose: Animates cooperative percentages for all active players and advances through pause stages.
-*/
+/// Animates cooperative percentages for all active players and advances through pause stages.
 function WI_updateNetgameStats()
   global acceleratestage
   global ng_state
@@ -1214,10 +1261,7 @@ function WI_updateNetgameStats()
   end if
 end function
 
-/*
-* Function: WI_drawNetgameStats
-* Purpose: Draws cooperative kill/item/secret/frag columns for every active slot.
-*/
+/// Draws cooperative kill/item/secret/frag columns for every active slot.
 function WI_drawNetgameStats()
   WI_slamBackground()
   WI_drawAnimatedBack()
@@ -1252,10 +1296,7 @@ function WI_drawNetgameStats()
   end while
 end function
 
-/*
-* Function: WI_initStats
-* Purpose: Clears single-player counters and begins the kill/item/secret/time tally sequence.
-*/
+/// Clears single-player counters and begins the kill/item/secret/time tally sequence.
 function WI_initStats()
   global state
   state = stateenum_t.StatCount
@@ -1281,10 +1322,7 @@ function WI_initStats()
   cnt_par = -1
 end function
 
-/*
-* Function: WI_updateStats
-* Purpose: Animates single-player percentages and times, with attack/use acceleration and stage sounds.
-*/
+/// Animates single-player percentages and times, with attack/use acceleration and stage sounds.
 function WI_updateStats()
   global acceleratestage
   global sp_state
@@ -1367,10 +1405,7 @@ function WI_updateStats()
   end if
 end function
 
-/*
-* Function: WI_drawStats
-* Purpose: Draws the animated single-player completion counters and their labels.
-*/
+/// Draws the animated single-player completion counters and their labels.
 function WI_drawStats()
   WI_slamBackground()
   WI_drawAnimatedBack()
@@ -1401,10 +1436,7 @@ function WI_drawStats()
   WI_drawTime(SP_TIMEX + 190, SP_TIMEY, cnt_par)
 end function
 
-/*
-* Function: WI_checkForAccelerate
-* Purpose: Latches rising attack/use buttons from any active player into the shared accelerate flag.
-*/
+/// Latches rising attack/use buttons from any active player into the shared accelerate flag.
 function WI_checkForAccelerate()
   global acceleratestage
   i = 0
@@ -1446,10 +1478,7 @@ function WI_checkForAccelerate()
   end while
 end function
 
-/*
-* Function: WI_loadData
-* Purpose: Caches scoreboard digits, labels, map patches, player markers, and episode animation frames.
-*/
+/// Caches scoreboard digits, labels, map patches, player markers, and episode animation frames.
 function WI_loadData()
   global bg
   global bg_name
@@ -1610,10 +1639,7 @@ function WI_loadData()
   WI_initAnimatedBack()
 end function
 
-/*
-* Function: WI_unloadData
-* Purpose: Releases intermission patch references so zone-cached graphics can be reclaimed after exit.
-*/
+/// Releases intermission patch references so zone-cached graphics can be reclaimed after exit.
 function WI_unloadData()
   global bg
   bg = void
@@ -1719,10 +1745,8 @@ function WI_unloadData()
   bstar_name = ""
 end function
 
-/*
-* Function: WI_initVariables
-* Purpose: Validates wminfo, selects the local scoreboard row, and resets clocks/accelerate flags.
-*/
+/// Validates wminfo, selects the local scoreboard row, and resets clocks/accelerate flags.
+/// @param wbstartstruct Wbstartstruct value supplied to `WI_initVariables`.
 function WI_initVariables(wbstartstruct)
   if wbstartstruct is void then
     pnum = 0
@@ -1793,10 +1817,8 @@ function WI_initVariables(wbstartstruct)
   firstrefresh = 1
 end function
 
-/*
-* Function: WI_Start
-* Purpose: Loads shared artwork and selects deathmatch, cooperative, or solo scoreboard state.
-*/
+/// Loads shared artwork and selects deathmatch, cooperative, or solo scoreboard state.
+/// @param wbstartstruct Wbstartstruct value supplied to `WI_Start`.
 function WI_Start(wbstartstruct)
   global wi_started
   wi_started = true
@@ -1812,10 +1834,7 @@ function WI_Start(wbstartstruct)
   end if
 end function
 
-/*
-* Function: WI_Ticker
-* Purpose: Samples acceleration, advances background animation, and ticks the active scoreboard state machine.
-*/
+/// Samples acceleration, advances background animation, and ticks the active scoreboard state machine.
 function WI_Ticker()
   if not wi_started then return end if
 
@@ -1846,10 +1865,7 @@ function WI_Ticker()
   end if
 end function
 
-/*
-* Function: WI_Drawer
-* Purpose: Selects and draws the current deathmatch, coop, solo, or map-transition intermission screen.
-*/
+/// Selects and draws the current deathmatch, coop, solo, or map-transition intermission screen.
 function WI_Drawer()
   if not wi_started then return end if
 

@@ -13,23 +13,27 @@
   See the License for the specific language governing permissions and
   limitations under the License.
 
-  Script: d_ticcmd.ml
-  Purpose: Defines the deterministic per-tic input command shared by local and network game loops.
 */
+
+//! Defines the deterministic per-tic input command shared by local and network game loops.
+
 import doomtype
 
-/*
-* Struct: ticcmd_t
-* Purpose: Stores movement, view, consistency, chat, and button state for exactly one simulation tic.
-* Invariant: All six fields are serialized as signed 32-bit values by i_net and must remain in this wire order.
-*/
+/// Stores movement, view, consistency, chat, and button state for exactly one simulation tic. Invariant: All
+/// six fields are serialized as signed 32-bit values by i_net and must remain in this wire order.
 struct ticcmd_t
-  forwardmove   // Signed forward/back movement impulse.
-  sidemove      // Signed strafe movement impulse.
-  angleturn     // Signed view-angle delta.
-  consistancy   // Determinism check value for the originating tic.
-  chatchar      // One queued chat character, or zero.
-  buttons       // Bit field of attack/use/weapon actions.
+  /// Signed forward/back movement impulse.
+  forwardmove
+  /// Signed strafe movement impulse.
+  sidemove
+  /// Signed view-angle delta.
+  angleturn
+  /// Determinism check value for the originating tic.
+  consistancy
+  /// One queued chat character, or zero.
+  chatchar
+  /// Bit field of attack/use/weapon actions.
+  buttons
 end struct
 
 

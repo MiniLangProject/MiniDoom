@@ -13,9 +13,11 @@
   See the License for the specific language governing permissions and
   limitations under the License.
 
-  Script: st_lib.ml
-  Purpose: Implements reusable number, percent, multi-icon, and binary-icon widgets with classic-background restoration.
 */
+
+//! Implements reusable number, percent, multi-icon, and binary-icon widgets with classic-background
+//! restoration.
+
 import r_defs
 import doomdef
 import z_zone
@@ -26,69 +28,89 @@ import w_wad
 import st_stuff
 import r_local
 
+/// Defines stlib bg for the st lib subsystem.
 const STlib_BG = 4
+/// Defines stlib fg for the st lib subsystem.
 const STlib_FG = 0
 
-/*
-* Struct: st_number_t
-* Purpose: Describes a fixed-width numeric widget, including screen position, digit patches, referenced value/visibility, and last drawn value.
-*/
+/// Describes a fixed-width numeric widget, including screen position, digit patches, referenced
+/// value/visibility, and last drawn value.
 struct st_number_t
+  /// Horizontal map- or screen-space coordinate stored by `st_number_t`
   x
+  /// Vertical map- or screen-space coordinate stored by `st_number_t`
   y
+  /// Width in pixels or map units stored by `st_number_t`
   width
+  /// Stores oldnum for `st_number_t`
   oldnum
+  /// Stores num for `st_number_t`
   num
+  /// Stores on for `st_number_t`
   on
+  /// Stores p for `st_number_t`
   p
+  /// Payload owned or referenced by this record stored by `st_number_t`
   data
 end struct
 
-/*
-* Struct: st_percent_t
-* Purpose: Combines a three-digit numeric widget with the percent-sign patch drawn beside it.
-*/
+/// Combines a three-digit numeric widget with the percent-sign patch drawn beside it.
 struct st_percent_t
+  /// Stores n for `st_percent_t`
   n
+  /// Stores p for `st_percent_t`
   p
 end struct
 
-/*
-* Struct: st_multicon_t
-* Purpose: Tracks an indexed icon widget, its patch set, referenced selection/visibility, and previously drawn index for background restoration.
-*/
+/// Tracks an indexed icon widget, its patch set, referenced selection/visibility, and previously drawn index
+/// for background restoration.
 struct st_multicon_t
+  /// Horizontal map- or screen-space coordinate stored by `st_multicon_t`
   x
+  /// Vertical map- or screen-space coordinate stored by `st_multicon_t`
   y
+  /// Stores oldinum for `st_multicon_t`
   oldinum
+  /// Stores inum for `st_multicon_t`
   inum
+  /// Stores on for `st_multicon_t`
   on
+  /// Stores p for `st_multicon_t`
   p
+  /// Payload owned or referenced by this record stored by `st_multicon_t`
   data
 end struct
 
-/*
-* Struct: st_binicon_t
-* Purpose: Tracks a boolean icon widget and its prior value so toggles can draw or erase only the affected patch bounds.
-*/
+/// Tracks a boolean icon widget and its prior value so toggles can draw or erase only the affected patch
+/// bounds.
 struct st_binicon_t
+  /// Horizontal map- or screen-space coordinate stored by `st_binicon_t`
   x
+  /// Vertical map- or screen-space coordinate stored by `st_binicon_t`
   y
+  /// Stores oldval for `st_binicon_t`
   oldval
+  /// Stores val for `st_binicon_t`
   val
+  /// Stores on for `st_binicon_t`
   on
+  /// Stores p for `st_binicon_t`
   p
+  /// Payload owned or referenced by this record stored by `st_binicon_t`
   data
 end struct
 
+/// Holds the optional sttminus resource used by the st lib subsystem.
 sttminus = void
+/// Stores the stlib patch name data collection used by the st lib subsystem.
 stlib_patch_name_data =[]
+/// Stores the stlib patch name names collection used by the st lib subsystem.
 stlib_patch_name_names =[]
 
-/*
-* Function: _STL_AddPatchName
-* Purpose: Appends one patch/name pair without relying on array concatenation.
-*/
+/// Appends one patch/name pair without relying on array concatenation.
+/// @param patch Patch value supplied to `_STL_AddPatchName`.
+/// @param name Resource or object name to resolve.
+/// @internal
 function _STL_AddPatchName(patch, name)
   global stlib_patch_name_data
   global stlib_patch_name_names
@@ -113,10 +135,10 @@ function _STL_AddPatchName(patch, name)
   stlib_patch_name_names = newNames
 end function
 
-/*
-* Function: STlib_RegisterPatchName
-* Purpose: Associates patch bytes with their lump name for optional HD overlays, replacing an existing mapping for the same object.
-*/
+/// Associates patch bytes with their lump name for optional HD overlays, replacing an existing mapping for the
+/// same object.
+/// @param patch Patch value supplied to `STlib_RegisterPatchName`.
+/// @param name Resource or object name to resolve.
 function STlib_RegisterPatchName(patch, name)
   global stlib_patch_name_data
   global stlib_patch_name_names
@@ -132,10 +154,9 @@ function STlib_RegisterPatchName(patch, name)
   _STL_AddPatchName(patch, name)
 end function
 
-/*
-* Function: _STL_NameForPatch
-* Purpose: Resolves a registered patch object back to the lump name required by the HD overlay path.
-*/
+/// Resolves a registered patch object back to the lump name required by the HD overlay path.
+/// @param patch Patch value supplied to `_STL_NameForPatch`.
+/// @internal
 function _STL_NameForPatch(patch)
   if typeof(patch) != "bytes" then return "" end if
   i = 0
@@ -146,10 +167,13 @@ function _STL_NameForPatch(patch)
   return ""
 end function
 
-/*
-* Function: _STL_DrawPatchHD
-* Purpose: Draws the classic patch and, on the foreground screen, overlays its registered high-resolution counterpart at offset-corrected coordinates.
-*/
+/// Draws the classic patch and, on the foreground screen, overlays its registered high-resolution counterpart
+/// at offset-corrected coordinates.
+/// @param x Horizontal map- or screen-space coordinate.
+/// @param y Vertical map- or screen-space coordinate.
+/// @param scrn Scrn value supplied to `_STL_DrawPatchHD`.
+/// @param patch Patch value supplied to `_STL_DrawPatchHD`.
+/// @internal
 function _STL_DrawPatchHD(x, y, scrn, patch)
   V_DrawPatch(x, y, scrn, patch)
   if scrn != STlib_FG or typeof(V_DrawNamedUpscaledPatchOverlay) != "function" then return end if
@@ -158,10 +182,11 @@ function _STL_DrawPatchHD(x, y, scrn, patch)
   V_DrawNamedUpscaledPatchOverlay(x - _STL_PatchLeft(patch), y - _STL_PatchTop(patch), name, false)
 end function
 
-/*
-* Function: _STL_GetRefValue
-* Purpose: Dereferences the library's single-element reference convention and returns a fallback for empty or void values.
-*/
+/// Dereferences the library's single-element reference convention and returns a fallback for empty or void
+/// values.
+/// @param refv Refv value supplied to `_STL_GetRefValue`.
+/// @param fallback Value returned when the requested conversion or lookup is unavailable.
+/// @internal
 function inline _STL_GetRefValue(refv, fallback)
   if typeof(refv) == "array" then
     if len(refv) > 0 then return refv[0] end if
@@ -171,20 +196,19 @@ function inline _STL_GetRefValue(refv, fallback)
   return refv
 end function
 
-/*
-* Function: _STL_SetRefValue
-* Purpose: Writes through the widget library's mutable single-element reference convention when storage is present.
-*/
+/// Writes through the widget library's mutable single-element reference convention when storage is present.
+/// @param refv Refv value supplied to `_STL_SetRefValue`.
+/// @param v Value consumed by the operation.
+/// @internal
 function inline _STL_SetRefValue(refv, v)
   if typeof(refv) == "array" and len(refv) > 0 then
     refv[0] = v
   end if
 end function
 
-/*
-* Function: _STL_AsBool
-* Purpose: Converts supported scalar values to the widget visibility truth convention.
-*/
+/// Converts supported scalar values to the widget visibility truth convention.
+/// @param v Value consumed by the operation.
+/// @internal
 function inline _STL_AsBool(v)
   if typeof(v) == "bool" then return v end if
   if typeof(v) == "int" or typeof(v) == "float" then return v != 0 end if
@@ -192,18 +216,18 @@ function inline _STL_AsBool(v)
   return v is not void
 end function
 
-/*
-* Function: _STL_RefBool
-* Purpose: Dereferences a widget value and normalizes it to a visibility boolean.
-*/
+/// Dereferences a widget value and normalizes it to a visibility boolean.
+/// @param refv Refv value supplied to `_STL_RefBool`.
+/// @internal
 function inline _STL_RefBool(refv)
   return _STL_AsBool(_STL_GetRefValue(refv, false))
 end function
 
-/*
-* Function: _STL_ToInt
-* Purpose: Converts numeric/string widget values to integers by truncating toward zero, retaining the fallback on failure.
-*/
+/// Converts numeric/string widget values to integers by truncating toward zero, retaining the fallback on
+/// failure.
+/// @param v Value consumed by the operation.
+/// @param fallback Value returned when the requested conversion or lookup is unavailable.
+/// @internal
 function _STL_ToInt(v, fallback)
   if typeof(v) == "int" then return v end if
   if typeof(v) == "float" then
@@ -219,10 +243,10 @@ function _STL_ToInt(v, fallback)
   return fallback
 end function
 
-/*
-* Function: _STL_IDiv
-* Purpose: Divides widget layout integers with truncation toward zero and returns zero for a zero divisor.
-*/
+/// Divides widget layout integers with truncation toward zero and returns zero for a zero divisor.
+/// @param a First input operand.
+/// @param b Second input operand.
+/// @internal
 function inline _STL_IDiv(a, b)
   a = _STL_ToInt(a, 0)
   b = _STL_ToInt(b, 0)
@@ -232,55 +256,51 @@ function inline _STL_IDiv(a, b)
   return std.math.ceil(q)
 end function
 
-/*
-* Function: _STL_RefInt
-* Purpose: Dereferences and truncates a widget value to an integer, retaining the supplied fallback on invalid input.
-*/
+/// Dereferences and truncates a widget value to an integer, retaining the supplied fallback on invalid input.
+/// @param refv Refv value supplied to `_STL_RefInt`.
+/// @param fallback Value returned when the requested conversion or lookup is unavailable.
+/// @internal
 function inline _STL_RefInt(refv, fallback)
   v = _STL_GetRefValue(refv, fallback)
   return _STL_ToInt(v, fallback)
 end function
 
-/*
-* Function: _STL_PatchWidth
-* Purpose: Reads the signed little-endian width from a validated Doom patch header.
-*/
+/// Reads the signed little-endian width from a validated Doom patch header.
+/// @param p Object or data record consumed by the operation.
+/// @internal
 function inline _STL_PatchWidth(p)
   if typeof(p) != "bytes" then return 0 end if
   return RDefs_I16LE(p, 0)
 end function
 
-/*
-* Function: _STL_PatchHeight
-* Purpose: Reads the signed little-endian height from a validated Doom patch header.
-*/
+/// Reads the signed little-endian height from a validated Doom patch header.
+/// @param p Object or data record consumed by the operation.
+/// @internal
 function inline _STL_PatchHeight(p)
   if typeof(p) != "bytes" then return 0 end if
   return RDefs_I16LE(p, 2)
 end function
 
-/*
-* Function: _STL_PatchLeft
-* Purpose: Reads the patch left offset used to restore its exact background rectangle.
-*/
+/// Reads the patch left offset used to restore its exact background rectangle.
+/// @param p Object or data record consumed by the operation.
+/// @internal
 function inline _STL_PatchLeft(p)
   if typeof(p) != "bytes" then return 0 end if
   return RDefs_I16LE(p, 4)
 end function
 
-/*
-* Function: _STL_PatchTop
-* Purpose: Reads the patch top offset used to restore its exact background rectangle.
-*/
+/// Reads the patch top offset used to restore its exact background rectangle.
+/// @param p Object or data record consumed by the operation.
+/// @internal
 function inline _STL_PatchTop(p)
   if typeof(p) != "bytes" then return 0 end if
   return RDefs_I16LE(p, 6)
 end function
 
-/*
-* Function: _STL_GetPatch
-* Purpose: Safely resolves one patch from an array/list after integer normalization and bounds checks.
-*/
+/// Safely resolves one patch from an array/list after integer normalization and bounds checks.
+/// @param patches Patches value supplied to `_STL_GetPatch`.
+/// @param idx Zero-based element or table index.
+/// @internal
 function inline _STL_GetPatch(patches, idx)
   tp = typeof(patches)
   if tp != "array" and tp != "list" then return void end if
@@ -289,10 +309,7 @@ function inline _STL_GetPatch(patches, idx)
   return patches[i]
 end function
 
-/*
-* Function: STlib_init
-* Purpose: Caches and registers the optional minus-sign patch used by negative numeric widgets.
-*/
+/// Caches and registers the optional minus-sign patch used by negative numeric widgets.
 function STlib_init()
   global sttminus
 
@@ -303,10 +320,14 @@ function STlib_init()
   end if
 end function
 
-/*
-* Function: STlib_initNum
-* Purpose: Binds a numeric widget to coordinates, digit patches, referenced value/visibility, and fixed digit width.
-*/
+/// Binds a numeric widget to coordinates, digit patches, referenced value/visibility, and fixed digit width.
+/// @param n Number of values to process.
+/// @param x Horizontal map- or screen-space coordinate.
+/// @param y Vertical map- or screen-space coordinate.
+/// @param pl Pl value supplied to `STlib_initNum`.
+/// @param num Index identifying the requested item.
+/// @param on On value supplied to `STlib_initNum`.
+/// @param width Width of the target in pixels or map units.
 function STlib_initNum(n, x, y, pl, num, on, width)
   n.x = x
   n.y = y
@@ -317,10 +338,10 @@ function STlib_initNum(n, x, y, pl, num, on, width)
   n.oldnum = 0
 end function
 
-/*
-* Function: STlib_drawNum
-* Purpose: Restores the old digit area and draws a changed fixed-width signed value right-to-left, honoring Doom's 1994 sentinel.
-*/
+/// Restores the old digit area and draws a changed fixed-width signed value right-to-left, honoring Doom's 1994
+/// sentinel.
+/// @param n Number of values to process.
+/// @param refresh Refresh value supplied to `STlib_drawNum`.
 function STlib_drawNum(n, refresh)
   refresh = refresh
   if n == 0 then return end if
@@ -380,20 +401,23 @@ function STlib_drawNum(n, refresh)
   end if
 end function
 
-/*
-* Function: STlib_initPercent
-* Purpose: Initializes a three-digit numeric widget and attaches its percent-sign patch.
-*/
+/// Initializes a three-digit numeric widget and attaches its percent-sign patch.
+/// @param p Object or data record consumed by the operation.
+/// @param x Horizontal map- or screen-space coordinate.
+/// @param y Vertical map- or screen-space coordinate.
+/// @param pl Pl value supplied to `STlib_initPercent`.
+/// @param num Index identifying the requested item.
+/// @param on On value supplied to `STlib_initPercent`.
+/// @param percentPatch Percent patch value supplied to `STlib_initPercent`.
 function STlib_initPercent(p, x, y, pl, num, on, percentPatch)
   p.n = st_number_t(0, 0, 0, 0, 0, 0, 0, 0)
   STlib_initNum(p.n, x, y, pl, num, on, 3)
   p.p = percentPatch
 end function
 
-/*
-* Function: STlib_drawPercent
-* Purpose: Draws the percent sign on refresh when visible, then updates the associated numeric widget.
-*/
+/// Draws the percent sign on refresh when visible, then updates the associated numeric widget.
+/// @param p Object or data record consumed by the operation.
+/// @param refresh Refresh value supplied to `STlib_drawPercent`.
 function STlib_drawPercent(p, refresh)
   if p == 0 then return end if
   if refresh and _STL_RefBool(p.n.on) and p.p is not void then
@@ -402,10 +426,14 @@ function STlib_drawPercent(p, refresh)
   STlib_drawNum(p.n, refresh)
 end function
 
-/*
-* Function: STlib_initMultIcon
-* Purpose: Binds an indexed icon widget to its patch array, referenced index/visibility, coordinates, and invalid initial cache.
-*/
+/// Binds an indexed icon widget to its patch array, referenced index/visibility, coordinates, and invalid
+/// initial cache.
+/// @param i Zero-based iteration index.
+/// @param x Horizontal map- or screen-space coordinate.
+/// @param y Vertical map- or screen-space coordinate.
+/// @param il Il value supplied to `STlib_initMultIcon`.
+/// @param inum Index identifying i.
+/// @param on On value supplied to `STlib_initMultIcon`.
 function STlib_initMultIcon(i, x, y, il, inum, on)
   i.x = x
   i.y = y
@@ -415,10 +443,9 @@ function STlib_initMultIcon(i, x, y, il, inum, on)
   i.oldinum = -1
 end function
 
-/*
-* Function: STlib_drawMultIcon
-* Purpose: Erases a changed prior icon from the status background and draws the newly selected patch when visible.
-*/
+/// Erases a changed prior icon from the status background and draws the newly selected patch when visible.
+/// @param i Zero-based iteration index.
+/// @param refresh Refresh value supplied to `STlib_drawMultIcon`.
 function STlib_drawMultIcon(i, refresh)
   if i == 0 then return end if
 
@@ -449,10 +476,13 @@ function STlib_drawMultIcon(i, refresh)
   end if
 end function
 
-/*
-* Function: STlib_initBinIcon
-* Purpose: Binds a boolean icon widget to its patch, coordinates, referenced value, and visibility control.
-*/
+/// Binds a boolean icon widget to its patch, coordinates, referenced value, and visibility control.
+/// @param b Second input operand.
+/// @param x Horizontal map- or screen-space coordinate.
+/// @param y Vertical map- or screen-space coordinate.
+/// @param patch Patch value supplied to `STlib_initBinIcon`.
+/// @param val Val value supplied to `STlib_initBinIcon`.
+/// @param on On value supplied to `STlib_initBinIcon`.
 function STlib_initBinIcon(b, x, y, patch, val, on)
   b.x = x
   b.y = y
@@ -462,10 +492,9 @@ function STlib_initBinIcon(b, x, y, patch, val, on)
   b.oldval = 0
 end function
 
-/*
-* Function: STlib_drawBinIcon
-* Purpose: Draws or erases a boolean icon only when its value changes or a full refresh is requested.
-*/
+/// Draws or erases a boolean icon only when its value changes or a full refresh is requested.
+/// @param b Second input operand.
+/// @param refresh Refresh value supplied to `STlib_drawBinIcon`.
 function STlib_drawBinIcon(b, refresh)
   if b == 0 then return end if
 
@@ -492,34 +521,30 @@ function STlib_drawBinIcon(b, refresh)
   end if
 end function
 
-/*
-* Function: STlib_updateNum
-* Purpose: Redraws an enabled numeric widget when its value changed or a full refresh was requested.
-*/
+/// Redraws an enabled numeric widget when its value changed or a full refresh was requested.
+/// @param n Number of values to process.
+/// @param refresh Refresh value supplied to `STlib_updateNum`.
 function STlib_updateNum(n, refresh)
   if _STL_RefBool(n.on) then STlib_drawNum(n, refresh) end if
 end function
 
-/*
-* Function: STlib_updatePercent
-* Purpose: Updates a percentage widget, including its percent patch and visibility-controlled numeric value.
-*/
+/// Updates a percentage widget, including its percent patch and visibility-controlled numeric value.
+/// @param p Object or data record consumed by the operation.
+/// @param refresh Refresh value supplied to `STlib_updatePercent`.
 function STlib_updatePercent(p, refresh)
   STlib_drawPercent(p, refresh)
 end function
 
-/*
-* Function: STlib_updateMultIcon
-* Purpose: Replaces a multi-icon widget when its referenced icon index changes or the status bar refreshes.
-*/
+/// Replaces a multi-icon widget when its referenced icon index changes or the status bar refreshes.
+/// @param i Zero-based iteration index.
+/// @param refresh Refresh value supplied to `STlib_updateMultIcon`.
 function STlib_updateMultIcon(i, refresh)
   STlib_drawMultIcon(i, refresh)
 end function
 
-/*
-* Function: STlib_updateBinIcon
-* Purpose: Shows or erases a binary icon when its referenced boolean changes or the status bar refreshes.
-*/
+/// Shows or erases a binary icon when its referenced boolean changes or the status bar refreshes.
+/// @param b Second input operand.
+/// @param refresh Refresh value supplied to `STlib_updateBinIcon`.
 function STlib_updateBinIcon(b, refresh)
   STlib_drawBinIcon(b, refresh)
 end function

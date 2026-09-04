@@ -13,9 +13,11 @@
   See the License for the specific language governing permissions and
   limitations under the License.
 
-  Script: r_local.ml
-  Purpose: Aggregates the software renderer's tables, state, BSP, wall, plane, sprite, and draw modules for legacy import sites.
 */
+
+//! Aggregates the software renderer's tables, state, BSP, wall, plane, sprite, and draw modules for legacy
+//! import sites.
+
 import tables
 import doomdef
 import r_data

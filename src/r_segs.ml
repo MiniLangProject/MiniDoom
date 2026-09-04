@@ -13,9 +13,10 @@
   See the License for the specific language governing permissions and
   limitations under the License.
 
-  Script: r_segs.ml
-  Purpose: Projects BSP wall segments into columns, maintains clip openings, and defers masked middle textures.
 */
+
+//! Projects BSP wall segments into columns, maintains clip openings, and defers masked middle textures.
+
 import i_system
 import doomdef
 import doomstat
@@ -23,48 +24,78 @@ import r_local
 import r_sky
 import std.math
 
+/// Holds the optional walllights resource used by the r segs subsystem.
 walllights = void
 
+/// Holds the optional maskedtexturecol resource used by the r segs subsystem.
 maskedtexturecol = void
 
+/// Tracks whether maskedtexture is active in the r segs subsystem.
 maskedtexture = false
+/// Tracks the mutable toptexture value used by the r segs subsystem.
 toptexture = 0
+/// Tracks the mutable bottomtexture value used by the r segs subsystem.
 bottomtexture = 0
+/// Tracks the mutable midtexture value used by the r segs subsystem.
 midtexture = 0
 
+/// Tracks the mutable rw centerangle value used by the r segs subsystem.
 rw_centerangle = 0
+/// Tracks the mutable rw offset value used by the r segs subsystem.
 rw_offset = 0
+/// Tracks the mutable rw scale value used by the r segs subsystem.
 rw_scale = 0
+/// Tracks the mutable rw scalestep value used by the r segs subsystem.
 rw_scalestep = 0
+/// Tracks the mutable rw midtexturemid value used by the r segs subsystem.
 rw_midtexturemid = 0
+/// Tracks the mutable rw toptexturemid value used by the r segs subsystem.
 rw_toptexturemid = 0
+/// Tracks the mutable rw bottomtexturemid value used by the r segs subsystem.
 rw_bottomtexturemid = 0
 
+/// Tracks the mutable worldtop value used by the r segs subsystem.
 worldtop = 0
+/// Tracks the mutable worldbottom value used by the r segs subsystem.
 worldbottom = 0
+/// Tracks the mutable worldhigh value used by the r segs subsystem.
 worldhigh = 0
+/// Tracks the mutable worldlow value used by the r segs subsystem.
 worldlow = 0
 
+/// Tracks the mutable pixhigh value used by the r segs subsystem.
 pixhigh = 0
+/// Tracks the mutable pixlow value used by the r segs subsystem.
 pixlow = 0
+/// Tracks the mutable pixhighstep value used by the r segs subsystem.
 pixhighstep = 0
+/// Tracks the mutable pixlowstep value used by the r segs subsystem.
 pixlowstep = 0
 
+/// Tracks the mutable topfrac value used by the r segs subsystem.
 topfrac = 0
+/// Tracks the mutable topstep value used by the r segs subsystem.
 topstep = 0
+/// Tracks the mutable bottomfrac value used by the r segs subsystem.
 bottomfrac = 0
+/// Tracks the mutable bottomstep value used by the r segs subsystem.
 bottomstep = 0
 
+/// Defines heightbits for the r segs subsystem.
 const HEIGHTBITS = 12
+/// Defines heightunit for the r segs subsystem.
 const HEIGHTUNIT = 1 << HEIGHTBITS
+/// Defines the rs inv scale num count used by the r segs subsystem.
 const RS_INV_SCALE_NUM = 4294967295
 
+/// Tracks whether rw solidwall is active in the r segs subsystem.
 rw_solidwall = false
 
-/*
-* Function: _RS_IDiv
-* Purpose: Returns a signed quotient truncated toward zero, or zero for invalid operands and a zero divisor.
-*/
+/// Returns a signed quotient truncated toward zero, or zero for invalid operands and a zero divisor in
+/// `_RS_IDiv`
+/// @param a First input operand.
+/// @param b Second input operand.
+/// @internal
 function inline _RS_IDiv(a, b)
   if typeof(a) != "int" or typeof(b) != "int" or b == 0 then return 0 end if
   q = a / b
@@ -72,10 +103,10 @@ function inline _RS_IDiv(a, b)
   return std.math.ceil(q)
 end function
 
-/*
-* Function: _RS_ToInt
-* Purpose: Coerces numeric values to truncation-toward-zero integers and returns fallback on failure.
-*/
+/// Coerces numeric values to truncation-toward-zero integers and returns fallback on failure in `_RS_ToInt`
+/// @param v Value consumed by the operation.
+/// @param fallback Value returned when the requested conversion or lookup is unavailable.
+/// @internal
 function inline _RS_ToInt(v, fallback)
   if typeof(v) == "int" then return v end if
   if typeof(v) == "float" then
@@ -91,30 +122,30 @@ function inline _RS_ToInt(v, fallback)
   return fallback
 end function
 
-/*
-* Function: _RS_Clamp
-* Purpose: Constrains a wall-rendering scalar to the supplied inclusive bounds.
-*/
+/// Constrains a wall-rendering scalar to the supplied inclusive bounds.
+/// @param v Value consumed by the operation.
+/// @param lo Inclusive lower bound.
+/// @param hi Inclusive upper bound.
+/// @internal
 function inline _RS_Clamp(v, lo, hi)
   if v < lo then return lo end if
   if v > hi then return hi end if
   return v
 end function
 
-/*
-* Function: _RS_Abs
-* Purpose: Returns the non-negative integer magnitude of a numeric wall-renderer input.
-*/
+/// Returns the non-negative integer magnitude of a numeric wall-renderer input.
+/// @param v Value consumed by the operation.
+/// @internal
 function inline _RS_Abs(v)
   vi = _RS_ToInt(v, 0)
   if vi < 0 then return - vi end if
   return vi
 end function
 
-/*
-* Function: _RS_WrapIndex
-* Purpose: Wraps a possibly negative index into a non-empty cyclic lookup table.
-*/
+/// Wraps a possibly negative index into a non-empty cyclic lookup table.
+/// @param i Zero-based iteration index.
+/// @param n Number of values to process.
+/// @internal
 function inline _RS_WrapIndex(i, n)
   if typeof(i) != "int" then i = 0 end if
   if typeof(n) != "int" or n <= 0 then return 0 end if
@@ -126,10 +157,10 @@ function inline _RS_WrapIndex(i, n)
   return i
 end function
 
-/*
-* Function: _RS_ClampIndex
-* Purpose: Clamps an index to the first or last entry of a non-empty lookup table.
-*/
+/// Clamps an index to the first or last entry of a non-empty lookup table.
+/// @param i Zero-based iteration index.
+/// @param n Number of values to process.
+/// @internal
 function inline _RS_ClampIndex(i, n)
   if typeof(i) != "int" then i = 0 end if
   if typeof(n) != "int" or n <= 0 then return 0 end if
@@ -138,19 +169,18 @@ function inline _RS_ClampIndex(i, n)
   return i
 end function
 
-/*
-* Function: _RS_IsSeq
-* Purpose: Recognizes the array and list containers used for column clips and renderer tables.
-*/
+/// Recognizes the array and list containers used for column clips and renderer tables.
+/// @param v Value consumed by the operation.
+/// @internal
 function inline _RS_IsSeq(v)
   t = typeof(v)
   return t == "array" or t == "list"
 end function
 
-/*
-* Function: _RS_AllocIntList
-* Purpose: Allocates an integer list of a requested length initialized to one sentinel value.
-*/
+/// Allocates an integer list of a requested length initialized to one sentinel value.
+/// @param n Number of values to process.
+/// @param fill Fill value supplied to `_RS_AllocIntList`.
+/// @internal
 function inline _RS_AllocIntList(n, fill)
   lst =[]
   i = 0
@@ -161,10 +191,9 @@ function inline _RS_AllocIntList(n, fill)
   return lst
 end function
 
-/*
-* Function: _RS_EnsureOpeningsCapacity
-* Purpose: Grows the shared openings arena geometrically so a requested exclusive end offset is addressable.
-*/
+/// Grows the shared openings arena geometrically so a requested exclusive end offset is addressable.
+/// @param needed Needed value supplied to `_RS_EnsureOpeningsCapacity`.
+/// @internal
 function _RS_EnsureOpeningsCapacity(needed)
   global openings
 
@@ -195,35 +224,30 @@ function _RS_EnsureOpeningsCapacity(needed)
   return needed <= len(openings)
 end function
 
-/*
-* Function: R_ClearSolidClipScales
-* Purpose: Retains the classic renderer hook; solid clip scales need no separate reset in this implementation.
-*/
+/// Retains the classic renderer hook; solid clip scales need no separate reset in this implementation.
 function R_ClearSolidClipScales()
 
 end function
 
-/*
-* Function: _RS_AngNorm
-* Purpose: Normalizes a numeric value to Doom's unsigned 32-bit binary-angle domain.
-*/
+/// Normalizes a numeric value to Doom's unsigned 32-bit binary-angle domain.
+/// @param a First input operand.
+/// @internal
 function inline _RS_AngNorm(a)
   ai = _RS_ToInt(a, 0)
   return ai & 0xFFFFFFFF
 end function
 
-/*
-* Function: _RS_AngSub
-* Purpose: Subtracts two binary angles with unsigned 32-bit wraparound.
-*/
+/// Subtracts two binary angles with unsigned 32-bit wraparound.
+/// @param a First input operand.
+/// @param b Second input operand.
+/// @internal
 function inline _RS_AngSub(a, b)
   return _RS_AngNorm(_RS_AngNorm(a) - _RS_AngNorm(b))
 end function
 
-/*
-* Function: _RS_ResolveTexture
-* Purpose: Applies animation translation to a positive texture id and rejects invalid or out-of-table results.
-*/
+/// Applies animation translation to a positive texture id and rejects invalid or out-of-table results.
+/// @param texId Tex id value supplied to `_RS_ResolveTexture`.
+/// @internal
 function inline _RS_ResolveTexture(texId)
   t = texId
   if typeof(t) != "int" or t <= 0 then return 0 end if
@@ -235,10 +259,11 @@ function inline _RS_ResolveTexture(texId)
   return t
 end function
 
-/*
-* Function: _RS_SelectWallLights
-* Purpose: Selects the scale-light row for a sector, including horizontal/vertical wall bias and fixed-colormap override.
-*/
+/// Selects the scale-light row for a sector, including horizontal/vertical wall bias and fixed-colormap
+/// override.
+/// @param line Map line or text line affected by the operation.
+/// @param sec Sec value supplied to `_RS_SelectWallLights`.
+/// @internal
 function _RS_SelectWallLights(line, sec)
   global walllights
 
@@ -274,10 +299,11 @@ function _RS_SelectWallLights(line, sec)
   end if
 end function
 
-/*
-* Function: _RS_GetClipValue
-* Purpose: Reads a screen-column clip from either a direct sequence or a biased offset into the openings arena.
-*/
+/// Reads a screen-column clip from either a direct sequence or a biased offset into the openings arena.
+/// @param clipref Clipref value supplied to `_RS_GetClipValue`.
+/// @param x Horizontal map- or screen-space coordinate.
+/// @param fallback Value returned when the requested conversion or lookup is unavailable.
+/// @internal
 function inline _RS_GetClipValue(clipref, x, fallback)
   if typeof(x) != "int" or x < 0 then return fallback end if
   if _RS_IsSeq(clipref) then
@@ -291,10 +317,11 @@ function inline _RS_GetClipValue(clipref, x, fallback)
   return fallback
 end function
 
-/*
-* Function: _RS_SetClipValue
-* Purpose: Writes a screen-column clip through either a direct sequence or a biased openings-arena reference.
-*/
+/// Writes a screen-column clip through either a direct sequence or a biased openings-arena reference.
+/// @param clipref Clipref value supplied to `_RS_SetClipValue`.
+/// @param x Horizontal map- or screen-space coordinate.
+/// @param value Value consumed by the operation.
+/// @internal
 function inline _RS_SetClipValue(clipref, x, value)
   if typeof(x) != "int" or x < 0 then return end if
   if _RS_IsSeq(clipref) then
@@ -307,10 +334,12 @@ function inline _RS_SetClipValue(clipref, x, value)
   end if
 end function
 
-/*
-* Function: _RS_CopyClipToOpenings
-* Purpose: Copies an inclusive screen-column clip range into the openings arena and returns an x-biased reference.
-*/
+/// Copies an inclusive screen-column clip range into the openings arena and returns an x-biased reference.
+/// @param src Src value supplied to `_RS_CopyClipToOpenings`.
+/// @param start Start value supplied to `_RS_CopyClipToOpenings`.
+/// @param stop Stop value supplied to `_RS_CopyClipToOpenings`.
+/// @param fallback Value returned when the requested conversion or lookup is unavailable.
+/// @internal
 function _RS_CopyClipToOpenings(src, start, stop, fallback)
   global lastopening
 
@@ -336,10 +365,11 @@ function _RS_CopyClipToOpenings(src, start, stop, fallback)
   return base - start
 end function
 
-/*
-* Function: _RS_AllocMaskedCols
-* Purpose: Reserves an inclusive masked-column range in openings, initializes MAXSHORT sentinels, and returns an x-biased reference.
-*/
+/// Reserves an inclusive masked-column range in openings, initializes MAXSHORT sentinels, and returns an
+/// x-biased reference.
+/// @param start Start value supplied to `_RS_AllocMaskedCols`.
+/// @param stop Stop value supplied to `_RS_AllocMaskedCols`.
+/// @internal
 function _RS_AllocMaskedCols(start, stop)
   global lastopening
 
@@ -362,10 +392,10 @@ function _RS_AllocMaskedCols(start, stop)
   return base - start
 end function
 
-/*
-* Function: _RS_ReadMaskedCol
-* Purpose: Reads a deferred masked texture column through direct or openings-backed storage, defaulting to MAXSHORT.
-*/
+/// Reads a deferred masked texture column through direct or openings-backed storage, defaulting to MAXSHORT.
+/// @param maskref Maskref value supplied to `_RS_ReadMaskedCol`.
+/// @param x Horizontal map- or screen-space coordinate.
+/// @internal
 function inline _RS_ReadMaskedCol(maskref, x)
   if typeof(x) != "int" or x < 0 then return MAXSHORT end if
   if _RS_IsSeq(maskref) then
@@ -379,10 +409,11 @@ function inline _RS_ReadMaskedCol(maskref, x)
   return MAXSHORT
 end function
 
-/*
-* Function: _RS_WriteMaskedCol
-* Purpose: Writes a deferred masked texture column through direct or openings-backed storage.
-*/
+/// Writes a deferred masked texture column through direct or openings-backed storage.
+/// @param maskref Maskref value supplied to `_RS_WriteMaskedCol`.
+/// @param x Horizontal map- or screen-space coordinate.
+/// @param value Value consumed by the operation.
+/// @internal
 function inline _RS_WriteMaskedCol(maskref, x, value)
   if typeof(x) != "int" or x < 0 then return end if
   if _RS_IsSeq(maskref) then
@@ -395,10 +426,15 @@ function inline _RS_WriteMaskedCol(maskref, x, value)
   end if
 end function
 
-/*
-* Function: _RS_DrawTexturedRange
-* Purpose: Scales one opaque texture column across a bounded vertical framebuffer range using a lighting colormap.
-*/
+/// Scales one opaque texture column across a bounded vertical framebuffer range using a lighting colormap.
+/// @param fb Fb value supplied to `_RS_DrawTexturedRange`.
+/// @param x Horizontal map- or screen-space coordinate.
+/// @param y1 Vertical coordinate of the first endpoint.
+/// @param y2 Vertical coordinate of the second endpoint.
+/// @param texnum Index identifying tex.
+/// @param texCol Tex col value supplied to `_RS_DrawTexturedRange`.
+/// @param cmap Cmap value supplied to `_RS_DrawTexturedRange`.
+/// @internal
 function _RS_DrawTexturedRange(fb, x, y1, y2, texnum, texCol, cmap)
   if y2 < y1 then return end if
   if typeof(fb) != "bytes" then return end if
@@ -422,10 +458,16 @@ function _RS_DrawTexturedRange(fb, x, y1, y2, texnum, texCol, cmap)
   end while
 end function
 
-/*
-* Function: _RS_DrawMaskedTextureColumn
-* Purpose: Decodes patch posts for one masked wall column, clips each post, draws with depth state, and restores shared column inputs.
-*/
+/// Decodes patch posts for one masked wall column, clips each post, draws with depth state, and restores shared
+/// column inputs.
+/// @param x Horizontal map- or screen-space coordinate.
+/// @param texnum Index identifying tex.
+/// @param texturecolumn Texturecolumn value supplied to `_RS_DrawMaskedTextureColumn`.
+/// @param texturemid Texturemid value supplied to `_RS_DrawMaskedTextureColumn`.
+/// @param yscale Yscale value supplied to `_RS_DrawMaskedTextureColumn`.
+/// @param topclip Topclip value supplied to `_RS_DrawMaskedTextureColumn`.
+/// @param bottomclip Bottomclip value supplied to `_RS_DrawMaskedTextureColumn`.
+/// @internal
 function _RS_DrawMaskedTextureColumn(x, texnum, texturecolumn, texturemid, yscale, topclip, bottomclip)
   global colfunc
   global dc_colormap
@@ -528,10 +570,11 @@ function _RS_DrawMaskedTextureColumn(x, texnum, texturecolumn, texturemid, yscal
   return
 end function
 
-/*
-* Function: R_RenderMaskedSegRange
-* Purpose: Renders an inclusive deferred middle-texture range with pegging, scale lighting, and saved sprite clip arrays.
-*/
+/// Renders an inclusive deferred middle-texture range with pegging, scale lighting, and saved sprite clip
+/// arrays.
+/// @param ds Ds value supplied to `R_RenderMaskedSegRange`.
+/// @param x1 Horizontal coordinate of the first endpoint.
+/// @param x2 Horizontal coordinate of the second endpoint.
 function R_RenderMaskedSegRange(ds, x1, x2)
   global curline
   global frontsector
@@ -611,10 +654,8 @@ function R_RenderMaskedSegRange(ds, x1, x2)
   end while
 end function
 
-/*
-* Function: R_RenderSegLoop
-* Purpose: Projects a prepared wall range column by column, draws its wall tiers, updates plane spans, clips, and records masked columns.
-*/
+/// Projects a prepared wall range column by column, draws its wall tiers, updates plane spans, clips, and
+/// records masked columns.
 function R_RenderSegLoop()
   global rw_x
   global rw_scale
@@ -761,10 +802,10 @@ function R_RenderSegLoop()
   end while
 end function
 
-/*
-* Function: R_StoreWallRange
-* Purpose: Builds a drawseg for a visible wall range, derives textures/pegging/silhouettes, renders opaque tiers, and saves sprite clips.
-*/
+/// Builds a drawseg for a visible wall range, derives textures/pegging/silhouettes, renders opaque tiers, and
+/// saves sprite clips.
+/// @param start Start value supplied to `R_StoreWallRange`.
+/// @param stop Stop value supplied to `R_StoreWallRange`.
 function R_StoreWallRange(start, stop)
   global sidedef
   global linedef

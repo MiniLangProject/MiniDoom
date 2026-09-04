@@ -13,9 +13,10 @@
   See the License for the specific language governing permissions and
   limitations under the License.
 
-  Script: s_sound.ml
-  Purpose: Implements sound and music orchestration on top of the platform audio layer.
 */
+
+//! Implements sound and music orchestration on top of the platform audio layer.
+
 import i_system
 import i_sound
 import sounds
@@ -30,70 +31,98 @@ import r_main
 import mp_platform
 import std.math
 
+/// Defines the maximum s max volume accepted by the s sound subsystem.
 const S_MAX_VOLUME = 127
+/// Defines s fracbits for the s sound subsystem.
 const S_FRACBITS = 16
+/// Defines s fracunit for the s sound subsystem.
 const S_FRACUNIT = 65536
+/// Defines s netmsg sound for the s sound subsystem.
+/// @internal
 const _S_NETMSG_SOUND = 201
 
+/// Tracks the mutable s clipping dist value used by the s sound subsystem.
 s_clipping_dist = 1200 * S_FRACUNIT
+/// Tracks the mutable s close dist value used by the s sound subsystem.
 s_close_dist = 160 * S_FRACUNIT
+/// Tracks the mutable s attenuator value used by the s sound subsystem.
 s_attenuator =(s_clipping_dist - s_close_dist) >> S_FRACBITS
 
+/// Defines norm pitch for the s sound subsystem.
 const NORM_PITCH = 128
+/// Defines norm priority for the s sound subsystem.
 const NORM_PRIORITY = 64
+/// Defines norm sep for the s sound subsystem.
 const NORM_SEP = 128
+/// Tracks the mutable s stereo swing value used by the s sound subsystem.
 s_stereo_swing = 96 * S_FRACUNIT
 
+/// Tracks the mutable snd sfx volume value used by the s sound subsystem.
 snd_SfxVolume = 15
+/// Tracks the mutable snd music volume value used by the s sound subsystem.
 snd_MusicVolume = 15
 
+/// Tracks whether mus paused is active in the s sound subsystem.
 mus_paused = false
+/// Holds the optional mus playing resource used by the s sound subsystem.
 mus_playing = void
+/// Tracks the mutable s current music value used by the s sound subsystem.
 s_currentMusic = 0
+/// Stores the s music zone ptrs collection used by the s sound subsystem.
 s_musicZonePtrs =[]
 
+/// Tracks the mutable num channels value used by the s sound subsystem.
 numChannels = 8
+/// Tracks the mutable nextcleanup value used by the s sound subsystem.
 nextcleanup = 15
+/// Tracks whether s debug music once is active in the s sound subsystem.
+/// @internal
 _s_debugMusicOnce = false
+/// Tracks whether s debug sfx once is active in the s sound subsystem.
+/// @internal
 _s_debugSfxOnce = false
+/// Tracks whether s sfx precached is active in the s sound subsystem.
+/// @internal
 _s_sfxPrecached = false
 
-/*
-* Struct: channel_t
-* Purpose: Tracks one logical mixer voice, pairing its SFX metadata and world origin with the platform playback handle.
-*/
+/// Tracks one logical mixer voice, pairing its SFX metadata and world origin with the platform playback handle.
 struct channel_t
+  /// Stores sfxinfo for `channel_t`
   sfxinfo
+  /// Stores origin for `channel_t`
   origin
+  /// Stores handle for `channel_t`
   handle
 end struct
 
-/*
-* Struct: _s_net_origin_t
-* Purpose: Carries positional sound source coordinates decoded from multiplayer sound events.
-*/
+/// Carries positional sound source coordinates decoded from multiplayer sound events.
+/// @internal
 struct _s_net_origin_t
+  /// Horizontal map- or screen-space coordinate stored by `_s_net_origin_t`
   x
+  /// Vertical map- or screen-space coordinate stored by `_s_net_origin_t`
   y
+  /// Vertical world-space coordinate stored by `_s_net_origin_t`
   z
+  /// Doom binary-angle orientation stored by `_s_net_origin_t`
   angle
 end struct
 
+/// Stores the channels collection used by the s sound subsystem.
 channels =[]
 
-/*
-* Function: _S_IsSeq
-* Purpose: Recognizes the array and list containers used for sound tables and channel registries.
-*/
+/// Recognizes the array and list containers used for sound tables and channel registries.
+/// @param v Value consumed by the operation.
+/// @internal
 function inline _S_IsSeq(v)
   t = typeof(v)
   return t == "array" or t == "list"
 end function
 
-/*
-* Function: _S_ToInt
-* Purpose: Coerces numeric values to truncation-toward-zero integers and returns fallback for invalid inputs.
-*/
+/// Coerces numeric values to truncation-toward-zero integers and returns fallback for invalid inputs.
+/// @param v Value consumed by the operation.
+/// @param fallback Value returned when the requested conversion or lookup is unavailable.
+/// @internal
 function inline _S_ToInt(v, fallback)
   if typeof(v) == "int" then return v end if
   if typeof(v) == "float" then
@@ -109,10 +138,10 @@ function inline _S_ToInt(v, fallback)
   return fallback
 end function
 
-/*
-* Function: _S_EnumIndex
-* Purpose: Resolves an integer, numeric value, or enum member to a bounded table index, returning -1 when unsupported.
-*/
+/// Resolves an integer, numeric value, or enum member to a bounded table index, returning -1 when unsupported.
+/// @param v Value consumed by the operation.
+/// @param limit Limit value supplied to `_S_EnumIndex`.
+/// @internal
 function inline _S_EnumIndex(v, limit)
   if typeof(v) == "int" then return v end if
 
@@ -132,10 +161,9 @@ function inline _S_EnumIndex(v, limit)
   return -1
 end function
 
-/*
-* Function: _S_LoadPulse
-* Purpose: Pumps window/audio updates periodically while expensive audio precache loops run.
-*/
+/// Pumps window/audio updates periodically while expensive audio precache loops run.
+/// @param iter Iter value supplied to `_S_LoadPulse`.
+/// @internal
 function inline _S_LoadPulse(iter)
   if typeof(iter) != "int" then return end if
   if (iter & 15) != 0 then return end if
@@ -149,10 +177,9 @@ function inline _S_LoadPulse(iter)
   end if
 end function
 
-/*
-* Function: _S_SfxId
-* Purpose: Converts an SFX enum/value into its numeric id using the smaller of NUMSFX and the loaded SFX table.
-*/
+/// Converts an SFX enum/value into its numeric id using the smaller of NUMSFX and the loaded SFX table.
+/// @param v Value consumed by the operation.
+/// @internal
 function inline _S_SfxId(v)
   lim = 0
   if _S_IsSeq(S_sfx) then lim = len(S_sfx) end if
@@ -165,10 +192,9 @@ function inline _S_SfxId(v)
   return id
 end function
 
-/*
-* Function: _S_MusicId
-* Purpose: Converts a music enum/value into its numeric id using the smaller of NUMMUSIC and the loaded music table.
-*/
+/// Converts a music enum/value into its numeric id using the smaller of NUMMUSIC and the loaded music table.
+/// @param v Value consumed by the operation.
+/// @internal
 function inline _S_MusicId(v)
   lim = 0
   if _S_IsSeq(S_music) then lim = len(S_music) end if
@@ -181,10 +207,11 @@ function inline _S_MusicId(v)
   return id
 end function
 
-/*
-* Function: _S_IDiv
-* Purpose: Returns a signed quotient truncated toward zero, or zero for invalid operands and a zero divisor.
-*/
+/// Returns a signed quotient truncated toward zero, or zero for invalid operands and a zero divisor in
+/// `_S_IDiv`
+/// @param a First input operand.
+/// @param b Second input operand.
+/// @internal
 function inline _S_IDiv(a, b)
   if typeof(a) != "int" or typeof(b) != "int" or b == 0 then return 0 end if
   q = a / b
@@ -192,48 +219,46 @@ function inline _S_IDiv(a, b)
   return std.math.ceil(q)
 end function
 
-/*
-* Function: _S_Clamp
-* Purpose: Constrains a numeric sound parameter to the supplied inclusive range.
-*/
+/// Constrains a numeric sound parameter to the supplied inclusive range.
+/// @param v Value consumed by the operation.
+/// @param lo Inclusive lower bound.
+/// @param hi Inclusive upper bound.
+/// @internal
 function inline _S_Clamp(v, lo, hi)
   if v < lo then return lo end if
   if v > hi then return hi end if
   return v
 end function
 
-/*
-* Function: _S_Min
-* Purpose: Returns the smaller operand for the sound-distance approximation.
-*/
+/// Returns the smaller operand for the sound-distance approximation.
+/// @param a First input operand.
+/// @param b Second input operand.
+/// @internal
 function inline _S_Min(a, b)
   if a < b then return a end if
   return b
 end function
 
-/*
-* Function: _S_Abs
-* Purpose: Returns the non-negative magnitude of an integer coordinate delta, or zero for invalid input.
-*/
+/// Returns the non-negative magnitude of an integer coordinate delta, or zero for invalid input.
+/// @param v Value consumed by the operation.
+/// @internal
 function inline _S_Abs(v)
   if typeof(v) != "int" then return 0 end if
   if v < 0 then return - v end if
   return v
 end function
 
-/*
-* Function: _S_AngNorm
-* Purpose: Normalizes an integer to Doom's unsigned 32-bit binary-angle domain.
-*/
+/// Normalizes an integer to Doom's unsigned 32-bit binary-angle domain.
+/// @param a First input operand.
+/// @internal
 function inline _S_AngNorm(a)
   if typeof(a) != "int" then return 0 end if
   return a & 0xFFFFFFFF
 end function
 
-/*
-* Function: _S_FineSineAt
-* Purpose: Reads a wrapped fine-sine sample for stereo panning, returning zero when the table is unavailable.
-*/
+/// Reads a wrapped fine-sine sample for stereo panning, returning zero when the table is unavailable.
+/// @param idx Zero-based element or table index.
+/// @internal
 function inline _S_FineSineAt(idx)
   if not _S_IsSeq(finesine) or len(finesine) == 0 then return 0 end if
   i = _S_ToInt(idx, 0)
@@ -245,10 +270,8 @@ function inline _S_FineSineAt(idx)
   return finesine[i]
 end function
 
-/*
-* Function: _S_EnsureChannels
-* Purpose: Validates the configured channel count and rebuilds an empty registry whenever its size no longer matches.
-*/
+/// Validates the configured channel count and rebuilds an empty registry whenever its size no longer matches.
+/// @internal
 function inline _S_EnsureChannels()
   global channels
   global numChannels
@@ -267,10 +290,8 @@ function inline _S_EnsureChannels()
   end while
 end function
 
-/*
-* Function: _S_EffectiveConsoleSlot
-* Purpose: Resolves the effective local player slot, preferring multiplayer platform slot in client mode.
-*/
+/// Resolves the effective local player slot, preferring multiplayer platform slot in client mode.
+/// @internal
 function inline _S_EffectiveConsoleSlot()
   cp = _S_ToInt(consoleplayer, 0)
   if typeof(MP_PlatformIsClientConnected) == "function" and MP_PlatformIsClientConnected() then
@@ -281,10 +302,8 @@ function inline _S_EffectiveConsoleSlot()
   return cp
 end function
 
-/*
-* Function: _S_GetListener
-* Purpose: Returns the effective local player's mobj as the positional-audio listener, or void for an invalid slot.
-*/
+/// Returns the effective local player's mobj as the positional-audio listener, or void for an invalid slot.
+/// @internal
 function inline _S_GetListener()
   if not _S_IsSeq(players) then return void end if
   cp = _S_EffectiveConsoleSlot()
@@ -294,10 +313,9 @@ function inline _S_GetListener()
   return p.mo
 end function
 
-/*
-* Function: _S_GetSfxById
-* Purpose: Resolves a valid nonzero sound id to its S_sfx metadata entry.
-*/
+/// Resolves a valid nonzero sound id to its S_sfx metadata entry.
+/// @param sound_id Sound id value supplied to `_S_GetSfxById`.
+/// @internal
 function inline _S_GetSfxById(sound_id)
   sid = _S_SfxId(sound_id)
   if sid < 1 then return void end if
@@ -305,10 +323,9 @@ function inline _S_GetSfxById(sound_id)
   return S_sfx[sid]
 end function
 
-/*
-* Function: _S_LinkOf
-* Purpose: Resolves an SFX alias link stored either as a direct metadata struct or as a table index.
-*/
+/// Resolves an SFX alias link stored either as a direct metadata struct or as a table index.
+/// @param sfx Sound-effect descriptor to process.
+/// @internal
 function inline _S_LinkOf(sfx)
   if sfx is void then return void end if
 
@@ -324,19 +341,17 @@ function inline _S_LinkOf(sfx)
   return void
 end function
 
-/*
-* Function: _S_SfxPriority
-* Purpose: Reads an SFX channel-replacement priority with NORM_PRIORITY as the missing-value default.
-*/
+/// Reads an SFX channel-replacement priority with NORM_PRIORITY as the missing-value default.
+/// @param sfx Sound-effect descriptor to process.
+/// @internal
 function inline _S_SfxPriority(sfx)
   if sfx is void then return NORM_PRIORITY end if
   return _S_ToInt(sfx.priority, NORM_PRIORITY)
 end function
 
-/*
-* Function: _S_DegradeUsefulness
-* Purpose: Decrements the canonical SFX entry's cache-use counter after a channel releases that sound.
-*/
+/// Decrements the canonical SFX entry's cache-use counter after a channel releases that sound.
+/// @param sfx Sound-effect descriptor to process.
+/// @internal
 function inline _S_DegradeUsefulness(sfx)
   if sfx is void then return end if
   if not _S_IsSeq(S_sfx) then return end if
@@ -354,20 +369,20 @@ function inline _S_DegradeUsefulness(sfx)
   end while
 end function
 
-/*
-* Function: _S_SetSfxUsefulnessAndLump
-* Purpose: Writes modified lump and usefulness metadata back to a validated S_sfx table slot.
-*/
+/// Writes modified lump and usefulness metadata back to a validated S_sfx table slot.
+/// @param sid Sid value supplied to `_S_SetSfxUsefulnessAndLump`.
+/// @param sfx Sound-effect descriptor to process.
+/// @internal
 function inline _S_SetSfxUsefulnessAndLump(sid, sfx)
   if not _S_IsSeq(S_sfx) then return end if
   if sid < 1 or sid >= len(S_sfx) then return end if
   S_sfx[sid] = sfx
 end function
 
-/*
-* Function: _S_SameXY
-* Purpose: Reports whether two positional references occupy the same fixed-point x/y location.
-*/
+/// Reports whether two positional references occupy the same fixed-point x/y location.
+/// @param a First input operand.
+/// @param b Second input operand.
+/// @internal
 function inline _S_SameXY(a, b)
   pa = _S_PosRef(a)
   pb = _S_PosRef(b)
@@ -375,10 +390,9 @@ function inline _S_SameXY(a, b)
   return _S_ToInt(pa.x, 0) == _S_ToInt(pb.x, 1) and _S_ToInt(pa.y, 0) == _S_ToInt(pb.y, 1)
 end function
 
-/*
-* Function: _S_PosRef
-* Purpose: Normalizes either a positioned struct or a player wrapper to the struct that owns x/y coordinates.
-*/
+/// Normalizes either a positioned struct or a player wrapper to the struct that owns x/y coordinates.
+/// @param v Value consumed by the operation.
+/// @internal
 function inline _S_PosRef(v)
   if v is void then return void end if
   if typeof(v) == "struct" then
@@ -392,10 +406,9 @@ function inline _S_PosRef(v)
   return void
 end function
 
-/*
-* Function: _S_AngRef
-* Purpose: Extracts an angle from a positioned struct or its nested mobj, defaulting to zero.
-*/
+/// Extracts an angle from a positioned struct or its nested mobj, defaulting to zero.
+/// @param v Value consumed by the operation.
+/// @internal
 function inline _S_AngRef(v)
   if v is void then return 0 end if
   if typeof(v) == "struct" then
@@ -405,10 +418,11 @@ function inline _S_AngRef(v)
   return 0
 end function
 
-/*
-* Function: _S_WriteI32
-* Purpose: Writes one signed 32-bit integer into bytes for multiplayer sound event payloads.
-*/
+/// Writes one signed 32-bit integer into bytes for multiplayer sound event payloads.
+/// @param buf Buf value supplied to `_S_WriteI32`.
+/// @param off Zero-based byte or element offset.
+/// @param v Value consumed by the operation.
+/// @internal
 function inline _S_WriteI32(buf, off, v)
   x = _S_ToInt(v, 0)
   if x < 0 then x = x + 4294967296 end if
@@ -418,10 +432,10 @@ function inline _S_WriteI32(buf, off, v)
   buf[off + 3] =(x >> 24) & 255
 end function
 
-/*
-* Function: _S_ReadI32
-* Purpose: Reads one signed 32-bit integer from multiplayer sound event payload bytes.
-*/
+/// Reads one signed 32-bit integer from multiplayer sound event payload bytes.
+/// @param buf Buf value supplied to `_S_ReadI32`.
+/// @param off Zero-based byte or element offset.
+/// @internal
 function inline _S_ReadI32(buf, off)
   b0 = buf[off] & 255
   b1 = buf[off + 1] & 255
@@ -432,10 +446,12 @@ function inline _S_ReadI32(buf, off)
   return x
 end function
 
-/*
-* Function: _S_MPSendSoundEvent
-* Purpose: Sends one positional/non-positional sound event from host (broadcast or target slot).
-*/
+/// Sends one positional/non-positional sound event from host (broadcast or target slot).
+/// @param origin_p Origin p value supplied to `_S_MPSendSoundEvent`.
+/// @param sid Sid value supplied to `_S_MPSendSoundEvent`.
+/// @param volume Volume value supplied to `_S_MPSendSoundEvent`.
+/// @param targetSlot Target slot value supplied to `_S_MPSendSoundEvent`.
+/// @internal
 function _S_MPSendSoundEvent(origin_p, sid, volume, targetSlot)
   if not(typeof(MP_PlatformIsHosting) == "function" and MP_PlatformIsHosting()) then return end if
   if typeof(MP_PlatformNetSend) != "function" then return end if
@@ -490,10 +506,9 @@ function _S_MPSendSoundEvent(origin_p, sid, volume, targetSlot)
   end while
 end function
 
-/*
-* Function: S_MPSendPickupSoundToPlayer
-* Purpose: Sends one pickup sound to the owning player in host-authoritative multiplayer.
-*/
+/// Sends one pickup sound to the owning player in host-authoritative multiplayer.
+/// @param playerSlot Player slot value supplied to `S_MPSendPickupSoundToPlayer`.
+/// @param sound_id Sound id value supplied to `S_MPSendPickupSoundToPlayer`.
 function S_MPSendPickupSoundToPlayer(playerSlot, sound_id)
   if not(typeof(MP_PlatformIsHosting) == "function" and MP_PlatformIsHosting()) then return end if
   sid = _S_SfxId(sound_id)
@@ -503,10 +518,8 @@ function S_MPSendPickupSoundToPlayer(playerSlot, sound_id)
   _S_MPSendSoundEvent(void, sid, snd_SfxVolume, ts)
 end function
 
-/*
-* Function: S_NetRecvPacket
-* Purpose: Applies one multiplayer sound packet on clients so attenuation uses local listener position.
-*/
+/// Applies one multiplayer sound packet on clients so attenuation uses local listener position.
+/// @param payload Payload value supplied to `S_NetRecvPacket`.
 function S_NetRecvPacket(payload)
   if not(typeof(MP_PlatformIsClientConnected) == "function" and MP_PlatformIsClientConnected()) then return end if
   if typeof(payload) != "bytes" or len(payload) < 5 then return end if
@@ -528,10 +541,10 @@ function S_NetRecvPacket(payload)
   S_StartSoundAtVolume(origin, sid, vol)
 end function
 
-/*
-* Function: S_Init
-* Purpose: Initializes platform channels and volumes, clears music ownership, and resets all SFX lump/usefulness metadata.
-*/
+/// Initializes platform channels and volumes, clears music ownership, and resets all SFX lump/usefulness
+/// metadata.
+/// @param sfxVolume Sfx volume value supplied to `S_Init`.
+/// @param musicVolume Music volume value supplied to `S_Init`.
 function S_Init(sfxVolume, musicVolume)
   global snd_SfxVolume
   global snd_MusicVolume
@@ -579,10 +592,7 @@ function S_Init(sfxVolume, musicVolume)
   snd_MusicVolume = _S_Clamp(_S_ToInt(musicVolume, snd_MusicVolume), 0, S_MAX_VOLUME)
 end function
 
-/*
-* Function: S_Start
-* Purpose: Stops residual channels and selects the looping level track from game mode, episode, and map.
-*/
+/// Stops residual channels and selects the looping level track from game mode, episode, and map.
 function S_Start()
   global mus_paused
   global nextcleanup
@@ -640,10 +650,7 @@ function S_Start()
   nextcleanup = 15
 end function
 
-/*
-* Function: S_PrecacheLevelAudio
-* Purpose: Resolves and precaches every named SFX lump once while periodically pumping window and audio updates.
-*/
+/// Resolves and precaches every named SFX lump once while periodically pumping window and audio updates.
 function S_PrecacheLevelAudio()
   global _s_sfxPrecached
 
@@ -681,18 +688,18 @@ function S_PrecacheLevelAudio()
   _s_sfxPrecached = true
 end function
 
-/*
-* Function: S_StartSound
-* Purpose: Starts an SFX at the current global effects volume.
-*/
+/// Starts an SFX at the current global effects volume.
+/// @param origin Origin value supplied to `S_StartSound`.
+/// @param sound_id Sound id value supplied to `S_StartSound`.
 function S_StartSound(origin, sound_id)
   S_StartSoundAtVolume(origin, sound_id, snd_SfxVolume)
 end function
 
-/*
-* Function: S_StartSoundAtVolume
-* Purpose: Broadcasts host audio, resolves aliases and attenuation, reserves a channel, and starts the platform SFX handle.
-*/
+/// Broadcasts host audio, resolves aliases and attenuation, reserves a channel, and starts the platform SFX
+/// handle.
+/// @param origin_p Origin p value supplied to `S_StartSoundAtVolume`.
+/// @param sfx_id Sfx id value supplied to `S_StartSoundAtVolume`.
+/// @param volume Volume value supplied to `S_StartSoundAtVolume`.
 function S_StartSoundAtVolume(origin_p, sfx_id, volume)
   global _s_debugSfxOnce
   _S_EnsureChannels()
@@ -789,10 +796,8 @@ function S_StartSoundAtVolume(origin_p, sfx_id, volume)
   end if
 end function
 
-/*
-* Function: S_StopSound
-* Purpose: Finds and releases the first active channel associated with a specific sound origin.
-*/
+/// Finds and releases the first active channel associated with a specific sound origin.
+/// @param origin Origin value supplied to `S_StopSound`.
 function S_StopSound(origin)
   _S_EnsureChannels()
 
@@ -807,10 +812,8 @@ function S_StopSound(origin)
   end while
 end function
 
-/*
-* Function: S_StopChannel
-* Purpose: Stops a validated platform voice, decrements its SFX usefulness, and resets the logical channel slot.
-*/
+/// Stops a validated platform voice, decrements its SFX usefulness, and resets the logical channel slot.
+/// @param cnum Index identifying c.
 function S_StopChannel(cnum)
   _S_EnsureChannels()
   if cnum < 0 or cnum >= len(channels) then return end if
@@ -833,10 +836,13 @@ function S_StopChannel(cnum)
   channels[cnum] = channel_t(void, void, -1)
 end function
 
-/*
-* Function: S_AdjustSoundParams
-* Purpose: Computes distance attenuation and listener-relative stereo separation, updating caller-owned volume/separation/pitch cells.
-*/
+/// Computes distance attenuation and listener-relative stereo separation, updating caller-owned
+/// volume/separation/pitch cells.
+/// @param listener Listener value supplied to `S_AdjustSoundParams`.
+/// @param source Source value or buffer.
+/// @param vol Vol value supplied to `S_AdjustSoundParams`.
+/// @param sep Sep value supplied to `S_AdjustSoundParams`.
+/// @param pitch Pitch value supplied to `S_AdjustSoundParams`.
 function S_AdjustSoundParams(listener, source, vol, sep, pitch)
   lp = _S_PosRef(listener)
   sp = _S_PosRef(source)
@@ -900,10 +906,9 @@ function S_AdjustSoundParams(listener, source, vol, sep, pitch)
   return v > 0
 end function
 
-/*
-* Function: S_getChannel
-* Purpose: Reserves an empty or same-origin voice, otherwise replaces an eligible channel by priority or returns -1.
-*/
+/// Reserves an empty or same-origin voice, otherwise replaces an eligible channel by priority or returns -1.
+/// @param origin Origin value supplied to `S_getChannel`.
+/// @param sfxinfo Sfxinfo value supplied to `S_getChannel`.
 function S_getChannel(origin, sfxinfo)
   _S_EnsureChannels()
 
@@ -942,18 +947,16 @@ function S_getChannel(origin, sfxinfo)
   return cnum
 end function
 
-/*
-* Function: S_StartMusic
-* Purpose: Starts a non-looping music track through the common change-music path.
-*/
+/// Starts a non-looping music track through the common change-music path.
+/// @param music_id Music id value supplied to `S_StartMusic`.
 function S_StartMusic(music_id)
   S_ChangeMusic(music_id, false)
 end function
 
-/*
-* Function: S_ChangeMusic
-* Purpose: Stops the previous track, caches and registers the requested music lump, then starts it with the requested loop mode.
-*/
+/// Stops the previous track, caches and registers the requested music lump, then starts it with the requested
+/// loop mode.
+/// @param music_id Music id value supplied to `S_ChangeMusic`.
+/// @param looping Looping value supplied to `S_ChangeMusic`.
 function S_ChangeMusic(music_id, looping)
   global mus_playing
   global mus_paused
@@ -1011,10 +1014,8 @@ function S_ChangeMusic(music_id, looping)
   s_currentMusic = mid
 end function
 
-/*
-* Function: S_StopMusic
-* Purpose: Resumes if needed, stops and unregisters the active song, retags its lump cache, and clears music ownership state.
-*/
+/// Resumes if needed, stops and unregisters the active song, retags its lump cache, and clears music ownership
+/// state.
 function S_StopMusic()
   global mus_playing
   global mus_paused
@@ -1057,10 +1058,7 @@ function S_StopMusic()
   s_currentMusic = 0
 end function
 
-/*
-* Function: S_PauseSound
-* Purpose: Pauses the active music handle exactly once and records the paused state.
-*/
+/// Pauses the active music handle exactly once and records the paused state.
 function S_PauseSound()
   global mus_paused
 
@@ -1070,10 +1068,7 @@ function S_PauseSound()
   end if
 end function
 
-/*
-* Function: S_ResumeSound
-* Purpose: Resumes a previously paused music handle and clears the paused state.
-*/
+/// Resumes a previously paused music handle and clears the paused state.
 function S_ResumeSound()
   global mus_paused
 
@@ -1083,10 +1078,8 @@ function S_ResumeSound()
   end if
 end function
 
-/*
-* Function: S_UpdateSounds
-* Purpose: Recomputes positional parameters for playing voices and releases finished or newly inaudible channels.
-*/
+/// Recomputes positional parameters for playing voices and releases finished or newly inaudible channels.
+/// @param listener_p Listener p value supplied to `S_UpdateSounds`.
 function S_UpdateSounds(listener_p)
   _S_EnsureChannels()
   effListener = listener_p
@@ -1148,10 +1141,8 @@ function S_UpdateSounds(listener_p)
   end while
 end function
 
-/*
-* Function: S_SetMusicVolume
-* Purpose: Clamps and stores music volume, then forwards only the requested level to the platform mixer.
-*/
+/// Clamps and stores music volume, then forwards only the requested level to the platform mixer.
+/// @param volume Volume value supplied to `S_SetMusicVolume`.
 function S_SetMusicVolume(volume)
   global snd_MusicVolume
 
@@ -1163,10 +1154,8 @@ function S_SetMusicVolume(volume)
   end if
 end function
 
-/*
-* Function: S_SetSfxVolume
-* Purpose: Clamps and stores effects volume and forwards it to the platform mixer.
-*/
+/// Clamps and stores effects volume and forwards it to the platform mixer.
+/// @param volume Volume value supplied to `S_SetSfxVolume`.
 function S_SetSfxVolume(volume)
   global snd_SfxVolume
 

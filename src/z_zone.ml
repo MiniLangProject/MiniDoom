@@ -13,53 +13,82 @@
   See the License for the specific language governing permissions and
   limitations under the License.
 
-  Script: z_zone.ml
-  Purpose: Implements zone-style memory tagging and allocation lifecycle helpers.
 */
+
+//! Implements zone-style memory tagging and allocation lifecycle helpers.
+
 import i_system
 import doomdef
 
+/// Defines pu static for the z zone subsystem.
 const PU_STATIC = 1
+/// Defines pu sound for the z zone subsystem.
 const PU_SOUND = 2
+/// Defines pu music for the z zone subsystem.
 const PU_MUSIC = 3
+/// Defines pu dave for the z zone subsystem.
 const PU_DAVE = 4
+/// Defines pu level for the z zone subsystem.
 const PU_LEVEL = 50
+/// Defines pu levspec for the z zone subsystem.
 const PU_LEVSPEC = 51
 
+/// Defines pu purgelevel for the z zone subsystem.
 const PU_PURGELEVEL = 100
+/// Defines pu cache for the z zone subsystem.
 const PU_CACHE = 101
 
-/*
-* Struct: memblock_t
-* Purpose: Describes one contiguous zone range with owner reference, purge tag, integrity marker, and indices in the address-ordered block list.
-*/
+/// Describes one contiguous zone range with owner reference, purge tag, integrity marker, and indices in the
+/// address-ordered block list.
 struct memblock_t
+  /// Stores start for `memblock_t`
   start
+  /// Stores size for `memblock_t`
   size
+  /// Stores user for `memblock_t`
   user
+  /// Stores tag for `memblock_t`
   tag
+  /// Stores id for `memblock_t`
   id
+  /// Next linked record in traversal order stored by `memblock_t`
   next
+  /// Previous linked record in traversal order stored by `memblock_t`
   prev
 end struct
 
+/// Defines zoneid for the z zone subsystem.
 const ZONEID = 0x1d4a11
+/// Defines the minimum minfragment accepted by the z zone subsystem.
 const MINFRAGMENT = 64
+/// Defines z null owner ptr for the z zone subsystem.
+/// @internal
 const _Z_NULL_OWNER_PTR = -1
 
+/// Defines z hdr for the z zone subsystem.
+/// @internal
 const _Z_HDR = 0
 
+/// Holds the optional z buf resource used by the z zone subsystem.
+/// @internal
 _Z_buf = void
+/// Tracks the mutable z size value used by the z zone subsystem.
+/// @internal
 _Z_size = 0
 
+/// Holds the optional z blocks resource used by the z zone subsystem.
+/// @internal
 _Z_blocks = void
+/// Tracks the mutable z blocklist value used by the z zone subsystem.
+/// @internal
 _Z_blocklist = 0
+/// Tracks the mutable z rover value used by the z zone subsystem.
+/// @internal
 _Z_rover = 0
 
-/*
-* Function: _Z_Get
-* Purpose: Lazily initializes the zone and safely resolves an internal block-table index.
-*/
+/// Lazily initializes the zone and safely resolves an internal block-table index.
+/// @param i Zero-based iteration index.
+/// @internal
 function inline _Z_Get(i)
   if typeof(_Z_blocks) != "array" then
     if typeof(Z_Init) == "function" then Z_Init() end if
@@ -69,10 +98,10 @@ function inline _Z_Get(i)
   return _Z_blocks[i]
 end function
 
-/*
-* Function: _Z_Set
-* Purpose: Updates a zone allocation block in the zone memory table.
-*/
+/// Updates a zone allocation block in the zone memory table.
+/// @param i Zero-based iteration index.
+/// @param b Second input operand.
+/// @internal
 function inline _Z_Set(i, b)
   if typeof(_Z_blocks) != "array" then return end if
   if typeof(i) != "int" or i < 0 then return end if
@@ -80,35 +109,38 @@ function inline _Z_Set(i, b)
   _Z_blocks[i] = b
 end function
 
-/*
-* Function: _Z_IsFree
-* Purpose: Treats a block as free exactly when it has no owner marker.
-*/
+/// Treats a block as free exactly when it has no owner marker.
+/// @param i Zero-based iteration index.
+/// @internal
 function inline _Z_IsFree(i)
   b = _Z_Get(i)
   return typeof(b.user) == "void"
 end function
 
-/*
-* Function: _Z_NewBlock
-* Purpose: Constructs a block descriptor without linking it into the zone list.
-*/
+/// Constructs a block descriptor without linking it into the zone list.
+/// @param start Start value supplied to `_Z_NewBlock`.
+/// @param size Requested size in bytes or elements.
+/// @param user User value supplied to `_Z_NewBlock`.
+/// @param tag Zone-memory or resource-lifetime tag.
+/// @param id Id value supplied to `_Z_NewBlock`.
+/// @param next Next value supplied to `_Z_NewBlock`.
+/// @param prev Prev value supplied to `_Z_NewBlock`.
+/// @internal
 function inline _Z_NewBlock(start, size, user, tag, id, next, prev)
   return memblock_t(start, size, user, tag, id, next, prev)
 end function
 
-/*
-* Function: _Z_Align4
-* Purpose: Rounds an allocation size upward to the allocator's four-byte boundary.
-*/
+/// Rounds an allocation size upward to the allocator's four-byte boundary.
+/// @param n Number of values to process.
+/// @internal
 function inline _Z_Align4(n)
   return (n + 3) &(~3)
 end function
 
-/*
-* Function: _Z_LinkAfter
-* Purpose: Inserts one block after another and updates all four neighboring list links atomically.
-*/
+/// Inserts one block after another and updates all four neighboring list links atomically.
+/// @param aIdx A idx value supplied to `_Z_LinkAfter`.
+/// @param bIdx B idx value supplied to `_Z_LinkAfter`.
+/// @internal
 function inline _Z_LinkAfter(aIdx, bIdx)
 
   a = _Z_Get(aIdx)
@@ -128,10 +160,9 @@ function inline _Z_LinkAfter(aIdx, bIdx)
   _Z_Set(nIdx, n)
 end function
 
-/*
-* Function: _Z_Unlink
-* Purpose: Removes a block descriptor from the doubly linked address list and clears its own links.
-*/
+/// Removes a block descriptor from the doubly linked address list and clears its own links.
+/// @param i Zero-based iteration index.
+/// @internal
 function inline _Z_Unlink(i)
   b = _Z_Get(i)
   pIdx = b.prev
@@ -151,10 +182,10 @@ function inline _Z_Unlink(i)
   _Z_Set(i, b)
 end function
 
-/*
-* Function: _Z_FindBlockByPtr
-* Purpose: Finds the allocated block whose payload begins at a zone-buffer offset, returning the sentinel index when absent.
-*/
+/// Finds the allocated block whose payload begins at a zone-buffer offset, returning the sentinel index when
+/// absent.
+/// @param ptr Ptr value supplied to `_Z_FindBlockByPtr`.
+/// @internal
 function inline _Z_FindBlockByPtr(ptr)
 
   i = _Z_Get(_Z_blocklist).next
@@ -168,10 +199,10 @@ function inline _Z_FindBlockByPtr(ptr)
   return 0
 end function
 
-/*
-* Function: _Z_AssignUser
-* Purpose: Writes an allocated payload offset through Doom's single-element owner-reference convention.
-*/
+/// Writes an allocated payload offset through Doom's single-element owner-reference convention.
+/// @param user User value supplied to `_Z_AssignUser`.
+/// @param ptr Ptr value supplied to `_Z_AssignUser`.
+/// @internal
 function inline _Z_AssignUser(user, ptr)
 
   if typeof(user) == "array" and len(user) > 0 then
@@ -179,10 +210,8 @@ function inline _Z_AssignUser(user, ptr)
   end if
 end function
 
-/*
-* Function: Z_ClearZone
-* Purpose: Replaces all allocator metadata with a sentinel and one free block covering the complete zone buffer.
-*/
+/// Replaces all allocator metadata with a sentinel and one free block covering the complete zone buffer.
+/// @param zone Zone value supplied to `Z_ClearZone`.
 function Z_ClearZone(zone)
   global _Z_blocks
   global _Z_blocklist
@@ -207,10 +236,7 @@ function Z_ClearZone(zone)
   _Z_rover = freeIdx
 end function
 
-/*
-* Function: Z_Init
-* Purpose: Obtains the platform zone buffer and initializes allocator metadata over its reported capacity.
-*/
+/// Obtains the platform zone buffer and initializes allocator metadata over its reported capacity.
 function Z_Init()
   global _Z_buf
   global _Z_size
@@ -224,10 +250,9 @@ function Z_Init()
   Z_ClearZone(void)
 end function
 
-/*
-* Function: Z_Free
-* Purpose: Validates and releases an allocation, invalidates its owner reference, and coalesces adjacent free blocks while repairing the rover.
-*/
+/// Validates and releases an allocation, invalidates its owner reference, and coalesces adjacent free blocks
+/// while repairing the rover.
+/// @param ptr Ptr value supplied to `Z_Free`.
 function Z_Free(ptr)
   global _Z_rover
 
@@ -280,10 +305,11 @@ function Z_Free(ptr)
   end if
 end function
 
-/*
-* Function: Z_Malloc
-* Purpose: Performs rover-based first-fit allocation, purges eligible tagged blocks, splits large remainders, and enforces owners for purgeable memory.
-*/
+/// Performs rover-based first-fit allocation, purges eligible tagged blocks, splits large remainders, and
+/// enforces owners for purgeable memory.
+/// @param size Requested size in bytes or elements.
+/// @param tag Zone-memory or resource-lifetime tag.
+/// @param user User value supplied to `Z_Malloc`.
 function Z_Malloc(size, tag, user)
   global _Z_blocks
   global _Z_rover
@@ -367,10 +393,10 @@ function Z_Malloc(size, tag, user)
     return baseB.start + _Z_HDR
   end function
 
-  /*
-* Function: Z_FreeTags
-* Purpose: Frees every allocated block whose purge tag lies in the inclusive requested range while preserving traversal across coalescing.
-  */
+  /// Frees every allocated block whose purge tag lies in the inclusive requested range while preserving
+  /// traversal across coalescing.
+  /// @param lowtag Lowtag value supplied to `Z_FreeTags`.
+  /// @param hightag Hightag value supplied to `Z_FreeTags`.
   function Z_FreeTags(lowtag, hightag)
     head = _Z_Get(_Z_blocklist)
     if head is void then return end if
@@ -395,10 +421,9 @@ function Z_Malloc(size, tag, user)
     end while
   end function
 
-  /*
-* Function: Z_DumpHeap
-* Purpose: Prints allocator size and metadata for blocks in a selected tag range for diagnostics.
-  */
+  /// Prints allocator size and metadata for blocks in a selected tag range for diagnostics.
+  /// @param lowtag Lowtag value supplied to `Z_DumpHeap`.
+  /// @param hightag Hightag value supplied to `Z_DumpHeap`.
   function Z_DumpHeap(lowtag, hightag)
     print "zone size: " + _Z_size
     print "tag range: " + lowtag + " to " + hightag
@@ -413,19 +438,16 @@ function Z_Malloc(size, tag, user)
     end while
   end function
 
-  /*
-* Function: Z_FileDumpHeap
-* Purpose: Preserves the legacy file-dump entry point by emitting the complete heap through the active diagnostic output.
-  */
+  /// Preserves the legacy file-dump entry point by emitting the complete heap through the active diagnostic
+  /// output.
+  /// @param f F value supplied to `Z_FileDumpHeap`.
   function Z_FileDumpHeap(f)
 
     Z_DumpHeap(0, 9999)
   end function
 
-  /*
-* Function: Z_CheckHeap
-* Purpose: Verifies bidirectional links, contiguous address coverage, absence of adjacent free blocks, and the final zone extent.
-  */
+  /// Verifies bidirectional links, contiguous address coverage, absence of adjacent free blocks, and the final
+  /// zone extent.
   function Z_CheckHeap()
 
     i = _Z_Get(_Z_blocklist).next
@@ -462,10 +484,9 @@ function Z_Malloc(size, tag, user)
     end if
   end function
 
-  /*
-* Function: Z_ChangeTag2
-* Purpose: Retags a validated allocation while forbidding purgeable tags on blocks without an owner reference.
-  */
+  /// Retags a validated allocation while forbidding purgeable tags on blocks without an owner reference.
+  /// @param ptr Ptr value supplied to `Z_ChangeTag2`.
+  /// @param tag Zone-memory or resource-lifetime tag.
   function Z_ChangeTag2(ptr, tag)
     idx = _Z_FindBlockByPtr(ptr)
     if idx == 0 then
@@ -489,18 +510,14 @@ function Z_Malloc(size, tag, user)
     _Z_Set(idx, b)
   end function
 
-  /*
-* Function: Z_ChangeTag
-* Purpose: Exposes the validated retagging operation under the original zone API name.
-  */
+  /// Exposes the validated retagging operation under the original zone API name.
+  /// @param ptr Ptr value supplied to `Z_ChangeTag`.
+  /// @param tag Zone-memory or resource-lifetime tag.
   function Z_ChangeTag(ptr, tag)
     Z_ChangeTag2(ptr, tag)
   end function
 
-  /*
-* Function: Z_FreeMemory
-* Purpose: Totals immediately free and purgeable bytes to estimate memory available for a future allocation.
-  */
+  /// Totals immediately free and purgeable bytes to estimate memory available for a future allocation.
   function Z_FreeMemory()
     free = 0
     i = _Z_Get(_Z_blocklist).next
@@ -514,34 +531,29 @@ function Z_Malloc(size, tag, user)
     return free
   end function
 
-  /*
-* Function: Z_GetZoneBuffer
-* Purpose: Returns the backing byte buffer addressed by all zone payload offsets.
-  */
+  /// Returns the backing byte buffer addressed by all zone payload offsets.
   function Z_GetZoneBuffer()
     return _Z_buf
   end function
 
-  /*
-* Function: Z_PeekByte
-* Purpose: Reads one byte at an absolute zone-buffer offset.
-  */
+  /// Reads one byte at an absolute zone-buffer offset.
+  /// @param ptr Ptr value supplied to `Z_PeekByte`.
   function Z_PeekByte(ptr)
     return _Z_buf[ptr]
   end function
 
-  /*
-* Function: Z_PokeByte
-* Purpose: Writes the low eight bits of a value at an absolute zone-buffer offset.
-  */
+  /// Writes the low eight bits of a value at an absolute zone-buffer offset.
+  /// @param ptr Ptr value supplied to `Z_PokeByte`.
+  /// @param v Value consumed by the operation.
   function Z_PokeByte(ptr, v)
     _Z_buf[ptr] = v & 255
   end function
 
-  /*
-* Function: Z_PokeBytes
-* Purpose: Copies a validated source byte range into the zone buffer at an absolute payload offset.
-  */
+  /// Copies a validated source byte range into the zone buffer at an absolute payload offset.
+  /// @param dstPtr Dst ptr value supplied to `Z_PokeBytes`.
+  /// @param srcBytes Src bytes value supplied to `Z_PokeBytes`.
+  /// @param srcOff Src off value supplied to `Z_PokeBytes`.
+  /// @param length Number of bytes or elements in the associated value.
   function Z_PokeBytes(dstPtr, srcBytes, srcOff, length)
     if typeof(dstPtr) != "int" then
       I_Error("Z_PokeBytes: dstPtr must be int offset")
@@ -560,10 +572,9 @@ function Z_Malloc(size, tag, user)
     end for
   end function
 
-  /*
-* Function: Z_BytesAt
-* Purpose: Returns a byte slice copied from an absolute zone-buffer range.
-  */
+  /// Returns a byte slice copied from an absolute zone-buffer range.
+  /// @param ptr Ptr value supplied to `Z_BytesAt`.
+  /// @param length Number of bytes or elements in the associated value.
   function Z_BytesAt(ptr, length)
     return slice(_Z_buf, ptr, length)
   end function

@@ -13,9 +13,11 @@
   See the License for the specific language governing permissions and
   limitations under the License.
 
-  Script: p_setup.ml
-  Purpose: Decodes map lumps into runtime geometry, links sector topology, spawns things/specials, and prepares a playable level.
 */
+
+//! Decodes map lumps into runtime geometry, links sector topology, spawns things/specials, and prepares a
+//! playable level.
+
 import z_zone
 import m_swap
 import m_bbox
@@ -39,28 +41,28 @@ import r_defs
 import r_state
 import r_things
 
-/*
-* Function: _PS_U16LE
-* Purpose: Decodes an unsigned 16-bit little-endian field from a map lump.
-*/
+/// Decodes an unsigned 16-bit little-endian field from a map lump.
+/// @param b Second input operand.
+/// @param off Zero-based byte or element offset.
+/// @internal
 function inline _PS_U16LE(b, off)
   return b[off] +(b[off + 1] << 8)
 end function
 
-/*
-* Function: _PS_I16LE
-* Purpose: Decodes a two-byte map-lump field with signed 16-bit interpretation.
-*/
+/// Decodes a two-byte map-lump field with signed 16-bit interpretation.
+/// @param b Second input operand.
+/// @param off Zero-based byte or element offset.
+/// @internal
 function inline _PS_I16LE(b, off)
   x = _PS_U16LE(b, off)
   if x >= 32768 then x = x - 65536 end if
   return x
 end function
 
-/*
-* Function: _PS_ReadLumpBytes
-* Purpose: Allocates an exact-size buffer and copies a map lump into it, returning an empty buffer for zero-length lumps.
-*/
+/// Allocates an exact-size buffer and copies a map lump into it, returning an empty buffer for zero-length
+/// lumps.
+/// @param lump Lump value supplied to `_PS_ReadLumpBytes`.
+/// @internal
 function inline _PS_ReadLumpBytes(lump)
   n = W_LumpLength(lump)
   if n <= 0 then
@@ -71,18 +73,19 @@ function inline _PS_ReadLumpBytes(lump)
   return lumpBytes
 end function
 
-/*
-* Function: _PS_Name8
-* Purpose: Extracts an eight-byte texture or flat name field from a map record without decoding it prematurely.
-*/
+/// Extracts an eight-byte texture or flat name field from a map record without decoding it prematurely.
+/// @param data Binary or structured data to process.
+/// @param off Zero-based byte or element offset.
+/// @internal
 function inline _PS_Name8(data, off)
   return slice(data, off, 8)
 end function
 
-/*
-* Function: _PSET_IDiv
-* Purpose: Returns a signed quotient truncated toward zero, or zero for invalid operands and a zero divisor.
-*/
+/// Returns a signed quotient truncated toward zero, or zero for invalid operands and a zero divisor in
+/// `_PSET_IDiv`
+/// @param a First input operand.
+/// @param b Second input operand.
+/// @internal
 function inline _PSET_IDiv(a, b)
   if typeof(a) != "int" or typeof(b) != "int" or b == 0 then return 0 end if
   q = a / b
@@ -90,19 +93,17 @@ function inline _PSET_IDiv(a, b)
   return std.math.ceil(q)
 end function
 
-/*
-* Function: _PSET_IsSeq
-* Purpose: Recognizes both array and list containers accepted by map geometry and runtime tables.
-*/
+/// Recognizes both array and list containers accepted by map geometry and runtime tables.
+/// @param v Value consumed by the operation.
+/// @internal
 function inline _PSET_IsSeq(v)
   t = typeof(v)
   return t == "array" or t == "list"
 end function
 
-/*
-* Function: _PSET_LoadPulse
-* Purpose: Keeps the window responsive and updates loading UI during expensive level setup phases.
-*/
+/// Keeps the window responsive and updates loading UI during expensive level setup phases.
+/// @param text Text to process.
+/// @internal
 function inline _PSET_LoadPulse(text)
   if typeof(text) == "string" and text != "" and typeof(I_SetLoadingStatus) == "function" then
     I_SetLoadingStatus(text)
@@ -115,10 +116,9 @@ function inline _PSET_LoadPulse(text)
   end if
 end function
 
-/*
-* Function: _PS_VertexOrZero
-* Purpose: Resolves a map vertex index and substitutes an origin vertex for malformed references.
-*/
+/// Resolves a map vertex index and substitutes an origin vertex for malformed references.
+/// @param idx Zero-based element or table index.
+/// @internal
 function inline _PS_VertexOrZero(idx)
   if idx < 0 or not _PSET_IsSeq(vertexes) or idx >= len(vertexes) then
     return vertex_t(0, 0)
@@ -126,10 +126,10 @@ function inline _PS_VertexOrZero(idx)
   return vertexes[idx]
 end function
 
-/*
-* Function: _PS_MapName
-* Purpose: Maps episode/map numbers to canonical ExMy or MAPnn lump names, with edition-appropriate first-map fallback.
-*/
+/// Maps episode/map numbers to canonical ExMy or MAPnn lump names, with edition-appropriate first-map fallback.
+/// @param episode Episode value supplied to `_PS_MapName`.
+/// @param map Map value supplied to `_PS_MapName`.
+/// @internal
 function inline _PS_MapName(episode, map)
   if gamemode == GameMode_t.commercial then
     if map == 1 then return "MAP01" end if
@@ -205,10 +205,9 @@ function inline _PS_MapName(episode, map)
   return "E1M1"
 end function
 
-/*
-* Function: _PS_EnsureRuntimeArrays
-* Purpose: Ensures player and spawn tables have canonical capacities and rewinds deathmatch-start insertion for the new level.
-*/
+/// Ensures player and spawn tables have canonical capacities and rewinds deathmatch-start insertion for the new
+/// level.
+/// @internal
 function _PS_EnsureRuntimeArrays()
   global players
   global deathmatchstarts
@@ -239,10 +238,8 @@ function _PS_EnsureRuntimeArrays()
   end if
 end function
 
-/*
-* Function: P_LoadVertexes
-* Purpose: Decodes four-byte VERTEXES records and promotes map-unit coordinates to fixed-point runtime vertices.
-*/
+/// Decodes four-byte VERTEXES records and promotes map-unit coordinates to fixed-point runtime vertices.
+/// @param lump Lump value supplied to `P_LoadVertexes`.
 function P_LoadVertexes(lump)
   global numvertexes
   global vertexes
@@ -261,10 +258,9 @@ function P_LoadVertexes(lump)
   end while
 end function
 
-/*
-* Function: P_LoadSectors
-* Purpose: Decodes SECTORS records, resolves flat names, and initializes mutable sound, thing, line, and special ownership fields.
-*/
+/// Decodes SECTORS records, resolves flat names, and initializes mutable sound, thing, line, and special
+/// ownership fields.
+/// @param lump Lump value supplied to `P_LoadSectors`.
 function P_LoadSectors(lump)
   global numsectors
   global sectors
@@ -308,10 +304,8 @@ function P_LoadSectors(lump)
   end while
 end function
 
-/*
-* Function: P_LoadSideDefs
-* Purpose: Decodes SIDEDEFS offsets and texture names, then resolves each record's owning sector reference.
-*/
+/// Decodes SIDEDEFS offsets and texture names, then resolves each record's owning sector reference.
+/// @param lump Lump value supplied to `P_LoadSideDefs`.
 function P_LoadSideDefs(lump)
   global numsides
   global sides
@@ -341,10 +335,8 @@ function P_LoadSideDefs(lump)
   end while
 end function
 
-/*
-* Function: P_LoadLineDefs
-* Purpose: Decodes LINEDEFS, resolves vertices and sectors, and precomputes direction, slope class, and bounding boxes.
-*/
+/// Decodes LINEDEFS, resolves vertices and sectors, and precomputes direction, slope class, and bounding boxes.
+/// @param lump Lump value supplied to `P_LoadLineDefs`.
 function P_LoadLineDefs(lump)
   global numlines
   global lines
@@ -409,10 +401,8 @@ function P_LoadLineDefs(lump)
   end while
 end function
 
-/*
-* Function: P_LoadSubsectors
-* Purpose: Decodes SSECTORS seg ranges while leaving sector ownership for the later line-grouping pass.
-*/
+/// Decodes SSECTORS seg ranges while leaving sector ownership for the later line-grouping pass.
+/// @param lump Lump value supplied to `P_LoadSubsectors`.
 function P_LoadSubsectors(lump)
   global numsubsectors
   global subsectors
@@ -431,10 +421,8 @@ function P_LoadSubsectors(lump)
   end while
 end function
 
-/*
-* Function: P_LoadNodes
-* Purpose: Decodes BSP partition origins, directions, child bounds, and node-or-subsector child identifiers.
-*/
+/// Decodes BSP partition origins, directions, child bounds, and node-or-subsector child identifiers.
+/// @param lump Lump value supplied to `P_LoadNodes`.
 function P_LoadNodes(lump)
   global numnodes
   global nodes
@@ -475,10 +463,8 @@ function P_LoadNodes(lump)
   end while
 end function
 
-/*
-* Function: P_LoadSegs
-* Purpose: Decodes SEGS geometry and resolves its linedef, sidedef, front sector, and optional opposite sector links.
-*/
+/// Decodes SEGS geometry and resolves its linedef, sidedef, front sector, and optional opposite sector links.
+/// @param lump Lump value supplied to `P_LoadSegs`.
 function P_LoadSegs(lump)
   global numsegs
   global segs
@@ -532,10 +518,9 @@ function P_LoadSegs(lump)
   end while
 end function
 
-/*
-* Function: P_LoadBlockMap
-* Purpose: Decodes BLOCKMAP words, promotes its origin, normalizes cell offsets, and allocates empty per-cell thing chains.
-*/
+/// Decodes BLOCKMAP words, promotes its origin, normalizes cell offsets, and allocates empty per-cell thing
+/// chains.
+/// @param lump Lump value supplied to `P_LoadBlockMap`.
 function P_LoadBlockMap(lump)
   global blockmaplump
   global blockmap
@@ -594,10 +579,9 @@ function P_LoadBlockMap(lump)
   end while
 end function
 
-/*
-* Function: P_LoadThings
-* Purpose: Decodes THINGS records and spawns edition-compatible map objects, stopping at unsupported commercial actors in noncommercial games.
-*/
+/// Decodes THINGS records and spawns edition-compatible map objects, stopping at unsupported commercial actors
+/// in noncommercial games.
+/// @param lump Lump value supplied to `P_LoadThings`.
 function P_LoadThings(lump)
   data = _PS_ReadLumpBytes(lump)
   numthings = _PSET_IDiv(len(data), 10)
@@ -636,10 +620,8 @@ function P_LoadThings(lump)
   end while
 end function
 
-/*
-* Function: P_GroupLines
-* Purpose: Assigns subsector sectors and builds each sector's line list, fixed bounds, blockmap bounds, and centered sound origin.
-*/
+/// Assigns subsector sectors and builds each sector's line list, fixed bounds, blockmap bounds, and centered
+/// sound origin.
 function P_GroupLines()
 
   if _PSET_IsSeq(subsectors) and _PSET_IsSeq(segs) then
@@ -739,10 +721,8 @@ function P_GroupLines()
   end while
 end function
 
-/*
-* Function: P_Init
-* Purpose: Prepares switch pairs, animated flats/textures, and sprite definitions shared by all subsequently loaded levels.
-*/
+/// Prepares switch pairs, animated flats/textures, and sprite definitions shared by all subsequently loaded
+/// levels.
 function P_Init()
   if typeof(P_InitSwitchList) == "function" then P_InitSwitchList() end if
   if typeof(P_InitPicAnims) == "function" then P_InitPicAnims() end if
@@ -751,10 +731,12 @@ function P_Init()
   end if
 end function
 
-/*
-* Function: P_SetupLevel
-* Purpose: Tears down prior level state, loads map lumps in dependency order, links geometry, spawns actors/specials, precaches assets, and enters GS_LEVEL.
-*/
+/// Tears down prior level state, loads map lumps in dependency order, links geometry, spawns actors/specials,
+/// precaches assets, and enters GS_LEVEL.
+/// @param episode Episode value supplied to `P_SetupLevel`.
+/// @param map Map value supplied to `P_SetupLevel`.
+/// @param playermask Playermask value supplied to `P_SetupLevel`.
+/// @param skill Skill value supplied to `P_SetupLevel`.
 function P_SetupLevel(episode, map, playermask, skill)
   global gameepisode
   global gamemap

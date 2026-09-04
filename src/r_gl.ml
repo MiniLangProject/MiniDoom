@@ -13,9 +13,11 @@
   See the License for the specific language governing permissions and
   limitations under the License.
 
-  Script: r_gl.ml
-  Purpose: Renders Doom maps as cached OpenGL wall/flat geometry with dynamic sectors, masked surfaces, sprites, skies, and lights.
 */
+
+//! Renders Doom maps as cached OpenGL wall/flat geometry with dynamic sectors, masked surfaces, sprites, skies,
+//! and lights.
+
 import doomdef
 import doomdata
 import doomstat
@@ -32,282 +34,489 @@ import i_gl
 import std.math
 import std.time
 
+/// Defines rgl angle full for the r gl subsystem.
 const RGL_ANGLE_FULL = 4294967296.0
+/// Defines rgl ff framemask for the r gl subsystem.
 const RGL_FF_FRAMEMASK = 0x7fff
+/// Defines rgl world sprite foot lift for the r gl subsystem.
 const RGL_WORLD_SPRITE_FOOT_LIFT = 4.0
 // Keeps MAP32's roughly 7000-unit sightlines inside both the GL frustum and sprite culler with safe margin.
+/// Defines rgl world view distance for the r gl subsystem.
 const RGL_WORLD_VIEW_DISTANCE = 12288.0
+/// Defines rgl baseycenter for the r gl subsystem.
 const RGL_BASEYCENTER = 100
+/// Defines rgl dynamic settle frames for the r gl subsystem.
 const RGL_DYNAMIC_SETTLE_FRAMES = 3
+/// Defines rgl geom fix scale for the r gl subsystem.
 const RGL_GEOM_FIX_SCALE = 65536.0
+/// Defines rgl geom version for the r gl subsystem.
 const RGL_GEOM_VERSION = 9
+/// Defines rgl camera back offset for the r gl subsystem.
 const RGL_CAMERA_BACK_OFFSET = 0.0
 
+/// Stores the rgl tex keys collection used by the r gl subsystem.
 rgl_tex_keys =[]
+/// Stores the rgl tex ids collection used by the r gl subsystem.
 rgl_tex_ids =[]
+/// Stores the rgl texnum tex ids collection used by the r gl subsystem.
 rgl_texnum_tex_ids =[]
+/// Stores the rgl texnum trans tex ids collection used by the r gl subsystem.
 rgl_texnum_trans_tex_ids =[]
+/// Stores the rgl flat tex ids collection used by the r gl subsystem.
 rgl_flat_tex_ids =[]
+/// Stores the rgl sprite tex ids collection used by the r gl subsystem.
 rgl_sprite_tex_ids =[]
+/// Stores the rgl sprite fuzz tex ids collection used by the r gl subsystem.
 rgl_sprite_fuzz_tex_ids =[]
+/// Tracks the mutable rgl palette revision seen value used by the r gl subsystem.
 rgl_palette_revision_seen = -1
+/// Tracks the mutable rgl view x value used by the r gl subsystem.
 rgl_view_x = 0.0
+/// Tracks the mutable rgl view y value used by the r gl subsystem.
 rgl_view_y = 0.0
+/// Tracks the mutable rgl view yaw value used by the r gl subsystem.
 rgl_view_yaw = 0.0
+/// Tracks whether rgl building cache is active in the r gl subsystem.
 rgl_building_cache = false
+/// Tracks whether rgl collecting volatile geometry is active in the r gl subsystem.
 rgl_collecting_volatile_geometry = false
+/// Tracks whether rgl flat volatile only is active in the r gl subsystem.
 rgl_flat_volatile_only = false
+/// Tracks the mutable rgl cache target value used by the r gl subsystem.
 rgl_cache_target = 0
+/// Tracks the mutable rgl current light value used by the r gl subsystem.
 rgl_current_light = 255
+/// Tracks whether rgl force software is active in the r gl subsystem.
 rgl_force_software = false
+/// Tracks whether rgl geom ready is active in the r gl subsystem.
 rgl_geom_ready = false
+/// Tracks the mutable rgl geom sig map value used by the r gl subsystem.
 rgl_geom_sig_map = -1
+/// Tracks the mutable rgl geom sig segs value used by the r gl subsystem.
 rgl_geom_sig_segs = -1
+/// Tracks the mutable rgl geom sig lines value used by the r gl subsystem.
 rgl_geom_sig_lines = -1
+/// Tracks the mutable rgl geom sig nodes value used by the r gl subsystem.
 rgl_geom_sig_nodes = -1
+/// Tracks the mutable rgl geom sig subsectors value used by the r gl subsystem.
 rgl_geom_sig_subsectors = -1
+/// Tracks the mutable rgl geom sig sector motion value used by the r gl subsystem.
 rgl_geom_sig_sector_motion = -1
+/// Tracks the mutable rgl geom sig sides value used by the r gl subsystem.
 rgl_geom_sig_sides = -1
+/// Tracks the mutable rgl pending sig sector motion value used by the r gl subsystem.
 rgl_pending_sig_sector_motion = -1
+/// Tracks the mutable rgl pending sig sides value used by the r gl subsystem.
 rgl_pending_sig_sides = -1
+/// Tracks the mutable rgl pending stable frames value used by the r gl subsystem.
 rgl_pending_stable_frames = 0
+/// Tracks the mutable rgl side sig map value used by the r gl subsystem.
 rgl_side_sig_map = -1
+/// Tracks the mutable rgl side sig gametic value used by the r gl subsystem.
 rgl_side_sig_gametic = -1
+/// Tracks the mutable rgl side sig leveltime value used by the r gl subsystem.
 rgl_side_sig_leveltime = -1
+/// Tracks the mutable rgl side sig value value used by the r gl subsystem.
 rgl_side_sig_value = -1
+/// Tracks the mutable rgl volatile sig map value used by the r gl subsystem.
 rgl_volatile_sig_map = -1
+/// Stores the rgl volatile sectors collection used by the r gl subsystem.
 rgl_volatile_sectors =[]
+/// Stores the rgl volatile subsectors collection used by the r gl subsystem.
 rgl_volatile_subsectors =[]
+/// Stores the rgl volatile segs collection used by the r gl subsystem.
 rgl_volatile_segs =[]
+/// Stores the rgl volatile lines collection used by the r gl subsystem.
 rgl_volatile_lines =[]
+/// Stores the rgl scrolling segs collection used by the r gl subsystem.
 rgl_scrolling_segs =[]
+/// Stores the rgl scrolling lines collection used by the r gl subsystem.
 rgl_scrolling_lines =[]
+/// Stores the rgl scrolling sides collection used by the r gl subsystem.
 rgl_scrolling_sides =[]
+/// Tracks whether rgl collecting scrolling geometry is active in the r gl subsystem.
 rgl_collecting_scrolling_geometry = false
+/// Stores the rgl scrolling wall array batches collection used by the r gl subsystem.
 rgl_scrolling_wall_array_batches =[]
+/// Stores the rgl scrolling masked array batches collection used by the r gl subsystem.
 rgl_scrolling_masked_array_batches =[]
+/// Tracks the mutable rgl scrolling wall native records value used by the r gl subsystem.
 rgl_scrolling_wall_native_records = bytes(0, 0)
+/// Tracks the mutable rgl scrolling masked native records value used by the r gl subsystem.
 rgl_scrolling_masked_native_records = bytes(0, 0)
+/// Tracks the mutable rgl scrolling wall native record count value used by the r gl subsystem.
 rgl_scrolling_wall_native_record_count = 0
+/// Tracks the mutable rgl scrolling masked native record count value used by the r gl subsystem.
 rgl_scrolling_masked_native_record_count = 0
+/// Tracks the mutable rgl scrolling wall texture revision value used by the r gl subsystem.
 rgl_scrolling_wall_texture_revision = -1
+/// Tracks the mutable rgl scrolling masked texture revision value used by the r gl subsystem.
 rgl_scrolling_masked_texture_revision = -1
+/// Tracks the mutable rgl scrolling geometry last gametic value used by the r gl subsystem.
 rgl_scrolling_geometry_last_gametic = -1
+/// Tracks the mutable rgl scrolling geometry last map value used by the r gl subsystem.
 rgl_scrolling_geometry_last_map = -1
+/// Tracks the mutable rgl scrolling geometry last leveltime value used by the r gl subsystem.
 rgl_scrolling_geometry_last_leveltime = -1
+/// Tracks whether rgl scrolling array batches ready is active in the r gl subsystem.
 rgl_scrolling_array_batches_ready = false
+/// Stores the rgl volatile flat templates collection used by the r gl subsystem.
 rgl_volatile_flat_templates =[]
+/// Tracks whether rgl collecting volatile flats is active in the r gl subsystem.
 rgl_collecting_volatile_flats = false
+/// Stores the rgl boundary quads collection used by the r gl subsystem.
 rgl_boundary_quads =[]
+/// Stores the rgl wall quads collection used by the r gl subsystem.
 rgl_wall_quads =[]
+/// Stores the rgl masked quads collection used by the r gl subsystem.
 rgl_masked_quads =[]
+/// Stores the rgl flat tris collection used by the r gl subsystem.
 rgl_flat_tris =[]
+/// Stores the rgl depth tris collection used by the r gl subsystem.
 rgl_depth_tris =[]
+/// Stores the rgl depth quads collection used by the r gl subsystem.
 rgl_depth_quads =[]
+/// Stores the rgl wall display list texnums collection used by the r gl subsystem.
 rgl_wall_display_list_texnums =[]
+/// Stores the rgl wall display list transparents collection used by the r gl subsystem.
 rgl_wall_display_list_transparents =[]
+/// Stores the rgl wall display list ids collection used by the r gl subsystem.
 rgl_wall_display_list_ids =[]
+/// Stores the rgl flat display list flatnums collection used by the r gl subsystem.
 rgl_flat_display_list_flatnums =[]
+/// Stores the rgl flat display list ids collection used by the r gl subsystem.
 rgl_flat_display_list_ids =[]
+/// Tracks the mutable rgl boundary display list id value used by the r gl subsystem.
 rgl_boundary_display_list_id = 0
+/// Tracks the mutable rgl masked display list id value used by the r gl subsystem.
 rgl_masked_display_list_id = 0
+/// Tracks the mutable rgl static world display list id value used by the r gl subsystem.
 rgl_static_world_display_list_id = 0
+/// Tracks whether rgl static display lists ready is active in the r gl subsystem.
 rgl_static_display_lists_ready = false
+/// Stores the rgl wall array batches collection used by the r gl subsystem.
 rgl_wall_array_batches =[]
+/// Stores the rgl flat array batches collection used by the r gl subsystem.
 rgl_flat_array_batches =[]
+/// Stores the rgl masked array batches collection used by the r gl subsystem.
 rgl_masked_array_batches =[]
+/// Tracks whether rgl static array batches ready is active in the r gl subsystem.
 rgl_static_array_batches_ready = false
+/// Stores the rgl volatile wall array batches collection used by the r gl subsystem.
 rgl_volatile_wall_array_batches =[]
+/// Stores the rgl volatile flat array batches collection used by the r gl subsystem.
 rgl_volatile_flat_array_batches =[]
+/// Stores the rgl volatile masked array batches collection used by the r gl subsystem.
 rgl_volatile_masked_array_batches =[]
+/// Tracks the mutable rgl volatile wall native records value used by the r gl subsystem.
 rgl_volatile_wall_native_records = bytes(0, 0)
+/// Tracks the mutable rgl volatile flat native records value used by the r gl subsystem.
 rgl_volatile_flat_native_records = bytes(0, 0)
+/// Tracks the mutable rgl volatile masked native records value used by the r gl subsystem.
 rgl_volatile_masked_native_records = bytes(0, 0)
+/// Tracks the mutable rgl volatile wall native record count value used by the r gl subsystem.
 rgl_volatile_wall_native_record_count = 0
+/// Tracks the mutable rgl volatile flat native record count value used by the r gl subsystem.
 rgl_volatile_flat_native_record_count = 0
+/// Tracks the mutable rgl volatile masked native record count value used by the r gl subsystem.
 rgl_volatile_masked_native_record_count = 0
+/// Tracks the mutable rgl volatile wall texture revision value used by the r gl subsystem.
 rgl_volatile_wall_texture_revision = -1
+/// Tracks the mutable rgl volatile flat texture revision value used by the r gl subsystem.
 rgl_volatile_flat_texture_revision = -1
+/// Tracks the mutable rgl volatile masked texture revision value used by the r gl subsystem.
 rgl_volatile_masked_texture_revision = -1
+/// Tracks whether rgl volatile array batches ready is active in the r gl subsystem.
 rgl_volatile_array_batches_ready = false
+/// Tracks the mutable rgl volatile geometry signature value used by the r gl subsystem.
 rgl_volatile_geometry_signature = -1
+/// Tracks the mutable rgl volatile geometry last gametic value used by the r gl subsystem.
 rgl_volatile_geometry_last_gametic = -1
+/// Tracks the mutable rgl volatile geometry last leveltime value used by the r gl subsystem.
 rgl_volatile_geometry_last_leveltime = -1
+/// Tracks the mutable rgl volatile pending signature value used by the r gl subsystem.
 rgl_volatile_pending_signature = -1
+/// Tracks the mutable rgl volatile pending stable tics value used by the r gl subsystem.
 rgl_volatile_pending_stable_tics = 0
+/// Tracks whether rgl volatile immediate active is active in the r gl subsystem.
 rgl_volatile_immediate_active = false
+/// Tracks the mutable rgl wall native records value used by the r gl subsystem.
 rgl_wall_native_records = bytes(0, 0)
+/// Tracks the mutable rgl flat native records value used by the r gl subsystem.
 rgl_flat_native_records = bytes(0, 0)
+/// Tracks the mutable rgl masked native records value used by the r gl subsystem.
 rgl_masked_native_records = bytes(0, 0)
+/// Tracks the mutable rgl wall native record count value used by the r gl subsystem.
 rgl_wall_native_record_count = 0
+/// Tracks the mutable rgl flat native record count value used by the r gl subsystem.
 rgl_flat_native_record_count = 0
+/// Tracks the mutable rgl masked native record count value used by the r gl subsystem.
 rgl_masked_native_record_count = 0
+/// Tracks the mutable rgl wall native texture revision value used by the r gl subsystem.
 rgl_wall_native_texture_revision = -1
+/// Tracks the mutable rgl flat native texture revision value used by the r gl subsystem.
 rgl_flat_native_texture_revision = -1
+/// Tracks the mutable rgl masked native texture revision value used by the r gl subsystem.
 rgl_masked_native_texture_revision = -1
+/// Tracks the mutable rgl light geom blob value used by the r gl subsystem.
 rgl_light_geom_blob = bytes(0, 0)
+/// Stores the rgl dyn light x collection used by the r gl subsystem.
 rgl_dyn_light_x =[]
+/// Stores the rgl dyn light y collection used by the r gl subsystem.
 rgl_dyn_light_y =[]
+/// Stores the rgl dyn light z collection used by the r gl subsystem.
 rgl_dyn_light_z =[]
+/// Stores the rgl dyn light r collection used by the r gl subsystem.
 rgl_dyn_light_r =[]
+/// Stores the rgl dyn light g collection used by the r gl subsystem.
 rgl_dyn_light_g =[]
+/// Stores the rgl dyn light b collection used by the r gl subsystem.
 rgl_dyn_light_b =[]
+/// Stores the rgl dyn light radius collection used by the r gl subsystem.
 rgl_dyn_light_radius =[]
+/// Stores the rgl dyn light strength collection used by the r gl subsystem.
 rgl_dyn_light_strength =[]
+/// Tracks the mutable rgl dyn light count value used by the r gl subsystem.
 rgl_dyn_light_count = 0
+/// Tracks the mutable rgl dyn light last gametic value used by the r gl subsystem.
 rgl_dyn_light_last_gametic = -1
+/// Tracks the mutable rgl dyn light last map value used by the r gl subsystem.
 rgl_dyn_light_last_map = -1
+/// Tracks the mutable rgl dyn light last leveltime value used by the r gl subsystem.
 rgl_dyn_light_last_leveltime = -1
+/// Tracks the mutable rgl dyn light revision value used by the r gl subsystem.
 rgl_dyn_light_revision = 0
+/// Stores the rgl frame mobjs collection used by the r gl subsystem.
 rgl_frame_mobjs =[]
+/// Tracks the mutable rgl frame mobj count value used by the r gl subsystem.
 rgl_frame_mobj_count = 0
+/// Tracks the mutable rgl sprite light records value used by the r gl subsystem.
 rgl_sprite_light_records = bytes(0, 0)
+/// Tracks the mutable rgl sprite light revision value used by the r gl subsystem.
 rgl_sprite_light_revision = -1
+/// Stores the rgl sprite width cache collection used by the r gl subsystem.
 rgl_sprite_width_cache =[]
+/// Stores the rgl sprite height cache collection used by the r gl subsystem.
 rgl_sprite_height_cache =[]
+/// Stores the rgl sprite yoffset cache collection used by the r gl subsystem.
 rgl_sprite_yoffset_cache =[]
+/// Tracks the mutable rgl sprite native records value used by the r gl subsystem.
 rgl_sprite_native_records = bytes(0, 0)
+/// Defines the maximum rgl max dynamic lights accepted by the r gl subsystem.
 const RGL_MAX_DYNAMIC_LIGHTS = 48
 
+/// Defines rgl cache boundary for the r gl subsystem.
 const RGL_CACHE_BOUNDARY = 1
+/// Defines rgl cache wall for the r gl subsystem.
 const RGL_CACHE_WALL = 2
+/// Defines rgl cache masked for the r gl subsystem.
 const RGL_CACHE_MASKED = 3
+/// Defines rgl wall array batch quads for the r gl subsystem.
 const RGL_WALL_ARRAY_BATCH_QUADS = 4096
+/// Defines rgl flat array batch tris for the r gl subsystem.
 const RGL_FLAT_ARRAY_BATCH_TRIS = 8192
+/// Defines rgl spatial batch cell for the r gl subsystem.
 const RGL_SPATIAL_BATCH_CELL = 1024.0
+/// Defines rgl flat spatial batch cell for the r gl subsystem.
 const RGL_FLAT_SPATIAL_BATCH_CELL = 4096.0
+/// Defines rgl spatial batch origin for the r gl subsystem.
 const RGL_SPATIAL_BATCH_ORIGIN = 32768.0
+/// Defines rgl spatial batch stride for the r gl subsystem.
 const RGL_SPATIAL_BATCH_STRIDE = 128
+/// Defines rgl native batch record size for the r gl subsystem.
 const RGL_NATIVE_BATCH_RECORD_SIZE = 28
+/// Defines rgl light record size for the r gl subsystem.
 const RGL_LIGHT_RECORD_SIZE = 32
+/// Defines rgl sprite record size for the r gl subsystem.
 const RGL_SPRITE_RECORD_SIZE = 36
+/// Defines the maximum rgl max surface lights accepted by the r gl subsystem.
 const RGL_MAX_SURFACE_LIGHTS = 24
 
-/*
-* Struct: rgl_quad_t
-* Purpose: Stores one textured wall/boundary quad with texture mode, static light, positions, and UVs for four vertices.
-*/
+/// Stores one textured wall/boundary quad with texture mode, static light, positions, and UVs for four
+/// vertices.
 struct rgl_quad_t
+  /// Stores texnum for `rgl_quad_t`
   texnum
+  /// Stores transparent for `rgl_quad_t`
   transparent
+  /// Stores light for `rgl_quad_t`
   light
+  /// Stores x0 for `rgl_quad_t`
   x0
+  /// Stores y0 for `rgl_quad_t`
   y0
+  /// Stores z0 for `rgl_quad_t`
   z0
+  /// Stores s0 for `rgl_quad_t`
   s0
+  /// Stores t0 for `rgl_quad_t`
   t0
+  /// Stores x1 for `rgl_quad_t`
   x1
+  /// Stores y1 for `rgl_quad_t`
   y1
+  /// Stores z1 for `rgl_quad_t`
   z1
+  /// Stores s1 for `rgl_quad_t`
   s1
+  /// Stores t1 for `rgl_quad_t`
   t1
+  /// Stores x2 for `rgl_quad_t`
   x2
+  /// Stores y2 for `rgl_quad_t`
   y2
+  /// Stores z2 for `rgl_quad_t`
   z2
+  /// Stores s2 for `rgl_quad_t`
   s2
+  /// Stores t2 for `rgl_quad_t`
   t2
+  /// Stores x3 for `rgl_quad_t`
   x3
+  /// Stores y3 for `rgl_quad_t`
   y3
+  /// Stores z3 for `rgl_quad_t`
   z3
+  /// Stores s3 for `rgl_quad_t`
   s3
+  /// Stores t3 for `rgl_quad_t`
   t3
 end struct
 
-/*
-* Struct: rgl_flat_tri_t
-* Purpose: Stores one floor/ceiling triangle with its flat id, sector light, positions, and UVs.
-*/
+/// Stores one floor/ceiling triangle with its flat id, sector light, positions, and UVs.
 struct rgl_flat_tri_t
+  /// Stores flatnum for `rgl_flat_tri_t`
   flatnum
+  /// Stores light for `rgl_flat_tri_t`
   light
+  /// Stores x0 for `rgl_flat_tri_t`
   x0
+  /// Stores y0 for `rgl_flat_tri_t`
   y0
+  /// Stores z0 for `rgl_flat_tri_t`
   z0
+  /// Stores s0 for `rgl_flat_tri_t`
   s0
+  /// Stores t0 for `rgl_flat_tri_t`
   t0
+  /// Stores x1 for `rgl_flat_tri_t`
   x1
+  /// Stores y1 for `rgl_flat_tri_t`
   y1
+  /// Stores z1 for `rgl_flat_tri_t`
   z1
+  /// Stores s1 for `rgl_flat_tri_t`
   s1
+  /// Stores t1 for `rgl_flat_tri_t`
   t1
+  /// Stores x2 for `rgl_flat_tri_t`
   x2
+  /// Stores y2 for `rgl_flat_tri_t`
   y2
+  /// Stores z2 for `rgl_flat_tri_t`
   z2
+  /// Stores s2 for `rgl_flat_tri_t`
   s2
+  /// Stores t2 for `rgl_flat_tri_t`
   t2
 end struct
 
-/*
-* Struct: rgl_volatile_flat_template_t
-* Purpose: Stores a preclipped BSP leaf polygon for dynamic-sector flats.
-*/
+/// Stores a preclipped BSP leaf polygon for dynamic-sector flats.
 struct rgl_volatile_flat_template_t
+  /// Stores subsector for `rgl_volatile_flat_template_t`
   subsector
+  /// Number of associated items stored by `rgl_volatile_flat_template_t`
   count
+  /// Stores xs for `rgl_volatile_flat_template_t`
   xs
+  /// Stores ys for `rgl_volatile_flat_template_t`
   ys
 end struct
 
-/*
-* Struct: rgl_array_batch_t
-* Purpose: Stores prepacked OpenGL client-array data for one static texture batch.
-*/
+/// Stores prepacked OpenGL client-array data for one static texture batch.
 struct rgl_array_batch_t
+  /// Stores texnum for `rgl_array_batch_t`
   texnum
+  /// Stores transparent for `rgl_array_batch_t`
   transparent
+  /// Stores vertex count for `rgl_array_batch_t`
   vertex_count
+  /// Stores vertices for `rgl_array_batch_t`
   vertices
+  /// Stores texcoords for `rgl_array_batch_t`
   texcoords
+  /// Stores colors for `rgl_array_batch_t`
   colors
+  /// Stores cx for `rgl_array_batch_t`
   cx
+  /// Stores cz for `rgl_array_batch_t`
   cz
+  /// Stores radius for `rgl_array_batch_t`
   radius
+  /// Stores vertex vbo for `rgl_array_batch_t`
   vertex_vbo
+  /// Stores texcoord vbo for `rgl_array_batch_t`
   texcoord_vbo
+  /// Stores color vbo for `rgl_array_batch_t`
   color_vbo
+  /// Stores interleaved for `rgl_array_batch_t`
   interleaved
+  /// Stores interleaved vbo for `rgl_array_batch_t`
   interleaved_vbo
 end struct
 
-/*
-* Struct: rgl_depth_tri_t
-* Purpose: Stores an untextured triangle written only to the depth buffer for sky-portal occlusion.
-*/
+/// Stores an untextured triangle written only to the depth buffer for sky-portal occlusion.
 struct rgl_depth_tri_t
+  /// Stores x0 for `rgl_depth_tri_t`
   x0
+  /// Stores y0 for `rgl_depth_tri_t`
   y0
+  /// Stores z0 for `rgl_depth_tri_t`
   z0
+  /// Stores x1 for `rgl_depth_tri_t`
   x1
+  /// Stores y1 for `rgl_depth_tri_t`
   y1
+  /// Stores z1 for `rgl_depth_tri_t`
   z1
+  /// Stores x2 for `rgl_depth_tri_t`
   x2
+  /// Stores y2 for `rgl_depth_tri_t`
   y2
+  /// Stores z2 for `rgl_depth_tri_t`
   z2
 end struct
 
-/*
-* Struct: rgl_depth_quad_t
-* Purpose: Stores an untextured quad written only to the depth buffer for sky-portal occlusion.
-*/
+/// Stores an untextured quad written only to the depth buffer for sky-portal occlusion.
 struct rgl_depth_quad_t
+  /// Stores x0 for `rgl_depth_quad_t`
   x0
+  /// Stores y0 for `rgl_depth_quad_t`
   y0
+  /// Stores z0 for `rgl_depth_quad_t`
   z0
+  /// Stores x1 for `rgl_depth_quad_t`
   x1
+  /// Stores y1 for `rgl_depth_quad_t`
   y1
+  /// Stores z1 for `rgl_depth_quad_t`
   z1
+  /// Stores x2 for `rgl_depth_quad_t`
   x2
+  /// Stores y2 for `rgl_depth_quad_t`
   y2
+  /// Stores z2 for `rgl_depth_quad_t`
   z2
+  /// Stores x3 for `rgl_depth_quad_t`
   x3
+  /// Stores y3 for `rgl_depth_quad_t`
   y3
+  /// Stores z3 for `rgl_depth_quad_t`
   z3
 end struct
 
-/*
-* Function: RGL_SetForceSoftware
-* Purpose: Enables or clears the explicit software-renderer override from a validated boolean input.
-*/
+/// Enables or clears the explicit software-renderer override from a validated boolean input.
+/// @param v Value consumed by the operation.
 function RGL_SetForceSoftware(v)
   global rgl_force_software
 
@@ -315,26 +524,20 @@ function RGL_SetForceSoftware(v)
   if typeof(v) == "bool" and v then rgl_force_software = true end if
 end function
 
-/*
-* Function: RGL_IsSeq
-* Purpose: Recognizes the array and list containers accepted by renderer geometry and map tables.
-*/
+/// Recognizes the array and list containers accepted by renderer geometry and map tables.
+/// @param v Value consumed by the operation.
 function inline RGL_IsSeq(v)
   return typeof(v) == "array" or typeof(v) == "list"
 end function
 
-/*
-* Function: RGL_IsNumber
-* Purpose: Checks numeric values before packing cached OpenGL geometry.
-*/
+/// Checks numeric values before packing cached OpenGL geometry.
+/// @param v Value consumed by the operation.
 function inline RGL_IsNumber(v)
   return typeof(v) == "int" or typeof(v) == "float"
 end function
 
-/*
-* Function: RGL_IsValidFlatTri
-* Purpose: Rejects malformed cached flat triangles before array batching.
-*/
+/// Rejects malformed cached flat triangles before array batching.
+/// @param t T value supplied to `RGL_IsValidFlatTri`.
 function inline RGL_IsValidFlatTri(t)
   if t is void then return false end if
   if typeof(t.flatnum) != "int" then return false end if
@@ -348,19 +551,16 @@ function inline RGL_IsValidFlatTri(t)
   return true
 end function
 
-/*
-* Function: RGL_SeqLen
-* Purpose: Returns a supported sequence length or -1 so cache signatures can distinguish absent data.
-*/
+/// Returns a supported sequence length or -1 so cache signatures can distinguish absent data.
+/// @param v Value consumed by the operation.
 function inline RGL_SeqLen(v)
   if RGL_IsSeq(v) then return len(v) end if
   return -1
 end function
 
-/*
-* Function: RGL_SpatialBatchCellKey
-* Purpose: Maps a world-space point to a coarse static-geometry batch cell.
-*/
+/// Maps a world-space point to a coarse static-geometry batch cell.
+/// @param x Horizontal map- or screen-space coordinate.
+/// @param z Vertical world-space coordinate.
 function RGL_SpatialBatchCellKey(x, z)
   cx = std.math.floor((x + RGL_SPATIAL_BATCH_ORIGIN) / RGL_SPATIAL_BATCH_CELL)
   cz = std.math.floor((z + RGL_SPATIAL_BATCH_ORIGIN) / RGL_SPATIAL_BATCH_CELL)
@@ -371,10 +571,9 @@ function RGL_SpatialBatchCellKey(x, z)
   return cz * RGL_SPATIAL_BATCH_STRIDE + cx
 end function
 
-/*
-* Function: RGL_FlatSpatialBatchCellKey
-* Purpose: Maps flat geometry to coarser cells because flat rendering is draw-call bound.
-*/
+/// Maps flat geometry to coarser cells because flat rendering is draw-call bound.
+/// @param x Horizontal map- or screen-space coordinate.
+/// @param z Vertical world-space coordinate.
 function RGL_FlatSpatialBatchCellKey(x, z)
   cx = std.math.floor((x + RGL_SPATIAL_BATCH_ORIGIN) / RGL_FLAT_SPATIAL_BATCH_CELL)
   cz = std.math.floor((z + RGL_SPATIAL_BATCH_ORIGIN) / RGL_FLAT_SPATIAL_BATCH_CELL)
@@ -385,10 +584,8 @@ function RGL_FlatSpatialBatchCellKey(x, z)
   return cz * RGL_SPATIAL_BATCH_STRIDE + cx
 end function
 
-/*
-* Function: RGL_WallArrayBatchKey
-* Purpose: Builds a combined texture and spatial key for static wall batching.
-*/
+/// Builds a combined texture and spatial key for static wall batching.
+/// @param q Q value supplied to `RGL_WallArrayBatchKey`.
 function RGL_WallArrayBatchKey(q)
   cx = (q.x0 + q.x1 + q.x2 + q.x3) * 0.25
   cz = (q.z0 + q.z1 + q.z2 + q.z3) * 0.25
@@ -397,20 +594,17 @@ function RGL_WallArrayBatchKey(q)
   return texKey * 20000 + RGL_SpatialBatchCellKey(cx, cz)
 end function
 
-/*
-* Function: RGL_FlatArrayBatchKey
-* Purpose: Builds a combined texture and spatial key for static flat batching.
-*/
+/// Builds a combined texture and spatial key for static flat batching.
+/// @param t T value supplied to `RGL_FlatArrayBatchKey`.
 function RGL_FlatArrayBatchKey(t)
   cx = (t.x0 + t.x1 + t.x2) / 3.0
   cz = (t.z0 + t.z1 + t.z2) / 3.0
   return t.flatnum * 20000 + RGL_FlatSpatialBatchCellKey(cx, cz)
 end function
 
-/*
-* Function: RGL_SortBatchGroupsByKey
-* Purpose: Orders static batch groups by numeric key so texture binds stay clustered.
-*/
+/// Orders static batch groups by numeric key so texture binds stay clustered.
+/// @param keys Keys value supplied to `RGL_SortBatchGroupsByKey`.
+/// @param groups Groups value supplied to `RGL_SortBatchGroupsByKey`.
 function RGL_SortBatchGroupsByKey(keys, groups)
   if not RGL_IsSeq(keys) or not RGL_IsSeq(groups) then return groups end if
   if len(keys) != len(groups) then return groups end if
@@ -441,10 +635,8 @@ function RGL_SortBatchGroupsByKey(keys, groups)
   return sorted
 end function
 
-/*
-* Function: RGL_GroupWallQuadsForArrayBatches
-* Purpose: Groups cached wall quads by texture and coarse spatial cell for fewer visible draw calls.
-*/
+/// Groups cached wall quads by texture and coarse spatial cell for fewer visible draw calls.
+/// @param quads Quads value supplied to `RGL_GroupWallQuadsForArrayBatches`.
 function RGL_GroupWallQuadsForArrayBatches(quads)
   if not RGL_IsSeq(quads) then return [] end if
   keys = []
@@ -472,10 +664,8 @@ function RGL_GroupWallQuadsForArrayBatches(quads)
   return RGL_SortBatchGroupsByKey(keys, groups)
 end function
 
-/*
-* Function: RGL_GroupFlatTrisForArrayBatches
-* Purpose: Groups cached flat triangles by texture and coarse spatial cell for fewer visible draw calls.
-*/
+/// Groups cached flat triangles by texture and coarse spatial cell for fewer visible draw calls.
+/// @param tris Tris value supplied to `RGL_GroupFlatTrisForArrayBatches`.
 function RGL_GroupFlatTrisForArrayBatches(tris)
   if not RGL_IsSeq(tris) then return [] end if
   keys = []
@@ -503,10 +693,8 @@ function RGL_GroupFlatTrisForArrayBatches(tris)
   return RGL_SortBatchGroupsByKey(keys, groups)
 end function
 
-/*
-* Function: RGL_GroupCachedQuadsByTexture
-* Purpose: Groups opaque cached quads by texture once so immediate-mode batches are larger.
-*/
+/// Groups opaque cached quads by texture once so immediate-mode batches are larger.
+/// @param quads Quads value supplied to `RGL_GroupCachedQuadsByTexture`.
 function RGL_GroupCachedQuadsByTexture(quads)
   if not RGL_IsSeq(quads) or len(quads) < 2 then return quads end if
   keys =[]
@@ -547,10 +735,8 @@ function RGL_GroupCachedQuadsByTexture(quads)
   return grouped
 end function
 
-/*
-* Function: RGL_GroupCachedFlatTrisByTexture
-* Purpose: Groups cached flat triangles by flat texture once so immediate-mode batches are larger.
-*/
+/// Groups cached flat triangles by flat texture once so immediate-mode batches are larger.
+/// @param tris Tris value supplied to `RGL_GroupCachedFlatTrisByTexture`.
 function RGL_GroupCachedFlatTrisByTexture(tris)
   if not RGL_IsSeq(tris) or len(tris) < 2 then return tris end if
   keys =[]
@@ -590,10 +776,7 @@ function RGL_GroupCachedFlatTrisByTexture(tris)
   return grouped
 end function
 
-/*
-* Function: RGL_GroupOpaqueGeometryForBatches
-* Purpose: Prepares static opaque world lists for larger OpenGL immediate-mode batches.
-*/
+/// Prepares static opaque world lists for larger OpenGL immediate-mode batches.
 function RGL_GroupOpaqueGeometryForBatches()
   global rgl_wall_quads
   global rgl_flat_tris
@@ -602,10 +785,7 @@ function RGL_GroupOpaqueGeometryForBatches()
   rgl_flat_tris = RGL_GroupCachedFlatTrisByTexture(rgl_flat_tris)
 end function
 
-/*
-* Function: RGL_DeleteStaticDisplayLists
-* Purpose: Releases compiled OpenGL display lists for static wall and flat batches.
-*/
+/// Releases compiled OpenGL display lists for static wall and flat batches.
 function RGL_DeleteStaticDisplayLists()
   global rgl_wall_display_list_texnums
   global rgl_wall_display_list_transparents
@@ -644,18 +824,13 @@ function RGL_DeleteStaticDisplayLists()
   rgl_static_display_lists_ready = false
 end function
 
-/*
-* Function: RGL_ResetStaticDisplayLists
-* Purpose: Invalidates compiled static geometry after map geometry changes.
-*/
+/// Invalidates compiled static geometry after map geometry changes.
 function RGL_ResetStaticDisplayLists()
   RGL_DeleteStaticDisplayLists()
 end function
 
-/*
-* Function: RGL_DeleteArrayBatchBuffers
-* Purpose: Releases every VBO owned by an array-batch collection.
-*/
+/// Releases every VBO owned by an array-batch collection.
+/// @param batches Batches value supplied to `RGL_DeleteArrayBatchBuffers`.
 function RGL_DeleteArrayBatchBuffers(batches)
   if not RGL_IsSeq(batches) then return end if
   i = 0
@@ -671,10 +846,7 @@ function RGL_DeleteArrayBatchBuffers(batches)
   end while
 end function
 
-/*
-* Function: RGL_ResetVolatileArrayBatches
-* Purpose: Invalidates VBO batches generated from potentially moving sector geometry.
-*/
+/// Invalidates VBO batches generated from potentially moving sector geometry.
 function RGL_ResetVolatileArrayBatches()
   global rgl_volatile_wall_array_batches
   global rgl_volatile_flat_array_batches
@@ -720,10 +892,7 @@ function RGL_ResetVolatileArrayBatches()
   rgl_volatile_immediate_active = false
 end function
 
-/*
-* Function: RGL_ResetScrollingArrayBatches
-* Purpose: Releases cached geometry for continuously scrolling walls.
-*/
+/// Releases cached geometry for continuously scrolling walls.
 function RGL_ResetScrollingArrayBatches()
   global rgl_scrolling_wall_array_batches
   global rgl_scrolling_masked_array_batches
@@ -754,10 +923,7 @@ function RGL_ResetScrollingArrayBatches()
   rgl_scrolling_array_batches_ready = false
 end function
 
-/*
-* Function: RGL_ResetStaticArrayBatches
-* Purpose: Invalidates prepacked OpenGL client-array batches after geometry changes.
-*/
+/// Invalidates prepacked OpenGL client-array batches after geometry changes.
 function RGL_ResetStaticArrayBatches()
   global rgl_wall_array_batches
   global rgl_flat_array_batches
@@ -818,30 +984,28 @@ function RGL_ResetStaticArrayBatches()
   rgl_static_array_batches_ready = false
 end function
 
-/*
-* Function: RGL_CreateArrayBufferOrZero
-* Purpose: Uploads static geometry bytes to a VBO when the helper and driver support it.
-*/
+/// Uploads static geometry bytes to a VBO when the helper and driver support it.
+/// @param data Binary or structured data to process.
 function RGL_CreateArrayBufferOrZero(data)
   if typeof(data) != "bytes" or len(data) <= 0 then return 0 end if
   if not MGL_InitVBO() then return 0 end if
   return MGL_CreateArrayBuffer(data, len(data))
 end function
 
-/*
-* Function: RGL_CreateInterleavedGeomBufferOrZero
-* Purpose: Uploads fixed-point interleaved geometry as a float VBO through the GL helper.
-*/
+/// Uploads fixed-point interleaved geometry as a float VBO through the GL helper.
+/// @param data Binary or structured data to process.
 function RGL_CreateInterleavedGeomBufferOrZero(data)
   if typeof(data) != "bytes" or len(data) <= 0 then return 0 end if
   if not MGL_InitVBO() then return 0 end if
   return MGL_CreateInterleavedGeomBuffer(data, len(data))
 end function
 
-/*
-* Function: RGL_WriteNativeBatchRecord
-* Purpose: Writes one native helper draw record for a prepacked static geometry batch.
-*/
+/// Writes one native helper draw record for a prepacked static geometry batch.
+/// @param records Records value supplied to `RGL_WriteNativeBatchRecord`.
+/// @param index Zero-based element or table index.
+/// @param texid Texid value supplied to `RGL_WriteNativeBatchRecord`.
+/// @param batch Batch value supplied to `RGL_WriteNativeBatchRecord`.
+/// @param flags Bit flags that control the operation.
 function RGL_WriteNativeBatchRecord(records, index, texid, batch, flags)
   off = index * RGL_NATIVE_BATCH_RECORD_SIZE
   RGL_WriteU32(records, off, texid)
@@ -853,10 +1017,7 @@ function RGL_WriteNativeBatchRecord(records, index, texid, batch, flags)
   RGL_WriteS32(records, off + 24, RGL_FloatToGeom(batch.radius))
 end function
 
-/*
-* Function: RGL_UpdateWallNativeRecordTextures
-* Purpose: Refreshes wall native draw-record texture ids for animated texture translation.
-*/
+/// Refreshes wall native draw-record texture ids for animated texture translation.
 function RGL_UpdateWallNativeRecordTextures()
   global rgl_wall_native_records
   global rgl_wall_native_texture_revision
@@ -879,10 +1040,7 @@ function RGL_UpdateWallNativeRecordTextures()
   return true
 end function
 
-/*
-* Function: RGL_UpdateMaskedNativeRecordTextures
-* Purpose: Refreshes masked-wall texture ids while retaining spatially culled VBO records.
-*/
+/// Refreshes masked-wall texture ids while retaining spatially culled VBO records.
 function RGL_UpdateMaskedNativeRecordTextures()
   global rgl_masked_native_records
   global rgl_masked_native_texture_revision
@@ -903,10 +1061,7 @@ function RGL_UpdateMaskedNativeRecordTextures()
   return true
 end function
 
-/*
-* Function: RGL_UpdateFlatNativeRecordTextures
-* Purpose: Refreshes flat native draw-record texture ids for animated flat translation.
-*/
+/// Refreshes flat native draw-record texture ids for animated flat translation.
 function RGL_UpdateFlatNativeRecordTextures()
   global rgl_flat_native_records
   global rgl_flat_native_texture_revision
@@ -928,10 +1083,7 @@ function RGL_UpdateFlatNativeRecordTextures()
   return true
 end function
 
-/*
-* Function: RGL_RebuildNativeArrayBatchRecords
-* Purpose: Builds native helper draw-record buffers for VBO-backed static geometry batches.
-*/
+/// Builds native helper draw-record buffers for VBO-backed static geometry batches.
 function RGL_RebuildNativeArrayBatchRecords()
   global rgl_wall_native_records
   global rgl_flat_native_records
@@ -1011,10 +1163,19 @@ function RGL_RebuildNativeArrayBatchRecords()
   rgl_masked_native_texture_revision = -1
 end function
 
-/*
-* Function: RGL_WriteGeomArrayVertex
-* Purpose: Appends one scaled vertex, texture coordinate, and static color to client-array buffers.
-*/
+/// Appends one scaled vertex, texture coordinate, and static color to client-array buffers.
+/// @param vertices Vertices value supplied to `RGL_WriteGeomArrayVertex`.
+/// @param voff Voff value supplied to `RGL_WriteGeomArrayVertex`.
+/// @param texcoords Texcoords value supplied to `RGL_WriteGeomArrayVertex`.
+/// @param toff Toff value supplied to `RGL_WriteGeomArrayVertex`.
+/// @param colors Colors value supplied to `RGL_WriteGeomArrayVertex`.
+/// @param coff Coff value supplied to `RGL_WriteGeomArrayVertex`.
+/// @param x Horizontal map- or screen-space coordinate.
+/// @param y Vertical map- or screen-space coordinate.
+/// @param z Vertical world-space coordinate.
+/// @param s S value supplied to `RGL_WriteGeomArrayVertex`.
+/// @param t T value supplied to `RGL_WriteGeomArrayVertex`.
+/// @param light Light value supplied to `RGL_WriteGeomArrayVertex`.
 function RGL_WriteGeomArrayVertex(vertices, voff, texcoords, toff, colors, coff, x, y, z, s, t, light)
   RGL_WriteS32(vertices, voff, RGL_FloatToGeom(x))
   RGL_WriteS32(vertices, voff + 4, RGL_FloatToGeom(y))
@@ -1028,10 +1189,15 @@ function RGL_WriteGeomArrayVertex(vertices, voff, texcoords, toff, colors, coff,
   colors[coff + 3] = 255
 end function
 
-/*
-* Function: RGL_WriteGeomInterleavedVertex
-* Purpose: Appends one scaled vertex, texture coordinate, and static color to an interleaved VBO buffer.
-*/
+/// Appends one scaled vertex, texture coordinate, and static color to an interleaved VBO buffer.
+/// @param buf Buf value supplied to `RGL_WriteGeomInterleavedVertex`.
+/// @param off Zero-based byte or element offset.
+/// @param x Horizontal map- or screen-space coordinate.
+/// @param y Vertical map- or screen-space coordinate.
+/// @param z Vertical world-space coordinate.
+/// @param s S value supplied to `RGL_WriteGeomInterleavedVertex`.
+/// @param t T value supplied to `RGL_WriteGeomInterleavedVertex`.
+/// @param light Light value supplied to `RGL_WriteGeomInterleavedVertex`.
 function RGL_WriteGeomInterleavedVertex(buf, off, x, y, z, s, t, light)
   RGL_WriteS32(buf, off, RGL_FloatToGeom(x))
   RGL_WriteS32(buf, off + 4, RGL_FloatToGeom(y))
@@ -1045,10 +1211,9 @@ function RGL_WriteGeomInterleavedVertex(buf, off, x, y, z, s, t, light)
   buf[off + 23] = 255
 end function
 
-/*
-* Function: RGL_BuildWallArrayBatchRange
-* Purpose: Packs one contiguous cached wall quad range into OpenGL client arrays.
-*/
+/// Packs one contiguous cached wall quad range into OpenGL client arrays.
+/// @param startIndex Index identifying start.
+/// @param endIndex Index identifying end.
 function RGL_BuildWallArrayBatchRange(startIndex, endIndex)
   qcount = endIndex - startIndex
   if qcount <= 0 then return end if
@@ -1125,10 +1290,9 @@ function RGL_BuildWallArrayBatchRange(startIndex, endIndex)
   return rgl_array_batch_t(q.texnum, q.transparent, vertexCount, vertices, texcoords, colors, cx, cz, radius, vertexVbo, texcoordVbo, colorVbo, interleaved, interleavedVbo)
 end function
 
-/*
-* Function: RGL_BuildFlatArrayBatchRange
-* Purpose: Packs one contiguous cached flat triangle range into OpenGL client arrays.
-*/
+/// Packs one contiguous cached flat triangle range into OpenGL client arrays.
+/// @param startIndex Index identifying start.
+/// @param endIndex Index identifying end.
 function RGL_BuildFlatArrayBatchRange(startIndex, endIndex)
   tcount = endIndex - startIndex
   if tcount <= 0 then return end if
@@ -1208,10 +1372,7 @@ function RGL_BuildFlatArrayBatchRange(startIndex, endIndex)
   return rgl_array_batch_t(t.flatnum, false, vertexCount, vertices, texcoords, colors, cx, cz, radius, vertexVbo, texcoordVbo, colorVbo, interleaved, interleavedVbo)
 end function
 
-/*
-* Function: RGL_BuildStaticArrayBatches
-* Purpose: Creates prepacked OpenGL client-array batches for static opaque world geometry.
-*/
+/// Creates prepacked OpenGL client-array batches for static opaque world geometry.
 function RGL_BuildStaticArrayBatches()
   global rgl_wall_quads
   global rgl_flat_tris
@@ -1285,10 +1446,10 @@ function RGL_BuildStaticArrayBatches()
   return true
 end function
 
-/*
-* Function: RGL_WriteU32
-* Purpose: Encodes the low 32 bits of a value in little-endian cache/native-record format.
-*/
+/// Encodes the low 32 bits of a value in little-endian cache/native-record format.
+/// @param buf Buf value supplied to `RGL_WriteU32`.
+/// @param off Zero-based byte or element offset.
+/// @param value Value consumed by the operation.
 function inline RGL_WriteU32(buf, off, value)
   v = value
   if v < 0 then v = v + 4294967296 end if
@@ -1298,54 +1459,45 @@ function inline RGL_WriteU32(buf, off, value)
   buf[off + 3] =(v >> 24) & 255
 end function
 
-/*
-* Function: RGL_WriteS32
-* Purpose: Encodes a signed integer through the shared little-endian 32-bit writer.
-*/
+/// Encodes a signed integer through the shared little-endian 32-bit writer.
+/// @param buf Buf value supplied to `RGL_WriteS32`.
+/// @param off Zero-based byte or element offset.
+/// @param value Value consumed by the operation.
 function inline RGL_WriteS32(buf, off, value)
   RGL_WriteU32(buf, off, value)
 end function
 
-/*
-* Function: RGL_ReadU32
-* Purpose: Decodes an unsigned little-endian 32-bit value from serialized geometry bytes.
-*/
+/// Decodes an unsigned little-endian 32-bit value from serialized geometry bytes.
+/// @param buf Buf value supplied to `RGL_ReadU32`.
+/// @param off Zero-based byte or element offset.
 function inline RGL_ReadU32(buf, off)
   return buf[off] +(buf[off + 1] << 8) +(buf[off + 2] << 16) +(buf[off + 3] << 24)
 end function
 
-/*
-* Function: RGL_ReadS32
-* Purpose: Decodes a little-endian 32-bit value and restores its signed interpretation.
-*/
+/// Decodes a little-endian 32-bit value and restores its signed interpretation.
+/// @param buf Buf value supplied to `RGL_ReadS32`.
+/// @param off Zero-based byte or element offset.
 function inline RGL_ReadS32(buf, off)
   v = RGL_ReadU32(buf, off)
   if v >= 2147483648 then v = v - 4294967296 end if
   return v
 end function
 
-/*
-* Function: RGL_FloatToGeom
-* Purpose: Quantizes a numeric coordinate to the signed fixed-scale representation used in cached geometry.
-*/
+/// Quantizes a numeric coordinate to the signed fixed-scale representation used in cached geometry.
+/// @param v Value consumed by the operation.
 function inline RGL_FloatToGeom(v)
   if typeof(v) != "float" and typeof(v) != "int" then v = 0.0 end if
   if v >= 0 then return std.math.floor(v * RGL_GEOM_FIX_SCALE + 0.5) end if
   return std.math.ceil(v * RGL_GEOM_FIX_SCALE - 0.5)
 end function
 
-/*
-* Function: RGL_GeomToFloat
-* Purpose: Restores a serialized fixed-scale geometry component to floating-point world units.
-*/
+/// Restores a serialized fixed-scale geometry component to floating-point world units.
+/// @param v Value consumed by the operation.
 function inline RGL_GeomToFloat(v)
   return v / RGL_GEOM_FIX_SCALE
 end function
 
-/*
-* Function: RGL_MapGeomLumpName
-* Purpose: Formats the current map's derived geometry-cache lump name as MAPxxGL or ExMxGL.
-*/
+/// Formats the current map's derived geometry-cache lump name as MAPxxGL or ExMxGL.
 function RGL_MapGeomLumpName()
   if gamemode == GameMode_t.commercial then
     m = gamemap
@@ -1363,10 +1515,7 @@ function RGL_MapGeomLumpName()
   return "E" + e + "M" + m + "GL"
 end function
 
-/*
-* Function: RGL_CurrentMapIdentity
-* Purpose: Distinguishes episode maps that share the same map number while preserving commercial map IDs.
-*/
+/// Distinguishes episode maps that share the same map number while preserving commercial map IDs.
 function inline RGL_CurrentMapIdentity()
   m = -1
   if typeof(gamemap) == "int" then m = gamemap end if
@@ -1376,10 +1525,7 @@ function inline RGL_CurrentMapIdentity()
   return e * 100 + m
 end function
 
-/*
-* Function: RGL_SectorMotionSignature
-* Purpose: Hashes sector floor/ceiling heights for geometry invalidation while deliberately excluding light flicker.
-*/
+/// Hashes sector floor/ceiling heights for geometry invalidation while deliberately excluding light flicker.
 function RGL_SectorMotionSignature()
   if not RGL_IsSeq(sectors) then return -1 end if
   h = len(sectors) * 65537
@@ -1396,10 +1542,7 @@ function RGL_SectorMotionSignature()
   return h
 end function
 
-/*
-* Function: RGL_SideTextureSignature
-* Purpose: Computes a once-per-tic hash of sidedef textures and non-scrolling offsets for cache invalidation.
-*/
+/// Computes a once-per-tic hash of sidedef textures and non-scrolling offsets for cache invalidation.
 function RGL_SideTextureSignature()
   global rgl_side_sig_map
   global rgl_side_sig_gametic
@@ -1444,10 +1587,8 @@ function RGL_SideTextureSignature()
   return h
 end function
 
-/*
-* Function: RGL_SectorIndex
-* Purpose: Finds the current map index for a sector reference.
-*/
+/// Finds the current map index for a sector reference.
+/// @param sec Sec value supplied to `RGL_SectorIndex`.
 function RGL_SectorIndex(sec)
   if sec is void or not RGL_IsSeq(sectors) then return -1 end if
   i = 0
@@ -1458,10 +1599,8 @@ function RGL_SectorIndex(sec)
   return -1
 end function
 
-/*
-* Function: RGL_MarkVolatileSectorIndex
-* Purpose: Marks a sector as dynamic so it is drawn outside the static GL cache.
-*/
+/// Marks a sector as dynamic so it is drawn outside the static GL cache.
+/// @param idx Zero-based element or table index.
 function RGL_MarkVolatileSectorIndex(idx)
   global rgl_volatile_sectors
 
@@ -1469,19 +1608,16 @@ function RGL_MarkVolatileSectorIndex(idx)
   rgl_volatile_sectors[idx] = true
 end function
 
-/*
-* Function: RGL_MarkVolatileSector
-* Purpose: Resolves a sector reference by identity and marks its index for dynamic rendering outside the static cache.
-*/
+/// Resolves a sector reference by identity and marks its index for dynamic rendering outside the static cache.
+/// @param sec Sec value supplied to `RGL_MarkVolatileSector`.
 function RGL_MarkVolatileSector(sec)
   idx = RGL_SectorIndex(sec)
   if idx >= 0 then RGL_MarkVolatileSectorIndex(idx) end if
 end function
 
-/*
-* Function: RGL_LineMayMoveGeometry
-* Purpose: Returns true for Doom line specials that start, resume, or stop moving floors, ceilings, doors, or platforms.
-*/
+/// Returns true for Doom line specials that start, resume, or stop moving floors, ceilings, doors, or
+/// platforms.
+/// @param li Li value supplied to `RGL_LineMayMoveGeometry`.
 function RGL_LineMayMoveGeometry(li)
   if li is void or typeof(li.special) != "int" then return false end if
   switch li.special
@@ -1506,18 +1642,14 @@ function RGL_LineMayMoveGeometry(li)
   return false
 end function
 
-/*
-* Function: RGL_LineScrollsTexture
-* Purpose: Identifies Doom's continuously scrolling wall special so it can bypass static UV caches.
-*/
+/// Identifies Doom's continuously scrolling wall special so it can bypass static UV caches.
+/// @param li Li value supplied to `RGL_LineScrollsTexture`.
 function inline RGL_LineScrollsTexture(li)
   return li is not void and typeof(li.special) == "int" and li.special == 48
 end function
 
-/*
-* Function: RGL_IsVolatileSector
-* Purpose: Returns true for sectors that may move or need uncached wall/flat updates.
-*/
+/// Returns true for sectors that may move or need uncached wall/flat updates.
+/// @param sec Sec value supplied to `RGL_IsVolatileSector`.
 function RGL_IsVolatileSector(sec)
   if sec is void then return false end if
   if sec.specialdata is not void then return true end if
@@ -1526,10 +1658,8 @@ function RGL_IsVolatileSector(sec)
   return rgl_volatile_sectors[idx]
 end function
 
-/*
-* Function: RGL_IsVolatileSubsectorIndex
-* Purpose: Checks whether a subsector belongs to dynamic sector geometry.
-*/
+/// Checks whether a subsector belongs to dynamic sector geometry.
+/// @param idx Zero-based element or table index.
 function RGL_IsVolatileSubsectorIndex(idx)
   if idx < 0 or not RGL_IsSeq(subsectors) or idx >= len(subsectors) then return false end if
   ss = subsectors[idx]
@@ -1537,10 +1667,8 @@ function RGL_IsVolatileSubsectorIndex(idx)
   return RGL_IsVolatileSector(ss.sector)
 end function
 
-/*
-* Function: RGL_IsVolatileSegIndex
-* Purpose: Checks whether a seg touches dynamic sector geometry.
-*/
+/// Checks whether a seg touches dynamic sector geometry.
+/// @param idx Zero-based element or table index.
 function RGL_IsVolatileSegIndex(idx)
   if idx < 0 or not RGL_IsSeq(segs) or idx >= len(segs) then return false end if
   sg = segs[idx]
@@ -1550,10 +1678,8 @@ function RGL_IsVolatileSegIndex(idx)
   return false
 end function
 
-/*
-* Function: RGL_IsVolatileLineIndex
-* Purpose: Checks whether a line touches dynamic sector geometry.
-*/
+/// Checks whether a line touches dynamic sector geometry.
+/// @param idx Zero-based element or table index.
 function RGL_IsVolatileLineIndex(idx)
   if idx < 0 or not RGL_IsSeq(lines) or idx >= len(lines) then return false end if
   li = lines[idx]
@@ -1563,10 +1689,8 @@ function RGL_IsVolatileLineIndex(idx)
   return false
 end function
 
-/*
-* Function: RGL_BuildVolatileSectorMap
-* Purpose: Precomputes sectors and draw lists that should remain dynamic.
-*/
+/// Precomputes sectors and draw lists that should remain dynamic.
+/// @param sigMap Sig map value supplied to `RGL_BuildVolatileSectorMap`.
 function RGL_BuildVolatileSectorMap(sigMap)
   global rgl_volatile_sig_map
   global rgl_volatile_sectors
@@ -1671,10 +1795,8 @@ function RGL_BuildVolatileSectorMap(sigMap)
   end if
 end function
 
-/*
-* Function: RGL_EnsureVolatileSectorMap
-* Purpose: Keeps the dynamic sector draw lists aligned with the loaded map.
-*/
+/// Keeps the dynamic sector draw lists aligned with the loaded map.
+/// @param sigMap Sig map value supplied to `RGL_EnsureVolatileSectorMap`.
 function RGL_EnsureVolatileSectorMap(sigMap)
   if rgl_volatile_sig_map != sigMap then
     RGL_BuildVolatileSectorMap(sigMap)
@@ -1685,10 +1807,7 @@ function RGL_EnsureVolatileSectorMap(sigMap)
   end if
 end function
 
-/*
-* Function: RGL_GeometryCacheByteSize
-* Purpose: Computes the exact serialized byte count for the cache header and all quad/triangle record collections.
-*/
+/// Computes the exact serialized byte count for the cache header and all quad/triangle record collections.
 function RGL_GeometryCacheByteSize()
   bc = RGL_SeqLen(rgl_boundary_quads)
   wc = RGL_SeqLen(rgl_wall_quads)
@@ -1705,19 +1824,19 @@ function RGL_GeometryCacheByteSize()
   return 60 + bc * 92 + wc * 92 + mc * 92 + fc * 68 + dtc * 36 + dqc * 48
 end function
 
-/*
-* Function: RGL_WriteGeomFixed
-* Purpose: Quantizes and appends one floating geometry component, returning the next byte offset.
-*/
+/// Quantizes and appends one floating geometry component, returning the next byte offset.
+/// @param buf Buf value supplied to `RGL_WriteGeomFixed`.
+/// @param off Zero-based byte or element offset.
+/// @param v Value consumed by the operation.
 function RGL_WriteGeomFixed(buf, off, v)
   RGL_WriteS32(buf, off, RGL_FloatToGeom(v))
   return off + 4
 end function
 
-/*
-* Function: RGL_WriteGeomQuad
-* Purpose: Serializes a textured quad's metadata, four positions, and four UV pairs and returns the next offset.
-*/
+/// Serializes a textured quad's metadata, four positions, and four UV pairs and returns the next offset.
+/// @param buf Buf value supplied to `RGL_WriteGeomQuad`.
+/// @param off Zero-based byte or element offset.
+/// @param q Q value supplied to `RGL_WriteGeomQuad`.
 function RGL_WriteGeomQuad(buf, off, q)
   RGL_WriteS32(buf, off, q.texnum)
   off = off + 4
@@ -1752,10 +1871,9 @@ function RGL_WriteGeomQuad(buf, off, q)
   return off
 end function
 
-/*
-* Function: RGL_ReadGeomQuad
-* Purpose: Deserializes one textured quad and returns it together with the next unread byte offset.
-*/
+/// Deserializes one textured quad and returns it together with the next unread byte offset.
+/// @param buf Buf value supplied to `RGL_ReadGeomQuad`.
+/// @param off Zero-based byte or element offset.
 function RGL_ReadGeomQuad(buf, off)
   texnum = RGL_ReadS32(buf, off)
   off = off + 4
@@ -1806,10 +1924,10 @@ function RGL_ReadGeomQuad(buf, off)
   return [rgl_quad_t(texnum, transparent, light, x0, y0, z0, s0, t0, x1, y1, z1, s1, t1, x2, y2, z2, s2, t2, x3, y3, z3, s3, t3), off]
 end function
 
-/*
-* Function: RGL_WriteGeomFlatTri
-* Purpose: Serializes a flat triangle's texture/light metadata, positions, and UVs and returns the next offset.
-*/
+/// Serializes a flat triangle's texture/light metadata, positions, and UVs and returns the next offset.
+/// @param buf Buf value supplied to `RGL_WriteGeomFlatTri`.
+/// @param off Zero-based byte or element offset.
+/// @param t T value supplied to `RGL_WriteGeomFlatTri`.
 function RGL_WriteGeomFlatTri(buf, off, t)
   RGL_WriteS32(buf, off, t.flatnum)
   off = off + 4
@@ -1833,10 +1951,9 @@ function RGL_WriteGeomFlatTri(buf, off, t)
   return off
 end function
 
-/*
-* Function: RGL_ReadGeomFlatTri
-* Purpose: Deserializes one flat triangle and returns it together with the next unread byte offset.
-*/
+/// Deserializes one flat triangle and returns it together with the next unread byte offset.
+/// @param buf Buf value supplied to `RGL_ReadGeomFlatTri`.
+/// @param off Zero-based byte or element offset.
 function RGL_ReadGeomFlatTri(buf, off)
   flatnum = RGL_ReadS32(buf, off)
   off = off + 4
@@ -1875,10 +1992,10 @@ function RGL_ReadGeomFlatTri(buf, off)
   return [rgl_flat_tri_t(flatnum, light, x0, y0, z0, s0, t0, x1, y1, z1, s1, t1, x2, y2, z2, s2, t2), off]
 end function
 
-/*
-* Function: RGL_WriteGeomDepthTri
-* Purpose: Serializes the three positions of a depth-only sky-occlusion triangle.
-*/
+/// Serializes the three positions of a depth-only sky-occlusion triangle.
+/// @param buf Buf value supplied to `RGL_WriteGeomDepthTri`.
+/// @param off Zero-based byte or element offset.
+/// @param t T value supplied to `RGL_WriteGeomDepthTri`.
 function RGL_WriteGeomDepthTri(buf, off, t)
   off = RGL_WriteGeomFixed(buf, off, t.x0)
   off = RGL_WriteGeomFixed(buf, off, t.y0)
@@ -1892,10 +2009,9 @@ function RGL_WriteGeomDepthTri(buf, off, t)
   return off
 end function
 
-/*
-* Function: RGL_ReadGeomDepthTri
-* Purpose: Deserializes one depth-only triangle and returns it with the next unread offset.
-*/
+/// Deserializes one depth-only triangle and returns it with the next unread offset.
+/// @param buf Buf value supplied to `RGL_ReadGeomDepthTri`.
+/// @param off Zero-based byte or element offset.
 function RGL_ReadGeomDepthTri(buf, off)
   x0 = RGL_GeomToFloat(RGL_ReadS32(buf, off))
   off = off + 4
@@ -1918,10 +2034,10 @@ function RGL_ReadGeomDepthTri(buf, off)
   return [rgl_depth_tri_t(x0, y0, z0, x1, y1, z1, x2, y2, z2), off]
 end function
 
-/*
-* Function: RGL_WriteGeomDepthQuad
-* Purpose: Serializes the four positions of a depth-only sky-occlusion quad.
-*/
+/// Serializes the four positions of a depth-only sky-occlusion quad.
+/// @param buf Buf value supplied to `RGL_WriteGeomDepthQuad`.
+/// @param off Zero-based byte or element offset.
+/// @param q Q value supplied to `RGL_WriteGeomDepthQuad`.
 function RGL_WriteGeomDepthQuad(buf, off, q)
   off = RGL_WriteGeomFixed(buf, off, q.x0)
   off = RGL_WriteGeomFixed(buf, off, q.y0)
@@ -1938,10 +2054,9 @@ function RGL_WriteGeomDepthQuad(buf, off, q)
   return off
 end function
 
-/*
-* Function: RGL_ReadGeomDepthQuad
-* Purpose: Deserializes one depth-only quad and returns it with the next unread offset.
-*/
+/// Deserializes one depth-only quad and returns it with the next unread offset.
+/// @param buf Buf value supplied to `RGL_ReadGeomDepthQuad`.
+/// @param off Zero-based byte or element offset.
 function RGL_ReadGeomDepthQuad(buf, off)
   x0 = RGL_GeomToFloat(RGL_ReadS32(buf, off))
   off = off + 4
@@ -1970,10 +2085,14 @@ function RGL_ReadGeomDepthQuad(buf, off)
   return [rgl_depth_quad_t(x0, y0, z0, x1, y1, z1, x2, y2, z2, x3, y3, z3), off]
 end function
 
-/*
-* Function: RGL_SerializeGeometryCache
-* Purpose: Writes signatures, collection counts, and every cached geometry record into the versioned MGL1 blob.
-*/
+/// Writes signatures, collection counts, and every cached geometry record into the versioned MGL1 blob.
+/// @param sigMap Sig map value supplied to `RGL_SerializeGeometryCache`.
+/// @param sigSegs Sig segs value supplied to `RGL_SerializeGeometryCache`.
+/// @param sigLines Sig lines value supplied to `RGL_SerializeGeometryCache`.
+/// @param sigNodes Sig nodes value supplied to `RGL_SerializeGeometryCache`.
+/// @param sigSubsectors Sig subsectors value supplied to `RGL_SerializeGeometryCache`.
+/// @param sigSectorMotion Sig sector motion value supplied to `RGL_SerializeGeometryCache`.
+/// @param sigSides Sig sides value supplied to `RGL_SerializeGeometryCache`.
 function RGL_SerializeGeometryCache(sigMap, sigSegs, sigLines, sigNodes, sigSubsectors, sigSectorMotion, sigSides)
   global rgl_light_geom_blob
   bc = RGL_SeqLen(rgl_boundary_quads)
@@ -2045,10 +2164,15 @@ function RGL_SerializeGeometryCache(sigMap, sigSegs, sigLines, sigNodes, sigSubs
   return buf
 end function
 
-/*
-* Function: RGL_TryLoadGeometryCache
-* Purpose: Validates a versioned map geometry lump against current signatures, restores its lists, and rebuilds runtime batches.
-*/
+/// Validates a versioned map geometry lump against current signatures, restores its lists, and rebuilds runtime
+/// batches.
+/// @param sigMap Sig map value supplied to `RGL_TryLoadGeometryCache`.
+/// @param sigSegs Sig segs value supplied to `RGL_TryLoadGeometryCache`.
+/// @param sigLines Sig lines value supplied to `RGL_TryLoadGeometryCache`.
+/// @param sigNodes Sig nodes value supplied to `RGL_TryLoadGeometryCache`.
+/// @param sigSubsectors Sig subsectors value supplied to `RGL_TryLoadGeometryCache`.
+/// @param sigSectorMotion Sig sector motion value supplied to `RGL_TryLoadGeometryCache`.
+/// @param sigSides Sig sides value supplied to `RGL_TryLoadGeometryCache`.
 function RGL_TryLoadGeometryCache(sigMap, sigSegs, sigLines, sigNodes, sigSubsectors, sigSectorMotion, sigSides)
   global rgl_geom_ready
   global rgl_geom_sig_map
@@ -2168,10 +2292,7 @@ function RGL_TryLoadGeometryCache(sigMap, sigSegs, sigLines, sigNodes, sigSubsec
   return true
 end function
 
-/*
-* Function: RGL_BuildCurrentMapGeometryLump
-* Purpose: Rebuilds the current static cache and returns its derived WAD lump name plus serialized geometry blob.
-*/
+/// Rebuilds the current static cache and returns its derived WAD lump name plus serialized geometry blob.
 function RGL_BuildCurrentMapGeometryLump()
   sigMap = RGL_CurrentMapIdentity()
   RGL_EnsureVolatileSectorMap(sigMap)
@@ -2186,28 +2307,22 @@ function RGL_BuildCurrentMapGeometryLump()
   return [RGL_MapGeomLumpName(), blob]
 end function
 
-/*
-* Function: RGL_FixedToFloat
-* Purpose: Converts a Doom FRACUNIT-scaled coordinate to floating-point world units.
-*/
+/// Converts a Doom FRACUNIT-scaled coordinate to floating-point world units.
+/// @param v Value consumed by the operation.
 function inline RGL_FixedToFloat(v)
   return v / FRACUNIT
 end function
 
-/*
-* Function: RGL_AngleToDegrees
-* Purpose: Converts Doom's unsigned full-turn binary angle to degrees in [0,360).
-*/
+/// Converts Doom's unsigned full-turn binary angle to degrees in [0,360).
+/// @param a First input operand.
 function inline RGL_AngleToDegrees(a)
   u = a
   if u < 0 then u = u + 4294967296 end if
   return(u / RGL_ANGLE_FULL) * 360.0
 end function
 
-/*
-* Function: RGL_NormalizeDegrees
-* Purpose: Wraps an arbitrary degree value into the half-open [0,360) interval.
-*/
+/// Wraps an arbitrary degree value into the half-open [0,360) interval.
+/// @param d Divisor or direction value used by the operation.
 function RGL_NormalizeDegrees(d)
   while d < 0.0
     d = d + 360.0
@@ -2218,10 +2333,9 @@ function RGL_NormalizeDegrees(d)
   return d
 end function
 
-/*
-* Function: RGL_EnumIndex
-* Purpose: Resolves an enum-like value to a bounded numeric table index, returning -1 when absent.
-*/
+/// Resolves an enum-like value to a bounded numeric table index, returning -1 when absent.
+/// @param v Value consumed by the operation.
+/// @param limit Limit value supplied to `RGL_EnumIndex`.
 function inline RGL_EnumIndex(v, limit)
   i = 0
   while i < limit
@@ -2231,10 +2345,8 @@ function inline RGL_EnumIndex(v, limit)
   return -1
 end function
 
-/*
-* Function: RGL_SpriteIndex
-* Purpose: Resolves a sprite identifier against the currently loaded sprite definition count.
-*/
+/// Resolves a sprite identifier against the currently loaded sprite definition count.
+/// @param v Value consumed by the operation.
 function inline RGL_SpriteIndex(v)
   max = 0
   if RGL_IsSeq(sprites) then
@@ -2245,10 +2357,8 @@ function inline RGL_SpriteIndex(v)
   return RGL_EnumIndex(v, max)
 end function
 
-/*
-* Function: RGL_LightByte
-* Purpose: Maps a sector light level into the renderer's restrained 12-through-198 static brightness range.
-*/
+/// Maps a sector light level into the renderer's restrained 12-through-198 static brightness range.
+/// @param sec Sec value supplied to `RGL_LightByte`.
 function inline RGL_LightByte(sec)
   if sec is void or typeof(sec.lightlevel) != "int" then return 128 end if
   v = sec.lightlevel
@@ -2258,10 +2368,7 @@ function inline RGL_LightByte(sec)
   return std.math.floor(v)
 end function
 
-/*
-* Function: RGL_HasActiveSectorMotion
-* Purpose: Checks whether a sector thinker is currently moving world geometry.
-*/
+/// Checks whether a sector thinker is currently moving world geometry.
 function RGL_HasActiveSectorMotion()
   if not RGL_IsSeq(sectors) then return false end if
   i = 0
@@ -2273,10 +2380,11 @@ function RGL_HasActiveSectorMotion()
   return false
 end function
 
-/*
-* Function: RGL_SectorNearFixedPoint
-* Purpose: Checks whether a sector is near a fixed-point map coordinate.
-*/
+/// Checks whether a sector is near a fixed-point map coordinate.
+/// @param sec Sec value supplied to `RGL_SectorNearFixedPoint`.
+/// @param x Horizontal map- or screen-space coordinate.
+/// @param y Vertical map- or screen-space coordinate.
+/// @param radius Radius value supplied to `RGL_SectorNearFixedPoint`.
 function RGL_SectorNearFixedPoint(sec, x, y, radius)
   if sec is void or sec.specialdata is void then return false end if
   if not RGL_IsSeq(sec.lines) or typeof(sec.linecount) != "int" then return true end if
@@ -2301,10 +2409,8 @@ function RGL_SectorNearFixedPoint(sec, x, y, radius)
   return false
 end function
 
-/*
-* Function: RGL_PlayerNearActiveSectorMotion
-* Purpose: Uses the accurate direct renderer when the player is near moving sectors.
-*/
+/// Uses the accurate direct renderer when the player is near moving sectors.
+/// @param player Player state affected by the operation.
 function RGL_PlayerNearActiveSectorMotion(player)
   if player is void or player.mo is void or not RGL_IsSeq(sectors) then return false end if
   playerSector = void
@@ -2319,10 +2425,8 @@ function RGL_PlayerNearActiveSectorMotion(player)
   return false
 end function
 
-/*
-* Function: RGL_ClampByte
-* Purpose: Clamps a numeric color component to an integer byte accepted by OpenGL color calls.
-*/
+/// Clamps a numeric color component to an integer byte accepted by OpenGL color calls.
+/// @param v Value consumed by the operation.
 function inline RGL_ClampByte(v)
   if v < 0 then return 0 end if
   if v > 255 then return 255 end if
@@ -2330,10 +2434,15 @@ function inline RGL_ClampByte(v)
   return std.math.ceil(v)
 end function
 
-/*
-* Function: RGL_AddDynamicLight
-* Purpose: Appends an in-range, positive dynamic light to the bounded per-frame arrays when near the current view.
-*/
+/// Appends an in-range, positive dynamic light to the bounded per-frame arrays when near the current view.
+/// @param x Horizontal map- or screen-space coordinate.
+/// @param y Vertical map- or screen-space coordinate.
+/// @param z Vertical world-space coordinate.
+/// @param r R value supplied to `RGL_AddDynamicLight`.
+/// @param g G value supplied to `RGL_AddDynamicLight`.
+/// @param b Second input operand.
+/// @param radius Radius value supplied to `RGL_AddDynamicLight`.
+/// @param strength Strength value supplied to `RGL_AddDynamicLight`.
 function RGL_AddDynamicLight(x, y, z, r, g, b, radius, strength)
   global rgl_dyn_light_count
   global rgl_dyn_light_x
@@ -2365,10 +2474,9 @@ function RGL_AddDynamicLight(x, y, z, r, g, b, radius, strength)
   rgl_dyn_light_count = idx + 1
 end function
 
-/*
-* Function: RGL_StringStartsWith
-* Purpose: Tests a short ASCII prefix without relying on optional string helpers.
-*/
+/// Tests a short ASCII prefix without relying on optional string helpers.
+/// @param s S value supplied to `RGL_StringStartsWith`.
+/// @param prefix Prefix value supplied to `RGL_StringStartsWith`.
 function RGL_StringStartsWith(s, prefix)
   if typeof(s) != "string" or typeof(prefix) != "string" then return false end if
   if len(prefix) > len(s) then return false end if
@@ -2382,10 +2490,8 @@ function RGL_StringStartsWith(s, prefix)
   return true
 end function
 
-/*
-* Function: RGL_FlatNameForNum
-* Purpose: Resolves the currently translated flat name for liquid light classification.
-*/
+/// Resolves the currently translated flat name for liquid light classification.
+/// @param flatnum Index identifying flat.
 function RGL_FlatNameForNum(flatnum)
   if typeof(flatnum) != "int" or flatnum < 0 then return "" end if
   n = flatnum
@@ -2394,10 +2500,8 @@ function RGL_FlatNameForNum(flatnum)
   return RGL_LumpNameAt(lump)
 end function
 
-/*
-* Function: RGL_LiquidLightKind
-* Purpose: Classifies animated liquid flats that should emit subtle GL ambience.
-*/
+/// Classifies animated liquid flats that should emit subtle GL ambience.
+/// @param flatnum Index identifying flat.
 function RGL_LiquidLightKind(flatnum)
   name = RGL_FlatNameForNum(flatnum)
   if name == "" then return 0 end if
@@ -2408,10 +2512,11 @@ function RGL_LiquidLightKind(flatnum)
   return 0
 end function
 
-/*
-* Function: RGL_AddSectorLiquidLight
-* Purpose: Adds one restrained colored light above a nearby liquid sector.
-*/
+/// Adds one restrained colored light above a nearby liquid sector.
+/// @param sec Sec value supplied to `RGL_AddSectorLiquidLight`.
+/// @param kind Kind value supplied to `RGL_AddSectorLiquidLight`.
+/// @param player Player state affected by the operation.
+/// @param pulse Pulse value supplied to `RGL_AddSectorLiquidLight`.
 function RGL_AddSectorLiquidLight(sec, kind, player, pulse)
   if sec is void or player is void or player.mo is void then return false end if
   if not RGL_IsSeq(sec.lines) or typeof(sec.linecount) != "int" or sec.linecount <= 0 then return false end if
@@ -2477,10 +2582,8 @@ function RGL_AddSectorLiquidLight(sec, kind, player, pulse)
   return true
 end function
 
-/*
-* Function: RGL_AddLiquidSectorLights
-* Purpose: Adds a small budget of ambient lights for nearby liquid sectors.
-*/
+/// Adds a small budget of ambient lights for nearby liquid sectors.
+/// @param player Player state affected by the operation.
 function RGL_AddLiquidSectorLights(player)
   if player is void or player.mo is void or not RGL_IsSeq(sectors) then return end if
   pulse = 0.5
@@ -2498,10 +2601,10 @@ function RGL_AddLiquidSectorLights(player)
   end while
 end function
 
-/*
-* Function: RGL_MobjDecorLight
-* Purpose: Adds subtle OpenGL light from decorative light-emitting map objects.
-*/
+/// Adds subtle OpenGL light from decorative light-emitting map objects.
+/// @param mo Map object affected by the operation.
+/// @param x Horizontal map- or screen-space coordinate.
+/// @param z Vertical world-space coordinate.
 function RGL_MobjDecorLight(mo, x, z)
   if mo is void or typeof(mo.sprite) != "int" then return false end if
   sp = mo.sprite
@@ -2571,10 +2674,11 @@ function RGL_MobjDecorLight(mo, x, z)
   return false
 end function
 
-/*
-* Function: RGL_MobjExplosionLight
-* Purpose: Adds short, bright OpenGL lights for explosion animation states.
-*/
+/// Adds short, bright OpenGL lights for explosion animation states.
+/// @param mo Map object affected by the operation.
+/// @param x Horizontal map- or screen-space coordinate.
+/// @param y Vertical map- or screen-space coordinate.
+/// @param z Vertical world-space coordinate.
 function RGL_MobjExplosionLight(mo, x, y, z)
   if mo is void or mo.state is void or typeof(mo.state) != "struct" then return false end if
   st = Info_StateIndex(mo.state)
@@ -2617,10 +2721,9 @@ function RGL_MobjExplosionLight(mo, x, y, z)
   return false
 end function
 
-/*
-* Function: RGL_MobjLight
-* Purpose: Classifies a mobj's type/state and emits the matching projectile, explosion, muzzle, or decorative dynamic light.
-*/
+/// Classifies a mobj's type/state and emits the matching projectile, explosion, muzzle, or decorative dynamic
+/// light.
+/// @param mo Map object affected by the operation.
 function RGL_MobjLight(mo)
   if mo is void or typeof(mo.type) != "int" then return false end if
   x = RGL_FixedToFloat(mo.x)
@@ -2684,10 +2787,7 @@ function RGL_MobjLight(mo)
   return false
 end function
 
-/*
-* Function: RGL_CollectFrameMobjs
-* Purpose: Traverses sector thing lists once so lighting and sprite passes share the same frame-local object set.
-*/
+/// Traverses sector thing lists once so lighting and sprite passes share the same frame-local object set.
 function RGL_CollectFrameMobjs()
   global rgl_frame_mobjs
   global rgl_frame_mobj_count
@@ -2728,10 +2828,9 @@ function RGL_CollectFrameMobjs()
   end while
 end function
 
-/*
-* Function: RGL_BuildDynamicLights
-* Purpose: Once per simulation state, collects frame mobjs and rebuilds bounded weapon, liquid, projectile, decor, and explosion lights.
-*/
+/// Once per simulation state, collects frame mobjs and rebuilds bounded weapon, liquid, projectile, decor, and
+/// explosion lights.
+/// @param player Player state affected by the operation.
 function RGL_BuildDynamicLights(player)
   global rgl_dyn_light_count
   global rgl_dyn_light_x
@@ -2818,18 +2917,22 @@ function RGL_BuildDynamicLights(player)
   rgl_dyn_light_revision = rgl_dyn_light_revision + 1
 end function
 
-/*
-* Function: RGL_SetVertexLight
-* Purpose: Evaluates view fade and nearby dynamic lights at a world vertex, then sets an opaque OpenGL color.
-*/
+/// Evaluates view fade and nearby dynamic lights at a world vertex, then sets an opaque OpenGL color.
+/// @param base Base value supplied to `RGL_SetVertexLight`.
+/// @param x Horizontal map- or screen-space coordinate.
+/// @param y Vertical map- or screen-space coordinate.
+/// @param z Vertical world-space coordinate.
 function RGL_SetVertexLight(base, x, y, z)
   RGL_SetVertexLightAlpha(base, x, y, z, 255)
 end function
 
-/*
-* Function: RGL_SetVertexLightAlpha
-* Purpose: Evaluates view fade and nearby dynamic lights at a world point, then sets the resulting OpenGL color with caller alpha.
-*/
+/// Evaluates view fade and nearby dynamic lights at a world point, then sets the resulting OpenGL color with
+/// caller alpha.
+/// @param base Base value supplied to `RGL_SetVertexLightAlpha`.
+/// @param x Horizontal map- or screen-space coordinate.
+/// @param y Vertical map- or screen-space coordinate.
+/// @param z Vertical world-space coordinate.
+/// @param alpha Alpha value supplied to `RGL_SetVertexLightAlpha`.
 function RGL_SetVertexLightAlpha(base, x, y, z, alpha)
   r = base
   g = base
@@ -2878,19 +2981,17 @@ function RGL_SetVertexLightAlpha(base, x, y, z, alpha)
   glColor4ub(RGL_ClampByte(r), RGL_ClampByte(g), RGL_ClampByte(b), RGL_ClampByte(alpha))
 end function
 
-/*
-* Function: RGL_VertexLit
-* Purpose: Applies static plus nearby dynamic lighting at a world point and emits that OpenGL vertex.
-*/
+/// Applies static plus nearby dynamic lighting at a world point and emits that OpenGL vertex.
+/// @param base Base value supplied to `RGL_VertexLit`.
+/// @param x Horizontal map- or screen-space coordinate.
+/// @param y Vertical map- or screen-space coordinate.
+/// @param z Vertical world-space coordinate.
 function RGL_VertexLit(base, x, y, z)
   RGL_SetVertexLight(base, x, y, z)
   glVertex3d(x, y, z)
 end function
 
-/*
-* Function: RGL_BuildDynamicLightSurfaceRecords
-* Purpose: Packs dynamic lights for the native additive surface-light pass.
-*/
+/// Packs dynamic lights for the native additive surface-light pass.
 function RGL_BuildDynamicLightSurfaceRecords()
   if rgl_dyn_light_count <= 0 then return [bytes(0, 0), 0] end if
   count = rgl_dyn_light_count
@@ -2917,10 +3018,8 @@ function RGL_BuildDynamicLightSurfaceRecords()
   return [buf, count]
 end function
 
-/*
-* Function: RGL_DrawDynamicLightGlows
-* Purpose: Adds dynamic light back onto real floor, ceiling, and wall geometry.
-*/
+/// Adds dynamic light back onto real floor, ceiling, and wall geometry.
+/// @param yaw Yaw value supplied to `RGL_DrawDynamicLightGlows`.
 function RGL_DrawDynamicLightGlows(yaw)
   if rgl_dyn_light_count <= 0 then return end if
   if typeof(rgl_light_geom_blob) != "bytes" or len(rgl_light_geom_blob) < 60 then return end if
@@ -2929,20 +3028,20 @@ function RGL_DrawDynamicLightGlows(yaw)
   MGL_DrawDynamicLightSurfaces(rgl_light_geom_blob, len(rgl_light_geom_blob), rec[0], rec[1])
 end function
 
-/*
-* Function: RGL_StaticVertexLit
-* Purpose: Emits static sector lighting for compiled OpenGL geometry batches.
-*/
+/// Emits static sector lighting for compiled OpenGL geometry batches.
+/// @param base Base value supplied to `RGL_StaticVertexLit`.
+/// @param x Horizontal map- or screen-space coordinate.
+/// @param y Vertical map- or screen-space coordinate.
+/// @param z Vertical world-space coordinate.
 function RGL_StaticVertexLit(base, x, y, z)
   b = RGL_ClampByte(base)
   glColor4ub(b, b, b, 255)
   glVertex3d(x, y, z)
 end function
 
-/*
-* Function: RGL_Vertex
-* Purpose: Converts a Doom map vertex and fixed height to OpenGL axes and emits it with current-sector lighting.
-*/
+/// Converts a Doom map vertex and fixed height to OpenGL axes and emits it with current-sector lighting.
+/// @param v Value consumed by the operation.
+/// @param z Vertical world-space coordinate.
 function inline RGL_Vertex(v, z)
   if v is void then return end if
   x = RGL_FixedToFloat(v.x)
@@ -2951,10 +3050,8 @@ function inline RGL_Vertex(v, z)
   RGL_VertexLit(rgl_current_light, x, y, zz)
 end function
 
-/*
-* Function: RGL_LumpNameAt
-* Purpose: Decodes the zero-terminated name of a validated lump directory entry.
-*/
+/// Decodes the zero-terminated name of a validated lump directory entry.
+/// @param lumpnum Index identifying lump.
 function RGL_LumpNameAt(lumpnum)
   if not RGL_IsSeq(lumpinfo) then return "" end if
   if lumpnum < 0 or lumpnum >= len(lumpinfo) then return "" end if
@@ -2963,10 +3060,11 @@ function RGL_LumpNameAt(lumpnum)
   return decodeZ(li.name)
 end function
 
-/*
-* Function: RGL_CachedTexture
-* Purpose: Returns a keyed GL texture or uploads indexed asset pixels once with requested alpha and wrap modes.
-*/
+/// Returns a keyed GL texture or uploads indexed asset pixels once with requested alpha and wrap modes.
+/// @param key Input key code to process.
+/// @param entry Entry value supplied to `RGL_CachedTexture`.
+/// @param transparent Transparent value supplied to `RGL_CachedTexture`.
+/// @param repeatWrap Repeat wrap value supplied to `RGL_CachedTexture`.
 function RGL_CachedTexture(key, entry, transparent, repeatWrap)
   global rgl_tex_keys
   global rgl_tex_ids
@@ -2991,10 +3089,8 @@ function RGL_CachedTexture(key, entry, transparent, repeatWrap)
   return texid
 end function
 
-/*
-* Function: RGL_SyncPaletteRevision
-* Purpose: Invalidates every palette-derived GL texture and dependent static/dynamic batch when the indexed palette changes.
-*/
+/// Invalidates every palette-derived GL texture and dependent static/dynamic batch when the indexed palette
+/// changes.
 function RGL_SyncPaletteRevision()
   global rgl_tex_keys
   global rgl_tex_ids
@@ -3024,10 +3120,8 @@ function RGL_SyncPaletteRevision()
   RGL_ResetScrollingArrayBatches()
 end function
 
-/*
-* Function: RGL_ResolveTextureNum
-* Purpose: Resolves Doom texture animation translation for OpenGL texture binding.
-*/
+/// Resolves Doom texture animation translation for OpenGL texture binding.
+/// @param texnum Index identifying tex.
 function inline RGL_ResolveTextureNum(texnum)
   if typeof(texnum) != "int" or texnum < 0 then return -1 end if
   n = texnum
@@ -3038,10 +3132,8 @@ function inline RGL_ResolveTextureNum(texnum)
   return n
 end function
 
-/*
-* Function: RGL_ResolveFlatNum
-* Purpose: Resolves Doom flat animation translation for OpenGL flat binding.
-*/
+/// Resolves Doom flat animation translation for OpenGL flat binding.
+/// @param flatnum Index identifying flat.
 function inline RGL_ResolveFlatNum(flatnum)
   if typeof(flatnum) != "int" or flatnum < 0 then return -1 end if
   n = flatnum
@@ -3052,10 +3144,8 @@ function inline RGL_ResolveFlatNum(flatnum)
   return n
 end function
 
-/*
-* Function: RGL_TextureName
-* Purpose: Returns the name of the currently animation-translated texture, or an empty string when invalid.
-*/
+/// Returns the name of the currently animation-translated texture, or an empty string when invalid.
+/// @param texnum Index identifying tex.
 function RGL_TextureName(texnum)
   if not RGL_IsSeq(textures) then return "" end if
   texnum = RGL_ResolveTextureNum(texnum)
@@ -3065,10 +3155,8 @@ function RGL_TextureName(texnum)
   return t.name
 end function
 
-/*
-* Function: RGL_TextureWidth
-* Purpose: Returns the translated texture's positive pixel width, with a 64-pixel fallback.
-*/
+/// Returns the translated texture's positive pixel width, with a 64-pixel fallback.
+/// @param texnum Index identifying tex.
 function RGL_TextureWidth(texnum)
   texnum = RGL_ResolveTextureNum(texnum)
   if not RGL_IsSeq(textures) or texnum < 0 or texnum >= len(textures) then return 64 end if
@@ -3077,10 +3165,8 @@ function RGL_TextureWidth(texnum)
   return t.width
 end function
 
-/*
-* Function: RGL_TextureHeight
-* Purpose: Returns the translated texture's positive pixel height, with a 64-pixel fallback.
-*/
+/// Returns the translated texture's positive pixel height, with a 64-pixel fallback.
+/// @param texnum Index identifying tex.
 function RGL_TextureHeight(texnum)
   texnum = RGL_ResolveTextureNum(texnum)
   if not RGL_IsSeq(textures) or texnum < 0 or texnum >= len(textures) then return 64 end if
@@ -3089,10 +3175,9 @@ function RGL_TextureHeight(texnum)
   return t.height
 end function
 
-/*
-* Function: RGL_TextureIdForTexnum
-* Purpose: Resolves animation, uploads a repeat-wrapped opaque wall texture once, and caches its GL id by texture number.
-*/
+/// Resolves animation, uploads a repeat-wrapped opaque wall texture once, and caches its GL id by texture
+/// number.
+/// @param texnum Index identifying tex.
 function RGL_TextureIdForTexnum(texnum)
   global rgl_texnum_tex_ids
   if typeof(texnum) != "int" or texnum < 0 then return 0 end if
@@ -3114,10 +3199,8 @@ function RGL_TextureIdForTexnum(texnum)
   return texid
 end function
 
-/*
-* Function: RGL_TextureIdForTexnumTransparent
-* Purpose: Resolves animation, uploads a repeat-wrapped cutout wall texture once, and caches its GL id separately.
-*/
+/// Resolves animation, uploads a repeat-wrapped cutout wall texture once, and caches its GL id separately.
+/// @param texnum Index identifying tex.
 function RGL_TextureIdForTexnumTransparent(texnum)
   global rgl_texnum_trans_tex_ids
   if typeof(texnum) != "int" or texnum < 0 then return 0 end if
@@ -3139,10 +3222,8 @@ function RGL_TextureIdForTexnumTransparent(texnum)
   return texid
 end function
 
-/*
-* Function: RGL_TextureIdForFlatnum
-* Purpose: Resolves flat animation, uploads the named repeat-wrapped flat once, and caches its GL texture id.
-*/
+/// Resolves flat animation, uploads the named repeat-wrapped flat once, and caches its GL texture id.
+/// @param flatnum Index identifying flat.
 function RGL_TextureIdForFlatnum(flatnum)
   global rgl_flat_tex_ids
   if typeof(flatnum) != "int" or flatnum < 0 then return 0 end if
@@ -3165,10 +3246,8 @@ function RGL_TextureIdForFlatnum(flatnum)
   return texid
 end function
 
-/*
-* Function: RGL_TextureIdForSpriteLump
-* Purpose: Loads a sprite/patch lump as a clamped cutout texture and caches its GL id by relative sprite lump.
-*/
+/// Loads a sprite/patch lump as a clamped cutout texture and caches its GL id by relative sprite lump.
+/// @param lump Lump value supplied to `RGL_TextureIdForSpriteLump`.
 function RGL_TextureIdForSpriteLump(lump)
   global rgl_sprite_tex_ids
   if typeof(lump) != "int" or lump < 0 then return 0 end if
@@ -3189,10 +3268,8 @@ function RGL_TextureIdForSpriteLump(lump)
   return texid
 end function
 
-/*
-* Function: RGL_TextureIdForSpriteFuzzLump
-* Purpose: Returns a neutral alpha-mask texture for shadow/fuzz sprite billboards.
-*/
+/// Returns a neutral alpha-mask texture for shadow/fuzz sprite billboards.
+/// @param lump Lump value supplied to `RGL_TextureIdForSpriteFuzzLump`.
 function RGL_TextureIdForSpriteFuzzLump(lump)
   global rgl_sprite_fuzz_tex_ids
   if typeof(lump) != "int" or lump < 0 then return 0 end if
@@ -3220,10 +3297,8 @@ function RGL_TextureIdForSpriteFuzzLump(lump)
   return texid
 end function
 
-/*
-* Function: RGL_SpriteEntryForLump
-* Purpose: Resolves a relative sprite lump to its upscaled sprite asset, falling back to the generic patch cache.
-*/
+/// Resolves a relative sprite lump to its upscaled sprite asset, falling back to the generic patch cache.
+/// @param lump Lump value supplied to `RGL_SpriteEntryForLump`.
 function RGL_SpriteEntryForLump(lump)
   name = RGL_LumpNameAt(firstspritelump + lump)
   if name == "" then return void end if
@@ -3232,10 +3307,8 @@ function RGL_SpriteEntryForLump(lump)
   return entry
 end function
 
-/*
-* Function: RGL_BindOrColor
-* Purpose: Binds and enables a valid texture id, otherwise disables texturing so caller colors remain visible.
-*/
+/// Binds and enables a valid texture id, otherwise disables texturing so caller colors remain visible.
+/// @param texid Texid value supplied to `RGL_BindOrColor`.
 function RGL_BindOrColor(texid)
   if texid > 0 then
     glEnable(GL_TEXTURE_2D)
@@ -3246,45 +3319,38 @@ function RGL_BindOrColor(texid)
   return false
 end function
 
-/*
-* Function: RGL_EnableCutoutAlpha
-* Purpose: Enables alpha testing and rejects texels whose alpha does not exceed the 0.5 cutout threshold.
-*/
+/// Enables alpha testing and rejects texels whose alpha does not exceed the 0.5 cutout threshold.
 function RGL_EnableCutoutAlpha()
   glEnable(GL_ALPHA_TEST)
   glAlphaFunc(GL_GREATER, 0.5)
 end function
 
-/*
-* Function: RGL_DisableCutoutAlpha
-* Purpose: Disables alpha testing after masked wall or sprite rendering.
-*/
+/// Disables alpha testing after masked wall or sprite rendering.
 function RGL_DisableCutoutAlpha()
   glDisable(GL_ALPHA_TEST)
 end function
 
-/*
-* Function: RGL_SideRowOffset
-* Purpose: Reads a sidedef's fixed vertical texture offset, defaulting to zero.
-*/
+/// Reads a sidedef's fixed vertical texture offset, defaulting to zero.
+/// @param side Map side affected by the operation.
 function inline RGL_SideRowOffset(side)
   if side is not void and typeof(side.rowoffset) == "int" then return side.rowoffset end if
   return 0
 end function
 
-/*
-* Function: RGL_TextureHeightFixed
-* Purpose: Returns a texture height in Doom fixed-point units from textureheight or pixel metadata fallback.
-*/
+/// Returns a texture height in Doom fixed-point units from textureheight or pixel metadata fallback.
+/// @param texnum Index identifying tex.
 function RGL_TextureHeightFixed(texnum)
   if RGL_IsSeq(textureheight) and texnum >= 0 and texnum < len(textureheight) then return textureheight[texnum] end if
   return RGL_TextureHeight(texnum) * FRACUNIT
 end function
 
-/*
-* Function: RGL_UpperTextureMid
-* Purpose: Computes the upper wall texture origin from pegging flags, adjacent ceilings, texture height, and row offset.
-*/
+/// Computes the upper wall texture origin from pegging flags, adjacent ceilings, texture height, and row
+/// offset.
+/// @param linedef Linedef value supplied to `RGL_UpperTextureMid`.
+/// @param texnum Index identifying tex.
+/// @param side Map side affected by the operation.
+/// @param front Front value supplied to `RGL_UpperTextureMid`.
+/// @param back Back value supplied to `RGL_UpperTextureMid`.
 function RGL_UpperTextureMid(linedef, texnum, side, front, back)
   yoff = RGL_SideRowOffset(side)
   if linedef is not void and typeof(linedef.flags) == "int" and(linedef.flags & ML_DONTPEGTOP) != 0 then
@@ -3294,10 +3360,13 @@ function RGL_UpperTextureMid(linedef, texnum, side, front, back)
   return front.ceilingheight + yoff
 end function
 
-/*
-* Function: RGL_LowerTextureMid
-* Purpose: Computes the lower wall texture origin from pegging flags, adjacent floors/ceiling, texture height, and row offset.
-*/
+/// Computes the lower wall texture origin from pegging flags, adjacent floors/ceiling, texture height, and row
+/// offset.
+/// @param linedef Linedef value supplied to `RGL_LowerTextureMid`.
+/// @param texnum Index identifying tex.
+/// @param side Map side affected by the operation.
+/// @param front Front value supplied to `RGL_LowerTextureMid`.
+/// @param back Back value supplied to `RGL_LowerTextureMid`.
 function RGL_LowerTextureMid(linedef, texnum, side, front, back)
   yoff = RGL_SideRowOffset(side)
   if linedef is not void and typeof(linedef.flags) == "int" and(linedef.flags & ML_DONTPEGBOTTOM) != 0 then
@@ -3307,10 +3376,12 @@ function RGL_LowerTextureMid(linedef, texnum, side, front, back)
   return front.floorheight + RGL_TextureHeightFixed(texnum) + yoff
 end function
 
-/*
-* Function: RGL_MidTextureMid
-* Purpose: Computes one- or two-sided middle-texture origin according to bottom pegging and the visible opening bounds.
-*/
+/// Computes one- or two-sided middle-texture origin according to bottom pegging and the visible opening bounds.
+/// @param linedef Linedef value supplied to `RGL_MidTextureMid`.
+/// @param texnum Index identifying tex.
+/// @param side Map side affected by the operation.
+/// @param front Front value supplied to `RGL_MidTextureMid`.
+/// @param back Back value supplied to `RGL_MidTextureMid`.
 function RGL_MidTextureMid(linedef, texnum, side, front, back)
   yoff = RGL_SideRowOffset(side)
   if back is not void then
@@ -3330,18 +3401,24 @@ function RGL_MidTextureMid(linedef, texnum, side, front, back)
   return front.ceilingheight + yoff
 end function
 
-/*
-* Function: RGL_DefaultTextureMid
-* Purpose: Uses a wall span's top plus sidedef row offset as the default vertical texture origin.
-*/
+/// Uses a wall span's top plus sidedef row offset as the default vertical texture origin.
+/// @param z1 Z1 value supplied to `RGL_DefaultTextureMid`.
+/// @param side Map side affected by the operation.
 function RGL_DefaultTextureMid(z1, side)
   return z1 + RGL_SideRowOffset(side)
 end function
 
-/*
-* Function: RGL_AddCachedWallQuad
-* Purpose: Converts a wall span to a lit textured quad, preserving its BSP-seg texture origin, and appends it to the active wall, masked, or sky-boundary cache.
-*/
+/// Converts a wall span to a lit textured quad, preserving its BSP-seg texture origin, and appends it to the
+/// active wall, masked, or sky-boundary cache.
+/// @param v1 V1 value supplied to `RGL_AddCachedWallQuad`.
+/// @param v2 V2 value supplied to `RGL_AddCachedWallQuad`.
+/// @param z0 Z0 value supplied to `RGL_AddCachedWallQuad`.
+/// @param z1 Z1 value supplied to `RGL_AddCachedWallQuad`.
+/// @param texnum Index identifying tex.
+/// @param side Map side affected by the operation.
+/// @param transparent Transparent value supplied to `RGL_AddCachedWallQuad`.
+/// @param texturemid Texturemid value supplied to `RGL_AddCachedWallQuad`.
+/// @param wallOffset Wall offset value supplied to `RGL_AddCachedWallQuad`.
 function RGL_AddCachedWallQuad(v1, v2, z0, z1, texnum, side, transparent, texturemid, wallOffset)
   global rgl_boundary_quads
   global rgl_wall_quads
@@ -3379,10 +3456,8 @@ function RGL_AddCachedWallQuad(v1, v2, z0, z1, texnum, side, transparent, textur
   end if
 end function
 
-/*
-* Function: RGL_DrawCachedTexturedQuads
-* Purpose: Draws cached quads in texture/alpha groups, minimizing binds and glBegin/glEnd boundaries.
-*/
+/// Draws cached quads in texture/alpha groups, minimizing binds and glBegin/glEnd boundaries.
+/// @param quads Quads value supplied to `RGL_DrawCachedTexturedQuads`.
 function RGL_DrawCachedTexturedQuads(quads)
   if not RGL_IsSeq(quads) then return end if
   active = false
@@ -3423,10 +3498,8 @@ function RGL_DrawCachedTexturedQuads(quads)
   RGL_DisableCutoutAlpha()
 end function
 
-/*
-* Function: RGL_CompileTexturedQuadDisplayList
-* Purpose: Compiles static textured quad lists that still use the immediate-mode fallback path.
-*/
+/// Compiles static textured quad lists that still use the immediate-mode fallback path.
+/// @param quads Quads value supplied to `RGL_CompileTexturedQuadDisplayList`.
 function RGL_CompileTexturedQuadDisplayList(quads)
   if not RGL_IsSeq(quads) or len(quads) <= 0 then return 0 end if
   id = glGenLists(1)
@@ -3437,10 +3510,7 @@ function RGL_CompileTexturedQuadDisplayList(quads)
   return id
 end function
 
-/*
-* Function: RGL_DrawBoundaryQuads
-* Purpose: Draws cached sky boundary quads through a compiled OpenGL display list.
-*/
+/// Draws cached sky boundary quads through a compiled OpenGL display list.
 function RGL_DrawBoundaryQuads()
   global rgl_boundary_display_list_id
 
@@ -3454,10 +3524,7 @@ function RGL_DrawBoundaryQuads()
   end if
 end function
 
-/*
-* Function: RGL_DrawMaskedQuads
-* Purpose: Draws cached masked midtexture quads through a compiled OpenGL display list.
-*/
+/// Draws cached masked midtexture quads through a compiled OpenGL display list.
 function RGL_DrawMaskedQuads()
   global rgl_masked_display_list_id
 
@@ -3471,10 +3538,17 @@ function RGL_DrawMaskedQuads()
   end if
 end function
 
-/*
-* Function: RGL_DrawWallQuadTexMid
-* Purpose: Caches or immediately draws a wall span with its sidedef-plus-seg horizontal origin and an explicit vertical texture origin.
-*/
+/// Caches or immediately draws a wall span with its sidedef-plus-seg horizontal origin and an explicit vertical
+/// texture origin.
+/// @param v1 V1 value supplied to `RGL_DrawWallQuadTexMid`.
+/// @param v2 V2 value supplied to `RGL_DrawWallQuadTexMid`.
+/// @param z0 Z0 value supplied to `RGL_DrawWallQuadTexMid`.
+/// @param z1 Z1 value supplied to `RGL_DrawWallQuadTexMid`.
+/// @param texnum Index identifying tex.
+/// @param side Map side affected by the operation.
+/// @param transparent Transparent value supplied to `RGL_DrawWallQuadTexMid`.
+/// @param texturemid Texturemid value supplied to `RGL_DrawWallQuadTexMid`.
+/// @param wallOffset Wall offset value supplied to `RGL_DrawWallQuadTexMid`.
 function RGL_DrawWallQuadTexMid(v1, v2, z0, z1, texnum, side, transparent, texturemid, wallOffset)
   if v1 is void or v2 is void then return end if
   if z1 <= z0 then return end if
@@ -3517,34 +3591,49 @@ function RGL_DrawWallQuadTexMid(v1, v2, z0, z1, texnum, side, transparent, textu
   glEnd()
 end function
 
-/*
-* Function: RGL_DrawWallQuadEx
-* Purpose: Draws an opaque or cutout wall span using the default top-plus-row-offset texture origin.
-*/
+/// Draws an opaque or cutout wall span using the default top-plus-row-offset texture origin.
+/// @param v1 V1 value supplied to `RGL_DrawWallQuadEx`.
+/// @param v2 V2 value supplied to `RGL_DrawWallQuadEx`.
+/// @param z0 Z0 value supplied to `RGL_DrawWallQuadEx`.
+/// @param z1 Z1 value supplied to `RGL_DrawWallQuadEx`.
+/// @param texnum Index identifying tex.
+/// @param side Map side affected by the operation.
+/// @param transparent Transparent value supplied to `RGL_DrawWallQuadEx`.
 function RGL_DrawWallQuadEx(v1, v2, z0, z1, texnum, side, transparent)
   RGL_DrawWallQuadTexMid(v1, v2, z0, z1, texnum, side, transparent, RGL_DefaultTextureMid(z1, side), 0.0)
 end function
 
-/*
-* Function: RGL_DrawWallQuadOffset
-* Purpose: Draws a generic wall quad while adding an oriented BSP-seg distance to the sidedef texture offset.
-*/
+/// Draws a generic wall quad while adding an oriented BSP-seg distance to the sidedef texture offset.
+/// @param v1 V1 value supplied to `RGL_DrawWallQuadOffset`.
+/// @param v2 V2 value supplied to `RGL_DrawWallQuadOffset`.
+/// @param z0 Z0 value supplied to `RGL_DrawWallQuadOffset`.
+/// @param z1 Z1 value supplied to `RGL_DrawWallQuadOffset`.
+/// @param texnum Index identifying tex.
+/// @param side Map side affected by the operation.
+/// @param wallOffset Wall offset value supplied to `RGL_DrawWallQuadOffset`.
 function RGL_DrawWallQuadOffset(v1, v2, z0, z1, texnum, side, wallOffset)
   RGL_DrawWallQuadTexMid(v1, v2, z0, z1, texnum, side, false, RGL_DefaultTextureMid(z1, side), wallOffset)
 end function
 
-/*
-* Function: RGL_DrawWallQuad
-* Purpose: Draws an opaque wall span through the common quad path.
-*/
+/// Draws an opaque wall span through the common quad path.
+/// @param v1 V1 value supplied to `RGL_DrawWallQuad`.
+/// @param v2 V2 value supplied to `RGL_DrawWallQuad`.
+/// @param z0 Z0 value supplied to `RGL_DrawWallQuad`.
+/// @param z1 Z1 value supplied to `RGL_DrawWallQuad`.
+/// @param texnum Index identifying tex.
+/// @param side Map side affected by the operation.
 function RGL_DrawWallQuad(v1, v2, z0, z1, texnum, side)
   RGL_DrawWallQuadEx(v1, v2, z0, z1, texnum, side, false)
 end function
 
-/*
-* Function: RGL_DrawMaskedMidtexture
-* Purpose: Computes a two-sided middle texture's pegged bounds and draws it as an offset-preserving cutout quad.
-*/
+/// Computes a two-sided middle texture's pegged bounds and draws it as an offset-preserving cutout quad.
+/// @param v1 V1 value supplied to `RGL_DrawMaskedMidtexture`.
+/// @param v2 V2 value supplied to `RGL_DrawMaskedMidtexture`.
+/// @param linedef Linedef value supplied to `RGL_DrawMaskedMidtexture`.
+/// @param side Map side affected by the operation.
+/// @param front Front value supplied to `RGL_DrawMaskedMidtexture`.
+/// @param back Back value supplied to `RGL_DrawMaskedMidtexture`.
+/// @param wallOffset Wall offset value supplied to `RGL_DrawMaskedMidtexture`.
 function RGL_DrawMaskedMidtexture(v1, v2, linedef, side, front, back, wallOffset)
   if v1 is void or v2 is void or side is void or front is void or back is void then return end if
   if typeof(side.midtexture) != "int" or side.midtexture == 0 then return end if
@@ -3556,10 +3645,10 @@ function RGL_DrawMaskedMidtexture(v1, v2, linedef, side, front, back, wallOffset
   RGL_DrawWallQuadTexMid(v1, v2, bottom, top, texnum, side, true, top, wallOffset)
 end function
 
-/*
-* Function: RGL_SegTextureOffset
-* Purpose: Returns a seg's map-authored texture distance, or the complementary distance when drawing the opposite orientation.
-*/
+/// Returns a seg's map-authored texture distance, or the complementary distance when drawing the opposite
+/// orientation.
+/// @param sg Sg value supplied to `RGL_SegTextureOffset`.
+/// @param opposite Opposite value supplied to `RGL_SegTextureOffset`.
 function RGL_SegTextureOffset(sg, opposite)
   if sg is void then return 0.0 end if
   offset = 0.0
@@ -3576,10 +3665,9 @@ function RGL_SegTextureOffset(sg, opposite)
   return remaining
 end function
 
-/*
-* Function: RGL_OppositeSide
-* Purpose: Resolves the sidedef opposite a known line side, with validation of both sidenum entries.
-*/
+/// Resolves the sidedef opposite a known line side, with validation of both sidenum entries.
+/// @param linedef Linedef value supplied to `RGL_OppositeSide`.
+/// @param side Map side affected by the operation.
 function RGL_OppositeSide(linedef, side)
   if linedef is void or not RGL_IsSeq(linedef.sidenum) or not RGL_IsSeq(sides) then return void end if
   if len(linedef.sidenum) < 2 then return void end if
@@ -3592,46 +3680,39 @@ function RGL_OppositeSide(linedef, side)
   return sides[s1]
 end function
 
-/*
-* Function: RGL_SideOrFallback
-* Purpose: Returns a preferred sidedef when present, otherwise the caller-supplied fallback.
-*/
+/// Returns a preferred sidedef when present, otherwise the caller-supplied fallback.
+/// @param side Map side affected by the operation.
+/// @param fallback Value returned when the requested conversion or lookup is unavailable.
 function inline RGL_SideOrFallback(side, fallback)
   if side is not void then return side end if
   return fallback
 end function
 
-/*
-* Function: RGL_TopTextureOrZero
-* Purpose: Reads a sidedef's upper texture number, returning zero for missing data.
-*/
+/// Reads a sidedef's upper texture number, returning zero for missing data.
+/// @param side Map side affected by the operation.
 function inline RGL_TopTextureOrZero(side)
   if side is not void and typeof(side.toptexture) == "int" then return side.toptexture end if
   return 0
 end function
 
-/*
-* Function: RGL_BottomTextureOrZero
-* Purpose: Reads a sidedef's lower texture number, returning zero for missing data.
-*/
+/// Reads a sidedef's lower texture number, returning zero for missing data.
+/// @param side Map side affected by the operation.
 function inline RGL_BottomTextureOrZero(side)
   if side is not void and typeof(side.bottomtexture) == "int" then return side.bottomtexture end if
   return 0
 end function
 
-/*
-* Function: RGL_MidTextureOrZero
-* Purpose: Reads a sidedef's middle texture number, returning zero for missing data.
-*/
+/// Reads a sidedef's middle texture number, returning zero for missing data.
+/// @param side Map side affected by the operation.
 function inline RGL_MidTextureOrZero(side)
   if side is not void and typeof(side.midtexture) == "int" then return side.midtexture end if
   return 0
 end function
 
-/*
-* Function: RGL_FallbackStepTexture
-* Purpose: Chooses a nonzero step texture from the requested slot, opposite side tiers, then either middle texture.
-*/
+/// Chooses a nonzero step texture from the requested slot, opposite side tiers, then either middle texture.
+/// @param tex Texture identifier or texture data to process.
+/// @param side Map side affected by the operation.
+/// @param otherSide Other side value supplied to `RGL_FallbackStepTexture`.
 function RGL_FallbackStepTexture(tex, side, otherSide)
   if typeof(tex) == "int" and tex != 0 then return tex end if
   tex = RGL_BottomTextureOrZero(otherSide)
@@ -3643,10 +3724,15 @@ function RGL_FallbackStepTexture(tex, side, otherSide)
   return RGL_MidTextureOrZero(otherSide)
 end function
 
-/*
-* Function: RGL_DrawWallPiece
-* Purpose: Draws a one-sided middle wall or adjacent-sector steps with pegging, light, and the parent linedef's continuous horizontal UV origin.
-*/
+/// Draws a one-sided middle wall or adjacent-sector steps with pegging, light, and the parent linedef's
+/// continuous horizontal UV origin.
+/// @param v1 V1 value supplied to `RGL_DrawWallPiece`.
+/// @param v2 V2 value supplied to `RGL_DrawWallPiece`.
+/// @param linedef Linedef value supplied to `RGL_DrawWallPiece`.
+/// @param side Map side affected by the operation.
+/// @param front Front value supplied to `RGL_DrawWallPiece`.
+/// @param back Back value supplied to `RGL_DrawWallPiece`.
+/// @param wallOffset Wall offset value supplied to `RGL_DrawWallPiece`.
 function RGL_DrawWallPiece(v1, v2, linedef, side, front, back, wallOffset)
   global rgl_current_light
 
@@ -3679,10 +3765,8 @@ function RGL_DrawWallPiece(v1, v2, linedef, side, front, back, wallOffset)
   end if
 end function
 
-/*
-* Function: RGL_DrawLine
-* Purpose: Resolves a linedef's front side and draws its opaque spans unless assigned to scrolling or volatile caches.
-*/
+/// Resolves a linedef's front side and draws its opaque spans unless assigned to scrolling or volatile caches.
+/// @param li Li value supplied to `RGL_DrawLine`.
 function RGL_DrawLine(li)
   if li is void then return end if
   if rgl_building_cache and not rgl_collecting_scrolling_geometry and RGL_LineScrollsTexture(li) then return end if
@@ -3697,10 +3781,8 @@ function RGL_DrawLine(li)
   RGL_DrawWallPiece(li.v1, li.v2, li, side, li.frontsector, li.backsector, 0.0)
 end function
 
-/*
-* Function: RGL_DrawSeg
-* Purpose: Draws an oriented BSP seg's opaque spans unless the seg belongs to scrolling or volatile geometry.
-*/
+/// Draws an oriented BSP seg's opaque spans unless the seg belongs to scrolling or volatile geometry.
+/// @param sg Sg value supplied to `RGL_DrawSeg`.
 function RGL_DrawSeg(sg)
   if sg is void then return end if
   if rgl_building_cache and not rgl_collecting_scrolling_geometry and RGL_LineScrollsTexture(sg.linedef) then return end if
@@ -3710,10 +3792,7 @@ function RGL_DrawSeg(sg)
   RGL_DrawWallPiece(sg.v1, sg.v2, sg.linedef, sg.sidedef, sg.frontsector, sg.backsector, RGL_SegTextureOffset(sg, false))
 end function
 
-/*
-* Function: RGL_DrawAllWalls
-* Purpose: Draws every BSP seg, falling back to linedefs when a seg table is unavailable.
-*/
+/// Draws every BSP seg, falling back to linedefs when a seg table is unavailable.
 function RGL_DrawAllWalls()
   if RGL_IsSeq(segs) then
     i = 0
@@ -3731,10 +3810,8 @@ function RGL_DrawAllWalls()
   end while
 end function
 
-/*
-* Function: RGL_DrawMaskedSeg
-* Purpose: Draws cutout middle textures on each populated side of a two-sided seg using that side's sector light.
-*/
+/// Draws cutout middle textures on each populated side of a two-sided seg using that side's sector light.
+/// @param sg Sg value supplied to `RGL_DrawMaskedSeg`.
 function RGL_DrawMaskedSeg(sg)
   global rgl_current_light
 
@@ -3765,10 +3842,7 @@ function RGL_DrawMaskedSeg(sg)
   end if
 end function
 
-/*
-* Function: RGL_DrawAllMaskedWalls
-* Purpose: Traverses every seg and draws its eligible cutout middle-texture surfaces.
-*/
+/// Traverses every seg and draws its eligible cutout middle-texture surfaces.
 function RGL_DrawAllMaskedWalls()
   if not RGL_IsSeq(segs) then return end if
   glEnable(GL_TEXTURE_2D)
@@ -3780,10 +3854,9 @@ function RGL_DrawAllMaskedWalls()
   end while
 end function
 
-/*
-* Function: RGL_DrawLineSideMidtexture
-* Purpose: Resolves and draws one oriented side of a two-sided linedef's cutout middle texture.
-*/
+/// Resolves and draws one oriented side of a two-sided linedef's cutout middle texture.
+/// @param li Li value supplied to `RGL_DrawLineSideMidtexture`.
+/// @param sideIndex Index identifying side.
 function RGL_DrawLineSideMidtexture(li, sideIndex)
   global rgl_current_light
 
@@ -3816,10 +3889,7 @@ function RGL_DrawLineSideMidtexture(li, sideIndex)
   end if
 end function
 
-/*
-* Function: RGL_DrawAllLineMidtextures
-* Purpose: For maps without segs, emits both eligible middle-texture sides of every two-sided linedef.
-*/
+/// For maps without segs, emits both eligible middle-texture sides of every two-sided linedef.
 function RGL_DrawAllLineMidtextures()
   if RGL_IsSeq(segs) and len(segs) > 0 then return end if
   if not RGL_IsSeq(lines) then return end if
@@ -3835,10 +3905,9 @@ function RGL_DrawAllLineMidtextures()
   end while
 end function
 
-/*
-* Function: RGL_DrawSkyInteriorBoundarySeg
-* Purpose: Fills the ceiling-height step where a seg crosses between sky and non-sky sectors, drawing both orientations if textured.
-*/
+/// Fills the ceiling-height step where a seg crosses between sky and non-sky sectors, drawing both orientations
+/// if textured.
+/// @param sg Sg value supplied to `RGL_DrawSkyInteriorBoundarySeg`.
 function RGL_DrawSkyInteriorBoundarySeg(sg)
   global rgl_current_light
 
@@ -3880,10 +3949,7 @@ function RGL_DrawSkyInteriorBoundarySeg(sg)
   end if
 end function
 
-/*
-* Function: RGL_DrawSkyInteriorBoundaries
-* Purpose: Finds segs whose adjacent sectors disagree on sky ceiling and draws their textured interior height steps.
-*/
+/// Finds segs whose adjacent sectors disagree on sky ceiling and draws their textured interior height steps.
 function RGL_DrawSkyInteriorBoundaries()
   if not RGL_IsSeq(segs) then return end if
   i = 0
@@ -3898,10 +3964,8 @@ function RGL_DrawSkyInteriorBoundaries()
   end while
 end function
 
-/*
-* Function: RGL_DrawSkyInteriorBoundaryLine
-* Purpose: No-seg fallback that draws both oriented textured ceiling steps across a sky/non-sky linedef.
-*/
+/// No-seg fallback that draws both oriented textured ceiling steps across a sky/non-sky linedef.
+/// @param li Li value supplied to `RGL_DrawSkyInteriorBoundaryLine`.
 function RGL_DrawSkyInteriorBoundaryLine(li)
   global rgl_current_light
 
@@ -3951,10 +4015,7 @@ function RGL_DrawSkyInteriorBoundaryLine(li)
   end if
 end function
 
-/*
-* Function: RGL_DrawSkyInteriorBoundaryLines
-* Purpose: Traverses linedefs and draws sky/non-sky ceiling steps when BSP seg boundaries are unavailable.
-*/
+/// Traverses linedefs and draws sky/non-sky ceiling steps when BSP seg boundaries are unavailable.
 function RGL_DrawSkyInteriorBoundaryLines()
   if not RGL_IsSeq(lines) then return end if
   i = 0
@@ -3969,10 +4030,8 @@ function RGL_DrawSkyInteriorBoundaryLines()
   end while
 end function
 
-/*
-* Function: RGL_DrawSkyPortalSeg
-* Purpose: Adds or draws a tall depth-only quad above a sky-ceiling seg so later sky pixels respect world occlusion.
-*/
+/// Adds or draws a tall depth-only quad above a sky-ceiling seg so later sky pixels respect world occlusion.
+/// @param sg Sg value supplied to `RGL_DrawSkyPortalSeg`.
 function RGL_DrawSkyPortalSeg(sg)
   if sg is void or sg.v1 is void or sg.v2 is void then return end if
   if sg.frontsector is void then return end if
@@ -4023,10 +4082,7 @@ function RGL_DrawSkyPortalSeg(sg)
   glEnable(GL_TEXTURE_2D)
 end function
 
-/*
-* Function: RGL_DrawSkyPortals
-* Purpose: Writes depth-only portal quads for every sky-adjacent BSP seg while preserving depth writes.
-*/
+/// Writes depth-only portal quads for every sky-adjacent BSP seg while preserving depth writes.
 function RGL_DrawSkyPortals()
   if not RGL_IsSeq(segs) then return end if
   glDepthMask(true)
@@ -4038,18 +4094,26 @@ function RGL_DrawSkyPortals()
   glDepthMask(true)
 end function
 
-/*
-* Function: RGL_CrossFixed
-* Purpose: Computes the signed 2D cross product of three fixed-point map coordinates in float space.
-*/
+/// Computes the signed 2D cross product of three fixed-point map coordinates in float space.
+/// @param ax Horizontal coordinate or vector component represented by ax.
+/// @param ay Vertical coordinate or vector component represented by ay.
+/// @param bx Horizontal coordinate or vector component represented by bx.
+/// @param by Vertical coordinate or vector component represented by by.
+/// @param cx Horizontal coordinate or vector component represented by cx.
+/// @param cy Vertical coordinate or vector component represented by cy.
 function inline RGL_CrossFixed(ax, ay, bx, by, cx, cy)
   return(RGL_FixedToFloat(bx) - RGL_FixedToFloat(ax)) *(RGL_FixedToFloat(cy) - RGL_FixedToFloat(ay)) -(RGL_FixedToFloat(by) - RGL_FixedToFloat(ay)) *(RGL_FixedToFloat(cx) - RGL_FixedToFloat(ax))
 end function
 
-/*
-* Function: RGL_PointInTriangle
-* Purpose: Tests whether a fixed-point point lies inside or on a triangle using sign-consistent edge cross products.
-*/
+/// Tests whether a fixed-point point lies inside or on a triangle using sign-consistent edge cross products.
+/// @param px Horizontal coordinate or vector component represented by px.
+/// @param py Vertical coordinate or vector component represented by py.
+/// @param ax Horizontal coordinate or vector component represented by ax.
+/// @param ay Vertical coordinate or vector component represented by ay.
+/// @param bx Horizontal coordinate or vector component represented by bx.
+/// @param by Vertical coordinate or vector component represented by by.
+/// @param cx Horizontal coordinate or vector component represented by cx.
+/// @param cy Vertical coordinate or vector component represented by cy.
 function RGL_PointInTriangle(px, py, ax, ay, bx, by, cx, cy)
   c1 = RGL_CrossFixed(px, py, ax, ay, bx, by)
   c2 = RGL_CrossFixed(px, py, bx, by, cx, cy)
@@ -4059,10 +4123,14 @@ function RGL_PointInTriangle(px, py, ax, ay, bx, by, cx, cy)
   return not(hasNeg and hasPos)
 end function
 
-/*
-* Function: RGL_DrawFlatTriangle
-* Purpose: Emits one lit flat triangle with 64-unit repeating UV coordinates when texturing is active.
-*/
+/// Emits one lit flat triangle with 64-unit repeating UV coordinates when texturing is active.
+/// @param pxs Pxs value supplied to `RGL_DrawFlatTriangle`.
+/// @param pys Pys value supplied to `RGL_DrawFlatTriangle`.
+/// @param a First input operand.
+/// @param b Second input operand.
+/// @param c C value supplied to `RGL_DrawFlatTriangle`.
+/// @param zz Zz value supplied to `RGL_DrawFlatTriangle`.
+/// @param textured Textured value supplied to `RGL_DrawFlatTriangle`.
 function RGL_DrawFlatTriangle(pxs, pys, a, b, c, zz, textured)
   ax = RGL_FixedToFloat(pxs[a])
   ay = RGL_FixedToFloat(pys[a])
@@ -4078,10 +4146,13 @@ function RGL_DrawFlatTriangle(pxs, pys, a, b, c, zz, textured)
   RGL_VertexLit(rgl_current_light, cx, zz, -cy)
 end function
 
-/*
-* Function: RGL_DrawFlatPolygonEarClipped
-* Purpose: Triangulates and draws a simple fixed-point polygon by orientation-aware ear clipping, returning whether any ear emitted.
-*/
+/// Triangulates and draws a simple fixed-point polygon by orientation-aware ear clipping, returning whether any
+/// ear emitted.
+/// @param pxs Pxs value supplied to `RGL_DrawFlatPolygonEarClipped`.
+/// @param pys Pys value supplied to `RGL_DrawFlatPolygonEarClipped`.
+/// @param count Number of elements or iterations to process.
+/// @param zz Zz value supplied to `RGL_DrawFlatPolygonEarClipped`.
+/// @param textured Textured value supplied to `RGL_DrawFlatPolygonEarClipped`.
 function RGL_DrawFlatPolygonEarClipped(pxs, pys, count, zz, textured)
   if count < 3 then return false end if
 
@@ -4161,10 +4232,11 @@ function RGL_DrawFlatPolygonEarClipped(pxs, pys, count, zz, textured)
   return emitted > 0
 end function
 
-/*
-* Function: RGL_DrawSubsectorFlat
-* Purpose: Reconstructs a subsector polygon from unique seg endpoints, angle-sorts it, and draws an ear-clipped or fan flat.
-*/
+/// Reconstructs a subsector polygon from unique seg endpoints, angle-sorts it, and draws an ear-clipped or fan
+/// flat.
+/// @param ss Ss value supplied to `RGL_DrawSubsectorFlat`.
+/// @param z Vertical world-space coordinate.
+/// @param flatnum Index identifying flat.
 function RGL_DrawSubsectorFlat(ss, z, flatnum)
   if ss is void or typeof(ss.numlines) != "int" or typeof(ss.firstline) != "int" then return end if
   texid = RGL_TextureIdForFlatnum(flatnum)
@@ -4339,10 +4411,7 @@ function RGL_DrawSubsectorFlat(ss, z, flatnum)
   glEnd()
 end function
 
-/*
-* Function: RGL_DrawAllFlats
-* Purpose: Draws floor and ceiling polygons for every subsector using the owning sector's flat ids and static light.
-*/
+/// Draws floor and ceiling polygons for every subsector using the owning sector's flat ids and static light.
 function RGL_DrawAllFlats()
   global rgl_current_light
 
@@ -4361,10 +4430,13 @@ function RGL_DrawAllFlats()
   end while
 end function
 
-/*
-* Function: RGL_AddCachedFlatConvexFloat
-* Purpose: Fan-triangulates a validated convex polygon and appends lit, textured floor/ceiling triangles to the flat cache.
-*/
+/// Fan-triangulates a validated convex polygon and appends lit, textured floor/ceiling triangles to the flat
+/// cache.
+/// @param xs Xs value supplied to `RGL_AddCachedFlatConvexFloat`.
+/// @param ys Ys value supplied to `RGL_AddCachedFlatConvexFloat`.
+/// @param count Number of elements or iterations to process.
+/// @param z Vertical world-space coordinate.
+/// @param flatnum Index identifying flat.
 function RGL_AddCachedFlatConvexFloat(xs, ys, count, z, flatnum)
   global rgl_flat_tris
 
@@ -4392,10 +4464,8 @@ function RGL_AddCachedFlatConvexFloat(xs, ys, count, z, flatnum)
   end while
 end function
 
-/*
-* Function: RGL_DrawCachedFlatTris
-* Purpose: Draws cached floor/ceiling triangles grouped by flat id to reduce texture binds and immediate-mode boundaries.
-*/
+/// Draws cached floor/ceiling triangles grouped by flat id to reduce texture binds and immediate-mode
+/// boundaries.
 function RGL_DrawCachedFlatTris()
   if not RGL_IsSeq(rgl_flat_tris) then return end if
   active = false
@@ -4424,10 +4494,9 @@ function RGL_DrawCachedFlatTris()
   if active then glEnd() end if
 end function
 
-/*
-* Function: RGL_CompileWallDisplayListRange
-* Purpose: Compiles a contiguous wall-quad texture group into one OpenGL display list.
-*/
+/// Compiles a contiguous wall-quad texture group into one OpenGL display list.
+/// @param startIndex Index identifying start.
+/// @param endIndex Index identifying end.
 function RGL_CompileWallDisplayListRange(startIndex, endIndex)
   id = glGenLists(1)
   if id == 0 then return 0 end if
@@ -4453,10 +4522,9 @@ function RGL_CompileWallDisplayListRange(startIndex, endIndex)
   return id
 end function
 
-/*
-* Function: RGL_CompileFlatDisplayListRange
-* Purpose: Compiles a contiguous flat-triangle texture group into one OpenGL display list.
-*/
+/// Compiles a contiguous flat-triangle texture group into one OpenGL display list.
+/// @param startIndex Index identifying start.
+/// @param endIndex Index identifying end.
 function RGL_CompileFlatDisplayListRange(startIndex, endIndex)
   id = glGenLists(1)
   if id == 0 then return 0 end if
@@ -4480,10 +4548,7 @@ function RGL_CompileFlatDisplayListRange(startIndex, endIndex)
   return id
 end function
 
-/*
-* Function: RGL_BuildStaticDisplayLists
-* Purpose: Builds per-texture OpenGL display lists for static opaque world geometry.
-*/
+/// Builds per-texture OpenGL display lists for static opaque world geometry.
 function RGL_BuildStaticDisplayLists()
   global rgl_wall_display_list_texnums
   global rgl_wall_display_list_transparents
@@ -4553,10 +4618,7 @@ function RGL_BuildStaticDisplayLists()
   return true
 end function
 
-/*
-* Function: RGL_DrawWallDisplayLists
-* Purpose: Draws static wall display-list batches with current animated texture bindings.
-*/
+/// Draws static wall display-list batches with current animated texture bindings.
 function RGL_DrawWallDisplayLists()
   if not RGL_BuildStaticDisplayLists() then
     RGL_DrawCachedTexturedQuads(rgl_wall_quads)
@@ -4577,10 +4639,7 @@ function RGL_DrawWallDisplayLists()
   RGL_DisableCutoutAlpha()
 end function
 
-/*
-* Function: RGL_DrawFlatDisplayLists
-* Purpose: Draws static flat display-list batches with current animated flat bindings.
-*/
+/// Draws static flat display-list batches with current animated flat bindings.
 function RGL_DrawFlatDisplayLists()
   if not RGL_BuildStaticDisplayLists() then
     RGL_DrawCachedFlatTris()
@@ -4596,20 +4655,14 @@ function RGL_DrawFlatDisplayLists()
   end while
 end function
 
-/*
-* Function: RGL_BeginArrayBatchDraw
-* Purpose: Enables OpenGL client-array state for prepacked world geometry batches.
-*/
+/// Enables OpenGL client-array state for prepacked world geometry batches.
 function RGL_BeginArrayBatchDraw()
   glEnableClientState(GL_VERTEX_ARRAY)
   glEnableClientState(GL_TEXTURE_COORD_ARRAY)
   glEnableClientState(GL_COLOR_ARRAY)
 end function
 
-/*
-* Function: RGL_EndArrayBatchDraw
-* Purpose: Restores OpenGL client-array state after array batch rendering.
-*/
+/// Restores OpenGL client-array state after array batch rendering.
 function RGL_EndArrayBatchDraw()
   glDisableClientState(GL_COLOR_ARRAY)
   glDisableClientState(GL_TEXTURE_COORD_ARRAY)
@@ -4617,10 +4670,7 @@ function RGL_EndArrayBatchDraw()
   glColor4ub(255, 255, 255, 255)
 end function
 
-/*
-* Function: RGL_BeginFixedArrayScale
-* Purpose: Applies fixed-point scaling for non-VBO client-array fallbacks.
-*/
+/// Applies fixed-point scaling for non-VBO client-array fallbacks.
 function RGL_BeginFixedArrayScale()
   inv = 1.0 / RGL_GEOM_FIX_SCALE
   glMatrixMode(GL_MODELVIEW)
@@ -4632,10 +4682,7 @@ function RGL_BeginFixedArrayScale()
   glMatrixMode(GL_MODELVIEW)
 end function
 
-/*
-* Function: RGL_EndFixedArrayScale
-* Purpose: Restores matrices after non-VBO fixed-point fallback drawing.
-*/
+/// Restores matrices after non-VBO fixed-point fallback drawing.
 function RGL_EndFixedArrayScale()
   glMatrixMode(GL_TEXTURE)
   glPopMatrix()
@@ -4643,10 +4690,9 @@ function RGL_EndFixedArrayScale()
   glPopMatrix()
 end function
 
-/*
-* Function: RGL_DrawStaticArrayBatch
-* Purpose: Draws one prepacked OpenGL client-array geometry batch.
-*/
+/// Draws one prepacked OpenGL client-array geometry batch.
+/// @param batch Batch value supplied to `RGL_DrawStaticArrayBatch`.
+/// @param mode Mode value supplied to `RGL_DrawStaticArrayBatch`.
 function RGL_DrawStaticArrayBatch(batch, mode)
   if batch is void or batch.vertex_count <= 0 then return end if
   if batch.interleaved_vbo != 0 then
@@ -4667,10 +4713,8 @@ function RGL_DrawStaticArrayBatch(batch, mode)
   RGL_EndFixedArrayScale()
 end function
 
-/*
-* Function: RGL_ArrayBatchVisible
-* Purpose: Conservatively rejects static geometry chunks outside the player view cone.
-*/
+/// Conservatively rejects static geometry chunks outside the player view cone.
+/// @param batch Batch value supplied to `RGL_ArrayBatchVisible`.
 function RGL_ArrayBatchVisible(batch)
   if batch is void then return false end if
   yawRad = (rgl_view_yaw / 360.0) * 6.283185314
@@ -4691,10 +4735,7 @@ function RGL_ArrayBatchVisible(batch)
   return true
 end function
 
-/*
-* Function: RGL_DrawWallArrayBatches
-* Purpose: Draws static wall geometry using OpenGL client arrays.
-*/
+/// Draws static wall geometry using OpenGL client arrays.
 function RGL_DrawWallArrayBatches()
   if not RGL_BuildStaticArrayBatches() or len(rgl_wall_array_batches) == 0 then
     RGL_DrawWallDisplayLists()
@@ -4736,10 +4777,7 @@ function RGL_DrawWallArrayBatches()
   if typeof(_D_ProfileGLBatches) == "function" then _D_ProfileGLBatches(1, total, drawn, vertices) end if
 end function
 
-/*
-* Function: RGL_DrawFlatArrayBatches
-* Purpose: Draws static floor and ceiling geometry using OpenGL client arrays.
-*/
+/// Draws static floor and ceiling geometry using OpenGL client arrays.
 function RGL_DrawFlatArrayBatches()
   if not RGL_BuildStaticArrayBatches() or len(rgl_flat_array_batches) == 0 then
     RGL_DrawFlatDisplayLists()
@@ -4776,10 +4814,7 @@ function RGL_DrawFlatArrayBatches()
   if typeof(_D_ProfileGLBatches) == "function" then _D_ProfileGLBatches(0, total, drawn, vertices) end if
 end function
 
-/*
-* Function: RGL_DrawMaskedArrayBatches
-* Purpose: Draws static cutout walls through spatially culled VBO batches.
-*/
+/// Draws static cutout walls through spatially culled VBO batches.
 function RGL_DrawMaskedArrayBatches()
   if not RGL_BuildStaticArrayBatches() or len(rgl_masked_array_batches) == 0 then
     RGL_DrawMaskedQuads()
@@ -4813,10 +4848,7 @@ function RGL_DrawMaskedArrayBatches()
   RGL_DisableCutoutAlpha()
 end function
 
-/*
-* Function: RGL_DrawStaticWorldDisplayList
-* Purpose: Draws all static opaque wall and flat geometry through one parent OpenGL display list.
-*/
+/// Draws all static opaque wall and flat geometry through one parent OpenGL display list.
 function RGL_DrawStaticWorldDisplayList()
   global rgl_static_world_display_list_id
 
@@ -4834,10 +4866,12 @@ function RGL_DrawStaticWorldDisplayList()
   return true
 end function
 
-/*
-* Function: RGL_DrawFlatConvexFloat
-* Purpose: Caches or fan-draws a convex floor/ceiling polygon with repeating flat UVs and current lighting.
-*/
+/// Caches or fan-draws a convex floor/ceiling polygon with repeating flat UVs and current lighting.
+/// @param xs Xs value supplied to `RGL_DrawFlatConvexFloat`.
+/// @param ys Ys value supplied to `RGL_DrawFlatConvexFloat`.
+/// @param count Number of elements or iterations to process.
+/// @param z Vertical world-space coordinate.
+/// @param flatnum Index identifying flat.
 function RGL_DrawFlatConvexFloat(xs, ys, count, z, flatnum)
   if count < 3 then return end if
   if rgl_building_cache then
@@ -4868,10 +4902,9 @@ function RGL_DrawFlatConvexFloat(xs, ys, count, z, flatnum)
   glEnd()
 end function
 
-/*
-* Function: RGL_SkySForPoint
-* Purpose: Computes view-yaw-relative horizontal sky texture coordinates from a world-space point.
-*/
+/// Computes view-yaw-relative horizontal sky texture coordinates from a world-space point.
+/// @param x Horizontal map- or screen-space coordinate.
+/// @param y Vertical map- or screen-space coordinate.
 function RGL_SkySForPoint(x, y)
   dx = x - rgl_view_x
   dy = y - rgl_view_y
@@ -4880,20 +4913,21 @@ function RGL_SkySForPoint(x, y)
   return a - yaw
 end function
 
-/*
-* Function: RGL_DrawSkyVertex
-* Purpose: Emits a world-space sky vertex with angular horizontal UV and centered vertical UV.
-*/
+/// Emits a world-space sky vertex with angular horizontal UV and centered vertical UV.
+/// @param x Horizontal map- or screen-space coordinate.
+/// @param y Vertical map- or screen-space coordinate.
+/// @param z Vertical world-space coordinate.
 function RGL_DrawSkyVertex(x, y, z)
   s = RGL_SkySForPoint(x, y)
   glTexCoord2d(s, 0.5)
   glVertex3d(x, z, -y)
 end function
 
-/*
-* Function: RGL_DrawSkyConvexFloat
-* Purpose: Fan-draws a convex polygon with the full-bright sky texture mapped by view-relative angle.
-*/
+/// Fan-draws a convex polygon with the full-bright sky texture mapped by view-relative angle.
+/// @param xs Xs value supplied to `RGL_DrawSkyConvexFloat`.
+/// @param ys Ys value supplied to `RGL_DrawSkyConvexFloat`.
+/// @param count Number of elements or iterations to process.
+/// @param z Vertical world-space coordinate.
 function RGL_DrawSkyConvexFloat(xs, ys, count, z)
   if count < 3 then return end if
   if typeof(skytexture) != "int" then return end if
@@ -4918,10 +4952,11 @@ function RGL_DrawSkyConvexFloat(xs, ys, count, z)
   glEnd()
 end function
 
-/*
-* Function: RGL_AddCachedDepthConvexFloat
-* Purpose: Fan-triangulates a convex portal polygon into the depth-only cache.
-*/
+/// Fan-triangulates a convex portal polygon into the depth-only cache.
+/// @param xs Xs value supplied to `RGL_AddCachedDepthConvexFloat`.
+/// @param ys Ys value supplied to `RGL_AddCachedDepthConvexFloat`.
+/// @param count Number of elements or iterations to process.
+/// @param z Vertical world-space coordinate.
 function RGL_AddCachedDepthConvexFloat(xs, ys, count, z)
   global rgl_depth_tris
 
@@ -4938,20 +4973,26 @@ function RGL_AddCachedDepthConvexFloat(xs, ys, count, z)
   end while
 end function
 
-/*
-* Function: RGL_AddCachedDepthQuad
-* Purpose: Appends one four-vertex sky-occlusion surface to the depth-only cache.
-*/
+/// Appends one four-vertex sky-occlusion surface to the depth-only cache.
+/// @param x0 X0 value supplied to `RGL_AddCachedDepthQuad`.
+/// @param y0 Y0 value supplied to `RGL_AddCachedDepthQuad`.
+/// @param z0 Z0 value supplied to `RGL_AddCachedDepthQuad`.
+/// @param x1 Horizontal coordinate of the first endpoint.
+/// @param y1 Vertical coordinate of the first endpoint.
+/// @param z1 Z1 value supplied to `RGL_AddCachedDepthQuad`.
+/// @param x2 Horizontal coordinate of the second endpoint.
+/// @param y2 Vertical coordinate of the second endpoint.
+/// @param z2 Z2 value supplied to `RGL_AddCachedDepthQuad`.
+/// @param x3 X3 value supplied to `RGL_AddCachedDepthQuad`.
+/// @param y3 Y3 value supplied to `RGL_AddCachedDepthQuad`.
+/// @param z3 Z3 value supplied to `RGL_AddCachedDepthQuad`.
 function RGL_AddCachedDepthQuad(x0, y0, z0, x1, y1, z1, x2, y2, z2, x3, y3, z3)
   global rgl_depth_quads
 
   rgl_depth_quads = rgl_depth_quads +[rgl_depth_quad_t(x0, y0, z0, x1, y1, z1, x2, y2, z2, x3, y3, z3)]
 end function
 
-/*
-* Function: RGL_DrawCachedDepthGeometry
-* Purpose: Writes cached sky-occlusion triangles and quads to depth only, restoring color and texture state afterward.
-*/
+/// Writes cached sky-occlusion triangles and quads to depth only, restoring color and texture state afterward.
 function RGL_DrawCachedDepthGeometry()
   glDisable(GL_TEXTURE_2D)
   glColorMask(false, false, false, false)
@@ -5000,10 +5041,11 @@ function RGL_DrawCachedDepthGeometry()
   glEnable(GL_TEXTURE_2D)
 end function
 
-/*
-* Function: RGL_DrawSkyDepthConvexFloat
-* Purpose: Caches or immediately fan-draws a convex sky-ceiling polygon with color writes disabled.
-*/
+/// Caches or immediately fan-draws a convex sky-ceiling polygon with color writes disabled.
+/// @param xs Xs value supplied to `RGL_DrawSkyDepthConvexFloat`.
+/// @param ys Ys value supplied to `RGL_DrawSkyDepthConvexFloat`.
+/// @param count Number of elements or iterations to process.
+/// @param z Vertical world-space coordinate.
 function RGL_DrawSkyDepthConvexFloat(xs, ys, count, z)
   if count < 3 then return end if
   if rgl_building_cache then
@@ -5031,10 +5073,8 @@ function RGL_DrawSkyDepthConvexFloat(xs, ys, count, z)
   glEnable(GL_TEXTURE_2D)
 end function
 
-/*
-* Function: RGL_SectorTouchesSkyCeiling
-* Purpose: Reports whether any sector-adjacent line leads to another sector whose ceiling uses the sky flat.
-*/
+/// Reports whether any sector-adjacent line leads to another sector whose ceiling uses the sky flat.
+/// @param sec Sec value supplied to `RGL_SectorTouchesSkyCeiling`.
 function RGL_SectorTouchesSkyCeiling(sec)
   if sec is void or not RGL_IsSeq(sec.lines) or typeof(sec.linecount) != "int" then return false end if
   i = 0
@@ -5054,10 +5094,10 @@ function RGL_SectorTouchesSkyCeiling(sec)
   return false
 end function
 
-/*
-* Function: RGL_BspSideValueFloat
-* Purpose: Computes the signed float-space half-plane value of a point against a BSP partition.
-*/
+/// Computes the signed float-space half-plane value of a point against a BSP partition.
+/// @param x Horizontal map- or screen-space coordinate.
+/// @param y Vertical map- or screen-space coordinate.
+/// @param node Node value supplied to `RGL_BspSideValueFloat`.
 function RGL_BspSideValueFloat(x, y, node)
   nx = RGL_FixedToFloat(node.x)
   ny = RGL_FixedToFloat(node.y)
@@ -5066,10 +5106,14 @@ function RGL_BspSideValueFloat(x, y, node)
   return(x - nx) * ndy -(y - ny) * ndx
 end function
 
-/*
-* Function: RGL_ClipPolyToNodeSide
-* Purpose: Sutherland-Hodgman clips a convex polygon to one BSP-node half-plane and returns the output vertex count.
-*/
+/// Sutherland-Hodgman clips a convex polygon to one BSP-node half-plane and returns the output vertex count.
+/// @param xs Xs value supplied to `RGL_ClipPolyToNodeSide`.
+/// @param ys Ys value supplied to `RGL_ClipPolyToNodeSide`.
+/// @param count Number of elements or iterations to process.
+/// @param node Node value supplied to `RGL_ClipPolyToNodeSide`.
+/// @param side Map side affected by the operation.
+/// @param outx Outx value supplied to `RGL_ClipPolyToNodeSide`.
+/// @param outy Outy value supplied to `RGL_ClipPolyToNodeSide`.
 function RGL_ClipPolyToNodeSide(xs, ys, count, node, side, outx, outy)
   if count < 3 or node is void then return 0 end if
   outCount = 0
@@ -5128,10 +5172,13 @@ function RGL_ClipPolyToNodeSide(xs, ys, count, node, side, outx, outy)
   return outCount
 end function
 
-/*
-* Function: RGL_ClipPolyToSegFront
-* Purpose: Clips a convex flat polygon to the playable front side of one boundary seg.
-*/
+/// Clips a convex flat polygon to the playable front side of one boundary seg.
+/// @param xs Xs value supplied to `RGL_ClipPolyToSegFront`.
+/// @param ys Ys value supplied to `RGL_ClipPolyToSegFront`.
+/// @param count Number of elements or iterations to process.
+/// @param sg Sg value supplied to `RGL_ClipPolyToSegFront`.
+/// @param outx Outx value supplied to `RGL_ClipPolyToSegFront`.
+/// @param outy Outy value supplied to `RGL_ClipPolyToSegFront`.
 function RGL_ClipPolyToSegFront(xs, ys, count, sg, outx, outy)
   if count < 3 or sg is void or sg.v1 is void or sg.v2 is void then return 0 end if
   outCount = 0
@@ -5184,10 +5231,13 @@ function RGL_ClipPolyToSegFront(xs, ys, count, sg, outx, outy)
   return outCount
 end function
 
-/*
-* Function: RGL_ClipBspFlatToBoundarySegs
-* Purpose: Trims BSP flat leaves against one-sided subsector walls so outside void space is not cached.
-*/
+/// Trims BSP flat leaves against one-sided subsector walls so outside void space is not cached.
+/// @param ss Ss value supplied to `RGL_ClipBspFlatToBoundarySegs`.
+/// @param xs Xs value supplied to `RGL_ClipBspFlatToBoundarySegs`.
+/// @param ys Ys value supplied to `RGL_ClipBspFlatToBoundarySegs`.
+/// @param count Number of elements or iterations to process.
+/// @param outx Outx value supplied to `RGL_ClipBspFlatToBoundarySegs`.
+/// @param outy Outy value supplied to `RGL_ClipBspFlatToBoundarySegs`.
 function RGL_ClipBspFlatToBoundarySegs(ss, xs, ys, count, outx, outy)
   if ss is void or count < 3 then return count end if
   if typeof(ss.numlines) != "int" or typeof(ss.firstline) != "int" or not RGL_IsSeq(segs) then return count end if
@@ -5236,10 +5286,11 @@ function RGL_ClipBspFlatToBoundarySegs(ss, xs, ys, count, outx, outy)
   return curCount
 end function
 
-/*
-* Function: RGL_AddVolatileFlatTemplate
-* Purpose: Saves one already clipped volatile flat leaf for fast per-frame drawing.
-*/
+/// Saves one already clipped volatile flat leaf for fast per-frame drawing.
+/// @param sidx Sidx value supplied to `RGL_AddVolatileFlatTemplate`.
+/// @param xs Xs value supplied to `RGL_AddVolatileFlatTemplate`.
+/// @param ys Ys value supplied to `RGL_AddVolatileFlatTemplate`.
+/// @param count Number of elements or iterations to process.
 function RGL_AddVolatileFlatTemplate(sidx, xs, ys, count)
   global rgl_volatile_flat_templates
 
@@ -5255,10 +5306,12 @@ function RGL_AddVolatileFlatTemplate(sidx, xs, ys, count)
   rgl_volatile_flat_templates = rgl_volatile_flat_templates +[rgl_volatile_flat_template_t(sidx, count, copyX, copyY)]
 end function
 
-/*
-* Function: RGL_DrawBspLeafFlat
-* Purpose: Clips one BSP leaf to solid boundary segs, records volatile templates when requested, then draws floor and ceiling/sky depth.
-*/
+/// Clips one BSP leaf to solid boundary segs, records volatile templates when requested, then draws floor and
+/// ceiling/sky depth.
+/// @param sidx Sidx value supplied to `RGL_DrawBspLeafFlat`.
+/// @param xs Xs value supplied to `RGL_DrawBspLeafFlat`.
+/// @param ys Ys value supplied to `RGL_DrawBspLeafFlat`.
+/// @param count Number of elements or iterations to process.
 function RGL_DrawBspLeafFlat(sidx, xs, ys, count)
   global rgl_current_light
   global rgl_flat_volatile_only
@@ -5294,10 +5347,7 @@ function RGL_DrawBspLeafFlat(sidx, xs, ys, count)
   end if
 end function
 
-/*
-* Function: RGL_Restore3DProjection
-* Purpose: Rebuilds the perspective frustum and identity model-view matrix after screen-space sky or weapon drawing.
-*/
+/// Rebuilds the perspective frustum and identity model-view matrix after screen-space sky or weapon drawing.
 function RGL_Restore3DProjection()
   aspect = 1.6
   if typeof(igl_width) == "int" and typeof(igl_height) == "int" and igl_height > 0 then
@@ -5317,10 +5367,8 @@ function RGL_Restore3DProjection()
   glLoadIdentity()
 end function
 
-/*
-* Function: RGL_DrawSky
-* Purpose: Draws the classic yaw-anchored full-screen sky texture, then restores the 3D projection and depth testing.
-*/
+/// Draws the classic yaw-anchored full-screen sky texture, then restores the 3D projection and depth testing.
+/// @param yaw Yaw value supplied to `RGL_DrawSky`.
 function RGL_DrawSky(yaw)
   if typeof(skytexture) != "int" then return end if
   texid = RGL_TextureIdForTexnum(skytexture)
@@ -5356,10 +5404,12 @@ function RGL_DrawSky(yaw)
   RGL_Restore3DProjection()
 end function
 
-/*
-* Function: RGL_DrawBspFlatNode
-* Purpose: Recursively clips the map-bounds polygon through BSP half-planes and sends each leaf polygon to flat rendering.
-*/
+/// Recursively clips the map-bounds polygon through BSP half-planes and sends each leaf polygon to flat
+/// rendering.
+/// @param bspnum Index identifying bsp.
+/// @param xs Xs value supplied to `RGL_DrawBspFlatNode`.
+/// @param ys Ys value supplied to `RGL_DrawBspFlatNode`.
+/// @param count Number of elements or iterations to process.
 function RGL_DrawBspFlatNode(bspnum, xs, ys, count)
   if count < 3 then return end if
 
@@ -5389,10 +5439,8 @@ function RGL_DrawBspFlatNode(bspnum, xs, ys, count)
   if c1 >= 3 and len(node.children) > 1 then RGL_DrawBspFlatNode(node.children[1], xs1, ys1, c1) end if
 end function
 
-/*
-* Function: RGL_DrawAllBspFlats
-* Purpose: Builds a padded map-bounds rectangle and partitions it through the BSP to produce gap-free leaf flat polygons.
-*/
+/// Builds a padded map-bounds rectangle and partitions it through the BSP to produce gap-free leaf flat
+/// polygons.
 function RGL_DrawAllBspFlats()
   if not RGL_IsSeq(nodes) or typeof(numnodes) != "int" or numnodes <= 0 then
     RGL_DrawAllFlats()
@@ -5444,10 +5492,9 @@ function RGL_DrawAllBspFlats()
   RGL_DrawBspFlatNode(numnodes - 1, xs, ys, 4)
 end function
 
-/*
-* Function: RGL_SelectSpriteLump
-* Purpose: Resolves an mobj frame and view-relative rotation to its relative sprite lump and horizontal flip flag.
-*/
+/// Resolves an mobj frame and view-relative rotation to its relative sprite lump and horizontal flip flag.
+/// @param thing World object affected by the operation.
+/// @param player Player state affected by the operation.
 function RGL_SelectSpriteLump(thing, player)
   if thing is void or not RGL_IsSeq(sprites) then return [-1, 0] end if
   spriteIdx = RGL_SpriteIndex(thing.sprite)
@@ -5469,10 +5516,14 @@ function RGL_SelectSpriteLump(thing, player)
   return [sprframe.lump[rot], sprframe.flip[rot]]
 end function
 
-/*
-* Function: RGL_DrawSpriteQuad
-* Purpose: Draws one billboard quad using Doom sprite texture orientation.
-*/
+/// Draws one billboard quad using Doom sprite texture orientation.
+/// @param x0 X0 value supplied to `RGL_DrawSpriteQuad`.
+/// @param y0 Y0 value supplied to `RGL_DrawSpriteQuad`.
+/// @param x1 Horizontal coordinate of the first endpoint.
+/// @param y1 Vertical coordinate of the first endpoint.
+/// @param z0 Z0 value supplied to `RGL_DrawSpriteQuad`.
+/// @param z1 Z1 value supplied to `RGL_DrawSpriteQuad`.
+/// @param flip Flip value supplied to `RGL_DrawSpriteQuad`.
 function RGL_DrawSpriteQuad(x0, y0, x1, y1, z0, z1, flip)
   glBegin(GL_QUADS)
   if flip != 0 then
@@ -5497,10 +5548,13 @@ function RGL_DrawSpriteQuad(x0, y0, x1, y1, z0, z1, flip)
   glEnd()
 end function
 
-/*
-* Function: RGL_DrawOneSpriteBillboard
-* Purpose: Builds one camera-facing world sprite quad, applying sector/dynamic light or a multi-pass translucent shadow treatment.
-*/
+/// Builds one camera-facing world sprite quad, applying sector/dynamic light or a multi-pass translucent shadow
+/// treatment.
+/// @param mo Map object affected by the operation.
+/// @param lump Lump value supplied to `RGL_DrawOneSpriteBillboard`.
+/// @param flip Flip value supplied to `RGL_DrawOneSpriteBillboard`.
+/// @param rx Rx value supplied to `RGL_DrawOneSpriteBillboard`.
+/// @param rz Rz value supplied to `RGL_DrawOneSpriteBillboard`.
 function RGL_DrawOneSpriteBillboard(mo, lump, flip, rx, rz)
   entry = RGL_SpriteEntryForLump(lump)
   if entry is void then return end if
@@ -5573,10 +5627,7 @@ function RGL_DrawOneSpriteBillboard(mo, lump, flip, rx, rz)
   end if
 end function
 
-/*
-* Function: RGL_BuildSpriteLightRecords
-* Purpose: Packs the full dynamic-light list once for native sprite color evaluation.
-*/
+/// Packs the full dynamic-light list once for native sprite color evaluation.
 function RGL_BuildSpriteLightRecords()
   global rgl_sprite_light_records
   global rgl_sprite_light_revision
@@ -5602,10 +5653,12 @@ function RGL_BuildSpriteLightRecords()
   return rgl_sprite_light_records
 end function
 
-/*
-* Function: RGL_PackNativeSprite
-* Purpose: Resolves and packs one visible mobj while caching immutable patch metrics.
-*/
+/// Resolves and packs one visible mobj while caching immutable patch metrics.
+/// @param mo Map object affected by the operation.
+/// @param lump Lump value supplied to `RGL_PackNativeSprite`.
+/// @param flip Flip value supplied to `RGL_PackNativeSprite`.
+/// @param records Records value supplied to `RGL_PackNativeSprite`.
+/// @param recordIndex Index identifying record.
 function inline RGL_PackNativeSprite(mo, lump, flip, records, recordIndex)
   global rgl_sprite_width_cache
   global rgl_sprite_height_cache
@@ -5654,10 +5707,9 @@ function inline RGL_PackNativeSprite(mo, lump, flip, records, recordIndex)
   return true
 end function
 
-/*
-* Function: RGL_DrawSpriteBillboardsNative
-* Purpose: Culls and packs visible sprites before handing the complete frame list to the native GL helper.
-*/
+/// Culls and packs visible sprites before handing the complete frame list to the native GL helper.
+/// @param player Player state affected by the operation.
+/// @param yaw Yaw value supplied to `RGL_DrawSpriteBillboardsNative`.
 function RGL_DrawSpriteBillboardsNative(player, yaw)
   global rgl_sprite_native_records
   if typeof(rgl_frame_mobjs) != "array" or rgl_frame_mobj_count <= 0 then return true end if
@@ -5713,10 +5765,9 @@ function RGL_DrawSpriteBillboardsNative(player, yaw)
   return ok
 end function
 
-/*
-* Function: RGL_DrawSpriteBillboardsImmediate
-* Purpose: Preserves the original per-sprite immediate renderer as a compatibility fallback.
-*/
+/// Preserves the original per-sprite immediate renderer as a compatibility fallback.
+/// @param player Player state affected by the operation.
+/// @param yaw Yaw value supplied to `RGL_DrawSpriteBillboardsImmediate`.
 function RGL_DrawSpriteBillboardsImmediate(player, yaw)
   if typeof(rgl_frame_mobjs) != "array" or rgl_frame_mobj_count <= 0 then return end if
   glEnable(GL_TEXTURE_2D)
@@ -5760,19 +5811,17 @@ function RGL_DrawSpriteBillboardsImmediate(player, yaw)
   RGL_DisableCutoutAlpha()
 end function
 
-/*
-* Function: RGL_DrawSpriteBillboards
-* Purpose: Draws world sprites through the native batch path with an immediate-mode fallback.
-*/
+/// Draws world sprites through the native batch path with an immediate-mode fallback.
+/// @param player Player state affected by the operation.
+/// @param yaw Yaw value supplied to `RGL_DrawSpriteBillboards`.
 function RGL_DrawSpriteBillboards(player, yaw)
   if RGL_DrawSpriteBillboardsNative(player, yaw) then return end if
   RGL_DrawSpriteBillboardsImmediate(player, yaw)
 end function
 
-/*
-* Function: RGL_DrawPlayerWeapon2D
-* Purpose: Resolves each active weapon/flash player sprite and submits its upscaled patch as a screen-space GL rectangle.
-*/
+/// Resolves each active weapon/flash player sprite and submits its upscaled patch as a screen-space GL
+/// rectangle.
+/// @param player Player state affected by the operation.
 function RGL_DrawPlayerWeapon2D(player)
   if player is void or not RGL_IsSeq(player.psprites) or not RGL_IsSeq(sprites) then return end if
 
@@ -5820,10 +5869,14 @@ function RGL_DrawPlayerWeapon2D(player)
   end while
 end function
 
-/*
-* Function: RGL_BuildGeometryCache
-* Purpose: Collects static boundary, depth, flat, opaque-wall, and masked geometry plus signatures for the loaded map.
-*/
+/// Collects static boundary, depth, flat, opaque-wall, and masked geometry plus signatures for the loaded map.
+/// @param sigMap Sig map value supplied to `RGL_BuildGeometryCache`.
+/// @param sigSegs Sig segs value supplied to `RGL_BuildGeometryCache`.
+/// @param sigLines Sig lines value supplied to `RGL_BuildGeometryCache`.
+/// @param sigNodes Sig nodes value supplied to `RGL_BuildGeometryCache`.
+/// @param sigSubsectors Sig subsectors value supplied to `RGL_BuildGeometryCache`.
+/// @param sigSectorMotion Sig sector motion value supplied to `RGL_BuildGeometryCache`.
+/// @param sigSides Sig sides value supplied to `RGL_BuildGeometryCache`.
 function RGL_BuildGeometryCache(sigMap, sigSegs, sigLines, sigNodes, sigSubsectors, sigSectorMotion, sigSides)
   global rgl_building_cache
   global rgl_cache_target
@@ -5890,10 +5943,8 @@ function RGL_BuildGeometryCache(sigMap, sigSegs, sigLines, sigNodes, sigSubsecto
   RGL_ResetStaticArrayBatches()
 end function
 
-/*
-* Function: RGL_EnsureGeometryCache
-* Purpose: Reuses matching geometry, tries the map lump on first use, or rebuilds and serializes when topology/sidedefs differ.
-*/
+/// Reuses matching geometry, tries the map lump on first use, or rebuilds and serializes when topology/sidedefs
+/// differ.
 function RGL_EnsureGeometryCache()
   global rgl_pending_sig_sector_motion
   global rgl_pending_sig_sides
@@ -5920,10 +5971,9 @@ function RGL_EnsureGeometryCache()
   return true
 end function
 
-/*
-* Function: RGL_DrawCachedWorld
-* Purpose: Draws cached boundary/depth/flats/walls, then sprites and masked batches in depth-correct world order.
-*/
+/// Draws cached boundary/depth/flats/walls, then sprites and masked batches in depth-correct world order.
+/// @param player Player state affected by the operation.
+/// @param yaw Yaw value supplied to `RGL_DrawCachedWorld`.
 function RGL_DrawCachedWorld(player, yaw)
   RGL_DrawBoundaryQuads()
   RGL_DrawCachedDepthGeometry()
@@ -5933,10 +5983,10 @@ function RGL_DrawCachedWorld(player, yaw)
   RGL_DrawMaskedArrayBatches()
 end function
 
-/*
-* Function: RGL_DrawDirectWorld
-* Purpose: Recomputes and draws all sky boundaries, BSP flats, walls, sprites, and cutout surfaces without geometry caches.
-*/
+/// Recomputes and draws all sky boundaries, BSP flats, walls, sprites, and cutout surfaces without geometry
+/// caches.
+/// @param player Player state affected by the operation.
+/// @param yaw Yaw value supplied to `RGL_DrawDirectWorld`.
 function RGL_DrawDirectWorld(player, yaw)
   RGL_DrawSkyInteriorBoundaries()
   RGL_DrawSkyInteriorBoundaryLines()
@@ -5948,10 +5998,7 @@ function RGL_DrawDirectWorld(player, yaw)
   RGL_DrawAllLineMidtextures()
 end function
 
-/*
-* Function: RGL_BuildVolatileFlatTemplates
-* Purpose: Precomputes clipped BSP leaf polygons for dynamic-sector flats.
-*/
+/// Precomputes clipped BSP leaf polygons for dynamic-sector flats.
 function RGL_BuildVolatileFlatTemplates()
   global rgl_volatile_flat_templates
   global rgl_collecting_volatile_flats
@@ -5996,10 +6043,8 @@ function RGL_BuildVolatileFlatTemplates()
   end while
 end function
 
-/*
-* Function: RGL_DrawVolatileFlatTemplate
-* Purpose: Draws one cached dynamic-sector floor and ceiling polygon at current heights.
-*/
+/// Draws one cached dynamic-sector floor and ceiling polygon at current heights.
+/// @param t T value supplied to `RGL_DrawVolatileFlatTemplate`.
 function RGL_DrawVolatileFlatTemplate(t)
   global rgl_current_light
 
@@ -6022,10 +6067,7 @@ function RGL_DrawVolatileFlatTemplate(t)
   end if
 end function
 
-/*
-* Function: RGL_DrawVolatileFlats
-* Purpose: Draws only flats that belong to dynamic sector geometry.
-*/
+/// Draws only flats that belong to dynamic sector geometry.
 function RGL_DrawVolatileFlats()
   global rgl_current_light
   global rgl_flat_volatile_only
@@ -6065,10 +6107,7 @@ function RGL_DrawVolatileFlats()
   end while
 end function
 
-/*
-* Function: RGL_DrawVolatileWalls
-* Purpose: Draws only opaque wall pieces that touch dynamic sector geometry.
-*/
+/// Draws only opaque wall pieces that touch dynamic sector geometry.
 function RGL_DrawVolatileWalls()
   if not RGL_IsSeq(rgl_volatile_segs) or not RGL_IsSeq(segs) then return end if
   i = 0
@@ -6079,10 +6118,7 @@ function RGL_DrawVolatileWalls()
   end while
 end function
 
-/*
-* Function: RGL_DrawVolatileMaskedWalls
-* Purpose: Draws only masked wall pieces that touch dynamic sector geometry.
-*/
+/// Draws only masked wall pieces that touch dynamic sector geometry.
 function RGL_DrawVolatileMaskedWalls()
   if not RGL_IsSeq(rgl_volatile_segs) or not RGL_IsSeq(segs) then return end if
   glEnable(GL_TEXTURE_2D)
@@ -6095,10 +6131,7 @@ function RGL_DrawVolatileMaskedWalls()
   end while
 end function
 
-/*
-* Function: RGL_DrawVolatileLineMidtextures
-* Purpose: Draws dynamic line midtextures when no seg list is available.
-*/
+/// Draws dynamic line midtextures when no seg list is available.
 function RGL_DrawVolatileLineMidtextures()
   if RGL_IsSeq(segs) and len(segs) > 0 then return end if
   if not RGL_IsSeq(rgl_volatile_lines) or not RGL_IsSeq(lines) then return end if
@@ -6117,10 +6150,7 @@ function RGL_DrawVolatileLineMidtextures()
   end while
 end function
 
-/*
-* Function: RGL_DrawScrollingWalls
-* Purpose: Draws only continuously scrolling wall pieces with their current texture offsets.
-*/
+/// Draws only continuously scrolling wall pieces with their current texture offsets.
 function RGL_DrawScrollingWalls()
   if RGL_IsSeq(segs) and len(segs) > 0 then
     i = 0
@@ -6140,10 +6170,7 @@ function RGL_DrawScrollingWalls()
   end while
 end function
 
-/*
-* Function: RGL_DrawScrollingMaskedWalls
-* Purpose: Draws masked portions of continuously scrolling walls outside the static cache.
-*/
+/// Draws masked portions of continuously scrolling walls outside the static cache.
 function RGL_DrawScrollingMaskedWalls()
   glEnable(GL_TEXTURE_2D)
   glColor4ub(255, 255, 255, 255)
@@ -6168,10 +6195,7 @@ function RGL_DrawScrollingMaskedWalls()
   end while
 end function
 
-/*
-* Function: RGL_CollectScrollingGeometry
-* Purpose: Resolves the current scroller texture offsets into frame-reusable quad records.
-*/
+/// Resolves the current scroller texture offsets into frame-reusable quad records.
 function RGL_CollectScrollingGeometry()
   global rgl_building_cache
   global rgl_collecting_scrolling_geometry
@@ -6208,10 +6232,10 @@ function RGL_CollectScrollingGeometry()
   return [collectedWalls, collectedMasked]
 end function
 
-/*
-* Function: RGL_RebuildScrollingArrayBatches
-* Purpose: Uploads one game tic's scrolling wall geometry while preserving static caches.
-*/
+/// Uploads one game tic's scrolling wall geometry while preserving static caches.
+/// @param currentTic Current tic value supplied to `RGL_RebuildScrollingArrayBatches`.
+/// @param currentMap Current map value supplied to `RGL_RebuildScrollingArrayBatches`.
+/// @param currentLevelTime Current level time value supplied to `RGL_RebuildScrollingArrayBatches`.
 function RGL_RebuildScrollingArrayBatches(currentTic, currentMap, currentLevelTime)
   global rgl_wall_quads
   global rgl_flat_tris
@@ -6313,10 +6337,7 @@ function RGL_RebuildScrollingArrayBatches(currentTic, currentMap, currentLevelTi
   return true
 end function
 
-/*
-* Function: RGL_EnsureScrollingArrayBatches
-* Purpose: Refreshes scrolling UV geometry once per game tic, not once per rendered frame.
-*/
+/// Refreshes scrolling UV geometry once per game tic, not once per rendered frame.
 function RGL_EnsureScrollingArrayBatches()
   if len(rgl_scrolling_segs) <= 0 and len(rgl_scrolling_lines) <= 0 then return true end if
   currentTic = 0
@@ -6328,28 +6349,19 @@ function RGL_EnsureScrollingArrayBatches()
   return RGL_RebuildScrollingArrayBatches(currentTic, currentMap, currentLevelTime)
 end function
 
-/*
-* Function: RGL_DrawVolatileOpaqueWorld
-* Purpose: Updates dynamic sector flats and opaque walls on top of the static cache.
-*/
+/// Updates dynamic sector flats and opaque walls on top of the static cache.
 function RGL_DrawVolatileOpaqueWorld()
   RGL_DrawVolatileFlats()
   RGL_DrawVolatileWalls()
 end function
 
-/*
-* Function: RGL_DrawVolatileMaskedWorld
-* Purpose: Updates dynamic masked geometry on top of the static cache.
-*/
+/// Updates dynamic masked geometry on top of the static cache.
 function RGL_DrawVolatileMaskedWorld()
   if not RGL_DrawVolatileMaskedArrayBatches() then RGL_DrawVolatileMaskedWalls() end if
   RGL_DrawVolatileLineMidtextures()
 end function
 
-/*
-* Function: RGL_VolatileGeometrySignature
-* Purpose: Tracks only state that can change the precomputed volatile-sector meshes.
-*/
+/// Tracks only state that can change the precomputed volatile-sector meshes.
 function RGL_VolatileGeometrySignature()
   h = len(rgl_volatile_sectors) * 65537 + len(rgl_volatile_segs) * 131071
   i = 0
@@ -6380,10 +6392,7 @@ function RGL_VolatileGeometrySignature()
   return h
 end function
 
-/*
-* Function: RGL_CollectVolatileGeometry
-* Purpose: Resolves current volatile sector heights into cached quad and triangle records without drawing them.
-*/
+/// Resolves current volatile sector heights into cached quad and triangle records without drawing them.
 function RGL_CollectVolatileGeometry()
   global rgl_building_cache
   global rgl_collecting_volatile_geometry
@@ -6422,10 +6431,8 @@ function RGL_CollectVolatileGeometry()
   return [collectedWalls, collectedFlats, collectedMasked]
 end function
 
-/*
-* Function: RGL_RebuildVolatileArrayBatches
-* Purpose: Uploads the current volatile meshes to VBOs while preserving the static cache state.
-*/
+/// Uploads the current volatile meshes to VBOs while preserving the static cache state.
+/// @param signature Signature value supplied to `RGL_RebuildVolatileArrayBatches`.
 function RGL_RebuildVolatileArrayBatches(signature)
   global rgl_wall_quads
   global rgl_flat_tris
@@ -6537,10 +6544,7 @@ function RGL_RebuildVolatileArrayBatches(signature)
   return true
 end function
 
-/*
-* Function: RGL_EnsureVolatileArrayBatches
-* Purpose: Rebuilds volatile meshes at most once per game tic and only when their state changed.
-*/
+/// Rebuilds volatile meshes at most once per game tic and only when their state changed.
 function RGL_EnsureVolatileArrayBatches()
   global rgl_volatile_geometry_last_gametic
   global rgl_volatile_geometry_last_leveltime
@@ -6579,10 +6583,7 @@ function RGL_EnsureVolatileArrayBatches()
   return RGL_RebuildVolatileArrayBatches(signature)
 end function
 
-/*
-* Function: RGL_UpdateVolatileWallRecordTextures
-* Purpose: Refreshes moving-wall native record texture ids only when the animation revision changes.
-*/
+/// Refreshes moving-wall native record texture ids only when the animation revision changes.
 function RGL_UpdateVolatileWallRecordTextures()
   global rgl_volatile_wall_native_records
   global rgl_volatile_wall_texture_revision
@@ -6602,10 +6603,7 @@ function RGL_UpdateVolatileWallRecordTextures()
   return true
 end function
 
-/*
-* Function: RGL_UpdateVolatileFlatRecordTextures
-* Purpose: Refreshes moving-floor/ceiling native record texture ids only when the flat-animation revision changes.
-*/
+/// Refreshes moving-floor/ceiling native record texture ids only when the flat-animation revision changes.
 function RGL_UpdateVolatileFlatRecordTextures()
   global rgl_volatile_flat_native_records
   global rgl_volatile_flat_texture_revision
@@ -6624,10 +6622,7 @@ function RGL_UpdateVolatileFlatRecordTextures()
   return true
 end function
 
-/*
-* Function: RGL_UpdateVolatileMaskedRecordTextures
-* Purpose: Refreshes moving cutout-wall native record texture ids only when the animation revision changes.
-*/
+/// Refreshes moving cutout-wall native record texture ids only when the animation revision changes.
 function RGL_UpdateVolatileMaskedRecordTextures()
   global rgl_volatile_masked_native_records
   global rgl_volatile_masked_texture_revision
@@ -6646,10 +6641,7 @@ function RGL_UpdateVolatileMaskedRecordTextures()
   return true
 end function
 
-/*
-* Function: RGL_DrawVolatileWallArrayBatches
-* Purpose: Draws moving-sector walls through native culled VBO batches.
-*/
+/// Draws moving-sector walls through native culled VBO batches.
 function RGL_DrawVolatileWallArrayBatches()
   if rgl_volatile_immediate_active then return false end if
   if not rgl_volatile_array_batches_ready then return false end if
@@ -6684,10 +6676,7 @@ function RGL_DrawVolatileWallArrayBatches()
   return true
 end function
 
-/*
-* Function: RGL_DrawVolatileFlatArrayBatches
-* Purpose: Draws moving-sector floors and ceilings through native culled VBO batches.
-*/
+/// Draws moving-sector floors and ceilings through native culled VBO batches.
 function RGL_DrawVolatileFlatArrayBatches()
   if rgl_volatile_immediate_active then return false end if
   if not rgl_volatile_array_batches_ready then return false end if
@@ -6721,10 +6710,7 @@ function RGL_DrawVolatileFlatArrayBatches()
   return true
 end function
 
-/*
-* Function: RGL_DrawVolatileMaskedArrayBatches
-* Purpose: Draws settled moving-sector cutout walls from their cached VBOs.
-*/
+/// Draws settled moving-sector cutout walls from their cached VBOs.
 function RGL_DrawVolatileMaskedArrayBatches()
   if rgl_volatile_immediate_active then return false end if
   if not rgl_volatile_array_batches_ready then return false end if
@@ -6753,10 +6739,7 @@ function RGL_DrawVolatileMaskedArrayBatches()
   return true
 end function
 
-/*
-* Function: RGL_UpdateScrollingWallRecordTextures
-* Purpose: Refreshes opaque scroller native record texture ids while preserving current UV geometry and VBOs.
-*/
+/// Refreshes opaque scroller native record texture ids while preserving current UV geometry and VBOs.
 function RGL_UpdateScrollingWallRecordTextures()
   global rgl_scrolling_wall_native_records
   global rgl_scrolling_wall_texture_revision
@@ -6775,10 +6758,7 @@ function RGL_UpdateScrollingWallRecordTextures()
   return true
 end function
 
-/*
-* Function: RGL_UpdateScrollingMaskedRecordTextures
-* Purpose: Refreshes cutout scroller native record texture ids while preserving current UV geometry and VBOs.
-*/
+/// Refreshes cutout scroller native record texture ids while preserving current UV geometry and VBOs.
 function RGL_UpdateScrollingMaskedRecordTextures()
   global rgl_scrolling_masked_native_records
   global rgl_scrolling_masked_texture_revision
@@ -6797,10 +6777,7 @@ function RGL_UpdateScrollingMaskedRecordTextures()
   return true
 end function
 
-/*
-* Function: RGL_DrawScrollingWallArrayBatches
-* Purpose: Draws opaque scrolling-wall VBOs through native culling with a per-batch client-array fallback.
-*/
+/// Draws opaque scrolling-wall VBOs through native culling with a per-batch client-array fallback.
 function RGL_DrawScrollingWallArrayBatches()
   if not rgl_scrolling_array_batches_ready then return false end if
   total = len(rgl_scrolling_wall_array_batches)
@@ -6828,10 +6805,7 @@ function RGL_DrawScrollingWallArrayBatches()
   return true
 end function
 
-/*
-* Function: RGL_DrawScrollingMaskedArrayBatches
-* Purpose: Draws cutout scrolling-wall VBOs through native culling with an alpha-tested per-batch fallback.
-*/
+/// Draws cutout scrolling-wall VBOs through native culling with an alpha-tested per-batch fallback.
 function RGL_DrawScrollingMaskedArrayBatches()
   if not rgl_scrolling_array_batches_ready then return false end if
   total = len(rgl_scrolling_masked_array_batches)
@@ -6859,10 +6833,7 @@ function RGL_DrawScrollingMaskedArrayBatches()
   return true
 end function
 
-/*
-* Function: RGL_ProfileStart
-* Purpose: Returns a timestamp for fine-grained renderer profiling.
-*/
+/// Returns a timestamp for fine-grained renderer profiling.
 function inline RGL_ProfileStart()
   if typeof(_d_profile_render) != "bool" or not _d_profile_render then return 0 end if
   if typeof(_D_ProfileTimeUs) == "function" then return _D_ProfileTimeUs() end if
@@ -6871,10 +6842,9 @@ function inline RGL_ProfileStart()
   return t
 end function
 
-/*
-* Function: RGL_ProfileEnd
-* Purpose: Adds elapsed time to one fine-grained renderer profiling slot.
-*/
+/// Adds elapsed time to one fine-grained renderer profiling slot.
+/// @param slot Slot value supplied to `RGL_ProfileEnd`.
+/// @param start Start value supplied to `RGL_ProfileEnd`.
 function inline RGL_ProfileEnd(slot, start)
   if typeof(_d_profile_render) != "bool" or not _d_profile_render then return end if
   if typeof(start) != "int" or start <= 0 then return end if
@@ -6884,10 +6854,9 @@ function inline RGL_ProfileEnd(slot, start)
   if typeof(_D_ProfileGLAdd) == "function" then _D_ProfileGLAdd(slot, t - start) end if
 end function
 
-/*
-* Function: RGL_RenderPlayerView
-* Purpose: Sets the interpolated camera, updates caches/lights, executes ordered opaque/sprite/masked passes, and presents one GL view.
-*/
+/// Sets the interpolated camera, updates caches/lights, executes ordered opaque/sprite/masked passes, and
+/// presents one GL view.
+/// @param player Player state affected by the operation.
 function RGL_RenderPlayerView(player)
   global rgl_view_x
   global rgl_view_y

@@ -13,9 +13,11 @@
   See the License for the specific language governing permissions and
   limitations under the License.
 
-  Script: r_draw.ml
-  Purpose: Rasterizes software wall columns, spans, fuzz, translated sprites, and depth-tested pixels into the active view buffer.
 */
+
+//! Rasterizes software wall columns, spans, fuzz, translated sprites, and depth-tested pixels into the active
+//! view buffer.
+
 import doomdef
 import i_system
 import z_zone
@@ -27,40 +29,70 @@ import r_hires
 import i_gl
 import std.math
 
+/// Tracks the mutable dc colormap value used by the r draw subsystem.
 dc_colormap = 0
+/// Tracks the mutable dc x value used by the r draw subsystem.
 dc_x = 0
+/// Tracks the mutable dc yl value used by the r draw subsystem.
 dc_yl = 0
+/// Tracks the mutable dc yh value used by the r draw subsystem.
 dc_yh = 0
+/// Tracks the mutable dc iscale value used by the r draw subsystem.
 dc_iscale = 0
+/// Tracks the mutable dc texturemid value used by the r draw subsystem.
 dc_texturemid = 0
+/// Tracks the mutable dc source value used by the r draw subsystem.
 dc_source = 0
 
+/// Holds the optional dc sourcebase resource used by the r draw subsystem.
 dc_sourcebase = void
+/// Tracks the mutable dc sourceoff value used by the r draw subsystem.
 dc_sourceoff = 0
+/// Tracks the mutable dc sourcelen value used by the r draw subsystem.
 dc_sourcelen = 0
+/// Tracks whether dc sourceclamp is active in the r draw subsystem.
 dc_sourceclamp = false
 
+/// Tracks the mutable ds y value used by the r draw subsystem.
 ds_y = 0
+/// Tracks the mutable ds x1 value used by the r draw subsystem.
 ds_x1 = 0
+/// Tracks the mutable ds x2 value used by the r draw subsystem.
 ds_x2 = 0
+/// Tracks the mutable ds colormap value used by the r draw subsystem.
 ds_colormap = 0
+/// Tracks the mutable ds xfrac value used by the r draw subsystem.
 ds_xfrac = 0
+/// Tracks the mutable ds yfrac value used by the r draw subsystem.
 ds_yfrac = 0
+/// Tracks the mutable ds xstep value used by the r draw subsystem.
 ds_xstep = 0
+/// Tracks the mutable ds ystep value used by the r draw subsystem.
 ds_ystep = 0
+/// Tracks the mutable ds source value used by the r draw subsystem.
 ds_source = 0
+/// Tracks the mutable ds source width value used by the r draw subsystem.
 ds_source_width = 64
+/// Tracks the mutable ds source height value used by the r draw subsystem.
 ds_source_height = 64
 
+/// Tracks the mutable translationtables value used by the r draw subsystem.
 translationtables = 0
+/// Tracks the mutable dc translation value used by the r draw subsystem.
 dc_translation = 0
 
+/// Stores the ylookup collection used by the r draw subsystem.
 ylookup =[]
+/// Stores the columnofs collection used by the r draw subsystem.
 columnofs =[]
+/// Defines sbarheight for the r draw subsystem.
 const SBARHEIGHT = 32
 
+/// Defines fuzztable for the r draw subsystem.
 const FUZZTABLE = 50
+/// Defines rd flat period mask for the r draw subsystem.
 const RD_FLAT_PERIOD_MASK = 4194303
+/// Stores the fuzzoffset collection used by the r draw subsystem.
 fuzzoffset =[
 SCREENWIDTH, - SCREENWIDTH, SCREENWIDTH, - SCREENWIDTH, SCREENWIDTH, SCREENWIDTH, - SCREENWIDTH,
 SCREENWIDTH, SCREENWIDTH, - SCREENWIDTH, SCREENWIDTH, SCREENWIDTH, SCREENWIDTH, - SCREENWIDTH,
@@ -70,18 +102,26 @@ SCREENWIDTH, - SCREENWIDTH, SCREENWIDTH, SCREENWIDTH, - SCREENWIDTH, - SCREENWID
 SCREENWIDTH, - SCREENWIDTH, - SCREENWIDTH, - SCREENWIDTH, - SCREENWIDTH, SCREENWIDTH, SCREENWIDTH,
 SCREENWIDTH, SCREENWIDTH, - SCREENWIDTH, SCREENWIDTH, SCREENWIDTH, - SCREENWIDTH, SCREENWIDTH
 ]
+/// Tracks the mutable fuzzpos value used by the r draw subsystem.
 fuzzpos = 0
 
+/// Tracks the mutable rd prof col calls value used by the r draw subsystem.
+/// @internal
 _rd_prof_col_calls = 0
+/// Tracks the mutable rd prof col pixels value used by the r draw subsystem.
+/// @internal
 _rd_prof_col_pixels = 0
+/// Tracks the mutable rd prof span calls value used by the r draw subsystem.
+/// @internal
 _rd_prof_span_calls = 0
+/// Tracks the mutable rd prof span pixels value used by the r draw subsystem.
+/// @internal
 _rd_prof_span_pixels = 0
+/// Tracks whether rd prof enabled is active in the r draw subsystem.
+/// @internal
 _rd_prof_enabled = false
 
-/*
-* Function: R_DrawProfileReset
-* Purpose: Clears draw Profile Reset state before the next software drawing update.
-*/
+/// Clears draw Profile Reset state before the next software drawing update.
 function R_DrawProfileReset()
   global _rd_prof_col_calls
   global _rd_prof_col_pixels
@@ -94,74 +134,63 @@ function R_DrawProfileReset()
   _rd_prof_span_pixels = 0
 end function
 
-/*
-* Function: R_DrawProfileSetEnabled
-* Purpose: Enables or disables software column/span counters without changing the active draw-function bindings.
-*/
+/// Enables or disables software column/span counters without changing the active draw-function bindings.
+/// @param on On value supplied to `R_DrawProfileSetEnabled`.
 function R_DrawProfileSetEnabled(on)
   global _rd_prof_enabled
   _rd_prof_enabled = on
 end function
 
-/*
-* Function: R_DepthClear
-* Purpose: Preserves the depth-buffer reset hook used by renderer callers; the current painter-ordered software path requires no separate buffer.
-*/
+/// Preserves the depth-buffer reset hook used by renderer callers; the current painter-ordered software path
+/// requires no separate buffer.
 function R_DepthClear()
 
 end function
 
-/*
-* Function: R_DepthBeginWall
-* Purpose: Accepts the projected wall scale for depth-aware renderer compatibility; painter ordering makes it a no-op here.
-*/
+/// Accepts the projected wall scale for depth-aware renderer compatibility; painter ordering makes it a no-op
+/// here.
+/// @param scale Scale value supplied to `R_DepthBeginWall`.
 function R_DepthBeginWall(scale)
   scale = scale
 end function
 
-/*
-* Function: R_DepthEndWall
-* Purpose: Closes the compatibility scope opened for a wall column; no state is retained by the painter-ordered path.
-*/
+/// Closes the compatibility scope opened for a wall column; no state is retained by the painter-ordered path.
 function R_DepthEndWall()
 end function
 
-/*
-* Function: R_DepthBeginSprite
-* Purpose: Accepts the projected sprite scale for depth-aware renderer compatibility; painter ordering makes it a no-op here.
-*/
+/// Accepts the projected sprite scale for depth-aware renderer compatibility; painter ordering makes it a no-op
+/// here.
+/// @param scale Scale value supplied to `R_DepthBeginSprite`.
 function R_DepthBeginSprite(scale)
   scale = scale
 end function
 
-/*
-* Function: R_DepthEndSprite
-* Purpose: Closes the compatibility scope opened for a sprite column without changing software draw state.
-*/
+/// Closes the compatibility scope opened for a sprite column without changing software draw state.
 function R_DepthEndSprite()
 end function
 
-/*
-* Function: _RD_DepthPass
-* Purpose: Always accepts a pixel because visibility is already resolved by BSP and sprite draw order in the software renderer.
-*/
+/// Always accepts a pixel because visibility is already resolved by BSP and sprite draw order in the software
+/// renderer.
+/// @param di Di value supplied to `_RD_DepthPass`.
+/// @internal
 function inline _RD_DepthPass(di)
   di = di
   return true
 end function
 
-/*
-* Function: _RD_DepthStore
-* Purpose: Retains the depth-write call site for alternate backends while intentionally storing nothing in the painter-ordered path.
-*/
+/// Retains the depth-write call site for alternate backends while intentionally storing nothing in the
+/// painter-ordered path.
+/// @param di Di value supplied to `_RD_DepthStore`.
+/// @internal
 function inline _RD_DepthStore(di)
   di = di
 end function
 
-/*
-* Function: _RD_IDiv
-* Purpose: Returns a signed quotient truncated toward zero, or zero for invalid operands and a zero divisor.
-*/
+/// Returns a signed quotient truncated toward zero, or zero for invalid operands and a zero divisor in
+/// `_RD_IDiv`
+/// @param a First input operand.
+/// @param b Second input operand.
+/// @internal
 function inline _RD_IDiv(a, b)
   if typeof(a) != "int" or typeof(b) != "int" or b == 0 then return 0 end if
   q = a / b
@@ -169,47 +198,40 @@ function inline _RD_IDiv(a, b)
   return std.math.ceil(q)
 end function
 
-/*
-* Function: _RD_CenterY
-* Purpose: Returns the configured projection center or the logical screen midpoint when view setup has not supplied one.
-*/
+/// Returns the configured projection center or the logical screen midpoint when view setup has not supplied
+/// one.
+/// @internal
 function inline _RD_CenterY()
   if typeof(centery) == "int" then return centery end if
   return _RD_IDiv(SCREENHEIGHT, 2)
 end function
 
-/*
-* Function: _RD_TargetWidth
-* Purpose: Returns the active render target width.
-*/
+/// Returns the active render target width.
+/// @internal
 function inline _RD_TargetWidth()
   if typeof(RH_IsActive) == "function" and RH_IsActive() then return RH_Width() end if
   return SCREENWIDTH
 end function
 
-/*
-* Function: _RD_TargetHeight
-* Purpose: Returns the active render target height.
-*/
+/// Returns the active render target height.
+/// @internal
 function inline _RD_TargetHeight()
   if typeof(RH_IsActive) == "function" and RH_IsActive() then return RH_Height() end if
   return SCREENHEIGHT
 end function
 
-/*
-* Function: _RD_TargetBuffer
-* Purpose: Returns the active render target buffer.
-*/
+/// Returns the active render target buffer.
+/// @internal
 function inline _RD_TargetBuffer()
   if typeof(RH_IsActive) == "function" and RH_IsActive() then return RH_Buffer() end if
   if typeof(screens) == "array" and len(screens) > 0 then return screens[0] end if
   return void
 end function
 
-/*
-* Function: _RD_WrapIndex
-* Purpose: Wraps positive or negative texture indices into a validated source period.
-*/
+/// Wraps positive or negative texture indices into a validated source period.
+/// @param i Zero-based iteration index.
+/// @param n Number of values to process.
+/// @internal
 function inline _RD_WrapIndex(i, n)
   if typeof(i) != "int" or typeof(n) != "int" or n <= 0 then return 0 end if
   if i < 0 then
@@ -220,10 +242,10 @@ function inline _RD_WrapIndex(i, n)
   return i
 end function
 
-/*
-* Function: _RD_FlatSampleCoord
-* Purpose: Maps Doom's fixed 64x64 flat coordinate into a variable-size source image.
-*/
+/// Maps Doom's fixed 64x64 flat coordinate into a variable-size source image.
+/// @param frac Frac value supplied to `_RD_FlatSampleCoord`.
+/// @param size Requested size in bytes or elements.
+/// @internal
 function inline _RD_FlatSampleCoord(frac, size)
   if typeof(size) != "int" or size <= 0 then return 0 end if
   period = 64 << FRACBITS
@@ -235,19 +257,20 @@ function inline _RD_FlatSampleCoord(frac, size)
   return sample
 end function
 
-/*
-* Function: _RD_IsPow2
-* Purpose: Tests whether a positive texture dimension permits bit-mask wrapping.
-*/
+/// Tests whether a positive texture dimension permits bit-mask wrapping.
+/// @param n Number of values to process.
+/// @internal
 function inline _RD_IsPow2(n)
   if typeof(n) != "int" or n <= 0 then return false end if
   return (n &(n - 1)) == 0
 end function
 
-/*
-* Function: _RD_DrawPatchIfExists
-* Purpose: Resolves and draws an optional named border patch without failing when an IWAD omits it.
-*/
+/// Resolves and draws an optional named border patch without failing when an IWAD omits it.
+/// @param x Horizontal map- or screen-space coordinate.
+/// @param y Vertical map- or screen-space coordinate.
+/// @param scrn Scrn value supplied to `_RD_DrawPatchIfExists`.
+/// @param name Resource or object name to resolve.
+/// @internal
 function inline _RD_DrawPatchIfExists(x, y, scrn, name)
   if typeof(W_CheckNumForName) != "function" then return end if
   lump = W_CheckNumForName(name)
@@ -255,10 +278,10 @@ function inline _RD_DrawPatchIfExists(x, y, scrn, name)
   V_DrawPatch(x, y, scrn, W_CacheLumpNum(lump, PU_CACHE))
 end function
 
-/*
-* Function: R_InitBuffer
-* Purpose: Recomputes view-window offsets plus per-row and per-column destination lookup tables for the active render target size.
-*/
+/// Recomputes view-window offsets plus per-row and per-column destination lookup tables for the active render
+/// target size.
+/// @param width Width of the target in pixels or map units.
+/// @param height Height of the target in pixels or map units.
 function R_InitBuffer(width, height)
   global ylookup
   global columnofs
@@ -291,10 +314,9 @@ function R_InitBuffer(width, height)
   end for
 end function
 
-/*
-* Function: R_VideoErase
-* Purpose: Restores a clipped byte range in the foreground screen from the cached background screen.
-*/
+/// Restores a clipped byte range in the foreground screen from the cached background screen.
+/// @param ofs Ofs value supplied to `R_VideoErase`.
+/// @param count Number of elements or iterations to process.
 function R_VideoErase(ofs, count)
 
   if count <= 0 then return end if
@@ -315,10 +337,8 @@ function R_VideoErase(ofs, count)
   copyBytes(dst, ofs, src, ofs, count)
 end function
 
-/*
-* Function: R_DrawColumn
-* Purpose: Samples a vertically stepped texture column through the active colormap into one clipped high-detail screen column.
-*/
+/// Samples a vertically stepped texture column through the active colormap into one clipped high-detail screen
+/// column.
 function R_DrawColumn()
   global _rd_prof_col_calls
   global _rd_prof_col_pixels
@@ -423,10 +443,7 @@ function R_DrawColumn()
   end for
 end function
 
-/*
-* Function: R_DrawColumnLow
-* Purpose: Draws a low-detail texture column by duplicating each logical sample across two horizontal target pixels.
-*/
+/// Draws a low-detail texture column by duplicating each logical sample across two horizontal target pixels.
 function R_DrawColumnLow()
   global _rd_prof_col_calls
   global _rd_prof_col_pixels
@@ -543,10 +560,8 @@ function R_DrawColumnLow()
   end for
 end function
 
-/*
-* Function: R_DrawFuzzColumn
-* Purpose: Produces the spectre effect by copying neighboring framebuffer samples through the fuzz colormap while advancing the cyclic fuzz offset.
-*/
+/// Produces the spectre effect by copying neighboring framebuffer samples through the fuzz colormap while
+/// advancing the cyclic fuzz offset.
 function R_DrawFuzzColumn()
   global fuzzpos
   dest = _RD_TargetBuffer()
@@ -576,18 +591,12 @@ function R_DrawFuzzColumn()
   end for
 end function
 
-/*
-* Function: R_DrawFuzzColumnLow
-* Purpose: Applies the fuzz-neighbor effect to a doubled low-detail column.
-*/
+/// Applies the fuzz-neighbor effect to a doubled low-detail column.
 function R_DrawFuzzColumnLow()
   R_DrawFuzzColumn()
 end function
 
-/*
-* Function: R_DrawTranslatedColumn
-* Purpose: Remaps each texture texel through the active player-color translation before applying the lighting colormap.
-*/
+/// Remaps each texture texel through the active player-color translation before applying the lighting colormap.
 function R_DrawTranslatedColumn()
   dest = _RD_TargetBuffer()
   if typeof(dest) != "bytes" then return end if
@@ -677,18 +686,13 @@ function R_DrawTranslatedColumn()
   end for
 end function
 
-/*
-* Function: R_DrawTranslatedColumnLow
-* Purpose: Draws a player-color-translated column with each result duplicated for low-detail mode.
-*/
+/// Draws a player-color-translated column with each result duplicated for low-detail mode.
 function R_DrawTranslatedColumnLow()
   R_DrawTranslatedColumn()
 end function
 
-/*
-* Function: R_DrawSpan
-* Purpose: Perspective-steps texture coordinates across one horizontal floor/ceiling span and writes colormapped samples to the active target.
-*/
+/// Perspective-steps texture coordinates across one horizontal floor/ceiling span and writes colormapped
+/// samples to the active target.
 function R_DrawSpan()
   global _rd_prof_span_calls
   global _rd_prof_span_pixels
@@ -748,10 +752,7 @@ function R_DrawSpan()
 
 end function
 
-/*
-* Function: R_DrawSpanLow
-* Purpose: Draws a perspective-correct flat span with horizontally doubled samples for low-detail mode.
-*/
+/// Draws a perspective-correct flat span with horizontally doubled samples for low-detail mode.
 function R_DrawSpanLow()
   global _rd_prof_span_calls
   global _rd_prof_span_pixels
@@ -818,10 +819,7 @@ function R_DrawSpanLow()
 
 end function
 
-/*
-* Function: R_InitTranslationTables
-* Purpose: Precomputes the three Doom player-color remaps while leaving every non-green palette index unchanged.
-*/
+/// Precomputes the three Doom player-color remaps while leaving every non-green palette index unchanged.
 function R_InitTranslationTables()
   global translationtables
   global dc_translation
@@ -844,10 +842,8 @@ function R_InitTranslationTables()
   dc_translation = slice(translationtables, 0, 256)
 end function
 
-/*
-* Function: R_FillBackScreen
-* Purpose: Tiles the game-mode border flat into the background screen and surrounds a reduced view with optional border patches.
-*/
+/// Tiles the game-mode border flat into the background screen and surrounds a reduced view with optional border
+/// patches.
 function R_FillBackScreen()
   if typeof(scaledviewwidth) != "int" then return end if
   if scaledviewwidth == SCREENWIDTH then return end if
@@ -904,10 +900,8 @@ function R_FillBackScreen()
   _RD_DrawPatchIfExists(viewwindowx + scaledviewwidth, viewwindowy + viewheight, 1, "BRDR_BR")
 end function
 
-/*
-* Function: R_DrawViewBorder
-* Purpose: Copies only the cached top, bottom, and side border regions around a reduced view into the foreground screen.
-*/
+/// Copies only the cached top, bottom, and side border regions around a reduced view into the foreground
+/// screen.
 function R_DrawViewBorder()
   if typeof(scaledviewwidth) != "int" then return end if
   if scaledviewwidth == SCREENWIDTH then return end if

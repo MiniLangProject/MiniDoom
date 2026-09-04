@@ -13,9 +13,11 @@
   See the License for the specific language governing permissions and
   limitations under the License.
 
-  Script: i_system.ml
-  Purpose: Supplies portable timing, sleep, shutdown, fatal-error, low-memory allocation, and base command services to the engine.
 */
+
+//! Supplies portable timing, sleep, shutdown, fatal-error, low-memory allocation, and base command services to
+//! the engine.
+
 import d_ticcmd
 import d_event
 import doomdef
@@ -32,13 +34,18 @@ import std.time
 import platform_linux
 #endif
 
+/// Defines isys mb ok for the i system subsystem.
+/// @internal
 const _ISYS_MB_OK = 0x00000000
+/// Defines isys mb iconerror for the i system subsystem.
+/// @internal
 const _ISYS_MB_ICONERROR = 0x00000010
 
-/*
-* Function: _IS_IDiv
-* Purpose: Returns a signed quotient truncated toward zero, or zero for invalid operands and a zero divisor.
-*/
+/// Returns a signed quotient truncated toward zero, or zero for invalid operands and a zero divisor in
+/// `_IS_IDiv`
+/// @param a First input operand.
+/// @param b Second input operand.
+/// @internal
 function inline _IS_IDiv(a, b)
   if typeof(a) != "int" or typeof(b) != "int" or b == 0 then return 0 end if
   q = a / b
@@ -46,10 +53,9 @@ function inline _IS_IDiv(a, b)
   return std.math.ceil(q)
 end function
 
-/*
-* Function: _I_ToLowerAscii
-* Purpose: Converts a string to lowercase ASCII for robust message classification.
-*/
+/// Converts a string to lowercase ASCII for robust message classification.
+/// @param s S value supplied to `_I_ToLowerAscii`.
+/// @internal
 function inline _I_ToLowerAscii(s)
   if typeof(s) != "string" then return "" end if
   b = bytes(s)
@@ -61,10 +67,10 @@ function inline _I_ToLowerAscii(s)
   return decode(b)
 end function
 
-/*
-* Function: _I_StrContains
-* Purpose: Checks whether one string contains another.
-*/
+/// Checks whether one string contains another.
+/// @param haystack Haystack value supplied to `_I_StrContains`.
+/// @param needle Needle value supplied to `_I_StrContains`.
+/// @internal
 function inline _I_StrContains(haystack, needle)
   if typeof(haystack) != "string" or typeof(needle) != "string" then return false end if
   hb = bytes(haystack)
@@ -89,30 +95,25 @@ function inline _I_StrContains(haystack, needle)
   return false
 end function
 
-/*
-* Function: _I_ShowFatalErrorBox
-* Purpose: Shows a fatal error message in a GUI dialog for windows-subsystem builds.
-*/
+/// Shows a fatal error message in a GUI dialog for windows-subsystem builds.
+/// @param text Text to process.
+/// @internal
 function inline _I_ShowFatalErrorBox(text)
   if typeof(text) != "string" or text == "" then return end if
   if typeof(MessageBoxW) != "function" then return end if
   _ = MessageBoxW(0, text, "MiniDoom - Fatal Error", _ISYS_MB_OK | _ISYS_MB_ICONERROR)
 end function
 
-/*
-* Function: I_Init
-* Purpose: Brings up the platform audio backend after core engine globals are available.
-*/
+/// Brings up the platform audio backend after core engine globals are available.
 function I_Init()
 
   if typeof(I_InitSound) == "function" then I_InitSound() end if
 
 end function
 
-/*
-* Function: I_ZoneBase
-* Purpose: Allocates the requested zone heap, reports its actual size through the reference argument, and retains the buffer for engine-wide lifetime.
-*/
+/// Allocates the requested zone heap, reports its actual size through the reference argument, and retains the
+/// buffer for engine-wide lifetime.
+/// @param sizeOut Size out value supplied to `I_ZoneBase`.
 function I_ZoneBase(sizeOut)
   size = I_GetHeapSize()
   if typeof(sizeOut) == "array" and len(sizeOut) > 0 then
@@ -122,10 +123,7 @@ function I_ZoneBase(sizeOut)
   return bytes(size)
 end function
 
-/*
-* Function: I_GetTime
-* Purpose: Converts elapsed Win32 milliseconds since the first call into whole 35 Hz game tics.
-*/
+/// Converts elapsed Win32 milliseconds since the first call into whole 35 Hz game tics.
 function I_GetTime()
   global _I_basetime
 
@@ -137,10 +135,7 @@ function I_GetTime()
   return _IS_IDiv(dt * TICRATE, 1000)
 end function
 
-/*
-* Function: I_GetTimeFrac
-* Purpose: Returns the clamped fractional progress through the current 35 Hz tic for uncapped interpolation.
-*/
+/// Returns the clamped fractional progress through the current 35 Hz tic for uncapped interpolation.
 function I_GetTimeFrac()
   global _I_basetime
 
@@ -159,10 +154,7 @@ function I_GetTimeFrac()
   return f
 end function
 
-/*
-* Function: I_BaseTiccmd
-* Purpose: Returns a reusable zeroed tic-command record that platform input code may populate for the current game tic.
-*/
+/// Returns a reusable zeroed tic-command record that platform input code may populate for the current game tic.
 function I_BaseTiccmd()
   global _I_emptycmd
 
@@ -172,10 +164,7 @@ function I_BaseTiccmd()
   return _I_emptycmd
 end function
 
-/*
-* Function: I_Quit
-* Purpose: Leaves the netgame, closes platform, audio, and graphics services, saves defaults, then exits successfully.
-*/
+/// Leaves the netgame, closes platform, audio, and graphics services, saves defaults, then exits successfully.
 function I_Quit()
 
   if typeof(D_QuitNetGame) == "function" then D_QuitNetGame() end if
@@ -188,19 +177,17 @@ function I_Quit()
   _I_ExitProcess(0)
 end function
 
-/*
-* Function: I_AllocLow
-* Purpose: Allocates a zeroed byte buffer for legacy callers that expect low-memory storage.
-*/
+/// Allocates a zeroed byte buffer for legacy callers that expect low-memory storage.
+/// @param length Number of bytes or elements in the associated value.
 function I_AllocLow(length)
 
   return bytes(length)
 end function
 
-/*
-* Function: I_Tactile
-* Purpose: Accepts legacy force-feedback parameters; this backend deliberately performs no tactile output.
-*/
+/// Accepts legacy force-feedback parameters; this backend deliberately performs no tactile output.
+/// @param on On value supplied to `I_Tactile`.
+/// @param off Zero-based byte or element offset.
+/// @param total Total value supplied to `I_Tactile`.
 function I_Tactile(on, off, total)
 
   on = 0
@@ -208,10 +195,9 @@ function I_Tactile(on, off, total)
   total = 0
 end function
 
-/*
-* Function: I_Error
-* Purpose: Performs one-shot fatal shutdown, prints the diagnostic, releases subsystems, and terminates with a nonzero exit code.
-*/
+/// Performs one-shot fatal shutdown, prints the diagnostic, releases subsystems, and terminates with a nonzero
+/// exit code.
+/// @param msg Msg value supplied to `I_Error`.
 function I_Error(msg)
   shown = ""
   if typeof(msg) == "string" and msg != "" then
@@ -246,83 +232,68 @@ function I_Error(msg)
   _I_ExitProcess(1)
 end function
 
+/// Tracks the mutable mb used value used by the i system subsystem.
 mb_used = 6
 
-/*
-* Function: I_GetHeapSize
-* Purpose: Converts the configured zone-heap size from mebibytes to bytes.
-*/
+/// Converts the configured zone-heap size from mebibytes to bytes.
 function I_GetHeapSize()
   return mb_used * 1024 * 1024
 end function
 
-/*
-* Function: I_WaitVBL
-* Purpose: Sleeps for the requested number of 70 Hz vertical-blank intervals using millisecond platform timing.
-*/
+/// Sleeps for the requested number of 70 Hz vertical-blank intervals using millisecond platform timing.
+/// @param count Number of elements or iterations to process.
 function I_WaitVBL(count)
 
   ms = count * 14
   _I_Sleep(ms)
 end function
 
-/*
-* Function: I_BeginRead
-* Purpose: Preserves the legacy disk-read activity hook; this backend requires no begin notification.
-*/
+/// Preserves the legacy disk-read activity hook; this backend requires no begin notification.
 function I_BeginRead()
 end function
 
-/*
-* Function: I_EndRead
-* Purpose: Preserves the legacy disk-read activity hook; this backend requires no end notification.
-*/
+/// Preserves the legacy disk-read activity hook; this backend requires no end notification.
 function I_EndRead()
 end function
 
 #if TARGET_OS == "windows"
-/*
- * Function: GetTickCount
- *
- * Purpose: Returns Win32's millisecond count since system startup for Doom tic timing.
- */
+/// Returns Win32's millisecond count since system startup for Doom tic timing.
+/// @returns Win32's millisecond count since system startup for Doom tic timing.
 
 extern function GetTickCount() from "kernel32.dll" returns u32
 
-/*
- * Function: ExitProcess
- *
- * Purpose: Terminates the process immediately with the supplied operating-system exit code.
- */
+/// Terminates the process immediately with the supplied operating-system exit code.
+/// @param code `int` value supplied as code to `ExitProcess`.
+/// @returns Result returned by the native `ExitProcess` binding as `int`.
 
 extern function ExitProcess(code as int) from "kernel32.dll" returns int
 #endif
 
+/// Tracks the mutable i basetime value used by the i system subsystem.
+/// @internal
 _I_basetime = 0
+/// Holds the optional i emptycmd resource used by the i system subsystem.
+/// @internal
 _I_emptycmd = void
 
-/*
-* Function: _I_GetTickCount
-* Purpose: Isolates the Win32 millisecond clock behind the engine's internal timing wrapper.
-*/
+/// Isolates the Win32 millisecond clock behind the engine's internal timing wrapper.
+/// @internal
 function inline _I_GetTickCount()
   return GetTickCount()
 end function
 
-/*
-* Function: _I_Sleep
-* Purpose: Suspends the current thread for a non-negative duration through the platform-neutral standard time API.
-*/
+/// Suspends the current thread for a non-negative duration through the platform-neutral standard time API.
+/// @param ms Ms value supplied to `_I_Sleep`.
+/// @internal
 function inline _I_Sleep(ms)
   if typeof(ms) != "int" then return end if
   if ms < 0 then ms = 0 end if
   std.time.sleep(ms)
 end function
 
-/*
-* Function: _I_ExitProcess
-* Purpose: Normalizes a non-integer exit status to failure and terminates through Win32.
-*/
+/// Normalizes a non-integer exit status to failure and terminates through Win32.
+/// @param code Code value supplied to `_I_ExitProcess`.
+/// @internal
 function inline _I_ExitProcess(code)
   if typeof(code) != "int" then code = 1 end if
   ExitProcess(code)

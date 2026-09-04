@@ -13,9 +13,10 @@
   See the License for the specific language governing permissions and
   limitations under the License.
 
-  Script: p_inter.ml
-  Purpose: Applies pickups, armor and damage, resolves deaths, and maintains player frag attribution.
 */
+
+//! Applies pickups, armor and damage, resolves deaths, and maintains player frag attribution.
+
 import doomdef
 import dstrings
 import sounds
@@ -33,19 +34,17 @@ import d_player
 import info
 import s_sound
 
-/*
-* Function: _PI_IsNoTargetPlayerMobj
-* Purpose: Reports whether a damage source is a player whose persistent notarget cheat forbids monster retaliation.
-*/
+/// Reports whether a damage source is a player whose persistent notarget cheat forbids monster retaliation.
+/// @param mo Map object affected by the operation.
+/// @internal
 function inline _PI_IsNoTargetPlayerMobj(mo)
   if mo is void or mo.player is void then return false end if
   return (mo.player.cheats & cheat_t.CF_NOTARGET) != 0
 end function
 
-/*
-* Function: P_GivePower
-* Purpose: Grants or refreshes a player powerup while respecting permanent berserk strength.
-*/
+/// Grants or refreshes a player powerup while respecting permanent berserk strength.
+/// @param player Player state affected by the operation.
+/// @param power Power value supplied to `P_GivePower`.
 function P_GivePower(player, power)
   if player is void then return false end if
   pi = _PI_PowerIndex(power)
@@ -92,18 +91,25 @@ function P_GivePower(player, power)
   return true
 end function
 
+/// Defines bonusadd for the p inter subsystem.
 const BONUSADD = 6
 
+/// Stores the maxammo collection used by the p inter subsystem.
 maxammo =[200, 50, 300, 50]
+/// Stores the clipammo collection used by the p inter subsystem.
 clipammo =[10, 4, 20, 1]
+/// Tracks whether pi diag hit init is active in the p inter subsystem.
+/// @internal
 _piDiagHitInit = false
+/// Tracks whether pi diag hit is active in the p inter subsystem.
+/// @internal
 _piDiagHit = false
+/// Tracks the mutable pi diag hit count value used by the p inter subsystem.
+/// @internal
 _piDiagHitCount = 0
 
-/*
-* Function: _PI_DiagHitEnabled
-* Purpose: Enables bounded hit diagnostics only for explicit developer runs.
-*/
+/// Enables bounded hit diagnostics only for explicit developer runs.
+/// @internal
 function _PI_DiagHitEnabled()
   global _piDiagHitInit
   global _piDiagHit
@@ -121,10 +127,9 @@ function _PI_DiagHitEnabled()
   return _piDiagHit
 end function
 
-/*
-* Function: _PI_DiagHitLog
-* Purpose: Emits rate-limited damage diagnostics without flooding normal gameplay output.
-*/
+/// Emits rate-limited damage diagnostics without flooding normal gameplay output.
+/// @param msg Msg value supplied to `_PI_DiagHitLog`.
+/// @internal
 function inline _PI_DiagHitLog(msg)
   global _piDiagHitCount
   if not _PI_DiagHitEnabled() then return end if
@@ -134,10 +139,9 @@ function inline _PI_DiagHitLog(msg)
   end if
 end function
 
-/*
-* Function: _PI_AmmoIndex
-* Purpose: Converts an ammo enum/value into a checked inventory index.
-*/
+/// Converts an ammo enum/value into a checked inventory index.
+/// @param a First input operand.
+/// @internal
 function inline _PI_AmmoIndex(a)
   if typeof(a) == "int" then
     if a >= 0 and a < 4 then return a end if
@@ -150,10 +154,9 @@ function inline _PI_AmmoIndex(a)
   return -1
 end function
 
-/*
-* Function: _PI_WeaponIndex
-* Purpose: Converts a weapon enum/value into a checked ownership-table index.
-*/
+/// Converts a weapon enum/value into a checked ownership-table index.
+/// @param w W value supplied to `_PI_WeaponIndex`.
+/// @internal
 function _PI_WeaponIndex(w)
   if typeof(w) == "int" then
     if w >= 0 and w < 9 then return w end if
@@ -171,10 +174,9 @@ function _PI_WeaponIndex(w)
   return -1
 end function
 
-/*
-* Function: _PI_PowerIndex
-* Purpose: Converts a power enum/value into a checked powers-array index.
-*/
+/// Converts a power enum/value into a checked powers-array index.
+/// @param pw Pw value supplied to `_PI_PowerIndex`.
+/// @internal
 function _PI_PowerIndex(pw)
   if typeof(pw) == "int" then
     if pw >= 0 and pw < 6 then return pw end if
@@ -194,10 +196,9 @@ function _PI_PowerIndex(pw)
   return -1
 end function
 
-/*
-* Function: _PI_CardIndex
-* Purpose: Converts a key/card enum/value into a checked cards-array index.
-*/
+/// Converts a key/card enum/value into a checked cards-array index.
+/// @param card Card value supplied to `_PI_CardIndex`.
+/// @internal
 function _PI_CardIndex(card)
   if typeof(card) == "int" then
     if card >= 0 and card < NUMCARDS then return card end if
@@ -223,10 +224,10 @@ function _PI_CardIndex(card)
   return -1
 end function
 
-/*
-* Function: _PI_HasCard
-* Purpose: Tests whether a player already owns a checked key/card inventory entry.
-*/
+/// Tests whether a player already owns a checked key/card inventory entry.
+/// @param player Player state affected by the operation.
+/// @param card Card value supplied to `_PI_HasCard`.
+/// @internal
 function inline _PI_HasCard(player, card)
   if player is void then return false end if
   if typeof(player.cards) != "array" and typeof(player.cards) != "list" then return false end if
@@ -235,10 +236,10 @@ function inline _PI_HasCard(player, card)
   return player.cards[ci]
 end function
 
-/*
-* Function: _PI_IDiv
-* Purpose: Truncates damage and ammo scaling quotients toward zero, returning zero for invalid divisors.
-*/
+/// Truncates damage and ammo scaling quotients toward zero, returning zero for invalid divisors.
+/// @param a First input operand.
+/// @param b Second input operand.
+/// @internal
 function inline _PI_IDiv(a, b)
   if typeof(a) != "int" or typeof(b) != "int" or b == 0 then return 0 end if
   q = a / b
@@ -246,10 +247,9 @@ function inline _PI_IDiv(a, b)
   return std.math.ceil(q)
 end function
 
-/*
-* Function: _PI_WeaponInfo
-* Purpose: Resolves immutable weapon metadata after validating the weapon index.
-*/
+/// Resolves immutable weapon metadata after validating the weapon index.
+/// @param weapon Weapon value supplied to `_PI_WeaponInfo`.
+/// @internal
 function inline _PI_WeaponInfo(weapon)
   wi = _PI_WeaponIndex(weapon)
   if wi < 0 then return void end if
@@ -258,10 +258,10 @@ function inline _PI_WeaponInfo(weapon)
   return weaponinfo[wi]
 end function
 
-/*
-* Function: _PI_HasWeapon
-* Purpose: Tests a checked weapon ownership bit on a possibly incomplete player record.
-*/
+/// Tests a checked weapon ownership bit on a possibly incomplete player record.
+/// @param player Player state affected by the operation.
+/// @param weapon Weapon value supplied to `_PI_HasWeapon`.
+/// @internal
 function inline _PI_HasWeapon(player, weapon)
   if player is void then return false end if
   wi = _PI_WeaponIndex(weapon)
@@ -271,10 +271,9 @@ function inline _PI_HasWeapon(player, weapon)
   return player.weaponowned[wi]
 end function
 
-/*
-* Function: _PI_PlayerIndex
-* Purpose: Resolves a player struct to its authoritative slot for frag/pickup commits.
-*/
+/// Resolves a player struct to its authoritative slot for frag/pickup commits.
+/// @param player Player state affected by the operation.
+/// @internal
 function _PI_PlayerIndex(player)
   if player is void then return -1 end if
   if typeof(players) != "array" then return -1 end if
@@ -295,10 +294,10 @@ function _PI_PlayerIndex(player)
   return -1
 end function
 
-/*
-* Function: _PI_PlayerIndexForThing
-* Purpose: Resolves player slot by player struct first, then by owning mobj.
-*/
+/// Resolves player slot by player struct first, then by owning mobj.
+/// @param player Player state affected by the operation.
+/// @param thing World object affected by the operation.
+/// @internal
 function _PI_PlayerIndexForThing(player, thing)
   if thing is not void and typeof(players) == "array" then
     i = 0
@@ -325,10 +324,11 @@ function _PI_PlayerIndexForThing(player, thing)
   return -1
 end function
 
-/*
-* Function: _PI_CommitTouchedPlayer
-* Purpose: Writes pickup-mutated player state back to global slot and touching mobj.
-*/
+/// Writes pickup-mutated player state back to global slot and touching mobj.
+/// @param toucher Toucher value supplied to `_PI_CommitTouchedPlayer`.
+/// @param player Player state affected by the operation.
+/// @param pidx Pidx value supplied to `_PI_CommitTouchedPlayer`.
+/// @internal
 function inline _PI_CommitTouchedPlayer(toucher, player, pidx)
   if typeof(player) != "struct" then return end if
   if typeof(players) == "array" and pidx >= 0 and pidx < len(players) then
@@ -339,10 +339,10 @@ function inline _PI_CommitTouchedPlayer(toucher, player, pidx)
   end if
 end function
 
-/*
-* Function: P_GiveAmmo
-* Purpose: Adds clip-scaled ammunition, clamps capacity, and selects a newly usable weapon.
-*/
+/// Adds clip-scaled ammunition, clamps capacity, and selects a newly usable weapon.
+/// @param player Player state affected by the operation.
+/// @param ammo Ammo value supplied to `P_GiveAmmo`.
+/// @param num Index identifying the requested item.
 function P_GiveAmmo(player, ammo, num)
   if player is void then return false end if
   ai = _PI_AmmoIndex(ammo)
@@ -405,10 +405,10 @@ function P_GiveAmmo(player, ammo, num)
   return true
 end function
 
-/*
-* Function: P_GiveWeapon
-* Purpose: Applies Doom coop/deathmatch weapon-stay and ammo pickup rules.
-*/
+/// Applies Doom coop/deathmatch weapon-stay and ammo pickup rules.
+/// @param player Player state affected by the operation.
+/// @param weapon Weapon value supplied to `P_GiveWeapon`.
+/// @param dropped Dropped value supplied to `P_GiveWeapon`.
 function P_GiveWeapon(player, weapon, dropped)
   if player is void then return false end if
   wi = _PI_WeaponIndex(weapon)
@@ -458,10 +458,9 @@ function P_GiveWeapon(player, weapon, dropped)
   return gaveweapon or gaveammo
 end function
 
-/*
-* Function: P_GiveBody
-* Purpose: Heals a player and mirrors the clamped health into the owned mobj.
-*/
+/// Heals a player and mirrors the clamped health into the owned mobj.
+/// @param player Player state affected by the operation.
+/// @param num Index identifying the requested item.
 function P_GiveBody(player, num)
   if player is void then return false end if
   if player.health >= MAXHEALTH then return false end if
@@ -471,10 +470,9 @@ function P_GiveBody(player, num)
   return true
 end function
 
-/*
-* Function: P_GiveArmor
-* Purpose: Replaces armor only when the requested class provides more effective points.
-*/
+/// Replaces armor only when the requested class provides more effective points.
+/// @param player Player state affected by the operation.
+/// @param armortype Armortype value supplied to `P_GiveArmor`.
 function P_GiveArmor(player, armortype)
   if player is void then return false end if
   hits = armortype * 100
@@ -484,10 +482,9 @@ function P_GiveArmor(player, armortype)
   return true
 end function
 
-/*
-* Function: P_GiveCard
-* Purpose: Grants a key/card once and triggers the pickup flash.
-*/
+/// Grants a key/card once and triggers the pickup flash.
+/// @param player Player state affected by the operation.
+/// @param card Card value supplied to `P_GiveCard`.
 function P_GiveCard(player, card)
   if player is void then return false end if
   if typeof(player.cards) != "array" and typeof(player.cards) != "list" then return false end if
@@ -499,10 +496,9 @@ function P_GiveCard(player, card)
   return true
 end function
 
-/*
-* Function: P_TouchSpecialThing
-* Purpose: Resolves one pickup collision, mutates authoritative inventory, and removes consumable actors.
-*/
+/// Resolves one pickup collision, mutates authoritative inventory, and removes consumable actors.
+/// @param special Special value supplied to `P_TouchSpecialThing`.
+/// @param toucher Toucher value supplied to `P_TouchSpecialThing`.
 function P_TouchSpecialThing(special, toucher)
   if special is void or toucher is void then return end if
 
@@ -742,10 +738,9 @@ function P_TouchSpecialThing(special, toucher)
   end if
 end function
 
-/*
-* Function: P_KillMobj
-* Purpose: Finalizes an actor death, including Doom frag semantics, corpse state, drops, and player rebirth state.
-*/
+/// Finalizes an actor death, including Doom frag semantics, corpse state, drops, and player rebirth state.
+/// @param source Source value or buffer.
+/// @param target Target value supplied to `P_KillMobj`.
 function P_KillMobj(source, target)
   if target is void then return end if
 
@@ -832,10 +827,11 @@ function P_KillMobj(source, target)
   end if
 end function
 
-/*
-* Function: P_DamageMobj
-* Purpose: Applies armor, thrust, pain, death, and attacker attribution for one damage event.
-*/
+/// Applies armor, thrust, pain, death, and attacker attribution for one damage event.
+/// @param target Target value supplied to `P_DamageMobj`.
+/// @param inflictor Inflictor value supplied to `P_DamageMobj`.
+/// @param source Source value or buffer.
+/// @param damage Damage value supplied to `P_DamageMobj`.
 function P_DamageMobj(target, inflictor, source, damage)
   if target is void then return end if
   if (target.flags & mobjflag_t.MF_SHOOTABLE) == 0 then return end if

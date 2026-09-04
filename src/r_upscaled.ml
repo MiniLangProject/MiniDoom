@@ -13,70 +13,89 @@
   See the License for the specific language governing permissions and
   limitations under the License.
 
-  Script: r_upscaled.ml
-  Purpose: Loads optional MiniDoom upscaled graphics packages and shared render-scale settings.
 */
+
+//! Loads optional MiniDoom upscaled graphics packages and shared render-scale settings.
+
 import m_argv
 import r_renderer
 import std.fs as fs
 import std.math
 
+/// Defines ru magic0 for the r upscaled subsystem.
 const RU_MAGIC0 = 77
+/// Defines ru magic1 for the r upscaled subsystem.
 const RU_MAGIC1 = 68
+/// Defines ru magic2 for the r upscaled subsystem.
 const RU_MAGIC2 = 85
+/// Defines ru magic3 for the r upscaled subsystem.
 const RU_MAGIC3 = 80
+/// Defines rh magic2 for the r upscaled subsystem.
 const RH_MAGIC2 = 72
+/// Defines rh magic3 for the r upscaled subsystem.
 const RH_MAGIC3 = 68
+/// Defines ru version for the r upscaled subsystem.
 const RU_VERSION = 6
 
+/// Defines ru type patch for the r upscaled subsystem.
 const RU_TYPE_PATCH = 1
+/// Defines ru type flat for the r upscaled subsystem.
 const RU_TYPE_FLAT = 2
+/// Defines ru type texture for the r upscaled subsystem.
 const RU_TYPE_TEXTURE = 3
+/// Defines ru type sprite for the r upscaled subsystem.
 const RU_TYPE_SPRITE = 4
 
-/*
-* Struct: ru_entry_t
-* Purpose: Describes one image stored in an upscaled package.
-*/
+/// Describes one image stored in an upscaled package.
 struct ru_entry_t
+  /// Stores kind for `ru_entry_t`
   kind
+  /// Stable resource or object name stored by `ru_entry_t`
   name
+  /// Width in pixels or map units stored by `ru_entry_t`
   width
+  /// Height in pixels or map units stored by `ru_entry_t`
   height
+  /// Stores xoffset for `ru_entry_t`
   xoffset
+  /// Stores yoffset for `ru_entry_t`
   yoffset
+  /// Bit flags controlling this record's behavior stored by `ru_entry_t`
   flags
+  /// Payload owned or referenced by this record stored by `ru_entry_t`
   data
 end struct
 
+/// Tracks whether ru enabled is active in the r upscaled subsystem.
 ru_enabled = false
+/// Tracks whether ru loaded is active in the r upscaled subsystem.
 ru_loaded = false
+/// Stores the mutable ru path text used by the r upscaled subsystem.
 ru_path = ""
+/// Tracks the mutable ru scale value used by the r upscaled subsystem.
 ru_scale = 1
+/// Stores the ru entries collection used by the r upscaled subsystem.
 ru_entries =[]
 
-/*
-* Function: RU_ReadU32
-* Purpose: Reads a little-endian u32 from package bytes.
-*/
+/// Reads a little-endian u32 from package bytes.
+/// @param b Second input operand.
+/// @param off Zero-based byte or element offset.
 function inline RU_ReadU32(b, off)
   return b[off] +(b[off + 1] << 8) +(b[off + 2] << 16) +(b[off + 3] << 24)
 end function
 
-/*
-* Function: RU_ReadS32
-* Purpose: Reads a little-endian s32 from package bytes.
-*/
+/// Reads a little-endian s32 from package bytes.
+/// @param b Second input operand.
+/// @param off Zero-based byte or element offset.
 function inline RU_ReadS32(b, off)
   v = RU_ReadU32(b, off)
   if v >= 2147483648 then v = v - 4294967296 end if
   return v
 end function
 
-/*
-* Function: RU_ToIntOr
-* Purpose: Converts a MiniLang value to int with fallback.
-*/
+/// Converts a MiniLang value to int with fallback.
+/// @param v Value consumed by the operation.
+/// @param fallback Value returned when the requested conversion or lookup is unavailable.
 function RU_ToIntOr(v, fallback)
   if typeof(v) == "int" then return v end if
   if typeof(v) == "float" then
@@ -92,10 +111,8 @@ function RU_ToIntOr(v, fallback)
   return fallback
 end function
 
-/*
-* Function: RU_ClampScale
-* Purpose: Keeps renderer scale inside the supported range.
-*/
+/// Keeps renderer scale inside the supported range.
+/// @param v Value consumed by the operation.
 function inline RU_ClampScale(v)
   s = RU_ToIntOr(v, 1)
   if s < 1 then s = 1 end if
@@ -103,10 +120,8 @@ function inline RU_ClampScale(v)
   return s
 end function
 
-/*
-* Function: RU_ToUpperAscii
-* Purpose: Converts a string to uppercase ASCII for WAD-style names.
-*/
+/// Converts a string to uppercase ASCII for WAD-style names.
+/// @param s S value supplied to `RU_ToUpperAscii`.
 function RU_ToUpperAscii(s)
   if typeof(s) != "string" then return "" end if
   b = bytes(s)
@@ -119,10 +134,8 @@ function RU_ToUpperAscii(s)
   return decode(b)
 end function
 
-/*
-* Function: RU_Name8
-* Purpose: Normalizes names to Doom's 8-character lump namespace.
-*/
+/// Normalizes names to Doom's 8-character lump namespace.
+/// @param name Resource or object name to resolve.
 function RU_Name8(name)
   s = name
   if typeof(s) == "bytes" then s = decodeZ(s) end if
@@ -141,10 +154,8 @@ function RU_Name8(name)
   return decodeZ(outName)
 end function
 
-/*
-* Function: RU_ArgValue
-* Purpose: Reads the value after a command-line flag.
-*/
+/// Reads the value after a command-line flag.
+/// @param flag Flag value supplied to `RU_ArgValue`.
 function RU_ArgValue(flag)
   if typeof(M_CheckParm) != "function" then return "" end if
   p = M_CheckParm(flag)
@@ -154,10 +165,7 @@ function RU_ArgValue(flag)
   return v
 end function
 
-/*
-* Function: RU_ParseScaleFromArgs
-* Purpose: Initializes the requested physical render scale.
-*/
+/// Initializes the requested physical render scale.
 function RU_ParseScaleFromArgs()
   global ru_scale
 
@@ -169,10 +177,8 @@ function RU_ParseScaleFromArgs()
   end if
 end function
 
-/*
-* Function: RU_FindPackagePath
-* Purpose: Resolves explicit or automatic upscaled package path.
-*/
+/// Resolves explicit or automatic upscaled package path.
+/// @param iwadPath Iwad path value supplied to `RU_FindPackagePath`.
 function RU_FindPackagePath(iwadPath)
   p = RU_ArgValue("-hdwad")
   if p == "" then p = RU_ArgValue("--hdwad") end if
@@ -199,10 +205,8 @@ function RU_FindPackagePath(iwadPath)
   return ""
 end function
 
-/*
-* Function: RU_ParsePackage
-* Purpose: Parses MiniDoom upscaled package bytes.
-*/
+/// Parses MiniDoom upscaled package bytes.
+/// @param data Binary or structured data to process.
 function RU_ParsePackage(data)
   global ru_entries
   global ru_scale
@@ -261,10 +265,8 @@ function RU_ParsePackage(data)
   return true
 end function
 
-/*
-* Function: RU_LoadPackage
-* Purpose: Loads an upscaled package from disk.
-*/
+/// Loads an upscaled package from disk.
+/// @param path Filesystem path to process.
 function RU_LoadPackage(path)
   global ru_loaded
   global ru_enabled
@@ -295,10 +297,8 @@ function RU_LoadPackage(path)
   return false
 end function
 
-/*
-* Function: RU_Init
-* Purpose: Initializes optional upscaled graphics support.
-*/
+/// Initializes optional upscaled graphics support.
+/// @param iwadPath Iwad path value supplied to `RU_Init`.
 function RU_Init(iwadPath)
   RU_ParseScaleFromArgs()
   path = RU_FindPackagePath(iwadPath)
@@ -309,34 +309,24 @@ function RU_Init(iwadPath)
   end if
 end function
 
-/*
-* Function: RU_RenderScale
-* Purpose: Returns the physical render scale requested for this run.
-*/
+/// Returns the physical render scale requested for this run.
 function inline RU_RenderScale()
   return ru_scale
 end function
 
-/*
-* Function: RU_RendererAllowsHD
-* Purpose: Returns true when the active renderer may consume HDWAD assets.
-*/
+/// Returns true when the active renderer may consume HDWAD assets.
 function inline RU_RendererAllowsHD()
   return R_RendererUsesHDAssets()
 end function
 
-/*
-* Function: RU_IsEnabled
-* Purpose: Returns true when a package is active.
-*/
+/// Returns true when a package is active.
 function inline RU_IsEnabled()
   return ru_enabled and RU_RendererAllowsHD()
 end function
 
-/*
-* Function: RU_FindEntry
-* Purpose: Finds an entry by kind and Doom name.
-*/
+/// Finds an entry by kind and Doom name.
+/// @param kind Kind value supplied to `RU_FindEntry`.
+/// @param name Resource or object name to resolve.
 function RU_FindEntry(kind, name)
   if not RU_IsEnabled() then return void end if
   n = RU_Name8(name)
@@ -349,34 +339,26 @@ function RU_FindEntry(kind, name)
   return void
 end function
 
-/*
-* Function: RU_GetFlat
-* Purpose: Returns an upscaled flat image entry or void.
-*/
+/// Returns an upscaled flat image entry or void.
+/// @param name Resource or object name to resolve.
 function inline RU_GetFlat(name)
   return RU_FindEntry(RU_TYPE_FLAT, name)
 end function
 
-/*
-* Function: RU_GetTexture
-* Purpose: Returns an upscaled wall texture image entry or void.
-*/
+/// Returns an upscaled wall texture image entry or void.
+/// @param name Resource or object name to resolve.
 function inline RU_GetTexture(name)
   return RU_FindEntry(RU_TYPE_TEXTURE, name)
 end function
 
-/*
-* Function: RU_GetPatch
-* Purpose: Returns an upscaled patch image entry or void.
-*/
+/// Returns an upscaled patch image entry or void.
+/// @param name Resource or object name to resolve.
 function inline RU_GetPatch(name)
   return RU_FindEntry(RU_TYPE_PATCH, name)
 end function
 
-/*
-* Function: RU_GetSprite
-* Purpose: Returns an upscaled sprite image entry or void.
-*/
+/// Returns an upscaled sprite image entry or void.
+/// @param name Resource or object name to resolve.
 function inline RU_GetSprite(name)
   return RU_FindEntry(RU_TYPE_SPRITE, name)
 end function

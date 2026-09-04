@@ -7,17 +7,19 @@
 
   http://www.apache.org/licenses/LICENSE-2.0
 
-  Script: mp_transport_unit.ml
-  Purpose: Verifies multiplayer wire codecs, strict rejection, and bounded queue freshness in a console test.
 */
+
+//! Verifies multiplayer wire codecs, strict rejection, and bounded queue freshness in a console test.
+
 
 import i_net
 import mp_fnv1a
 
-/*
-* Function: MessageBoxW
-* Purpose: Supplies the GUI error-hook symbol expected by i_system while keeping this fixture console-only.
-*/
+/// Supplies the GUI error-hook symbol expected by i_system while keeping this fixture console-only.
+/// @param hwnd Hwnd value supplied to `MessageBoxW`.
+/// @param text Text to process.
+/// @param caption Caption value supplied to `MessageBoxW`.
+/// @param flags Bit flags that control the operation.
 function MessageBoxW(hwnd, text, caption, flags)
   hwnd = hwnd
   text = text
@@ -26,19 +28,18 @@ function MessageBoxW(hwnd, text, caption, flags)
   return 0
 end function
 
-/*
-* Function: _MPTest_Fail
-* Purpose: Emits one diagnostic and returns the non-zero process status used by the PowerShell test runner.
-*/
+/// Emits one diagnostic and returns the non-zero process status used by the PowerShell test runner.
+/// @param msg Msg value supplied to `_MPTest_Fail`.
+/// @internal
 function _MPTest_Fail(msg)
   print "MP transport unit FAIL: " + msg
   return 1
 end function
 
-/*
-* Function: _MPTest_BytesEqual
-* Purpose: Compares two byte buffers without coercing or decoding binary wire data.
-*/
+/// Compares two byte buffers without coercing or decoding binary wire data.
+/// @param a First input operand.
+/// @param b Second input operand.
+/// @internal
 function _MPTest_BytesEqual(a, b)
   if typeof(a) != "bytes" or typeof(b) != "bytes" then return false end if
   if len(a) != len(b) then return false end if
@@ -50,10 +51,9 @@ function _MPTest_BytesEqual(a, b)
   return true
 end function
 
-/*
-* Function: _MPTest_CopyWithExtraByte
-* Purpose: Builds a malformed copy with one trailing byte for exact-length decoder tests.
-*/
+/// Builds a malformed copy with one trailing byte for exact-length decoder tests.
+/// @param src Src value supplied to `_MPTest_CopyWithExtraByte`.
+/// @internal
 function _MPTest_CopyWithExtraByte(src)
   dst = bytes(len(src) + 1, 0)
   i = 0
@@ -65,10 +65,8 @@ function _MPTest_CopyWithExtraByte(src)
   return dst
 end function
 
-/*
-* Function: main
-* Purpose: Runs deterministic codec, corruption, size-limit, mutation-safety, and queue-overload assertions.
-*/
+/// Runs deterministic codec, corruption, size-limit, mutation-safety, and queue-overload assertions.
+/// @param args Args value supplied to `main`.
 function main(args)
   global _mp_game_queue_nodes
   global _mp_game_queue_payloads

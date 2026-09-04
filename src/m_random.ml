@@ -13,11 +13,13 @@
   See the License for the specific language governing permissions and
   limitations under the License.
 
-  Script: m_random.ml
-  Purpose: Supplies Doom's deterministic gameplay and miscellaneous pseudo-random byte streams.
 */
+
+//! Supplies Doom's deterministic gameplay and miscellaneous pseudo-random byte streams.
+
 import doomtype
 
+/// Stores the rndtable collection used by the m random subsystem.
 rndtable =[
 0, 8, 109, 220, 222, 241, 149, 107, 75, 248, 254, 140, 16, 66,
 74, 21, 211, 47, 80, 242, 154, 27, 205, 128, 161, 89, 77, 36,
@@ -40,13 +42,12 @@ rndtable =[
 120, 163, 236, 249
 ]
 
+/// Tracks the mutable rndindex value used by the m random subsystem.
 rndindex = 0
+/// Tracks the mutable prndindex value used by the m random subsystem.
 prndindex = 0
 
-/*
-* Function: P_Random
-* Purpose: Advances and returns the deterministic gameplay random-table stream used by demo-synchronized simulation.
-*/
+/// Advances and returns the deterministic gameplay random-table stream used by demo-synchronized simulation.
 function P_Random()
   global prndindex
 
@@ -54,10 +55,8 @@ function P_Random()
   return rndtable[prndindex]
 end function
 
-/*
-* Function: M_Random
-* Purpose: Advances the independent miscellaneous random-table stream so UI effects cannot perturb gameplay determinism.
-*/
+/// Advances the independent miscellaneous random-table stream so UI effects cannot perturb gameplay
+/// determinism.
 function M_Random()
   global rndindex
 
@@ -65,10 +64,8 @@ function M_Random()
   return rndtable[rndindex]
 end function
 
-/*
-* Function: M_ClearRandom
-* Purpose: Resets both Doom random-table cursors so demos and gameplay restart from the canonical deterministic sequence.
-*/
+/// Resets both Doom random-table cursors so demos and gameplay restart from the canonical deterministic
+/// sequence.
 function M_ClearRandom()
   global rndindex
   global prndindex

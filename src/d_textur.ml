@@ -13,19 +13,20 @@
   See the License for the specific language governing permissions and
   limitations under the License.
 
-  Script: d_textur.ml
-  Purpose: Defines the compact picture-buffer record shared by texture and patch conversion code.
 */
+
+//! Defines the compact picture-buffer record shared by texture and patch conversion code.
+
 import doomtype
 
-/*
-* Struct: pic_t
-* Purpose: Describes a rectangular picture buffer by dimensions and pixel payload for texture-processing code.
-*/
+/// Describes a rectangular picture buffer by dimensions and pixel payload for texture-processing code.
 struct pic_t
+  /// Width in pixels or map units stored by `pic_t`
   width
+  /// Height in pixels or map units stored by `pic_t`
   height
 
+  /// Payload owned or referenced by this record stored by `pic_t`
   data
 end struct
 

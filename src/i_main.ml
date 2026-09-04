@@ -13,9 +13,11 @@
   See the License for the specific language governing permissions and
   limitations under the License.
 
-  Script: i_main.ml
-  Purpose: Normalizes process arguments, starts Doom, and reports uncaught startup failures through the active platform UI.
 */
+
+//! Normalizes process arguments, starts Doom, and reports uncaught startup failures through the active platform
+//! UI.
+
 import doomdef
 import m_argv
 import d_main
@@ -26,22 +28,26 @@ import platform_linux
 #endif
 
 #if TARGET_OS == "windows"
-/*
- * Function: MessageBoxW
- *
- * Purpose: Displays the UTF-16 fatal-error dialog used when startup cannot reach the in-game console.
- */
+/// Displays the UTF-16 fatal-error dialog used when startup cannot reach the in-game console.
+/// @param hwnd `ptr` value supplied as hwnd to `MessageBoxW`.
+/// @param text Text to process.
+/// @param caption `wstr` value supplied as caption to `MessageBoxW`.
+/// @param flags Bit flags that control the operation.
+/// @returns Result returned by the native `MessageBoxW` binding as `int`.
 
 extern function MessageBoxW(hwnd as ptr, text as wstr, caption as wstr, flags as u32) from "user32.dll" symbol "MessageBoxW" returns int
 #endif
 
+/// Defines imain mb ok for the i main subsystem.
+/// @internal
 const _IMAIN_MB_OK = 0x00000000
+/// Defines imain mb iconerror for the i main subsystem.
+/// @internal
 const _IMAIN_MB_ICONERROR = 0x00000010
 
-/*
-* Function: _IMain_IntToString
-* Purpose: Formats a signed integer without relying on runtime-specific numeric string conversion.
-*/
+/// Formats a signed integer without relying on runtime-specific numeric string conversion.
+/// @param v Value consumed by the operation.
+/// @internal
 function _IMain_IntToString(v)
   n = 0
   if typeof(v) == "int" then n = v end if
@@ -72,10 +78,9 @@ function _IMain_IntToString(v)
   return txt
 end function
 
-/*
-* Function: _IMain_ShowFatalError
-* Purpose: Shows a fatal startup/runtime error in a GUI message box for windows-subsystem builds.
-*/
+/// Shows a fatal startup/runtime error in a GUI message box for windows-subsystem builds.
+/// @param msg Msg value supplied to `_IMain_ShowFatalError`.
+/// @internal
 function inline _IMain_ShowFatalError(msg)
   txt = msg
   if typeof(txt) != "string" or txt == "" then
@@ -89,10 +94,9 @@ function inline _IMain_ShowFatalError(msg)
   end if
 end function
 
-/*
-* Function: main
-* Purpose: Converts process arguments into Doom's argv representation, enters D_DoomMain, and reports an uncaught startup failure through the platform error path.
-*/
+/// Converts process arguments into Doom's argv representation, enters D_DoomMain, and reports an uncaught
+/// startup failure through the platform error path.
+/// @param args Args value supplied to `main`.
 function main(args)
 
   if typeof(M_SetArgv) == "function" then

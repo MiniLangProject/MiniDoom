@@ -200,16 +200,19 @@ Regenerate the gallery from local IWADs with:
 ```text
 MiniDoom/
   src/                       # MiniLang game/engine source files and platform bindings
+  docs/api/                  # Generated MiniDoc HTML and Markdown reference
   docs/gallery/              # Classic/OpenGL level comparison screenshots
   icons/                     # PNG + ICO assets for EXE icon resources
   tests/                     # Smoke, renderer, console, multiplayer, and regression tests
   tools/
     capture_readme_gallery.ps1 # Regenerates the README screenshot gallery
-    check_source_comments.ps1 # Audits declaration documentation
+    check_source_comments.ps1 # Audits MiniDoc declaration documentation
+    generate_minidoc.ps1     # Checks or regenerates the API reference
     exe_icon_injector.ml     # MiniLang tool: injects .ico into Windows .exe resources
     minidoom_gl_helper.c     # Cross-platform accelerated rendering helper
     minidoom_linux_platform.c # Linux SDL2 window/input/audio bridge
   build.py                   # Windows/Linux native build orchestrator
+  minidoc.toml               # Strict MiniDoc project configuration
   THIRD_PARTY_NOTICES.md     # Notices for bundled Linux audio components
   LICENSE
   README.md
@@ -228,6 +231,24 @@ MiniDoom/
 
 IWAD, PWAD, generated HDWAD, configuration, and save files are not shipped in
 the repository or release archives.
+
+## Source Documentation
+
+MiniDoom uses MiniDoc's native `//!` file comments and `///` declaration
+comments, including parameter and return contracts. The generated reference is
+available as [repository-friendly Markdown](./docs/api/markdown/README.md) and
+as an offline HTML site at `docs/api/html/index.html`.
+
+Regenerate both formats with a current MiniDoc and MiniLang compiler checkout:
+
+```powershell
+pwsh .\tools\generate_minidoc.ps1 `
+  -MiniDoc "C:\path\to\MiniDoc\build\minidoc.exe" `
+  -CompilerRoot "C:\path\to\MiniLangCompilerPy"
+```
+
+Use `-Check` to perform the same strict documentation validation without
+rewriting generated files.
 
 ## Build MiniDoom (Recommended)
 

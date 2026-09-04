@@ -13,9 +13,11 @@
   See the License for the specific language governing permissions and
   limitations under the License.
 
-  Script: i_video.ml
-  Purpose: Owns the Win32 game window, keyboard/mouse polling, indexed-frame presentation, HD overlays, wipes, and screenshots.
 */
+
+//! Owns the Win32 game window, keyboard/mouse polling, indexed-frame presentation, HD overlays, wipes, and
+//! screenshots.
+
 import doomtype
 import doomstat
 import i_system
@@ -34,322 +36,479 @@ import std.math
 import platform_linux
 #endif
 
+/// Defines i bi rgb for the i video subsystem.
+/// @internal
 const _I_BI_RGB = 0
+/// Defines the Doom palette selection for i dib rgb colors.
+/// @internal
 const _I_DIB_RGB_COLORS = 0
+/// Defines i srccopy for the i video subsystem.
+/// @internal
 const _I_SRCCOPY = 0x00CC0020
+/// Defines the Doom palette selection for i coloroncolor.
+/// @internal
 const _I_COLORONCOLOR = 3
+/// Defines i vk lbutton for the i video subsystem.
+/// @internal
 const _I_VK_LBUTTON = 0x01
+/// Defines i vk rbutton for the i video subsystem.
+/// @internal
 const _I_VK_RBUTTON = 0x02
+/// Defines i vk mbutton for the i video subsystem.
+/// @internal
 const _I_VK_MBUTTON = 0x04
+/// Defines i pm remove for the i video subsystem.
+/// @internal
 const _I_PM_REMOVE = 1
+/// Defines i wm quit for the i video subsystem.
+/// @internal
 const _I_WM_QUIT = 0x0012
+/// Defines i wm close for the i video subsystem.
+/// @internal
 const _I_WM_CLOSE = 0x0010
+/// Defines i wm destroy for the i video subsystem.
+/// @internal
 const _I_WM_DESTROY = 0x0002
+/// Defines i wm ncdestroy for the i video subsystem.
+/// @internal
 const _I_WM_NCDESTROY = 0x0082
+/// Defines i wm paint for the i video subsystem.
+/// @internal
 const _I_WM_PAINT = 0x000F
+/// Defines i wm erasebkgnd for the i video subsystem.
+/// @internal
 const _I_WM_ERASEBKGND = 0x0014
+/// Defines i wm keydown for the i video subsystem.
+/// @internal
 const _I_WM_KEYDOWN = 0x0100
+/// Defines i wm keyup for the i video subsystem.
+/// @internal
 const _I_WM_KEYUP = 0x0101
+/// Defines i wm syskeydown for the i video subsystem.
+/// @internal
 const _I_WM_SYSKEYDOWN = 0x0104
+/// Defines i wm syskeyup for the i video subsystem.
+/// @internal
 const _I_WM_SYSKEYUP = 0x0105
+/// Defines i ws overlappedwindow for the i video subsystem.
+/// @internal
 const _I_WS_OVERLAPPEDWINDOW = 0x00CF0000
+/// Defines i ws popup for the i video subsystem.
+/// @internal
 const _I_WS_POPUP = -2147483648
+/// Defines i ws visible for the i video subsystem.
+/// @internal
 const _I_WS_VISIBLE = 0x10000000
+/// Defines i ss ownerdraw for the i video subsystem.
+/// @internal
 const _I_SS_OWNERDRAW = 0x0000000D
+/// Defines i sw show for the i video subsystem.
+/// @internal
 const _I_SW_SHOW = 5
+/// Defines the maximum i sw maximize accepted by the i video subsystem.
+/// @internal
 const _I_SW_MAXIMIZE = 3
+/// Defines i window scale for the i video subsystem.
+/// @internal
 const _I_WINDOW_SCALE = 2
+/// Defines i bmp header size for the i video subsystem.
+/// @internal
 const _I_BMP_HEADER_SIZE = 54
+/// Defines i screenshot interval ms for the i video subsystem.
+/// @internal
 const _I_SCREENSHOT_INTERVAL_MS = 1000
+/// Defines i sm cxscreen for the i video subsystem.
+/// @internal
 const _I_SM_CXSCREEN = 0
+/// Defines i sm cyscreen for the i video subsystem.
+/// @internal
 const _I_SM_CYSCREEN = 1
+/// Defines i swp framechanged for the i video subsystem.
+/// @internal
 const _I_SWP_FRAMECHANGED = 0x0020
+/// Defines i swp showwindow for the i video subsystem.
+/// @internal
 const _I_SWP_SHOWWINDOW = 0x0040
+/// Defines i gwl style for the i video subsystem.
+/// @internal
 const _I_GWL_STYLE = -16
 
 #if TARGET_OS == "windows"
-/*
- * Function: CreateWindowExW
-* Purpose: Creates the native game window with the requested client style, placement, and dimensions.
-*/
+/// Creates the native game window with the requested client style, placement, and dimensions.
+/// @param exStyle `u32` value supplied as ex style to `CreateWindowExW`.
+/// @param className `wstr` value supplied as class name to `CreateWindowExW`.
+/// @param windowName `wstr` value supplied as window name to `CreateWindowExW`.
+/// @param style `u32` value supplied as style to `CreateWindowExW`.
+/// @param x Horizontal map- or screen-space coordinate.
+/// @param y Vertical map- or screen-space coordinate.
+/// @param width Width of the target in pixels or map units.
+/// @param height Height of the target in pixels or map units.
+/// @param parent `ptr` value supplied as parent to `CreateWindowExW`.
+/// @param menu `ptr` value supplied as menu to `CreateWindowExW`.
+/// @param instance `ptr` value supplied as instance to `CreateWindowExW`.
+/// @param param `ptr` value supplied as param to `CreateWindowExW`.
+/// @returns The resulting native game window with the requested client style, placement, and dimensions.
 extern function CreateWindowExW(exStyle as u32, className as wstr, windowName as wstr, style as u32, x as int, y as int, width as int, height as int, parent as ptr, menu as ptr, instance as ptr, param as ptr) from "user32.dll" symbol "CreateWindowExW" returns ptr
 
-/*
- * Function: AdjustWindowRect
- *
- * Purpose: Expands a desired client rectangle to include the selected non-client window borders.
- */
+/// Expands a desired client rectangle to include the selected non-client window borders.
+/// @param rect `bytes` value supplied as rect to `AdjustWindowRect`.
+/// @param style `u32` value supplied as style to `AdjustWindowRect`.
+/// @param hasMenu Whether has menu holds.
+/// @returns Result returned by the native `AdjustWindowRect` binding as `bool`.
 
 extern function AdjustWindowRect(rect as bytes, style as u32, hasMenu as bool) from "user32.dll" symbol "AdjustWindowRect" returns bool
 
-/*
- * Function: ShowWindow
- *
- * Purpose: Applies the requested visibility state to the native game window.
- */
+/// Applies the requested visibility state to the native game window.
+/// @param hwnd `ptr` value supplied as hwnd to `ShowWindow`.
+/// @param cmdShow `int` value supplied as cmd show to `ShowWindow`.
+/// @returns Result returned by the native `ShowWindow` binding as `bool`.
 
 extern function ShowWindow(hwnd as ptr, cmdShow as int) from "user32.dll" symbol "ShowWindow" returns bool
 
-/*
- * Function: UpdateWindow
- *
- * Purpose: Forces pending client-area painting for a shown native window.
- */
+/// Forces pending client-area painting for a shown native window.
+/// @param hwnd `ptr` value supplied as hwnd to `UpdateWindow`.
+/// @returns Result returned by the native `UpdateWindow` binding as `bool`.
 
 extern function UpdateWindow(hwnd as ptr) from "user32.dll" symbol "UpdateWindow" returns bool
 
-/*
-* Function: ValidateRect
-* Purpose: Clears pending client repaint requests after title updates on the built-in STATIC window class.
-*/
+/// Clears pending client repaint requests after title updates on the built-in STATIC window class.
+/// @param hwnd `ptr` value supplied as hwnd to `ValidateRect`.
+/// @param rect `ptr` value supplied as rect to `ValidateRect`.
+/// @returns Result returned by the native `ValidateRect` binding as `bool`.
 extern function ValidateRect(hwnd as ptr, rect as ptr) from "user32.dll" symbol "ValidateRect" returns bool
 
-/*
- * Function: DestroyWindow
- *
- * Purpose: Destroys a game window owned by this video backend.
- */
+/// Destroys a game window owned by this video backend.
+/// @param hwnd `ptr` value supplied as hwnd to `DestroyWindow`.
+/// @returns Result returned by the native `DestroyWindow` binding as `bool`.
 
 extern function DestroyWindow(hwnd as ptr) from "user32.dll" symbol "DestroyWindow" returns bool
 
-/*
- * Function: GetDC
- *
- * Purpose: Acquires the client device context used for software StretchDIBits presentation.
- */
+/// Acquires the client device context used for software StretchDIBits presentation.
+/// @param hwnd `ptr` value supplied as hwnd to `GetDC`.
+/// @returns Result returned by the native `GetDC` binding as `ptr`.
 
 extern function GetDC(hwnd as ptr) from "user32.dll" symbol "GetDC" returns ptr
 
-/*
- * Function: ReleaseDC
- *
- * Purpose: Releases a client device context previously acquired for software presentation.
- */
+/// Releases a client device context previously acquired for software presentation.
+/// @param hwnd `ptr` value supplied as hwnd to `ReleaseDC`.
+/// @param hdc `ptr` value supplied as hdc to `ReleaseDC`.
+/// @returns Result returned by the native `ReleaseDC` binding as `int`.
 
 extern function ReleaseDC(hwnd as ptr, hdc as ptr) from "user32.dll" symbol "ReleaseDC" returns int
 
-/*
- * Function: GetClientRect
- *
- * Purpose: Reads the current drawable client dimensions for OpenGL resize or GDI scaling.
- */
+/// Reads the current drawable client dimensions for OpenGL resize or GDI scaling.
+/// @param hwnd `ptr` value supplied as hwnd to `GetClientRect`.
+/// @param rect `bytes` value supplied as rect to `GetClientRect`.
+/// @returns The requested the current drawable client dimensions for OpenGL resize or GDI scaling.
 
 extern function GetClientRect(hwnd as ptr, rect as bytes) from "user32.dll" symbol "GetClientRect" returns bool
 
-/*
- * Function: PeekMessageW
- *
- * Purpose: Retrieves and optionally removes queued Win32 messages without blocking the game loop.
- */
+/// Retrieves and optionally removes queued Win32 messages without blocking the game loop.
+/// @param msg `bytes` value supplied as msg to `PeekMessageW`.
+/// @param hwnd `ptr` value supplied as hwnd to `PeekMessageW`.
+/// @param minMsg `u32` value supplied as min msg to `PeekMessageW`.
+/// @param maxMsg `u32` value supplied as max msg to `PeekMessageW`.
+/// @param removeMsg `u32` value supplied as remove msg to `PeekMessageW`.
+/// @returns Result returned by the native `PeekMessageW` binding as `bool`.
 
 extern function PeekMessageW(msg as bytes, hwnd as ptr, minMsg as u32, maxMsg as u32, removeMsg as u32) from "user32.dll" symbol "PeekMessageW" returns bool
 
-/*
- * Function: TranslateMessage
- *
- * Purpose: Generates character messages from a retrieved keyboard message before dispatch.
- */
+/// Generates character messages from a retrieved keyboard message before dispatch.
+/// @param msg `bytes` value supplied as msg to `TranslateMessage`.
+/// @returns Result returned by the native `TranslateMessage` binding as `bool`.
 
 extern function TranslateMessage(msg as bytes) from "user32.dll" symbol "TranslateMessage" returns bool
 
-/*
- * Function: DispatchMessageW
- *
- * Purpose: Dispatches a retrieved Win32 message to the target window procedure.
- */
+/// Dispatches a retrieved Win32 message to the target window procedure.
+/// @param msg `bytes` value supplied as msg to `DispatchMessageW`.
+/// @returns Result returned by the native `DispatchMessageW` binding as `ptr`.
 
 extern function DispatchMessageW(msg as bytes) from "user32.dll" symbol "DispatchMessageW" returns ptr
 
-/*
- * Function: GetAsyncKeyState
- *
- * Purpose: Polls a virtual key's current high-bit down state for edge-based Doom input events.
- */
+/// Polls a virtual key's current high-bit down state for edge-based Doom input events.
+/// @param vkey Native virtual-key code to translate.
+/// @returns Result returned by the native `GetAsyncKeyState` binding as `int`.
 
 extern function GetAsyncKeyState(vkey as int) from "user32.dll" symbol "GetAsyncKeyState" returns int
 
-/*
- * Function: SetWindowTextW
- *
- * Purpose: Updates the game window caption with loading or FPS status.
- */
+/// Updates the game window caption with loading or FPS status.
+/// @param hwnd `ptr` value supplied as hwnd to `SetWindowTextW`.
+/// @param text Text to process.
+/// @returns Result returned by the native `SetWindowTextW` binding as `bool`.
 
 extern function SetWindowTextW(hwnd as ptr, text as wstr) from "user32.dll" symbol "SetWindowTextW" returns bool
 
-/*
- * Function: GetCursorPos
- *
- * Purpose: Reads screen-space cursor coordinates used to derive relative mouse movement.
- */
+/// Reads screen-space cursor coordinates used to derive relative mouse movement.
+/// @param point `bytes` value supplied as point to `GetCursorPos`.
+/// @returns The requested screen-space cursor coordinates used to derive relative mouse movement.
 
 extern function GetCursorPos(point as bytes) from "user32.dll" symbol "GetCursorPos" returns bool
 
-/*
- * Function: GetForegroundWindow
- *
- * Purpose: Identifies the foreground window so input is released when the game loses focus.
- */
+/// Identifies the foreground window so input is released when the game loses focus.
+/// @returns Result returned by the native `GetForegroundWindow` binding as `ptr`.
 
 extern function GetForegroundWindow() from "user32.dll" symbol "GetForegroundWindow" returns ptr
 
-/*
-* Function: ShowCursor
-* Purpose: Shows or hides the system cursor.
-*/
+/// Shows or hides the system cursor.
+/// @param show `bool` value supplied as show to `ShowCursor`.
+/// @returns Result returned by the native `ShowCursor` binding as `int`.
 extern function ShowCursor(show as bool) from "user32.dll" symbol "ShowCursor" returns int
 
-/*
- * Function: GetSystemMetrics
- *
- * Purpose: Reads desktop dimensions used to size the borderless fullscreen window.
- */
+/// Reads desktop dimensions used to size the borderless fullscreen window.
+/// @param index Zero-based element or table index.
+/// @returns The requested desktop dimensions used to size the borderless fullscreen window.
 
 extern function GetSystemMetrics(index as int) from "user32.dll" symbol "GetSystemMetrics" returns int
 
-/*
- * Function: SetWindowPos
- *
- * Purpose: Repositions or resizes the game window while changing fullscreen/windowed presentation.
- */
+/// Repositions or resizes the game window while changing fullscreen/windowed presentation.
+/// @param hwnd `ptr` value supplied as hwnd to `SetWindowPos`.
+/// @param insertAfter `ptr` value supplied as insert after to `SetWindowPos`.
+/// @param x Horizontal map- or screen-space coordinate.
+/// @param y Vertical map- or screen-space coordinate.
+/// @param width Width of the target in pixels or map units.
+/// @param height Height of the target in pixels or map units.
+/// @param flags Bit flags that control the operation.
+/// @returns Result returned by the native `SetWindowPos` binding as `bool`.
 
 extern function SetWindowPos(hwnd as ptr, insertAfter as ptr, x as int, y as int, width as int, height as int, flags as u32) from "user32.dll" symbol "SetWindowPos" returns bool
 
-/*
- * Function: GetWindowLongPtrW
- *
- * Purpose: Reads native window style data needed when updating presentation mode.
- */
+/// Reads native window style data needed when updating presentation mode.
+/// @param hwnd `ptr` value supplied as hwnd to `GetWindowLongPtrW`.
+/// @param index Zero-based element or table index.
+/// @returns The requested native window style data needed when updating presentation mode.
 
 extern function GetWindowLongPtrW(hwnd as ptr, index as int) from "user32.dll" symbol "GetWindowLongPtrW" returns ptr
 
-/*
- * Function: SetWindowLongPtrW
- *
- * Purpose: Replaces native window style data when updating presentation mode.
- */
+/// Replaces native window style data when updating presentation mode.
+/// @param hwnd `ptr` value supplied as hwnd to `SetWindowLongPtrW`.
+/// @param index Zero-based element or table index.
+/// @param newLong `ptr` value supplied as new long to `SetWindowLongPtrW`.
+/// @returns Result returned by the native `SetWindowLongPtrW` binding as `ptr`.
 
 extern function SetWindowLongPtrW(hwnd as ptr, index as int, newLong as ptr) from "user32.dll" symbol "SetWindowLongPtrW" returns ptr
 
-/*
- * Function: SetForegroundWindow
- *
- * Purpose: Requests foreground keyboard focus for the newly created game window.
- */
+/// Requests foreground keyboard focus for the newly created game window.
+/// @param hwnd `ptr` value supplied as hwnd to `SetForegroundWindow`.
+/// @returns Result returned by the native `SetForegroundWindow` binding as `bool`.
 
 extern function SetForegroundWindow(hwnd as ptr) from "user32.dll" symbol "SetForegroundWindow" returns bool
 
-/*
- * Function: BringWindowToTop
- *
- * Purpose: Raises the game window above other top-level windows during activation.
- */
+/// Raises the game window above other top-level windows during activation.
+/// @param hwnd `ptr` value supplied as hwnd to `BringWindowToTop`.
+/// @returns Result returned by the native `BringWindowToTop` binding as `bool`.
 
 extern function BringWindowToTop(hwnd as ptr) from "user32.dll" symbol "BringWindowToTop" returns bool
 
-/*
- * Function: SetActiveWindow
- *
- * Purpose: Activates the game window within the current input thread.
- */
+/// Activates the game window within the current input thread.
+/// @param hwnd `ptr` value supplied as hwnd to `SetActiveWindow`.
+/// @returns Result returned by the native `SetActiveWindow` binding as `ptr`.
 
 extern function SetActiveWindow(hwnd as ptr) from "user32.dll" symbol "SetActiveWindow" returns ptr
 
-/*
- * Function: IsWindow
- *
- * Purpose: Validates that the stored native handle still names a live window.
- */
+/// Validates that the stored native handle still names a live window.
+/// @param hwnd `ptr` value supplied as hwnd to `IsWindow`.
+/// @returns Result returned by the native `IsWindow` binding as `bool`.
 
 extern function IsWindow(hwnd as ptr) from "user32.dll" symbol "IsWindow" returns bool
 
-/*
- * Function: StretchDIBits
- *
- * Purpose: Scales and copies the indexed DIB presentation buffer into the window client area.
- */
+/// Scales and copies the indexed DIB presentation buffer into the window client area.
+/// @param hdc `ptr` value supplied as hdc to `StretchDIBits`.
+/// @param xDest `int` value supplied as x dest to `StretchDIBits`.
+/// @param yDest `int` value supplied as y dest to `StretchDIBits`.
+/// @param destWidth Width of dest width in pixels or map units.
+/// @param destHeight Height of dest height in pixels or map units.
+/// @param xSrc `int` value supplied as x src to `StretchDIBits`.
+/// @param ySrc `int` value supplied as y src to `StretchDIBits`.
+/// @param srcWidth Width of src width in pixels or map units.
+/// @param srcHeight Height of src height in pixels or map units.
+/// @param bits `bytes` value supplied as bits to `StretchDIBits`.
+/// @param bmi `bytes` value supplied as bmi to `StretchDIBits`.
+/// @param usage `u32` value supplied as usage to `StretchDIBits`.
+/// @param rop `u32` value supplied as rop to `StretchDIBits`.
+/// @returns Result returned by the native `StretchDIBits` binding as `int`.
 
 extern function StretchDIBits(hdc as ptr, xDest as int, yDest as int, destWidth as int, destHeight as int, xSrc as int, ySrc as int, srcWidth as int, srcHeight as int, bits as bytes, bmi as bytes, usage as u32, rop as u32) from "gdi32.dll" symbol "StretchDIBits" returns int
 
-/*
- * Function: SetStretchBltMode
- *
- * Purpose: Selects COLORONCOLOR scaling for crisp software framebuffer presentation.
- */
+/// Selects COLORONCOLOR scaling for crisp software framebuffer presentation.
+/// @param hdc `ptr` value supplied as hdc to `SetStretchBltMode`.
+/// @param mode `int` value supplied as mode to `SetStretchBltMode`.
+/// @returns Result returned by the native `SetStretchBltMode` binding as `int`.
 
 extern function SetStretchBltMode(hdc as ptr, mode as int) from "gdi32.dll" symbol "SetStretchBltMode" returns int
 
-/*
-* Function: CreateDirectoryW
-* Purpose: Creates the auto-screenshot output directory when it does not yet exist.
-*/
+/// Creates the auto-screenshot output directory when it does not yet exist.
+/// @param path Filesystem path to process.
+/// @param security Optional native security-attributes pointer.
+/// @returns The resulting auto-screenshot output directory when it does not yet exist.
 extern function CreateDirectoryW(path as wstr, security as ptr) from "kernel32.dll" symbol "CreateDirectoryW" returns bool
 
-/*
- * Function: GetConsoleWindow
- *
- * Purpose: Retrieves the process console window so startup can reuse or coordinate native window state.
- */
+/// Retrieves the process console window so startup can reuse or coordinate native window state.
+/// @returns Result returned by the native `GetConsoleWindow` binding as `ptr`.
 
 extern function GetConsoleWindow() from "kernel32.dll" symbol "GetConsoleWindow" returns ptr
 #endif
 
+/// Tracks whether i inited is active in the i video subsystem.
+/// @internal
 _i_inited = false
+/// Holds the optional i hwnd resource used by the i video subsystem.
+/// @internal
 _i_hwnd = void
+/// Holds the optional i hdc resource used by the i video subsystem.
+/// @internal
 _i_hdc = void
+/// Tracks whether i owns window is active in the i video subsystem.
+/// @internal
 _i_ownsWindow = false
+/// Tracks the mutable i palette rgb value used by the i video subsystem.
+/// @internal
 _i_paletteRgb = 0
+/// Tracks the mutable i bmi value used by the i video subsystem.
+/// @internal
 _i_bmi = 0
+/// Tracks the mutable i msg value used by the i video subsystem.
+/// @internal
 _i_msg = 0
+/// Tracks the mutable i rect value used by the i video subsystem.
+/// @internal
 _i_rect = 0
+/// Tracks whether i window failed is active in the i video subsystem.
+/// @internal
 _i_windowFailed = false
+/// Stores the i key vk collection used by the i video subsystem.
+/// @internal
 _i_keyVk =[]
+/// Stores the i key doom collection used by the i video subsystem.
+/// @internal
 _i_keyDoom =[]
+/// Stores the i key prev collection used by the i video subsystem.
+/// @internal
 _i_keyPrev =[]
+/// Tracks whether i alt gprev is active in the i video subsystem.
+/// @internal
 _i_altGPrev = false
+/// Tracks whether i console tilde prev is active in the i video subsystem.
+/// @internal
 _i_consoleTildePrev = false
+/// Tracks whether i screenshot enabled is active in the i video subsystem.
+/// @internal
 _i_screenshotEnabled = false
+/// Stores the mutable i screenshot dir text used by the i video subsystem.
+/// @internal
 _i_screenshotDir = "render_output"
+/// Tracks whether i screenshot dir ready is active in the i video subsystem.
+/// @internal
 _i_screenshotDirReady = false
+/// Tracks the mutable i screenshot next tick value used by the i video subsystem.
+/// @internal
 _i_screenshotNextTick = 0
+/// Tracks the mutable i screenshot index value used by the i video subsystem.
+/// @internal
 _i_screenshotIndex = 0
+/// Tracks whether i screenshot write error is active in the i video subsystem.
+/// @internal
 _i_screenshotWriteError = false
+/// Stores the mutable i title base text used by the i video subsystem.
+/// @internal
 _i_titleBase = "Doom Minilang Port"
+/// Stores the mutable i title last text used by the i video subsystem.
+/// @internal
 _i_titleLast = ""
+/// Tracks the mutable i fps window start value used by the i video subsystem.
+/// @internal
 _i_fpsWindowStart = 0
+/// Tracks the mutable i fps frame count value used by the i video subsystem.
+/// @internal
 _i_fpsFrameCount = 0
+/// Tracks the mutable i fps value value used by the i video subsystem.
+/// @internal
 _i_fpsValue = 0
+/// Tracks the mutable i mouse point value used by the i video subsystem.
+/// @internal
 _i_mousePoint = 0
+/// Tracks whether i mouse inited is active in the i video subsystem.
+/// @internal
 _i_mouseInited = false
+/// Tracks the mutable i mouse prev x value used by the i video subsystem.
+/// @internal
 _i_mousePrevX = 0
+/// Tracks the mutable i mouse prev y value used by the i video subsystem.
+/// @internal
 _i_mousePrevY = 0
+/// Tracks the mutable i mouse prev buttons value used by the i video subsystem.
+/// @internal
 _i_mousePrevButtons = 0
+/// Tracks whether i fullscreen is active in the i video subsystem.
+/// @internal
 _i_fullscreen = false
+/// Tracks whether i cursor hidden is active in the i video subsystem.
+/// @internal
 _i_cursorHidden = false
+/// Stores the mutable i loading status text text used by the i video subsystem.
+/// @internal
 _i_loadingStatusText = ""
+/// Tracks the mutable i loading anim phase value used by the i video subsystem.
+/// @internal
 _i_loadingAnimPhase = 0
+/// Tracks the mutable i present scale value used by the i video subsystem.
+/// @internal
 _i_presentScale = 1
+/// Tracks the mutable i present width value used by the i video subsystem.
+/// @internal
 _i_presentWidth = SCREENWIDTH
+/// Tracks the mutable i present height value used by the i video subsystem.
+/// @internal
 _i_presentHeight = SCREENHEIGHT
+/// Holds the optional i present buffer resource used by the i video subsystem.
+/// @internal
 _i_presentBuffer = void
+/// Holds the optional i overlay base resource used by the i video subsystem.
+/// @internal
 _i_overlayBase = void
+/// Holds the optional i overlay row buffer resource used by the i video subsystem.
+/// @internal
 _i_overlayRowBuffer = void
+/// Holds the optional i gl overlay buffer resource used by the i video subsystem.
+/// @internal
 _i_glOverlayBuffer = void
+/// Holds the optional i gl overlay mask resource used by the i video subsystem.
+/// @internal
 _i_glOverlayMask = void
+/// Holds the optional i last present frame resource used by the i video subsystem.
+/// @internal
 _i_lastPresentFrame = void
+/// Holds the optional i last present rgba resource used by the i video subsystem.
+/// @internal
 _i_lastPresentRGBA = void
+/// Holds the optional i hd wipe start resource used by the i video subsystem.
+/// @internal
 _i_hdWipeStart = void
+/// Holds the optional i hd wipe end resource used by the i video subsystem.
+/// @internal
 _i_hdWipeEnd = void
+/// Holds the optional i hd wipe frame resource used by the i video subsystem.
+/// @internal
 _i_hdWipeFrame = void
+/// Stores the i hd wipe y collection used by the i video subsystem.
+/// @internal
 _i_hdWipeY =[]
+/// Tracks whether i hd wipe active is active in the i video subsystem.
+/// @internal
 _i_hdWipeActive = false
+/// Tracks the mutable i hd wipe seed value used by the i video subsystem.
+/// @internal
 _i_hdWipeSeed = 1234567
+/// Tracks whether i force software present is active in the i video subsystem.
+/// @internal
 _i_forceSoftwarePresent = false
+/// Defines i statusbar height for the i video subsystem.
+/// @internal
 const _I_STATUSBAR_HEIGHT = 32
 
-/*
-* Function: _I_ToIntOr
-* Purpose: Coerces numeric values to truncation-toward-zero integers and returns fallback on failure.
-*/
+/// Coerces numeric values to truncation-toward-zero integers and returns fallback on failure in `_I_ToIntOr`
+/// @param v Value consumed by the operation.
+/// @param fallback Value returned when the requested conversion or lookup is unavailable.
+/// @internal
 function _I_ToIntOr(v, fallback)
   if typeof(v) == "int" then return v end if
   if typeof(v) == "float" then
@@ -365,10 +524,11 @@ function _I_ToIntOr(v, fallback)
   return fallback
 end function
 
-/*
-* Function: _I_IDiv
-* Purpose: Coerces numeric operands and returns their signed quotient truncated toward zero, using zero for a zero divisor.
-*/
+/// Coerces numeric operands and returns their signed quotient truncated toward zero, using zero for a zero
+/// divisor.
+/// @param a First input operand.
+/// @param b Second input operand.
+/// @internal
 function inline _I_IDiv(a, b)
   a = _I_ToIntOr(a, 0)
   b = _I_ToIntOr(b, 0)
@@ -378,10 +538,9 @@ function inline _I_IDiv(a, b)
   return std.math.ceil(q)
 end function
 
-/*
-* Function: _I_SetWindowTitle
-* Purpose: Applies a changed caption once and clears STATIC-class repaint requests caused by title updates.
-*/
+/// Applies a changed caption once and clears STATIC-class repaint requests caused by title updates.
+/// @param title Title value supplied to `_I_SetWindowTitle`.
+/// @internal
 function inline _I_SetWindowTitle(title)
   global _i_titleLast
 
@@ -393,10 +552,9 @@ function inline _I_SetWindowTitle(title)
   _i_titleLast = title
 end function
 
-/*
-* Function: I_SetForceSoftwarePresent
-* Purpose: Forces the next presentation path to use a nearest-scaled logical framebuffer instead of native OpenGL world output.
-*/
+/// Forces the next presentation path to use a nearest-scaled logical framebuffer instead of native OpenGL world
+/// output.
+/// @param v Value consumed by the operation.
 function I_SetForceSoftwarePresent(v)
   global _i_forceSoftwarePresent
 
@@ -404,10 +562,8 @@ function I_SetForceSoftwarePresent(v)
   if typeof(v) == "bool" and v then _i_forceSoftwarePresent = true end if
 end function
 
-/*
-* Function: _I_ToggleRendererHotkey
-* Purpose: Switches renderer state and invalidates cached high-resolution overlays.
-*/
+/// Switches renderer state and invalidates cached high-resolution overlays.
+/// @internal
 function _I_ToggleRendererHotkey()
   if typeof(IGL_ToggleRenderer) == "function" then
     IGL_ToggleRenderer()
@@ -420,10 +576,11 @@ function _I_ToggleRendererHotkey()
   end if
 end function
 
-/*
-* Function: _I_HandleRendererHotkeyMessage
-* Purpose: Handles Alt+G from the Win32 message stream, independent of foreground polling.
-*/
+/// Handles Alt+G from the Win32 message stream, independent of foreground polling.
+/// @param msg Msg value supplied to `_I_HandleRendererHotkeyMessage`.
+/// @param wparam Wparam value supplied to `_I_HandleRendererHotkeyMessage`.
+/// @param lparam Lparam value supplied to `_I_HandleRendererHotkeyMessage`.
+/// @internal
 function _I_HandleRendererHotkeyMessage(msg, wparam, lparam)
   global _i_altGPrev
 
@@ -446,10 +603,9 @@ function _I_HandleRendererHotkeyMessage(msg, wparam, lparam)
   return true
 end function
 
-/*
-* Function: _I_SaveLastPresentFrame
-* Purpose: Caches the latest full-size indexed frame and its palette-expanded RGBA copy for capture and wipe fallback.
-*/
+/// Caches the latest full-size indexed frame and its palette-expanded RGBA copy for capture and wipe fallback.
+/// @param src Src value supplied to `_I_SaveLastPresentFrame`.
+/// @internal
 function _I_SaveLastPresentFrame(src)
   global _i_lastPresentFrame
   global _i_lastPresentRGBA
@@ -466,10 +622,11 @@ function _I_SaveLastPresentFrame(src)
   _I_IndexedToRGBA(src, _i_lastPresentRGBA, _i_presentWidth, _i_presentHeight)
 end function
 
-/*
-* Function: _I_SaveLastRGBAFrameSized
-* Purpose: Converts an indexed frame of arbitrary dimensions for OpenGL presentation.
-*/
+/// Converts an indexed frame of arbitrary dimensions for OpenGL presentation.
+/// @param src Src value supplied to `_I_SaveLastRGBAFrameSized`.
+/// @param width Width of the target in pixels or map units.
+/// @param height Height of the target in pixels or map units.
+/// @internal
 function _I_SaveLastRGBAFrameSized(src, width, height)
   global _i_lastPresentRGBA
 
@@ -483,10 +640,12 @@ function _I_SaveLastRGBAFrameSized(src, width, height)
   return _I_IndexedToRGBA(src, _i_lastPresentRGBA, width, height)
 end function
 
-/*
-* Function: _I_IndexedToRGBA
-* Purpose: Expands validated indexed pixels through the active RGB palette into opaque RGBA output.
-*/
+/// Expands validated indexed pixels through the active RGB palette into opaque RGBA output.
+/// @param src Src value supplied to `_I_IndexedToRGBA`.
+/// @param dst Dst value supplied to `_I_IndexedToRGBA`.
+/// @param width Width of the target in pixels or map units.
+/// @param height Height of the target in pixels or map units.
+/// @internal
 function _I_IndexedToRGBA(src, dst, width, height)
   if typeof(src) != "bytes" or typeof(dst) != "bytes" then return false end if
   if typeof(width) != "int" or typeof(height) != "int" then return false end if
@@ -511,10 +670,8 @@ function _I_IndexedToRGBA(src, dst, width, height)
   return true
 end function
 
-/*
-* Function: _I_HDWIPE_Rand
-* Purpose: Produces deterministic 15-bit randomness for high-resolution melt-column delays.
-*/
+/// Produces deterministic 15-bit randomness for high-resolution melt-column delays.
+/// @internal
 function inline _I_HDWIPE_Rand()
   global _i_hdWipeSeed
 
@@ -522,10 +679,8 @@ function inline _I_HDWIPE_Rand()
   return (_i_hdWipeSeed >> 16) & 32767
 end function
 
-/*
-* Function: I_BeginHDWipe
-* Purpose: Captures the current high-resolution start frame from OpenGL, the last RGBA frame, or a nearest logical fallback.
-*/
+/// Captures the current high-resolution start frame from OpenGL, the last RGBA frame, or a nearest logical
+/// fallback.
 function I_BeginHDWipe()
   global _i_hdWipeStart
   global _i_hdWipeActive
@@ -555,10 +710,8 @@ function I_BeginHDWipe()
   return _I_IndexedToRGBA(src, _i_hdWipeStart, _i_presentWidth, _i_presentHeight)
 end function
 
-/*
-* Function: I_PrepareHDWipeEnd
-* Purpose: Captures the destination frame and initializes correlated delayed melt positions for two-logical-pixel column groups.
-*/
+/// Captures the destination frame and initializes correlated delayed melt positions for two-logical-pixel
+/// column groups.
 function I_PrepareHDWipeEnd()
   global _i_hdWipeEnd
   global _i_hdWipeFrame
@@ -615,10 +768,8 @@ function I_PrepareHDWipeEnd()
   return true
 end function
 
-/*
-* Function: _I_ComposeHDWipeFrame
-* Purpose: Composes one RGBA melt frame from the start/end captures and each column group's vertical frontier.
-*/
+/// Composes one RGBA melt frame from the start/end captures and each column group's vertical frontier.
+/// @internal
 function _I_ComposeHDWipeFrame()
   if typeof(_i_hdWipeStart) != "bytes" or typeof(_i_hdWipeEnd) != "bytes" or typeof(_i_hdWipeFrame) != "bytes" then return false end if
   w = _i_presentWidth
@@ -663,10 +814,9 @@ function _I_ComposeHDWipeFrame()
   return true
 end function
 
-/*
-* Function: I_HDScreenWipe
-* Purpose: Advances, draws, and swaps the high-resolution melt transition, returning true after every column reaches the bottom.
-*/
+/// Advances, draws, and swaps the high-resolution melt transition, returning true after every column reaches
+/// the bottom.
+/// @param tics Duration measured in Doom game tics.
 function I_HDScreenWipe(tics)
   if not _i_hdWipeActive then return true end if
   if typeof(IGL_IsActive) != "function" or not IGL_IsActive() then return true end if
@@ -713,10 +863,9 @@ function I_HDScreenWipe(tics)
   return done
 end function
 
-/*
-* Function: _I_IntToString
-* Purpose: Formats an integer as decimal text without relying on platform string conversion.
-*/
+/// Formats an integer as decimal text without relying on platform string conversion.
+/// @param v Value consumed by the operation.
+/// @internal
 function _I_IntToString(v)
   n = _I_ToIntOr(v, 0)
   if n == 0 then return "0" end if
@@ -746,28 +895,21 @@ function _I_IntToString(v)
   return txt
 end function
 
-/*
-* Function: _I_FpsTitle
-* Purpose: Formats the base window caption with the most recently measured non-negative FPS value.
-*/
+/// Formats the base window caption with the most recently measured non-negative FPS value.
+/// @internal
 function inline _I_FpsTitle()
   v = _I_ToIntOr(_i_fpsValue, 0)
   if v < 0 then v = 0 end if
   return _i_titleBase + " | FPS: " + _I_IntToString(v)
 end function
 
-/*
-* Function: I_GetFPS
-* Purpose: Exposes the last completed one-second presentation sample to in-game UI overlays.
-*/
+/// Exposes the last completed one-second presentation sample to in-game UI overlays.
 function I_GetFPS()
   return _I_ToIntOr(_i_fpsValue, 0)
 end function
 
-/*
-* Function: _I_UpdateWindowTitle
-* Purpose: Counts presented frames over one-second windows and updates the caption unless a loading status owns it.
-*/
+/// Counts presented frames over one-second windows and updates the caption unless a loading status owns it.
+/// @internal
 function _I_UpdateWindowTitle()
   global _i_fpsWindowStart
   global _i_fpsFrameCount
@@ -806,10 +948,8 @@ function _I_UpdateWindowTitle()
   _i_fpsFrameCount = 0
 end function
 
-/*
-* Function: _I_DrawLoadingIndicator
-* Purpose: Renders a small animated loading marker in the lower-right corner of the software framebuffer.
-*/
+/// Renders a small animated loading marker in the lower-right corner of the software framebuffer.
+/// @internal
 function _I_DrawLoadingIndicator()
   global _i_loadingAnimPhase
   if not _i_inited then return end if
@@ -854,10 +994,9 @@ function _I_DrawLoadingIndicator()
   _i_loadingAnimPhase = _i_loadingAnimPhase + 1
 end function
 
-/*
-* Function: _I_SetCursorVisible
-* Purpose: Keeps cursor visibility in sync while game window is active.
-*/
+/// Keeps cursor visibility in sync while game window is active.
+/// @param visible Visible value supplied to `_I_SetCursorVisible`.
+/// @internal
 function _I_SetCursorVisible(visible)
   global _i_cursorHidden
 
@@ -890,10 +1029,10 @@ function _I_SetCursorVisible(visible)
   _i_cursorHidden = true
 end function
 
-/*
-* Function: _I_AddKeyMap
-* Purpose: Appends a Win32 virtual-key to Doom-key mapping with an initially released edge-tracking cell.
-*/
+/// Appends a Win32 virtual-key to Doom-key mapping with an initially released edge-tracking cell.
+/// @param vk Vk value supplied to `_I_AddKeyMap`.
+/// @param doomKey Doom input-key code to process.
+/// @internal
 function inline _I_AddKeyMap(vk, doomKey)
   global _i_keyVk
   global _i_keyDoom
@@ -904,10 +1043,8 @@ function inline _I_AddKeyMap(vk, doomKey)
   _i_keyPrev = _i_keyPrev +[0]
 end function
 
-/*
-* Function: _I_InitKeyMap
-* Purpose: Lazily builds the complete navigation, function, digit, numpad, punctuation, and lowercase-letter key map.
-*/
+/// Lazily builds the complete navigation, function, digit, numpad, punctuation, and lowercase-letter key map.
+/// @internal
 function _I_InitKeyMap()
   global _i_keyVk
   global _i_keyDoom
@@ -1010,20 +1147,22 @@ function _I_InitKeyMap()
   _I_AddKeyMap(0x5A, 122)
 end function
 
-/*
-* Function: _I_WriteU16
-* Purpose: Encodes the low 16 bits of a value into a little-endian Win32 structure buffer.
-*/
+/// Encodes the low 16 bits of a value into a little-endian Win32 structure buffer.
+/// @param buf Buf value supplied to `_I_WriteU16`.
+/// @param off Zero-based byte or element offset.
+/// @param value Value consumed by the operation.
+/// @internal
 function inline _I_WriteU16(buf, off, value)
   if value < 0 then value = value + 65536 end if
   buf[off] = value & 255
   buf[off + 1] =(value >> 8) & 255
 end function
 
-/*
-* Function: _I_WriteU32
-* Purpose: Encodes the low 32 bits of a value into a little-endian Win32 structure buffer.
-*/
+/// Encodes the low 32 bits of a value into a little-endian Win32 structure buffer.
+/// @param buf Buf value supplied to `_I_WriteU32`.
+/// @param off Zero-based byte or element offset.
+/// @param value Value consumed by the operation.
+/// @internal
 function inline _I_WriteU32(buf, off, value)
   if value < 0 then value = value + 4294967296 end if
   buf[off] = value & 255
@@ -1032,28 +1171,26 @@ function inline _I_WriteU32(buf, off, value)
   buf[off + 3] =(value >> 24) & 255
 end function
 
-/*
-* Function: _I_ReadU32
-* Purpose: Decodes an unsigned 32-bit little-endian field from a Win32 structure buffer.
-*/
+/// Decodes an unsigned 32-bit little-endian field from a Win32 structure buffer.
+/// @param buf Buf value supplied to `_I_ReadU32`.
+/// @param off Zero-based byte or element offset.
+/// @internal
 function inline _I_ReadU32(buf, off)
   return buf[off] +(buf[off + 1] << 8) +(buf[off + 2] << 16) +(buf[off + 3] << 24)
 end function
 
-/*
-* Function: _I_ReadS32
-* Purpose: Decodes a signed 32-bit little-endian field from a Win32 structure buffer.
-*/
+/// Decodes a signed 32-bit little-endian field from a Win32 structure buffer.
+/// @param buf Buf value supplied to `_I_ReadS32`.
+/// @param off Zero-based byte or element offset.
+/// @internal
 function inline _I_ReadS32(buf, off)
   v = _I_ReadU32(buf, off)
   if v >= 2147483648 then v = v - 4294967296 end if
   return v
 end function
 
-/*
-* Function: _I_InitDefaultPalette
-* Purpose: Seeds the 256-entry RGB palette with a grayscale ramp before PLAYPAL is applied.
-*/
+/// Seeds the 256-entry RGB palette with a grayscale ramp before PLAYPAL is applied.
+/// @internal
 function _I_InitDefaultPalette()
   if typeof(_i_paletteRgb) != "bytes" then return end if
   for i = 0 to 255
@@ -1064,10 +1201,8 @@ function _I_InitDefaultPalette()
   end for
 end function
 
-/*
-* Function: _I_UpdateBitmapColorTable
-* Purpose: Converts the active RGB palette into the BGR0 color table embedded in the 8-bit BITMAPINFO.
-*/
+/// Converts the active RGB palette into the BGR0 color table embedded in the 8-bit BITMAPINFO.
+/// @internal
 function _I_UpdateBitmapColorTable()
   if typeof(_i_paletteRgb) != "bytes" then return end if
   if typeof(_i_bmi) != "bytes" then return end if
@@ -1081,10 +1216,9 @@ function _I_UpdateBitmapColorTable()
   end for
 end function
 
-/*
-* Function: _I_InitBitmapInfo
-* Purpose: Builds a top-down 8-bit BITMAPINFO for the physical presentation size and forwards its initial palette to OpenGL.
-*/
+/// Builds a top-down 8-bit BITMAPINFO for the physical presentation size and forwards its initial palette to
+/// OpenGL.
+/// @internal
 function _I_InitBitmapInfo()
   if typeof(_i_bmi) != "bytes" then return end if
 
@@ -1104,10 +1238,8 @@ function _I_InitBitmapInfo()
   if typeof(IGL_SetPalette) == "function" then IGL_SetPalette(_i_paletteRgb) end if
 end function
 
-/*
-* Function: _I_CreateWindow
-* Purpose: Creates, sizes, activates, and acquires a device context for the fullscreen or windowed native game window.
-*/
+/// Creates, sizes, activates, and acquires a device context for the fullscreen or windowed native game window.
+/// @internal
 function _I_CreateWindow()
   global _i_hwnd
   global _i_hdc
@@ -1177,10 +1309,8 @@ function _I_CreateWindow()
   return true
 end function
 
-/*
-* Function: _I_PumpMessages
-* Purpose: Drains queued Win32 messages, handles Alt+G directly, and quits if the stored game window was destroyed.
-*/
+/// Drains queued Win32 messages, handles Alt+G directly, and quits if the stored game window was destroyed.
+/// @internal
 function _I_PumpMessages()
   if _i_hwnd is not void and not IsWindow(_i_hwnd) then
     if typeof(I_Quit) == "function" then I_Quit() end if
@@ -1210,10 +1340,9 @@ function _I_PumpMessages()
   end while
 end function
 
-/*
-* Function: _I_EnsureScreenshotDir
-* Purpose: Creates the screenshot directory once and caches success so periodic captures avoid repeated filesystem work.
-*/
+/// Creates the screenshot directory once and caches success so periodic captures avoid repeated filesystem
+/// work.
+/// @internal
 function _I_EnsureScreenshotDir()
   global _i_screenshotDirReady
 
@@ -1233,10 +1362,13 @@ function _I_EnsureScreenshotDir()
   return false
 end function
 
-/*
-* Function: _I_OverlayScaledRect
-* Purpose: Copies a scaled logical-screen rectangle into the high-resolution frame.
-*/
+/// Copies a scaled logical-screen rectangle into the high-resolution frame.
+/// @param scaled Scaled value supplied to `_I_OverlayScaledRect`.
+/// @param x Horizontal map- or screen-space coordinate.
+/// @param y Vertical map- or screen-space coordinate.
+/// @param w W value supplied to `_I_OverlayScaledRect`.
+/// @param h H value supplied to `_I_OverlayScaledRect`.
+/// @internal
 function _I_OverlayScaledRect(scaled, x, y, w, h)
   if typeof(scaled) != "bytes" or len(scaled) < _i_presentWidth * _i_presentHeight then return end if
   if typeof(_i_presentBuffer) != "bytes" then return end if
@@ -1268,10 +1400,13 @@ function _I_OverlayScaledRect(scaled, x, y, w, h)
   end while
 end function
 
-/*
-* Function: _I_OverlayLogicalRectNearest
-* Purpose: Copies a logical-screen rectangle into the high-resolution frame with cheap nearest scaling.
-*/
+/// Copies a logical-screen rectangle into the high-resolution frame with cheap nearest scaling.
+/// @param src Src value supplied to `_I_OverlayLogicalRectNearest`.
+/// @param x Horizontal map- or screen-space coordinate.
+/// @param y Vertical map- or screen-space coordinate.
+/// @param w W value supplied to `_I_OverlayLogicalRectNearest`.
+/// @param h H value supplied to `_I_OverlayLogicalRectNearest`.
+/// @internal
 function _I_OverlayLogicalRectNearest(src, x, y, w, h)
   global _i_overlayRowBuffer
 
@@ -1341,10 +1476,11 @@ function _I_OverlayLogicalRectNearest(src, x, y, w, h)
   end while
 end function
 
-/*
-* Function: _I_OverlayChangedLogicalPixels
-* Purpose: Copies only logical pixels changed after the world pass, preserving high-res world rendering.
-*/
+/// Copies only logical pixels changed after the world pass, preserving high-res world rendering.
+/// @param scaled Scaled value supplied to `_I_OverlayChangedLogicalPixels`.
+/// @param cur Cur value supplied to `_I_OverlayChangedLogicalPixels`.
+/// @param base Base value supplied to `_I_OverlayChangedLogicalPixels`.
+/// @internal
 function _I_OverlayChangedLogicalPixels(scaled, cur, base)
   if typeof(scaled) != "bytes" or len(scaled) < _i_presentWidth * _i_presentHeight then return end if
   if typeof(cur) != "bytes" or len(cur) < SCREENWIDTH * SCREENHEIGHT then return end if
@@ -1374,10 +1510,10 @@ function _I_OverlayChangedLogicalPixels(scaled, cur, base)
   end while
 end function
 
-/*
-* Function: _I_OverlayChangedLogicalPixelsNearest
-* Purpose: Copies changed logical pixels directly into the high-resolution frame.
-*/
+/// Copies changed logical pixels directly into the high-resolution frame.
+/// @param cur Cur value supplied to `_I_OverlayChangedLogicalPixelsNearest`.
+/// @param base Base value supplied to `_I_OverlayChangedLogicalPixelsNearest`.
+/// @internal
 function _I_OverlayChangedLogicalPixelsNearest(cur, base)
   if typeof(cur) != "bytes" or len(cur) < SCREENWIDTH * SCREENHEIGHT then return end if
   if typeof(base) != "bytes" or len(base) < SCREENWIDTH * SCREENHEIGHT then return end if
@@ -1411,10 +1547,10 @@ function _I_OverlayChangedLogicalPixelsNearest(cur, base)
   end while
 end function
 
-/*
-* Function: _I_OverlayMarkedLogicalPixels
-* Purpose: Copies logical pixels marked by V_DrawPatch/V_DrawBlock into the high-resolution frame.
-*/
+/// Copies logical pixels marked by V_DrawPatch/V_DrawBlock into the high-resolution frame.
+/// @param scaled Scaled value supplied to `_I_OverlayMarkedLogicalPixels`.
+/// @param mask Mask value supplied to `_I_OverlayMarkedLogicalPixels`.
+/// @internal
 function _I_OverlayMarkedLogicalPixels(scaled, mask)
   if typeof(scaled) != "bytes" or len(scaled) < _i_presentWidth * _i_presentHeight then return false end if
   if typeof(mask) != "bytes" or len(mask) < SCREENWIDTH * SCREENHEIGHT then return false end if
@@ -1446,10 +1582,10 @@ function _I_OverlayMarkedLogicalPixels(scaled, mask)
   return any
 end function
 
-/*
-* Function: _I_OverlayMarkedLogicalPixelsNearest
-* Purpose: Copies UI-marked logical pixels directly into the high-resolution frame.
-*/
+/// Copies UI-marked logical pixels directly into the high-resolution frame.
+/// @param src Src value supplied to `_I_OverlayMarkedLogicalPixelsNearest`.
+/// @param mask Mask value supplied to `_I_OverlayMarkedLogicalPixelsNearest`.
+/// @internal
 function _I_OverlayMarkedLogicalPixelsNearest(src, mask)
   if typeof(src) != "bytes" or len(src) < SCREENWIDTH * SCREENHEIGHT then return false end if
   if typeof(mask) != "bytes" or len(mask) < SCREENWIDTH * SCREENHEIGHT then return false end if
@@ -1504,10 +1640,8 @@ function _I_OverlayMarkedLogicalPixelsNearest(src, mask)
   return any
 end function
 
-/*
-* Function: _I_OverlayPreparedHighresPatches
-* Purpose: Copies pre-upscaled patch pixels prepared by V_DrawPatch into the presentation frame.
-*/
+/// Copies pre-upscaled patch pixels prepared by V_DrawPatch into the presentation frame.
+/// @internal
 function _I_OverlayPreparedHighresPatches()
   if typeof(IGL_IsActive) != "function" or not IGL_IsActive() then return false end if
   if typeof(v_hioverlay) != "bytes" or typeof(v_hioverlaymask) != "bytes" then return false end if
@@ -1544,10 +1678,8 @@ function _I_OverlayPreparedHighresPatches()
   return any
 end function
 
-/*
-* Function: _I_EnsureGLOOverlay
-* Purpose: Ensures the OpenGL UI overlay color and alpha-mask buffers match the physical presentation dimensions.
-*/
+/// Ensures the OpenGL UI overlay color and alpha-mask buffers match the physical presentation dimensions.
+/// @internal
 function _I_EnsureGLOOverlay()
   global _i_glOverlayBuffer
   global _i_glOverlayMask
@@ -1565,10 +1697,12 @@ function _I_EnsureGLOOverlay()
   return true
 end function
 
-/*
-* Function: _I_GLOverlayLogicalPixel
-* Purpose: Expands one logical indexed pixel into its physical-scale overlay block and marks those destination pixels opaque.
-*/
+/// Expands one logical indexed pixel into its physical-scale overlay block and marks those destination pixels
+/// opaque.
+/// @param src Src value supplied to `_I_GLOverlayLogicalPixel`.
+/// @param sx Horizontal coordinate or vector component represented by sx.
+/// @param sy Vertical coordinate or vector component represented by sy.
+/// @internal
 function _I_GLOverlayLogicalPixel(src, sx, sy)
   s = _i_presentScale
   if s <= 0 then return end if
@@ -1588,10 +1722,13 @@ function _I_GLOverlayLogicalPixel(src, sx, sy)
   end while
 end function
 
-/*
-* Function: _I_GLOverlayLogicalRect
-* Purpose: Clips and expands a logical indexed rectangle into the OpenGL overlay buffers.
-*/
+/// Clips and expands a logical indexed rectangle into the OpenGL overlay buffers.
+/// @param src Src value supplied to `_I_GLOverlayLogicalRect`.
+/// @param x Horizontal map- or screen-space coordinate.
+/// @param y Vertical map- or screen-space coordinate.
+/// @param w W value supplied to `_I_GLOverlayLogicalRect`.
+/// @param h H value supplied to `_I_GLOverlayLogicalRect`.
+/// @internal
 function _I_GLOverlayLogicalRect(src, x, y, w, h)
   if typeof(src) != "bytes" or len(src) < SCREENWIDTH * SCREENHEIGHT then return false end if
   if x < 0 then
@@ -1618,10 +1755,10 @@ function _I_GLOverlayLogicalRect(src, x, y, w, h)
   return true
 end function
 
-/*
-* Function: _I_GLOverlayLogicalMask
-* Purpose: Expands only mask-selected logical indexed pixels into the OpenGL overlay buffers.
-*/
+/// Expands only mask-selected logical indexed pixels into the OpenGL overlay buffers.
+/// @param src Src value supplied to `_I_GLOverlayLogicalMask`.
+/// @param mask Mask value supplied to `_I_GLOverlayLogicalMask`.
+/// @internal
 function _I_GLOverlayLogicalMask(src, mask)
   if typeof(src) != "bytes" or len(src) < SCREENWIDTH * SCREENHEIGHT then return false end if
   if typeof(mask) != "bytes" or len(mask) < SCREENWIDTH * SCREENHEIGHT then return false end if
@@ -1654,10 +1791,8 @@ function _I_GLOverlayLogicalMask(src, mask)
   return any
 end function
 
-/*
-* Function: _I_GLOverlayHighresPatches
-* Purpose: Merges prepared native-resolution patch pixels and their mask into the OpenGL overlay buffers.
-*/
+/// Merges prepared native-resolution patch pixels and their mask into the OpenGL overlay buffers.
+/// @internal
 function _I_GLOverlayHighresPatches()
   if typeof(v_hioverlay) != "bytes" or typeof(v_hioverlaymask) != "bytes" then return false end if
   expected = _i_presentWidth * _i_presentHeight
@@ -1693,10 +1828,9 @@ function _I_GLOverlayHighresPatches()
   return any
 end function
 
-/*
-* Function: _I_StatusOverlayY
-* Purpose: Returns the logical start row of a visible status bar, or screen height when fullscreen rendering must remain unobscured.
-*/
+/// Returns the logical start row of a visible status bar, or screen height when fullscreen rendering must
+/// remain unobscured.
+/// @internal
 function inline _I_StatusOverlayY()
   if typeof(_D_StatusBarVisible) == "function" and _D_StatusBarVisible() then
     y = SCREENHEIGHT - _I_STATUSBAR_HEIGHT
@@ -1706,10 +1840,9 @@ function inline _I_StatusOverlayY()
   return SCREENHEIGHT
 end function
 
-/*
-* Function: _I_DrawGLOverlayFrame
-* Purpose: Composes a visible status bar, marked logical UI, and prepared HD patches, then submits the masked overlay to OpenGL.
-*/
+/// Composes a visible status bar, marked logical UI, and prepared HD patches, then submits the masked overlay
+/// to OpenGL.
+/// @internal
 function _I_DrawGLOverlayFrame()
   if typeof(screens) != "array" or len(screens) == 0 or typeof(screens[0]) != "bytes" then return false end if
 
@@ -1757,10 +1890,9 @@ function _I_DrawGLOverlayFrame()
   return IGL_DrawIndexedOverlay(_i_glOverlayBuffer, _i_glOverlayMask, _i_presentWidth, _i_presentHeight)
 end function
 
-/*
-* Function: _I_BuildNearestLogicalFrame
-* Purpose: Builds a cheap nearest-scaled logical frame used as fallback behind prepared assets.
-*/
+/// Builds a cheap nearest-scaled logical frame used as fallback behind prepared assets.
+/// @param src Src value supplied to `_I_BuildNearestLogicalFrame`.
+/// @internal
 function _I_BuildNearestLogicalFrame(src)
   global _i_presentBuffer
 
@@ -1774,10 +1906,8 @@ function _I_BuildNearestLogicalFrame(src)
   return _i_presentBuffer
 end function
 
-/*
-* Function: _I_BuildHighresGameFrame
-* Purpose: Presents the native high-resolution world buffer plus scaled logical UI/overlay areas.
-*/
+/// Presents the native high-resolution world buffer plus scaled logical UI/overlay areas.
+/// @internal
 function _I_BuildHighresGameFrame()
   global _i_presentBuffer
 
@@ -1811,10 +1941,8 @@ function _I_BuildHighresGameFrame()
   return _i_presentBuffer
 end function
 
-/*
-* Function: _I_BuildPresentFrame
-* Purpose: Returns the framebuffer that should be presented to the window.
-*/
+/// Returns the framebuffer that should be presented to the window.
+/// @internal
 function _I_BuildPresentFrame()
   if typeof(RH_IsActive) == "function" and RH_IsActive() then
     return _I_BuildHighresGameFrame()
@@ -1827,10 +1955,11 @@ function _I_BuildPresentFrame()
   return _I_BuildNearestLogicalFrame(screens[0])
 end function
 
-/*
-* Function: _I_BuildBmpFromIndexedFrame
-* Purpose: Builds an 8-bit BMP from a prepared indexed frame.
-*/
+/// Builds an 8-bit BMP from a prepared indexed frame.
+/// @param src Src value supplied to `_I_BuildBmpFromIndexedFrame`.
+/// @param width Width of the target in pixels or map units.
+/// @param height Height of the target in pixels or map units.
+/// @internal
 function _I_BuildBmpFromIndexedFrame(src, width, height)
   if typeof(src) != "bytes" then return end if
   if typeof(width) != "int" or typeof(height) != "int" then return end if
@@ -1878,19 +2007,16 @@ function _I_BuildBmpFromIndexedFrame(src, width, height)
   return bmp
 end function
 
-/*
-* Function: _I_BuildBmpFromFrame
-* Purpose: Encodes the currently selected presentation framebuffer as an 8-bit BMP.
-*/
+/// Encodes the currently selected presentation framebuffer as an 8-bit BMP.
+/// @internal
 function _I_BuildBmpFromFrame()
   src = _I_BuildPresentFrame()
   return _I_BuildBmpFromIndexedFrame(src, _i_presentWidth, _i_presentHeight)
 end function
 
-/*
-* Function: _I_ClampPresentScale
-* Purpose: Keeps the physical presentation scale inside the supported range.
-*/
+/// Keeps the physical presentation scale inside the supported range.
+/// @param scale Scale value supplied to `_I_ClampPresentScale`.
+/// @internal
 function inline _I_ClampPresentScale(scale)
   s = _I_ToIntOr(scale, 1)
   if s < 1 then s = 1 end if
@@ -1898,10 +2024,8 @@ function inline _I_ClampPresentScale(scale)
   return s
 end function
 
-/*
-* Function: _I_InitPresentMetrics
-* Purpose: Initializes physical framebuffer dimensions used by GDI presentation.
-*/
+/// Initializes physical framebuffer dimensions used by GDI presentation.
+/// @internal
 function _I_InitPresentMetrics()
   global _i_presentScale
   global _i_presentWidth
@@ -1928,18 +2052,17 @@ function _I_InitPresentMetrics()
   _i_glOverlayMask = bytes(_i_presentWidth * _i_presentHeight, 0)
 end function
 
-/*
-* Function: _I_WriteAutoScreenshot
-* Purpose: Captures the current presentation selection and delegates indexed BMP creation and numbered file output.
-*/
+/// Captures the current presentation selection and delegates indexed BMP creation and numbered file output.
+/// @internal
 function _I_WriteAutoScreenshot()
   _I_WriteAutoScreenshotFromFrame(_I_BuildPresentFrame(), _i_presentWidth, _i_presentHeight)
 end function
 
-/*
-* Function: _I_WriteAutoScreenshotFromFrame
-* Purpose: Writes an auto screenshot from a prepared indexed frame.
-*/
+/// Writes an auto screenshot from a prepared indexed frame.
+/// @param src Src value supplied to `_I_WriteAutoScreenshotFromFrame`.
+/// @param width Width of the target in pixels or map units.
+/// @param height Height of the target in pixels or map units.
+/// @internal
 function _I_WriteAutoScreenshotFromFrame(src, width, height)
   global _i_screenshotIndex
   global _i_screenshotWriteError
@@ -1959,10 +2082,8 @@ function _I_WriteAutoScreenshotFromFrame(src, width, height)
   end if
 end function
 
-/*
-* Function: _I_ShouldAutoScreenshot
-* Purpose: Returns true when the next auto screenshot interval has elapsed.
-*/
+/// Returns true when the next auto screenshot interval has elapsed.
+/// @internal
 function _I_ShouldAutoScreenshot()
   global _i_screenshotNextTick
 
@@ -1984,26 +2105,24 @@ function _I_ShouldAutoScreenshot()
   return true
 end function
 
-/*
-* Function: _I_MaybeAutoScreenshot
-* Purpose: Writes the current presentation frame only when the one-second automatic capture deadline has elapsed.
-*/
+/// Writes the current presentation frame only when the one-second automatic capture deadline has elapsed.
+/// @internal
 function _I_MaybeAutoScreenshot()
   if _I_ShouldAutoScreenshot() then _I_WriteAutoScreenshot() end if
 end function
 
-/*
-* Function: _I_MaybeAutoScreenshotFromFrame
-* Purpose: Writes a prepared frame when the auto screenshot interval has elapsed.
-*/
+/// Writes a prepared frame when the auto screenshot interval has elapsed.
+/// @param src Src value supplied to `_I_MaybeAutoScreenshotFromFrame`.
+/// @param width Width of the target in pixels or map units.
+/// @param height Height of the target in pixels or map units.
+/// @internal
 function _I_MaybeAutoScreenshotFromFrame(src, width, height)
   if _I_ShouldAutoScreenshot() then _I_WriteAutoScreenshotFromFrame(src, width, height) end if
 end function
 
-/*
-* Function: _I_ReleaseKeyboard
-* Purpose: Clears all remembered key-down edges and optionally posts matching Doom key-up events on focus loss.
-*/
+/// Clears all remembered key-down edges and optionally posts matching Doom key-up events on focus loss.
+/// @param postEvents Post events value supplied to `_I_ReleaseKeyboard`.
+/// @internal
 function _I_ReleaseKeyboard(postEvents)
   global _i_altGPrev
   global _i_consoleTildePrev
@@ -2029,10 +2148,9 @@ function _I_ReleaseKeyboard(postEvents)
   end while
 end function
 
-/*
-* Function: _I_PollKeyboard
-* Purpose: Polls mapped virtual keys while focused, posts edge-triggered Doom events, and handles the Alt+G renderer toggle.
-*/
+/// Polls mapped virtual keys while focused, posts edge-triggered Doom events, and handles the Alt+G renderer
+/// toggle.
+/// @internal
 function _I_PollKeyboard()
   global _i_altGPrev
   global _i_consoleTildePrev
@@ -2109,10 +2227,8 @@ function _I_PollKeyboard()
   end while
 end function
 
-/*
-* Function: _I_MouseButtonsNow
-* Purpose: Packs the current left, right, and middle Win32 button states into Doom's three-bit mouse mask.
-*/
+/// Packs the current left, right, and middle Win32 button states into Doom's three-bit mouse mask.
+/// @internal
 function inline _I_MouseButtonsNow()
   b = 0
   if (GetAsyncKeyState(_I_VK_LBUTTON) & 32768) != 0 then b = b | 1 end if
@@ -2121,10 +2237,9 @@ function inline _I_MouseButtonsNow()
   return b
 end function
 
-/*
-* Function: _I_PollMouse
-* Purpose: Converts focused cursor deltas and button changes into Doom mouse events while synchronizing cursor visibility.
-*/
+/// Converts focused cursor deltas and button changes into Doom mouse events while synchronizing cursor
+/// visibility.
+/// @internal
 function _I_PollMouse()
   global _i_mouseInited
   global _i_mousePrevX
@@ -2172,10 +2287,8 @@ function _I_PollMouse()
   _i_mousePrevButtons = buttons
 end function
 
-/*
-* Function: I_InitGraphics
-* Purpose: Allocates video/input buffers, parses display and screenshot options, creates the window, and initializes presentation state.
-*/
+/// Allocates video/input buffers, parses display and screenshot options, creates the window, and initializes
+/// presentation state.
 function I_InitGraphics()
   global _i_inited
   global _i_paletteRgb
@@ -2275,10 +2388,7 @@ function I_InitGraphics()
   _i_inited = true
 end function
 
-/*
-* Function: I_ShutdownGraphics
-* Purpose: Restores the cursor, shuts down OpenGL, releases the device context, and destroys the owned native window.
-*/
+/// Restores the cursor, shuts down OpenGL, releases the device context, and destroys the owned native window.
 function I_ShutdownGraphics()
   global _i_inited
   global _i_hwnd
@@ -2304,10 +2414,8 @@ function I_ShutdownGraphics()
   _i_inited = false
 end function
 
-/*
-* Function: I_SetPalette
-* Purpose: Applies the selected gamma table to a 256-color palette and updates both GDI and OpenGL palette consumers.
-*/
+/// Applies the selected gamma table to a 256-color palette and updates both GDI and OpenGL palette consumers.
+/// @param palette Palette value supplied to `I_SetPalette`.
 function I_SetPalette(palette)
   if typeof(_i_paletteRgb) != "bytes" then return end if
   if typeof(palette) != "bytes" then return end if
@@ -2337,18 +2445,12 @@ function I_SetPalette(palette)
   if typeof(IGL_SetPalette) == "function" then IGL_SetPalette(_i_paletteRgb) end if
 end function
 
-/*
-* Function: I_UpdateNoBlit
-* Purpose: Services the Win32 message queue without presenting or modifying a framebuffer.
-*/
+/// Services the Win32 message queue without presenting or modifying a framebuffer.
 function I_UpdateNoBlit()
   _I_PumpMessages()
 end function
 
-/*
-* Function: I_CaptureGLFrameToScreen
-* Purpose: Composes the current OpenGL world and UI, then reads a logical indexed capture into screen zero.
-*/
+/// Composes the current OpenGL world and UI, then reads a logical indexed capture into screen zero.
 function I_CaptureGLFrameToScreen()
   if not _i_inited then return false end if
   if typeof(IGL_IsActive) != "function" or not IGL_IsActive() then return false end if
@@ -2371,10 +2473,11 @@ function I_CaptureGLFrameToScreen()
   return IGL_CaptureLogicalIndexed(screens[0], SCREENWIDTH, SCREENHEIGHT)
 end function
 
-/*
-* Function: _I_PresentIndexedFrameGLSized
-* Purpose: Palette-expands an arbitrary indexed frame, resizes the GL viewport, submits it as RGBA, and swaps buffers.
-*/
+/// Palette-expands an arbitrary indexed frame, resizes the GL viewport, submits it as RGBA, and swaps buffers.
+/// @param src Src value supplied to `_I_PresentIndexedFrameGLSized`.
+/// @param srcW Src w value supplied to `_I_PresentIndexedFrameGLSized`.
+/// @param srcH Src h value supplied to `_I_PresentIndexedFrameGLSized`.
+/// @internal
 function _I_PresentIndexedFrameGLSized(src, srcW, srcH)
   if typeof(src) != "bytes" then return false end if
   if typeof(srcW) != "int" or typeof(srcH) != "int" then return false end if
@@ -2397,18 +2500,14 @@ function _I_PresentIndexedFrameGLSized(src, srcW, srcH)
   return IGL_Swap()
 end function
 
-/*
-* Function: _I_PresentIndexedFrameGL
-* Purpose: Presents an indexed frame whose dimensions match the physical presentation buffer.
-*/
+/// Presents an indexed frame whose dimensions match the physical presentation buffer.
+/// @param src Src value supplied to `_I_PresentIndexedFrameGL`.
+/// @internal
 function _I_PresentIndexedFrameGL(src)
   return _I_PresentIndexedFrameGLSized(src, _i_presentWidth, _i_presentHeight)
 end function
 
-/*
-* Function: I_CaptureLogicalOverlayBase
-* Purpose: Captures the logical framebuffer before late menu/message drawing.
-*/
+/// Captures the logical framebuffer before late menu/message drawing.
 function I_CaptureLogicalOverlayBase()
   global _i_overlayBase
 
@@ -2420,10 +2519,9 @@ function I_CaptureLogicalOverlayBase()
   copyBytes(_i_overlayBase, 0, screens[0], 0, SCREENWIDTH * SCREENHEIGHT)
 end function
 
-/*
-* Function: I_SetLoadingStatus
-* Purpose: Sets or clears loading text in the window caption, resets animation when cleared, and pumps messages immediately.
-*/
+/// Sets or clears loading text in the window caption, resets animation when cleared, and pumps messages
+/// immediately.
+/// @param text Text to process.
 function I_SetLoadingStatus(text)
   global _i_loadingStatusText
   global _i_loadingAnimPhase
@@ -2440,10 +2538,7 @@ function I_SetLoadingStatus(text)
   _I_PumpMessages()
 end function
 
-/*
-* Function: I_LoadingPulse
-* Purpose: Pumps window/audio updates and draws an animated loading marker while heavy loading code runs.
-*/
+/// Pumps window/audio updates and draws an animated loading marker while heavy loading code runs.
 function I_LoadingPulse()
   if not _i_inited then return end if
   _I_PumpMessages()
@@ -2458,20 +2553,15 @@ function I_LoadingPulse()
   if typeof(I_SubmitSound) == "function" then I_SubmitSound() end if
 end function
 
-/*
-* Function: I_PollInput
-* Purpose: Pumps native messages and posts current keyboard and mouse edge/motion events to Doom.
-*/
+/// Pumps native messages and posts current keyboard and mouse edge/motion events to Doom.
 function I_PollInput()
   _I_PumpMessages()
   _I_PollKeyboard()
   _I_PollMouse()
 end function
 
-/*
-* Function: I_FinishUpdate
-* Purpose: Presents one completed frame through native OpenGL, indexed GL fallback, or GDI and performs FPS/screenshot bookkeeping.
-*/
+/// Presents one completed frame through native OpenGL, indexed GL fallback, or GDI and performs FPS/screenshot
+/// bookkeeping.
 function I_FinishUpdate()
   if not _i_inited then return end if
 
@@ -2566,68 +2656,53 @@ function I_FinishUpdate()
   _I_SaveLastPresentFrame(src)
 end function
 
-/*
-* Function: I_ReadScreen
-* Purpose: Copies the complete 320x200 logical framebuffer from screen zero into a caller-provided capture buffer.
-*/
+/// Copies the complete 320x200 logical framebuffer from screen zero into a caller-provided capture buffer.
+/// @param scr Scr value supplied to `I_ReadScreen`.
 function I_ReadScreen(scr)
   if typeof(scr) != "bytes" then return end if
   src = screens[0]
   copyBytes(scr, 0, src, 0, SCREENWIDTH * SCREENHEIGHT)
 end function
 
-/*
-* Function: createnullcursor
-* Purpose: Preserves the legacy cursor-construction hook; cursor hiding is handled through ShowCursor instead.
-*/
+/// Preserves the legacy cursor-construction hook; cursor hiding is handled through ShowCursor instead.
 function createnullcursor()
 
 end function
 
-/*
-* Function: grabsharedmemory
-* Purpose: Preserves the legacy shared-framebuffer allocation hook; this backend owns byte buffers directly and returns void.
-*/
+/// Preserves the legacy shared-framebuffer allocation hook; this backend owns byte buffers directly and returns
+/// void.
+/// @param size Requested size in bytes or elements.
 function grabsharedmemory(size)
   size = size
   return void
 end function
 
-/*
-* Function: InitExpand
-* Purpose: Preserves the legacy indexed expansion initializer; physical scaling is performed by current presentation paths.
-*/
+/// Preserves the legacy indexed expansion initializer; physical scaling is performed by current presentation
+/// paths.
 function InitExpand()
 end function
 
-/*
-* Function: InitExpand2
-* Purpose: Preserves the second legacy expansion initializer; no precomputed expansion tables are required.
-*/
+/// Preserves the second legacy expansion initializer; no precomputed expansion tables are required.
 function InitExpand2()
 end function
 
-/*
-* Function: Expand4
-* Purpose: Retains the legacy expansion entry point as a bounded raw byte copy into the destination buffer.
-*/
+/// Retains the legacy expansion entry point as a bounded raw byte copy into the destination buffer.
+/// @param src Src value supplied to `Expand4`.
+/// @param dst Dst value supplied to `Expand4`.
+/// @param count Number of elements or iterations to process.
 function Expand4(src, dst, count)
   if typeof(src) != "bytes" or typeof(dst) != "bytes" then return end if
   copyBytes(dst, 0, src, 0, count)
 end function
 
-/*
-* Function: UploadNewPalette
-* Purpose: Compatibility entry point that applies a newly selected Doom palette through the active gamma-aware path.
-*/
+/// Compatibility entry point that applies a newly selected Doom palette through the active gamma-aware path.
+/// @param pal Pal value supplied to `UploadNewPalette`.
 function UploadNewPalette(pal)
   I_SetPalette(pal)
 end function
 
-/*
-* Function: xlatekey
-* Purpose: Translates a Win32 virtual key to its Doom code, with direct digit and lowercase-letter fallbacks.
-*/
+/// Translates a Win32 virtual key to its Doom code, with direct digit and lowercase-letter fallbacks.
+/// @param vk Vk value supplied to `xlatekey`.
 function xlatekey(vk)
   _I_InitKeyMap()
   if typeof(vk) != "int" then return 0 end if
@@ -2645,28 +2720,19 @@ function xlatekey(vk)
   return 0
 end function
 
-/*
-* Function: I_GetEvent
-* Purpose: Pumps native messages and posts all currently observed keyboard and mouse input changes.
-*/
+/// Pumps native messages and posts all currently observed keyboard and mouse input changes.
 function I_GetEvent()
   _I_PumpMessages()
   _I_PollKeyboard()
   _I_PollMouse()
 end function
 
-/*
-* Function: I_StartFrame
-* Purpose: Services native window messages at the start of a rendered frame.
-*/
+/// Services native window messages at the start of a rendered frame.
 function I_StartFrame()
   _I_PumpMessages()
 end function
 
-/*
-* Function: I_StartTic
-* Purpose: Polls and posts platform input events at the start of a simulation tic.
-*/
+/// Polls and posts platform input events at the start of a simulation tic.
 function I_StartTic()
   I_GetEvent()
 end function

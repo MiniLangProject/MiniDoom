@@ -13,9 +13,10 @@
   See the License for the specific language governing permissions and
   limitations under the License.
 
-  Script: p_saveg.ml
-  Purpose: Serializes and restores players, world state, thinkers, specials, and cross-object savegame references.
 */
+
+//! Serializes and restores players, world state, thinkers, specials, and cross-object savegame references.
+
 import i_system
 import z_zone
 import p_local
@@ -34,13 +35,14 @@ import p_switch
 import info
 import r_main
 
+/// Holds the optional savebuffer resource used by the p saveg subsystem.
 savebuffer = void
+/// Tracks the mutable save p value used by the p saveg subsystem.
 save_p = 0
 
-/*
-* Function: _PSave_EnsureBuffer
-* Purpose: Ensures a byte buffer of at least the requested size exists and rewinds the shared stream cursor to zero.
-*/
+/// Ensures a byte buffer of at least the requested size exists and rewinds the shared stream cursor to zero.
+/// @param size Requested size in bytes or elements.
+/// @internal
 function inline _PSave_EnsureBuffer(size)
   global savebuffer
   global save_p
@@ -51,10 +53,9 @@ function inline _PSave_EnsureBuffer(size)
   save_p = 0
 end function
 
-/*
-* Function: _PSV_Ensure
-* Purpose: Grows the save buffer geometrically so a pending write fits without invalidating the current write offset.
-*/
+/// Grows the save buffer geometrically so a pending write fits without invalidating the current write offset.
+/// @param extra Extra value supplied to `_PSV_Ensure`.
+/// @internal
 function _PSV_Ensure(extra)
   global savebuffer
 
@@ -80,10 +81,9 @@ function _PSV_Ensure(extra)
   savebuffer = nb
 end function
 
-/*
-* Function: _PSV_ToS32
-* Purpose: Normalizes nullable savegame values to a stable signed 32-bit integer.
-*/
+/// Normalizes nullable savegame values to a stable signed 32-bit integer.
+/// @param v Value consumed by the operation.
+/// @internal
 function inline _PSV_ToS32(v)
   if typeof(v) == "int" then return v end if
   if typeof(v) == "bool" then
@@ -93,10 +93,9 @@ function inline _PSV_ToS32(v)
   return 0
 end function
 
-/*
-* Function: _PSV_WriteU8
-* Purpose: Appends the low byte of a normalized value, growing the save buffer before advancing the stream cursor.
-*/
+/// Appends the low byte of a normalized value, growing the save buffer before advancing the stream cursor.
+/// @param v Value consumed by the operation.
+/// @internal
 function inline _PSV_WriteU8(v)
   global save_p
   v = _PSV_ToS32(v)
@@ -105,18 +104,16 @@ function inline _PSV_WriteU8(v)
   save_p = save_p + 1
 end function
 
-/*
-* Function: _PSV_WriteBool
-* Purpose: Appends a canonical one-byte boolean, encoding only literal true as one.
-*/
+/// Appends a canonical one-byte boolean, encoding only literal true as one.
+/// @param v Value consumed by the operation.
+/// @internal
 function inline _PSV_WriteBool(v)
   if v == true then _PSV_WriteU8(1) else _PSV_WriteU8(0) end if
 end function
 
-/*
-* Function: _PSV_WriteS32
-* Purpose: Appends a normalized signed 32-bit value in stable little-endian byte order.
-*/
+/// Appends a normalized signed 32-bit value in stable little-endian byte order.
+/// @param v Value consumed by the operation.
+/// @internal
 function inline _PSV_WriteS32(v)
   v = _PSV_ToS32(v)
   _PSV_WriteU8(v & 255)
@@ -125,10 +122,9 @@ function inline _PSV_WriteS32(v)
   _PSV_WriteU8((v >> 24) & 255)
 end function
 
-/*
-* Function: _PSV_WriteTag
-* Purpose: Appends exactly four identifier bytes, padding a short save-section tag with zeros.
-*/
+/// Appends exactly four identifier bytes, padding a short save-section tag with zeros.
+/// @param tag Zone-memory or resource-lifetime tag.
+/// @internal
 function _PSV_WriteTag(tag)
   b = bytes(tag)
   i = 0
@@ -140,10 +136,10 @@ function _PSV_WriteTag(tag)
   end while
 end function
 
-/*
-* Function: _PSV_WriteFixedString
-* Purpose: Appends a fixed-width byte string, truncating excess text and zero-padding unused positions.
-*/
+/// Appends a fixed-width byte string, truncating excess text and zero-padding unused positions.
+/// @param s S value supplied to `_PSV_WriteFixedString`.
+/// @param width Width of the target in pixels or map units.
+/// @internal
 function _PSV_WriteFixedString(s, width)
   b = bytes(s)
   i = 0
@@ -155,10 +151,9 @@ function _PSV_WriteFixedString(s, width)
   end while
 end function
 
-/*
-* Function: _PSV_ReadU8
-* Purpose: Consumes one byte from the shared stream, returning zero but still advancing when the cursor is out of range.
-*/
+/// Consumes one byte from the shared stream, returning zero but still advancing when the cursor is out of
+/// range.
+/// @internal
 function inline _PSV_ReadU8()
   global save_p
   if typeof(savebuffer) != "bytes" or save_p < 0 or save_p >= len(savebuffer) then
@@ -170,18 +165,14 @@ function inline _PSV_ReadU8()
   return v
 end function
 
-/*
-* Function: _PSV_ReadBool
-* Purpose: Consumes one canonical byte and interprets every nonzero value as true.
-*/
+/// Consumes one canonical byte and interprets every nonzero value as true.
+/// @internal
 function inline _PSV_ReadBool()
   return _PSV_ReadU8() != 0
 end function
 
-/*
-* Function: _PSV_ReadS32
-* Purpose: Consumes four little-endian bytes and restores their signed 32-bit interpretation.
-*/
+/// Consumes four little-endian bytes and restores their signed 32-bit interpretation.
+/// @internal
 function inline _PSV_ReadS32()
   b0 = _PSV_ReadU8()
   b1 = _PSV_ReadU8()
@@ -192,10 +183,9 @@ function inline _PSV_ReadS32()
   return v
 end function
 
-/*
-* Function: _PSV_CheckTag
-* Purpose: Consumes a four-byte section identifier and reports whether it matches the expected zero-padded tag.
-*/
+/// Consumes a four-byte section identifier and reports whether it matches the expected zero-padded tag.
+/// @param tag Zone-memory or resource-lifetime tag.
+/// @internal
 function _PSV_CheckTag(tag)
   b = bytes(tag)
   i = 0
@@ -210,10 +200,9 @@ function _PSV_CheckTag(tag)
   return ok
 end function
 
-/*
-* Function: _PSV_ReadFixedString
-* Purpose: Consumes a fixed-width byte field and decodes its zero-terminated text prefix.
-*/
+/// Consumes a fixed-width byte field and decodes its zero-terminated text prefix.
+/// @param width Width of the target in pixels or map units.
+/// @internal
 function _PSV_ReadFixedString(width)
   b = bytes(width, 0)
   i = 0
@@ -224,10 +213,11 @@ function _PSV_ReadFixedString(width)
   return decodeZ(b)
 end function
 
-/*
-* Function: _PSV_ObjIndex
-* Purpose: Resolves an object reference to its stable array index for serialized cross-references, returning -1 when absent.
-*/
+/// Resolves an object reference to its stable array index for serialized cross-references, returning -1 when
+/// absent.
+/// @param arr Arr value supplied to `_PSV_ObjIndex`.
+/// @param obj Obj value supplied to `_PSV_ObjIndex`.
+/// @internal
 function _PSV_ObjIndex(arr, obj)
   if obj is void then return -1 end if
   if typeof(arr) != "array" then return -1 end if
@@ -239,28 +229,25 @@ function _PSV_ObjIndex(arr, obj)
   return -1
 end function
 
-/*
-* Function: _PSV_PlayerIndex
-* Purpose: Resolves a player record to its slot so mobj/player ownership links can be serialized as integers.
-*/
+/// Resolves a player record to its slot so mobj/player ownership links can be serialized as integers.
+/// @param p Object or data record consumed by the operation.
+/// @internal
 function inline _PSV_PlayerIndex(p)
   if typeof(players) != "array" then return -1 end if
   return _PSV_ObjIndex(players, p)
 end function
 
-/*
-* Function: _PSV_SectorIndex
-* Purpose: Resolves a sector object to its map-array index for thinker and world-state serialization.
-*/
+/// Resolves a sector object to its map-array index for thinker and world-state serialization.
+/// @param sec Sec value supplied to `_PSV_SectorIndex`.
+/// @internal
 function inline _PSV_SectorIndex(sec)
   if typeof(sectors) != "array" then return -1 end if
   return _PSV_ObjIndex(sectors, sec)
 end function
 
-/*
-* Function: _PSV_StateToIndex
-* Purpose: Converts an actor-state reference to the canonical metadata index written into the save stream.
-*/
+/// Converts an actor-state reference to the canonical metadata index written into the save stream.
+/// @param st St value supplied to `_PSV_StateToIndex`.
+/// @internal
 function _PSV_StateToIndex(st)
   if st is void then return -1 end if
   if typeof(st) == "int" then return st end if
@@ -274,10 +261,9 @@ function _PSV_StateToIndex(st)
   return Info_StateIndex(st)
 end function
 
-/*
-* Function: _PSV_StateFromIndex
-* Purpose: Restores a validated actor-state reference from its serialized canonical index.
-*/
+/// Restores a validated actor-state reference from its serialized canonical index.
+/// @param idx Zero-based element or table index.
+/// @internal
 function inline _PSV_StateFromIndex(idx)
   if typeof(idx) != "int" or idx < 0 then return void end if
   if typeof(states) == "array" and idx < len(states) then
@@ -286,10 +272,10 @@ function inline _PSV_StateFromIndex(idx)
   return idx
 end function
 
-/*
-* Function: _PSV_WriteMapthing
-* Purpose: Appends a spawn point's five map fields in fixed order, substituting a zero record for an absent spawn point.
-*/
+/// Appends a spawn point's five map fields in fixed order, substituting a zero record for an absent spawn
+/// point.
+/// @param mt Mt value supplied to `_PSV_WriteMapthing`.
+/// @internal
 function inline _PSV_WriteMapthing(mt)
   if mt is void then
     _PSV_WriteS32(0); _PSV_WriteS32(0); _PSV_WriteS32(0); _PSV_WriteS32(0); _PSV_WriteS32(0)
@@ -302,18 +288,15 @@ function inline _PSV_WriteMapthing(mt)
   _PSV_WriteS32(mt.options)
 end function
 
-/*
-* Function: _PSV_ReadMapthing
-* Purpose: Consumes five signed fields and reconstructs one map spawn-point record.
-*/
+/// Consumes five signed fields and reconstructs one map spawn-point record.
+/// @internal
 function inline _PSV_ReadMapthing()
   return mapthing_t(_PSV_ReadS32(), _PSV_ReadS32(), _PSV_ReadS32(), _PSV_ReadS32(), _PSV_ReadS32())
 end function
 
-/*
-* Function: _PSV_WriteTiccmd
-* Purpose: Appends all six command fields in fixed order, substituting a neutral command when no record is supplied.
-*/
+/// Appends all six command fields in fixed order, substituting a neutral command when no record is supplied.
+/// @param cmd Cmd value supplied to `_PSV_WriteTiccmd`.
+/// @internal
 function inline _PSV_WriteTiccmd(cmd)
   if cmd is void then
     _PSV_WriteS32(0); _PSV_WriteS32(0); _PSV_WriteS32(0); _PSV_WriteS32(0); _PSV_WriteS32(0); _PSV_WriteS32(0)
@@ -327,18 +310,16 @@ function inline _PSV_WriteTiccmd(cmd)
   _PSV_WriteS32(cmd.buttons)
 end function
 
-/*
-* Function: _PSV_ReadTiccmd
-* Purpose: Consumes six signed fields and reconstructs one player tic command.
-*/
+/// Consumes six signed fields and reconstructs one player tic command.
+/// @internal
 function inline _PSV_ReadTiccmd()
   return ticcmd_t(_PSV_ReadS32(), _PSV_ReadS32(), _PSV_ReadS32(), _PSV_ReadS32(), _PSV_ReadS32(), _PSV_ReadS32())
 end function
 
-/*
-* Function: _PSV_WritePsprite
-* Purpose: Appends a weapon sprite's canonical state index, timer, and screen coordinates, with an absent-state sentinel for void.
-*/
+/// Appends a weapon sprite's canonical state index, timer, and screen coordinates, with an absent-state
+/// sentinel for void.
+/// @param psp Psp value supplied to `_PSV_WritePsprite`.
+/// @internal
 function inline _PSV_WritePsprite(psp)
   if psp is void then
     _PSV_WriteS32(-1); _PSV_WriteS32(0); _PSV_WriteS32(0); _PSV_WriteS32(0)
@@ -350,10 +331,8 @@ function inline _PSV_WritePsprite(psp)
   _PSV_WriteS32(psp.sy)
 end function
 
-/*
-* Function: _PSV_ReadPsprite
-* Purpose: Consumes a weapon sprite record and resolves its canonical state index back to a runtime reference.
-*/
+/// Consumes a weapon sprite record and resolves its canonical state index back to a runtime reference.
+/// @internal
 function inline _PSV_ReadPsprite()
   stidx = _PSV_ReadS32()
   tics = _PSV_ReadS32()
@@ -362,10 +341,8 @@ function inline _PSV_ReadPsprite()
   return pspdef_t(_PSV_StateFromIndex(stidx), tics, sx, sy)
 end function
 
-/*
-* Function: _PSV_ClearThingLists
-* Purpose: Clears sector thing chains before unarchived mobjs are relinked into the reconstructed world.
-*/
+/// Clears sector thing chains before unarchived mobjs are relinked into the reconstructed world.
+/// @internal
 function _PSV_ClearThingLists()
   if typeof(sectors) != "array" then return end if
   i = 0
@@ -380,10 +357,8 @@ function _PSV_ClearThingLists()
   end while
 end function
 
-/*
-* Function: _PSV_ClearBlockLinks
-* Purpose: Empties every blockmap thing head before restoring mobj spatial links.
-*/
+/// Empties every blockmap thing head before restoring mobj spatial links.
+/// @internal
 function _PSV_ClearBlockLinks()
   if typeof(blocklinks) != "array" then return end if
   i = 0
@@ -393,10 +368,10 @@ function _PSV_ClearBlockLinks()
   end while
 end function
 
-/*
-* Function: _PSV_ArchivePlayerV2
-* Purpose: Writes the version-two player record in fixed field order, including commands, view, inventory, powers, weapons, counters, frags, and psprites.
-*/
+/// Writes the version-two player record in fixed field order, including commands, view, inventory, powers,
+/// weapons, counters, frags, and psprites.
+/// @param p Object or data record consumed by the operation.
+/// @internal
 function _PSV_ArchivePlayerV2(p)
   _PSV_WriteS32(p.playerstate)
   _PSV_WriteTiccmd(p.cmd)
@@ -473,10 +448,10 @@ function _PSV_ArchivePlayerV2(p)
   _PSV_WriteBool(p.didsecret)
 end function
 
-/*
-* Function: _PSV_UnArchivePlayerV1
-* Purpose: Reads the legacy player layout, supplies defaults for fields introduced later, and leaves object links for post-load repair.
-*/
+/// Reads the legacy player layout, supplies defaults for fields introduced later, and leaves object links for
+/// post-load repair.
+/// @param p Object or data record consumed by the operation.
+/// @internal
 function _PSV_UnArchivePlayerV1(p)
   p.playerstate = _PSV_ReadS32()
   p.health = _PSV_ReadS32()
@@ -548,10 +523,10 @@ function _PSV_UnArchivePlayerV1(p)
   end if
 end function
 
-/*
-* Function: _PSV_UnArchivePlayerV2
-* Purpose: Reconstructs a version-two player record in stream order while validating enum indices and fixed-size arrays.
-*/
+/// Reconstructs a version-two player record in stream order while validating enum indices and fixed-size
+/// arrays.
+/// @param p Object or data record consumed by the operation.
+/// @internal
 function _PSV_UnArchivePlayerV2(p)
   p.playerstate = _PSV_ReadS32()
   p.cmd = _PSV_ReadTiccmd()
@@ -630,10 +605,7 @@ function _PSV_UnArchivePlayerV2(p)
   p.didsecret = _PSV_ReadBool()
 end function
 
-/*
-* Function: P_ArchivePlayers
-* Purpose: Writes the active-player mask followed by one versioned player record for each participating slot.
-*/
+/// Writes the active-player mask followed by one versioned player record for each participating slot.
 function P_ArchivePlayers()
   _PSV_WriteTag("PLYR")
   _PSV_WriteU8(2)
@@ -652,10 +624,7 @@ function P_ArchivePlayers()
   end for
 end function
 
-/*
-* Function: P_UnArchivePlayers
-* Purpose: Reads active player records for the detected save version and resets inactive slots to canonical defaults.
-*/
+/// Reads active player records for the detected save version and resets inactive slots to canonical defaults.
 function P_UnArchivePlayers()
   ok = _PSV_CheckTag("PLYR")
   if not ok then return end if
@@ -694,10 +663,8 @@ function P_UnArchivePlayers()
   end for
 end function
 
-/*
-* Function: P_ArchiveWorld
-* Purpose: Serializes mutable sector heights, textures, light, specials, and sidedef texture/offset state in map-array order.
-*/
+/// Serializes mutable sector heights, textures, light, specials, and sidedef texture/offset state in map-array
+/// order.
 function P_ArchiveWorld()
   _PSV_WriteTag("WRLD")
   _PSV_WriteU8(1)
@@ -759,10 +726,8 @@ function P_ArchiveWorld()
   end while
 end function
 
-/*
-* Function: P_UnArchiveWorld
-* Purpose: Restores mutable sector and sidedef fields in map-array order, validating stream availability before each assignment.
-*/
+/// Restores mutable sector and sidedef fields in map-array order, validating stream availability before each
+/// assignment.
 function P_UnArchiveWorld()
   ok = _PSV_CheckTag("WRLD")
   if not ok then return end if
@@ -830,20 +795,36 @@ function P_UnArchiveWorld()
   end while
 end function
 
+/// Defines psv tc mobj for the p saveg subsystem.
+/// @internal
 const _PSV_TC_MOBJ = 1
 
+/// Defines psv sc ceiling for the p saveg subsystem.
+/// @internal
 const _PSV_SC_CEILING = 1
+/// Defines psv sc door for the p saveg subsystem.
+/// @internal
 const _PSV_SC_DOOR = 2
+/// Defines psv sc floor for the p saveg subsystem.
+/// @internal
 const _PSV_SC_FLOOR = 3
+/// Defines psv sc plat for the p saveg subsystem.
+/// @internal
 const _PSV_SC_PLAT = 4
+/// Defines psv sc flash for the p saveg subsystem.
+/// @internal
 const _PSV_SC_FLASH = 5
+/// Defines psv sc strobe for the p saveg subsystem.
+/// @internal
 const _PSV_SC_STROBE = 6
+/// Defines psv sc glow for the p saveg subsystem.
+/// @internal
 const _PSV_SC_GLOW = 7
 
-/*
-* Function: _PSV_ResolveThinkerMobj
-* Purpose: Resolves a thinker owner through current and legacy registries, accepting only objects with the core mobj fields.
-*/
+/// Resolves a thinker owner through current and legacy registries, accepting only objects with the core mobj
+/// fields.
+/// @param node Node value supplied to `_PSV_ResolveThinkerMobj`.
+/// @internal
 function _PSV_ResolveThinkerMobj(node)
   if node is void then return void end if
   mo = void
@@ -860,10 +841,10 @@ function _PSV_ResolveThinkerMobj(node)
   return mo
 end function
 
-/*
-* Function: _PSV_WriteMobj
-* Purpose: Appends an mobj's position, physics, state, AI counters, player slot, and spawn point while omitting transient links.
-*/
+/// Appends an mobj's position, physics, state, AI counters, player slot, and spawn point while omitting
+/// transient links.
+/// @param mo Map object affected by the operation.
+/// @internal
 function _PSV_WriteMobj(mo)
   _PSV_WriteS32(mo.x)
   _PSV_WriteS32(mo.y)
@@ -899,10 +880,9 @@ function _PSV_WriteMobj(mo)
   _PSV_WriteMapthing(mo.spawnpoint)
 end function
 
-/*
-* Function: _PSV_ReadMobj
-* Purpose: Reconstructs an mobj from serialized fields, restores metadata and player ownership, and relinks its thinker and spatial indices.
-*/
+/// Reconstructs an mobj from serialized fields, restores metadata and player ownership, and relinks its thinker
+/// and spatial indices.
+/// @internal
 function _PSV_ReadMobj()
   mo = _Mobj_Default()
 
@@ -976,10 +956,8 @@ function _PSV_ReadMobj()
   return mo
 end function
 
-/*
-* Function: P_ArchiveThinkers
-* Purpose: Counts serializable mobj thinkers and emits a versioned typed thinker section containing each validated owner.
-*/
+/// Counts serializable mobj thinkers and emits a versioned typed thinker section containing each validated
+/// owner.
 function P_ArchiveThinkers()
   _PSV_WriteTag("THKR")
   _PSV_WriteU8(1)
@@ -1008,10 +986,7 @@ function P_ArchiveThinkers()
   end while
 end function
 
-/*
-* Function: P_UnArchiveThinkers
-* Purpose: Clears old thinker and spatial ownership, then recreates every typed mobj in the validated thinker section.
-*/
+/// Clears old thinker and spatial ownership, then recreates every typed mobj in the validated thinker section.
 function P_UnArchiveThinkers()
   ok = _PSV_CheckTag("THKR")
   if not ok then return end if
@@ -1046,10 +1021,9 @@ function P_UnArchiveThinkers()
   end while
 end function
 
-/*
-* Function: _PSV_WriteCeiling
-* Purpose: Appends a ceiling mover's sector index, bounds, speed, crush flag, direction, tag, and saved direction.
-*/
+/// Appends a ceiling mover's sector index, bounds, speed, crush flag, direction, tag, and saved direction.
+/// @param c C value supplied to `_PSV_WriteCeiling`.
+/// @internal
 function inline _PSV_WriteCeiling(c)
   _PSV_WriteS32(_PSV_SectorIndex(c.sector))
   _PSV_WriteS32(c.type)
@@ -1062,10 +1036,9 @@ function inline _PSV_WriteCeiling(c)
   _PSV_WriteS32(c.olddirection)
 end function
 
-/*
-* Function: _PSV_WriteDoor
-* Purpose: Appends a vertical door's sector index, type, destination, speed, direction, wait, and countdown.
-*/
+/// Appends a vertical door's sector index, type, destination, speed, direction, wait, and countdown.
+/// @param d Divisor or direction value used by the operation.
+/// @internal
 function inline _PSV_WriteDoor(d)
   _PSV_WriteS32(_PSV_SectorIndex(d.sector))
   _PSV_WriteS32(d.type)
@@ -1076,10 +1049,10 @@ function inline _PSV_WriteDoor(d)
   _PSV_WriteS32(d.topcountdown)
 end function
 
-/*
-* Function: _PSV_WriteFloor
-* Purpose: Appends a floor mover's sector index, type, crush and direction flags, endpoint changes, destination, and speed.
-*/
+/// Appends a floor mover's sector index, type, crush and direction flags, endpoint changes, destination, and
+/// speed.
+/// @param f F value supplied to `_PSV_WriteFloor`.
+/// @internal
 function inline _PSV_WriteFloor(f)
   _PSV_WriteS32(_PSV_SectorIndex(f.sector))
   _PSV_WriteS32(f.type)
@@ -1091,10 +1064,10 @@ function inline _PSV_WriteFloor(f)
   _PSV_WriteS32(f.speed)
 end function
 
-/*
-* Function: _PSV_WritePlat
-* Purpose: Appends a platform's sector, travel bounds, timing, current and saved status, crush flag, tag, and behavior type.
-*/
+/// Appends a platform's sector, travel bounds, timing, current and saved status, crush flag, tag, and behavior
+/// type.
+/// @param p Object or data record consumed by the operation.
+/// @internal
 function _PSV_WritePlat(p)
   _PSV_WriteS32(_PSV_SectorIndex(p.sector))
   _PSV_WriteS32(p.speed)
@@ -1109,10 +1082,9 @@ function _PSV_WritePlat(p)
   _PSV_WriteS32(p.type)
 end function
 
-/*
-* Function: _PSV_WriteFlash
-* Purpose: Appends a light flash's sector, countdown, brightness bounds, and randomized interval limits.
-*/
+/// Appends a light flash's sector, countdown, brightness bounds, and randomized interval limits.
+/// @param f F value supplied to `_PSV_WriteFlash`.
+/// @internal
 function inline _PSV_WriteFlash(f)
   _PSV_WriteS32(_PSV_SectorIndex(f.sector))
   _PSV_WriteS32(f.count)
@@ -1122,10 +1094,9 @@ function inline _PSV_WriteFlash(f)
   _PSV_WriteS32(f.mintime)
 end function
 
-/*
-* Function: _PSV_WriteStrobe
-* Purpose: Appends a strobe's sector, countdown, brightness bounds, and dark/bright durations.
-*/
+/// Appends a strobe's sector, countdown, brightness bounds, and dark/bright durations.
+/// @param s S value supplied to `_PSV_WriteStrobe`.
+/// @internal
 function inline _PSV_WriteStrobe(s)
   _PSV_WriteS32(_PSV_SectorIndex(s.sector))
   _PSV_WriteS32(s.count)
@@ -1135,10 +1106,9 @@ function inline _PSV_WriteStrobe(s)
   _PSV_WriteS32(s.brighttime)
 end function
 
-/*
-* Function: _PSV_WriteGlow
-* Purpose: Appends a glow's sector, brightness bounds, and current oscillation direction.
-*/
+/// Appends a glow's sector, brightness bounds, and current oscillation direction.
+/// @param g G value supplied to `_PSV_WriteGlow`.
+/// @internal
 function inline _PSV_WriteGlow(g)
   _PSV_WriteS32(_PSV_SectorIndex(g.sector))
   _PSV_WriteS32(g.minlight)
@@ -1146,10 +1116,8 @@ function inline _PSV_WriteGlow(g)
   _PSV_WriteS32(g.direction)
 end function
 
-/*
-* Function: P_ArchiveSpecials
-* Purpose: Serializes supported active ceiling, door, floor, platform, lighting, and button thinkers with sector references and terminates the list.
-*/
+/// Serializes supported active ceiling, door, floor, platform, lighting, and button thinkers with sector
+/// references and terminates the list.
 function P_ArchiveSpecials()
   _PSV_WriteTag("SPCL")
   _PSV_WriteU8(1)
@@ -1205,10 +1173,8 @@ function P_ArchiveSpecials()
   end while
 end function
 
-/*
-* Function: _PSV_ReadSectorRef
-* Purpose: Consumes a sector index and returns its validated map reference, or void for malformed input.
-*/
+/// Consumes a sector index and returns its validated map reference, or void for malformed input.
+/// @internal
 function inline _PSV_ReadSectorRef()
   idx = _PSV_ReadS32()
   if typeof(sectors) != "array" then return void end if
@@ -1216,10 +1182,9 @@ function inline _PSV_ReadSectorRef()
   return sectors[idx]
 end function
 
-/*
-* Function: _PSV_ReadCeiling
-* Purpose: Recreates a ceiling mover, reclaims its sector, registers its thinker, and restores tagged active-ceiling control.
-*/
+/// Recreates a ceiling mover, reclaims its sector, registers its thinker, and restores tagged active-ceiling
+/// control.
+/// @internal
 function inline _PSV_ReadCeiling()
   sec = _PSV_ReadSectorRef()
   c = ceiling_t(thinker_t(void, void, actionf_t(T_MoveCeiling, void, void), void),
@@ -1230,10 +1195,8 @@ function inline _PSV_ReadCeiling()
   if typeof(P_AddActiveCeiling) == "function" then P_AddActiveCeiling(c) end if
 end function
 
-/*
-* Function: _PSV_ReadDoor
-* Purpose: Recreates a vertical door from stream fields, reclaims its sector, and registers its movement thinker.
-*/
+/// Recreates a vertical door from stream fields, reclaims its sector, and registers its movement thinker.
+/// @internal
 function inline _PSV_ReadDoor()
   sec = _PSV_ReadSectorRef()
   d = vldoor_t(thinker_t(void, void, actionf_t(T_VerticalDoor, void, void), void),
@@ -1243,10 +1206,8 @@ function inline _PSV_ReadDoor()
   if typeof(P_AddThinker) == "function" then P_AddThinker(d.thinker) end if
 end function
 
-/*
-* Function: _PSV_ReadFloor
-* Purpose: Recreates a floor mover from stream fields, reclaims its sector, and registers its movement thinker.
-*/
+/// Recreates a floor mover from stream fields, reclaims its sector, and registers its movement thinker.
+/// @internal
 function inline _PSV_ReadFloor()
   sec = _PSV_ReadSectorRef()
   f = floormove_t(thinker_t(void, void, actionf_t(T_MoveFloor, void, void), void),
@@ -1256,10 +1217,9 @@ function inline _PSV_ReadFloor()
   if typeof(P_AddThinker) == "function" then P_AddThinker(f.thinker) end if
 end function
 
-/*
-* Function: _PSV_ReadPlat
-* Purpose: Recreates a platform mover, reclaims its sector, registers its thinker, and restores tagged active-platform control.
-*/
+/// Recreates a platform mover, reclaims its sector, registers its thinker, and restores tagged active-platform
+/// control.
+/// @internal
 function inline _PSV_ReadPlat()
   sec = _PSV_ReadSectorRef()
   p = plat_t(thinker_t(void, void, actionf_t(T_PlatRaise, void, void), void),
@@ -1271,10 +1231,8 @@ function inline _PSV_ReadPlat()
   if typeof(P_AddActivePlat) == "function" then P_AddActivePlat(p) end if
 end function
 
-/*
-* Function: _PSV_ReadFlash
-* Purpose: Recreates and registers a randomized two-level sector light-flash thinker from stream fields.
-*/
+/// Recreates and registers a randomized two-level sector light-flash thinker from stream fields.
+/// @internal
 function inline _PSV_ReadFlash()
   sec = _PSV_ReadSectorRef()
   f = lightflash_t(thinker_t(void, void, actionf_t(T_LightFlash, void, void), void),
@@ -1283,10 +1241,8 @@ function inline _PSV_ReadFlash()
   if typeof(P_AddThinker) == "function" then P_AddThinker(f.thinker) end if
 end function
 
-/*
-* Function: _PSV_ReadStrobe
-* Purpose: Recreates and registers a sector strobe thinker with its saved countdown and timing bounds.
-*/
+/// Recreates and registers a sector strobe thinker with its saved countdown and timing bounds.
+/// @internal
 function inline _PSV_ReadStrobe()
   sec = _PSV_ReadSectorRef()
   s = strobe_t(thinker_t(void, void, actionf_t(T_StrobeFlash, void, void), void),
@@ -1295,10 +1251,8 @@ function inline _PSV_ReadStrobe()
   if typeof(P_AddThinker) == "function" then P_AddThinker(s.thinker) end if
 end function
 
-/*
-* Function: _PSV_ReadGlow
-* Purpose: Recreates and registers a sector glow thinker with its saved brightness bounds and direction.
-*/
+/// Recreates and registers a sector glow thinker with its saved brightness bounds and direction.
+/// @internal
 function inline _PSV_ReadGlow()
   sec = _PSV_ReadSectorRef()
   g = glow_t(thinker_t(void, void, actionf_t(T_Glow, void, void), void),
@@ -1307,10 +1261,8 @@ function inline _PSV_ReadGlow()
   if typeof(P_AddThinker) == "function" then P_AddThinker(g.thinker) end if
 end function
 
-/*
-* Function: P_UnArchiveSpecials
-* Purpose: Recreates serialized special thinkers, reconnects their sector ownership, and rebuilds active ceiling/platform registries.
-*/
+/// Recreates serialized special thinkers, reconnects their sector ownership, and rebuilds active
+/// ceiling/platform registries.
 function P_UnArchiveSpecials()
   ok = _PSV_CheckTag("SPCL")
   if not ok then return end if

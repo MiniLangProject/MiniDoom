@@ -13,9 +13,10 @@
   See the License for the specific language governing permissions and
   limitations under the License.
 
-  Script: console_cmd.ml
-  Purpose: Parses console command text and performs gameplay or utility actions without owning any UI state.
 */
+
+//! Parses console command text and performs gameplay or utility actions without owning any UI state.
+
 import doomdef
 import doomstat
 import p_mobj
@@ -28,32 +29,35 @@ import i_system
 import std.string as str
 import std.math
 
-/*
-* Struct: console_command_result_t
-* Purpose: Returns parser output plus UI-neutral requests to clear history or close after a level warp.
-*/
+/// Returns parser output plus UI-neutral requests to clear history or close after a level warp.
 struct console_command_result_t
+  /// Stores handled for `console_command_result_t`
   handled
+  /// Stores message for `console_command_result_t`
   message
+  /// Stores clear log for `console_command_result_t`
   clearLog
+  /// Stores close console for `console_command_result_t`
   closeConsole
 end struct
 
 // Rolling gameplay-key suffix used for classic, console-free IDCLEV entry.
+/// Stores the mutable ccmd direct cheat buffer text used by the console cmd subsystem.
+/// @internal
 _ccmd_direct_cheat_buffer = ""
 
-/*
-* Function: _CCMD_Result
-* Purpose: Constructs one normalized command result for the console UI boundary.
-*/
+/// Constructs one normalized command result for the console UI boundary.
+/// @param handled Handled value supplied to `_CCMD_Result`.
+/// @param message Message text or payload to process.
+/// @param clearLog Clear log value supplied to `_CCMD_Result`.
+/// @param closeConsole Close console value supplied to `_CCMD_Result`.
+/// @internal
 function inline _CCMD_Result(handled, message, clearLog, closeConsole)
   return console_command_result_t(handled, message, clearLog, closeConsole)
 end function
 
-/*
-* Function: _CCMD_CurrentPlayer
-* Purpose: Resolves the checked local player record used by single-player cheat commands.
-*/
+/// Resolves the checked local player record used by single-player cheat commands.
+/// @internal
 function inline _CCMD_CurrentPlayer()
   if typeof(players) != "array" then return void end if
   if typeof(consoleplayer) != "int" or consoleplayer < 0 or consoleplayer >= len(players) then return void end if
@@ -61,10 +65,9 @@ function inline _CCMD_CurrentPlayer()
   return players[consoleplayer]
 end function
 
-/*
-* Function: _CCMD_RequireGameplayCheat
-* Purpose: Rejects world-mutating commands outside a live single-player level to avoid network desynchronization.
-*/
+/// Rejects world-mutating commands outside a live single-player level to avoid network desynchronization.
+/// @param requirePlayer Require player value supplied to `_CCMD_RequireGameplayCheat`.
+/// @internal
 function inline _CCMD_RequireGameplayCheat(requirePlayer)
   if netgame then return "GAMEPLAY COMMANDS ARE DISABLED IN MULTIPLAYER" end if
   if gamestate != gamestate_t.GS_LEVEL then return "THIS COMMAND REQUIRES AN ACTIVE LEVEL" end if
@@ -75,19 +78,18 @@ function inline _CCMD_RequireGameplayCheat(requirePlayer)
   return ""
 end function
 
-/*
-* Function: _CCMD_OnOff
-* Purpose: Formats a stable enabled/disabled suffix shared by toggle command responses.
-*/
+/// Formats a stable enabled/disabled suffix shared by toggle command responses.
+/// @param enabled Whether the requested feature should be enabled.
+/// @internal
 function inline _CCMD_OnOff(enabled)
   if enabled then return "ON" end if
   return "OFF"
 end function
 
-/*
-* Function: _CCMD_GrantArsenal
-* Purpose: Gives armor, every weapon, full carried ammunition, and optionally every key to the local player.
-*/
+/// Gives armor, every weapon, full carried ammunition, and optionally every key to the local player.
+/// @param player Player state affected by the operation.
+/// @param includeKeys Include keys value supplied to `_CCMD_GrantArsenal`.
+/// @internal
 function _CCMD_GrantArsenal(player, includeKeys)
   if player is void then return end if
 
@@ -117,10 +119,8 @@ function _CCMD_GrantArsenal(player, includeKeys)
   end if
 end function
 
-/*
-* Function: _CCMD_God
-* Purpose: Toggles canonical Doom god mode and restores a viable health value when enabling it.
-*/
+/// Toggles canonical Doom god mode and restores a viable health value when enabling it.
+/// @internal
 function _CCMD_God()
   reason = _CCMD_RequireGameplayCheat(true)
   if reason != "" then return _CCMD_Result(false, reason, false, false) end if
@@ -135,10 +135,9 @@ function _CCMD_God()
   return _CCMD_Result(true, "GOD MODE " + _CCMD_OnOff(enabled), false, false)
 end function
 
-/*
-* Function: _CCMD_Ammo
-* Purpose: Implements IDFA and IDKFA with their original distinction over key ownership.
-*/
+/// Implements IDFA and IDKFA with their original distinction over key ownership.
+/// @param includeKeys Include keys value supplied to `_CCMD_Ammo`.
+/// @internal
 function _CCMD_Ammo(includeKeys)
   reason = _CCMD_RequireGameplayCheat(true)
   if reason != "" then return _CCMD_Result(false, reason, false, false) end if
@@ -150,10 +149,8 @@ function _CCMD_Ammo(includeKeys)
   return _CCMD_Result(true, "WEAPONS AND AMMO ADDED", false, false)
 end function
 
-/*
-* Function: _CCMD_NoClip
-* Purpose: Toggles the player's collision-bypass cheat flag.
-*/
+/// Toggles the player's collision-bypass cheat flag.
+/// @internal
 function _CCMD_NoClip()
   reason = _CCMD_RequireGameplayCheat(true)
   if reason != "" then return _CCMD_Result(false, reason, false, false) end if
@@ -164,10 +161,9 @@ function _CCMD_NoClip()
   return _CCMD_Result(true, "NOCLIP " + _CCMD_OnOff(enabled), false, false)
 end function
 
-/*
-* Function: _CCMD_ParsePositiveInt
-* Purpose: Parses one whitespace-trimmed positive decimal integer and rejects every non-digit byte.
-*/
+/// Parses one whitespace-trimmed positive decimal integer and rejects every non-digit byte.
+/// @param text Text to process.
+/// @internal
 function _CCMD_ParsePositiveInt(text)
   s = str.trim(text)
   if typeof(s) != "string" or len(s) == 0 then return -1 end if
@@ -184,10 +180,9 @@ function _CCMD_ParsePositiveInt(text)
   return value
 end function
 
-/*
-* Function: _CCMD_IdClev
-* Purpose: Validates a Doom II map number or Doom episode/map pair and queues the normal level transition.
-*/
+/// Validates a Doom II map number or Doom episode/map pair and queues the normal level transition.
+/// @param argument Argument value supplied to `_CCMD_IdClev`.
+/// @internal
 function _CCMD_IdClev(argument)
   reason = _CCMD_RequireGameplayCheat(false)
   if reason != "" then return _CCMD_Result(false, reason, false, false) end if
@@ -216,10 +211,9 @@ function _CCMD_IdClev(argument)
   return _CCMD_Result(true, "LEVEL CHANGE QUEUED", false, true)
 end function
 
-/*
-* Function: _CCMD_Invisible
-* Purpose: Toggles persistent monster notarget behavior and immediately cancels existing locks and attacks when enabled.
-*/
+/// Toggles persistent monster notarget behavior and immediately cancels existing locks and attacks when
+/// enabled.
+/// @internal
 function _CCMD_Invisible()
   reason = _CCMD_RequireGameplayCheat(true)
   if reason != "" then return _CCMD_Result(false, reason, false, false) end if
@@ -233,10 +227,8 @@ function _CCMD_Invisible()
   return _CCMD_Result(true, "INVISIBLE " + _CCMD_OnOff(enabled), false, false)
 end function
 
-/*
-* Function: _CCMD_Freeze
-* Purpose: Toggles suspension of non-player thinkers and world specials.
-*/
+/// Toggles suspension of non-player thinkers and world specials.
+/// @internal
 function _CCMD_Freeze()
   global consolefreeze
 
@@ -246,20 +238,17 @@ function _CCMD_Freeze()
   return _CCMD_Result(true, "WORLD FREEZE " + _CCMD_OnOff(consolefreeze), false, false)
 end function
 
-/*
-* Function: _CCMD_ResolveMobj
-* Purpose: Resolves one thinker node to its registered mobj owner for world command scans.
-*/
+/// Resolves one thinker node to its registered mobj owner for world command scans.
+/// @param node Node value supplied to `_CCMD_ResolveMobj`.
+/// @internal
 function inline _CCMD_ResolveMobj(node)
   if node is void or node.func is void or node.func.acp1 != P_MobjThinker then return void end if
   if typeof(P_ResolveThinkerOwner) != "function" then return void end if
   return P_ResolveThinkerOwner(node)
 end function
 
-/*
-* Function: _CCMD_KillMonsters
-* Purpose: Applies lethal damage to every living counted monster, lost soul, and Icon of Sin brain in the level.
-*/
+/// Applies lethal damage to every living counted monster, lost soul, and Icon of Sin brain in the level.
+/// @internal
 function _CCMD_KillMonsters()
   reason = _CCMD_RequireGameplayCheat(true)
   if reason != "" then return _CCMD_Result(false, reason, false, false) end if
@@ -283,20 +272,18 @@ function _CCMD_KillMonsters()
   return _CCMD_Result(true, "MONSTERS KILLED: " + killed, false, false)
 end function
 
-/*
-* Function: _CCMD_Fps
-* Purpose: Toggles the in-game presentation-rate overlay independently of the window title.
-*/
+/// Toggles the in-game presentation-rate overlay independently of the window title.
+/// @internal
 function _CCMD_Fps()
   global console_show_fps
   console_show_fps = not console_show_fps
   return _CCMD_Result(true, "FPS DISPLAY " + _CCMD_OnOff(console_show_fps), false, false)
 end function
 
-/*
-* Function: _CCMD_Name
-* Purpose: Shows or changes the persistent local player name and announces it to an active multiplayer session.
-*/
+/// Shows or changes the persistent local player name and announces it to an active multiplayer session.
+/// @param argument Argument value supplied to `_CCMD_Name`.
+/// @param setName Set name value supplied to `_CCMD_Name`.
+/// @internal
 function _CCMD_Name(argument, setName)
   if not setName then
     return _CCMD_Result(true, "PLAYER NAME: " + MP_GetPlayerName(), false, false)
@@ -314,10 +301,8 @@ function _CCMD_Name(argument, setName)
   return _CCMD_Result(true, "PLAYER NAME: " + clean, false, false)
 end function
 
-/*
-* Function: _CCMD_Help
-* Purpose: Describes console activation, navigation, logging, pause behavior, and utility commands.
-*/
+/// Describes console activation, navigation, logging, pause behavior, and utility commands.
+/// @internal
 function _CCMD_Help()
   message = "HELP - CONSOLE CONTROLS\n"
   message = message + "~ OR O-UMLAUT - OPEN/CLOSE\n"
@@ -332,10 +317,8 @@ function _CCMD_Help()
   return _CCMD_Result(true, message, false, false)
 end function
 
-/*
-* Function: _CCMD_Cheats
-* Purpose: Lists every supported single-player gameplay cheat with concise usage text.
-*/
+/// Lists every supported single-player gameplay cheat with concise usage text.
+/// @internal
 function _CCMD_Cheats()
   message = "CHEATS - SINGLE PLAYER ONLY\n"
   message = message + "IDDQD - TOGGLE GOD MODE\n"
@@ -349,10 +332,8 @@ function _CCMD_Cheats()
   return _CCMD_Result(true, message, false, false)
 end function
 
-/*
-* Function: CCMD_Execute
-* Purpose: Normalizes one input line and dispatches it to isolated command implementations.
-*/
+/// Normalizes one input line and dispatches it to isolated command implementations.
+/// @param line Map line or text line affected by the operation.
 function CCMD_Execute(line)
   if typeof(line) != "string" then return _CCMD_Result(false, "INVALID COMMAND", false, false) end if
   rawCommand = str.trim(line)
@@ -385,10 +366,8 @@ function CCMD_Execute(line)
   return _CCMD_Result(false, "UNKNOWN COMMAND: " + command + " - TYPE HELP", false, false)
 end function
 
-/*
-* Function: CCMD_DirectCheatResponder
-* Purpose: Detects classic IDCLEV plus two digits in ordinary gameplay without consuming movement keys.
-*/
+/// Detects classic IDCLEV plus two digits in ordinary gameplay without consuming movement keys.
+/// @param ev Input event to process.
 function CCMD_DirectCheatResponder(ev)
   global _ccmd_direct_cheat_buffer
   if ev is void or ev.type != evtype_t.ev_keydown then return false end if

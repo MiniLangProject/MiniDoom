@@ -13,25 +13,29 @@
   See the License for the specific language governing permissions and
   limitations under the License.
 
-  Script: p_tick.ml
-  Purpose: Owns the intrusive thinker list and advances all world thinkers once per unpaused game tic.
 */
+
+//! Owns the intrusive thinker list and advances all world thinkers once per unpaused game tic.
+
 import z_zone
 import p_local
 import doomstat
 import p_user
 import p_spec
 
+/// Tracks the mutable leveltime value used by the p tick subsystem.
 leveltime = 0
 
+/// Tracks the mutable thinkercap value used by the p tick subsystem.
 thinkercap = thinker_t(void, void, actionf_t(void, void, void), void)
+/// Stores the ptk owner nodes collection used by the p tick subsystem.
+/// @internal
 _PTK_owner_nodes =[]
+/// Stores the ptk owner vals collection used by the p tick subsystem.
+/// @internal
 _PTK_owner_vals =[]
 
-/*
-* Function: P_InitThinkers
-* Purpose: Resets the thinker sentinel into an empty circular doubly linked list and clears owner bookkeeping.
-*/
+/// Resets the thinker sentinel into an empty circular doubly linked list and clears owner bookkeeping.
 function P_InitThinkers()
   global _PTK_owner_nodes
   global _PTK_owner_vals
@@ -41,10 +45,9 @@ function P_InitThinkers()
   _PTK_owner_vals =[]
 end function
 
-/*
-* Function: P_RegisterThinkerOwner
-* Purpose: Associates a thinker node with its owning gameplay object in the fallback owner registry.
-*/
+/// Associates a thinker node with its owning gameplay object in the fallback owner registry.
+/// @param node Node value supplied to `P_RegisterThinkerOwner`.
+/// @param owner Owner value supplied to `P_RegisterThinkerOwner`.
 function P_RegisterThinkerOwner(node, owner)
   global _PTK_owner_nodes
   global _PTK_owner_vals
@@ -54,10 +57,8 @@ function P_RegisterThinkerOwner(node, owner)
   _PTK_owner_vals = _PTK_owner_vals +[owner]
 end function
 
-/*
-* Function: P_ResolveThinkerOwner
-* Purpose: Returns a thinker's direct owner or resolves it from the fallback registry used by legacy nodes.
-*/
+/// Returns a thinker's direct owner or resolves it from the fallback registry used by legacy nodes.
+/// @param node Node value supplied to `P_ResolveThinkerOwner`.
 function P_ResolveThinkerOwner(node)
   if node is void then return void end if
   if typeof(node.owner) == "struct" then return node.owner end if
@@ -71,10 +72,8 @@ function P_ResolveThinkerOwner(node)
   return void
 end function
 
-/*
-* Function: P_UnregisterThinkerOwner
-* Purpose: Removes a thinker-to-owner association when the node leaves the active thinker list.
-*/
+/// Removes a thinker-to-owner association when the node leaves the active thinker list.
+/// @param node Node value supplied to `P_UnregisterThinkerOwner`.
 function P_UnregisterThinkerOwner(node)
   global _PTK_owner_nodes
   global _PTK_owner_vals
@@ -91,10 +90,8 @@ function P_UnregisterThinkerOwner(node)
   end while
 end function
 
-/*
-* Function: P_AddThinker
-* Purpose: Adds thinker entries to the play simulation.
-*/
+/// Adds thinker entries to the play simulation.
+/// @param thinker Thinker value supplied to `P_AddThinker`.
 function P_AddThinker(thinker)
 
   if thinker is void then return end if
@@ -106,10 +103,8 @@ function P_AddThinker(thinker)
   thinkercap.prev = thinker
 end function
 
-/*
-* Function: P_RemoveThinker
-* Purpose: Removes remove Thinker data from the play simulation system.
-*/
+/// Removes remove Thinker data from the play simulation system.
+/// @param thinker Thinker value supplied to `P_RemoveThinker`.
 function P_RemoveThinker(thinker)
 
   if thinker is void then return end if
@@ -121,19 +116,14 @@ function P_RemoveThinker(thinker)
   end if
 end function
 
-/*
-* Function: P_AllocateThinker
-* Purpose: Constructs an unlinked thinker node with an empty callback and owner slot.
-*/
+/// Constructs an unlinked thinker node with an empty callback and owner slot.
+/// @param thinker Thinker value supplied to `P_AllocateThinker`.
 function P_AllocateThinker(thinker)
 
   thinker = thinker
 end function
 
-/*
-* Function: P_RunThinkers
-* Purpose: Walks the thinker list safely across removals and invokes each active callback with its resolved owner.
-*/
+/// Walks the thinker list safely across removals and invokes each active callback with its resolved owner.
 function P_RunThinkers()
   profileThinkers = false
   if typeof(_d_profile_render) == "bool" and _d_profile_render and typeof(_D_ProfileThinker) == "function" then
@@ -175,10 +165,7 @@ function P_RunThinkers()
   end while
 end function
 
-/*
-* Function: P_RunFrozenPlayerMobjs
-* Purpose: Advances only active player mobjs while the developer freeze suspends every other world thinker.
-*/
+/// Advances only active player mobjs while the developer freeze suspends every other world thinker.
 function P_RunFrozenPlayerMobjs()
   i = 0
   while i < MAXPLAYERS
@@ -192,10 +179,7 @@ function P_RunFrozenPlayerMobjs()
   end while
 end function
 
-/*
-* Function: P_Ticker
-* Purpose: Advances players, thinkers, and sector specials once per unpaused game tic, then increments level time.
-*/
+/// Advances players, thinkers, and sector specials once per unpaused game tic, then increments level time.
 function P_Ticker()
   global leveltime
 

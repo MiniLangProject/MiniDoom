@@ -13,9 +13,10 @@
   See the License for the specific language governing permissions and
   limitations under the License.
 
-  Script: i_net.ml
-  Purpose: Bridges Doom's doomcom/ticcmd packets to the validated multiplayer UDP transport.
 */
+
+//! Bridges Doom's doomcom/ticcmd packets to the validated multiplayer UDP transport.
+
 import i_system
 import d_event
 import d_net
@@ -24,15 +25,23 @@ import doomstat
 import mp_platform
 import std.math
 
+/// Defines inet magic0 for the i net subsystem.
+/// @internal
 const _INET_MAGIC0 = 68
+/// Defines inet magic1 for the i net subsystem.
+/// @internal
 const _INET_MAGIC1 = 78
+/// Defines inet magic2 for the i net subsystem.
+/// @internal
 const _INET_MAGIC2 = 69
+/// Defines inet magic3 for the i net subsystem.
+/// @internal
 const _INET_MAGIC3 = 84
 
-/*
-* Function: _INet_ToInt
-* Purpose: Converts values to integers with deterministic rounding.
-*/
+/// Converts values to integers with deterministic rounding.
+/// @param v Value consumed by the operation.
+/// @param fallback Value returned when the requested conversion or lookup is unavailable.
+/// @internal
 function _INet_ToInt(v, fallback)
   if typeof(v) == "int" then return v end if
   if typeof(v) == "float" then
@@ -48,10 +57,11 @@ function _INet_ToInt(v, fallback)
   return fallback
 end function
 
-/*
-* Function: _INet_WriteI32LE
-* Purpose: Writes a signed 32-bit integer to a byte buffer.
-*/
+/// Writes a signed 32-bit integer to a byte buffer.
+/// @param buf Buf value supplied to `_INet_WriteI32LE`.
+/// @param off Zero-based byte or element offset.
+/// @param v Value consumed by the operation.
+/// @internal
 function inline _INet_WriteI32LE(buf, off, v)
   x = _INet_ToInt(v, 0)
   if x < 0 then x = x + 4294967296 end if
@@ -61,10 +71,10 @@ function inline _INet_WriteI32LE(buf, off, v)
   buf[off + 3] = (x >> 24) & 255
 end function
 
-/*
-* Function: _INet_ReadI32LE
-* Purpose: Reads a signed 32-bit integer from a byte buffer.
-*/
+/// Reads a signed 32-bit integer from a byte buffer.
+/// @param buf Buf value supplied to `_INet_ReadI32LE`.
+/// @param off Zero-based byte or element offset.
+/// @internal
 function inline _INet_ReadI32LE(buf, off)
   b0 = buf[off] & 255
   b1 = buf[off + 1] & 255
@@ -75,10 +85,9 @@ function inline _INet_ReadI32LE(buf, off)
   return x
 end function
 
-/*
-* Function: _INet_EncodeDoomData
-* Purpose: Serializes doomdata struct into network payload bytes.
-*/
+/// Serializes doomdata struct into network payload bytes.
+/// @param d Divisor or direction value used by the operation.
+/// @internal
 function _INet_EncodeDoomData(d)
   n = 0
   if typeof(d) == "struct" then n = _INet_ToInt(d.numtics, 0) end if
@@ -116,10 +125,9 @@ function _INet_EncodeDoomData(d)
   return packet
 end function
 
-/*
-* Function: _INet_DecodeToNetbuffer
-* Purpose: Deserializes payload bytes into global netbuffer fields.
-*/
+/// Deserializes payload bytes into global netbuffer fields.
+/// @param payload Payload value supplied to `_INet_DecodeToNetbuffer`.
+/// @internal
 function _INet_DecodeToNetbuffer(payload)
   if typeof(payload) != "bytes" then return false end if
   if len(payload) < 24 then return false end if
@@ -169,10 +177,10 @@ function _INet_DecodeToNetbuffer(payload)
   return true
 end function
 
-/*
-* Function: _INet_SlotIsActive
-* Purpose: Returns whether a slot index exists in the active slot list.
-*/
+/// Returns whether a slot index exists in the active slot list.
+/// @param activeSlots Active slots value supplied to `_INet_SlotIsActive`.
+/// @param slot Slot value supplied to `_INet_SlotIsActive`.
+/// @internal
 function _INet_SlotIsActive(activeSlots, slot)
   if typeof(activeSlots) != "array" then return false end if
   i = 0
@@ -183,10 +191,9 @@ function _INet_SlotIsActive(activeSlots, slot)
   return false
 end function
 
-/*
-* Function: _INet_EnsureSlotMobj
-* Purpose: Ensures active player slots have a spawned mobj in running level.
-*/
+/// Ensures active player slots have a spawned mobj in running level.
+/// @param slot Slot value supplied to `_INet_EnsureSlotMobj`.
+/// @internal
 function _INet_EnsureSlotMobj(slot)
   if gamestate != gamestate_t.GS_LEVEL then return end if
   if slot < 0 or slot >= MAXPLAYERS then return end if
@@ -229,10 +236,9 @@ function _INet_EnsureSlotMobj(slot)
   end if
 end function
 
-/*
-* Function: _INet_RemoveSlotMobj
-* Purpose: Removes mobj for inactive player slots.
-*/
+/// Removes mobj for inactive player slots.
+/// @param slot Slot value supplied to `_INet_RemoveSlotMobj`.
+/// @internal
 function inline _INet_RemoveSlotMobj(slot)
   if slot < 0 or slot >= MAXPLAYERS then return end if
   if typeof(players) != "array" or slot >= len(players) then return end if
@@ -245,10 +251,8 @@ function inline _INet_RemoveSlotMobj(slot)
   end if
 end function
 
-/*
-* Function: _INet_SyncRuntimeFromPlatform
-* Purpose: Synchronizes doom net runtime globals from mp platform role/state.
-*/
+/// Synchronizes doom net runtime globals from mp platform role/state.
+/// @internal
 function _INet_SyncRuntimeFromPlatform()
   global nodeingame
   global nodeforplayer
@@ -355,10 +359,7 @@ function _INet_SyncRuntimeFromPlatform()
 
 end function
 
-/*
-* Function: I_InitNetwork
-* Purpose: Resets doomcom and tic queues to deterministic single-player defaults before any MP role starts.
-*/
+/// Resets doomcom and tic queues to deterministic single-player defaults before any MP role starts.
 function I_InitNetwork()
 
   if typeof(D_NetInitSinglePlayer) == "function" then
@@ -366,10 +367,7 @@ function I_InitNetwork()
   end if
 end function
 
-/*
-* Function: I_NetCmd
-* Purpose: Executes one Doom CMD_GET/CMD_SEND operation through the validated platform packet queue.
-*/
+/// Executes one Doom CMD_GET/CMD_SEND operation through the validated platform packet queue.
 function I_NetCmd()
   _INet_SyncRuntimeFromPlatform()
   if typeof(doomcom) != "struct" then return end if
@@ -401,28 +399,25 @@ function I_NetCmd()
   end if
 end function
 
-/*
-* Function: UDPsocket
-* Purpose: Legacy compatibility stub; sockets are owned exclusively by mp_platform and no raw handle is exposed.
-*/
+/// Legacy compatibility stub; sockets are owned exclusively by mp_platform and no raw handle is exposed.
 function UDPsocket()
   return -1
 end function
 
-/*
-* Function: BindToLocalPort
-* Purpose: Legacy compatibility stub that rejects external bind attempts to preserve mp_platform socket ownership.
-*/
+/// Legacy compatibility stub that rejects external bind attempts to preserve mp_platform socket ownership.
+/// @param sock Sock value supplied to `BindToLocalPort`.
+/// @param port Port value supplied to `BindToLocalPort`.
 function BindToLocalPort(sock, port)
   sock = sock
   port = port
   return false
 end function
 
-/*
-* Function: PacketSend
-* Purpose: Legacy compatibility stub; callers must submit structured Doom packets through I_NetCmd.
-*/
+/// Legacy compatibility stub; callers must submit structured Doom packets through I_NetCmd.
+/// @param sock Sock value supplied to `PacketSend`.
+/// @param node Node value supplied to `PacketSend`.
+/// @param data Binary or structured data to process.
+/// @param length Number of bytes or elements in the associated value.
 function PacketSend(sock, node, data, length)
   sock = sock
   node = node
@@ -431,10 +426,11 @@ function PacketSend(sock, node, data, length)
   return false
 end function
 
-/*
-* Function: PacketGet
-* Purpose: Legacy compatibility stub that returns an empty receive result without touching caller payload storage.
-*/
+/// Legacy compatibility stub that returns an empty receive result without touching caller payload storage.
+/// @param sock Sock value supplied to `PacketGet`.
+/// @param nodeOut Node out value supplied to `PacketGet`.
+/// @param dataOut Data out value supplied to `PacketGet`.
+/// @param lengthOut Length out value supplied to `PacketGet`.
 function PacketGet(sock, nodeOut, dataOut, lengthOut)
   sock = sock
   if typeof(nodeOut) == "array" and len(nodeOut) > 0 then nodeOut[0] = -1 end if
@@ -443,10 +439,7 @@ function PacketGet(sock, nodeOut, dataOut, lengthOut)
   return false
 end function
 
-/*
-* Function: GetLocalAddress
-* Purpose: Returns the IPv4 loopback identity used by the legacy single-host API surface.
-*/
+/// Returns the IPv4 loopback identity used by the legacy single-host API surface.
 function GetLocalAddress()
   return "127.0.0.1"
 end function

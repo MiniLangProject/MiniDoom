@@ -13,9 +13,10 @@
   See the License for the specific language governing permissions and
   limitations under the License.
 
-  Script: m_misc.ml
-  Purpose: Handles configuration defaults, screenshots, file buffers, and Doom patch-backed utility output.
 */
+
+//! Handles configuration defaults, screenshots, file buffers, and Doom patch-backed utility output.
+
 import doomtype
 import doomdef
 import z_zone
@@ -33,36 +34,35 @@ import m_misc
 import mp_state
 import std.fs as fs
 
-/*
-* Function: _M_u16le
-* Purpose: Decodes one unsigned little-endian 16-bit value from a byte buffer with bounds checks.
-*/
+/// Decodes one unsigned little-endian 16-bit value from a byte buffer with bounds checks.
+/// @param b Second input operand.
+/// @param off Zero-based byte or element offset.
+/// @internal
 function inline _M_u16le(b, off)
   return b[off] +(b[off + 1] << 8)
 end function
 
-/*
-* Function: _M_patchWidth
-* Purpose: Reads a Doom patch's little-endian width field, returning zero for malformed data.
-*/
+/// Reads a Doom patch's little-endian width field, returning zero for malformed data.
+/// @param patch Patch value supplied to `_M_patchWidth`.
+/// @internal
 function inline _M_patchWidth(patch)
   if typeof(patch) != "bytes" then return 0 end if
   return _M_u16le(patch, 0)
 end function
 
-/*
-* Function: _M_UpperAscii
-* Purpose: Folds one lowercase ASCII byte to uppercase while leaving all other bytes unchanged.
-*/
+/// Folds one lowercase ASCII byte to uppercase while leaving all other bytes unchanged.
+/// @param c C value supplied to `_M_UpperAscii`.
+/// @internal
 function inline _M_UpperAscii(c)
   if c >= 97 and c <= 122 then return c - 32 end if
   return c
 end function
 
-/*
-* Function: _MMISC_IDiv
-* Purpose: Returns a signed quotient truncated toward zero, or zero for invalid operands and a zero divisor.
-*/
+/// Returns a signed quotient truncated toward zero, or zero for invalid operands and a zero divisor in
+/// `_MMISC_IDiv`
+/// @param a First input operand.
+/// @param b Second input operand.
+/// @internal
 function inline _MMISC_IDiv(a, b)
   if typeof(a) != "int" or typeof(b) != "int" or b == 0 then return 0 end if
   q = a / b
@@ -70,20 +70,20 @@ function inline _MMISC_IDiv(a, b)
   return std.math.ceil(q)
 end function
 
-/*
-* Function: _M_WriteU16LE
-* Purpose: Encodes the low 16 bits of a value at a byte-buffer offset in little-endian order.
-*/
+/// Encodes the low 16 bits of a value at a byte-buffer offset in little-endian order.
+/// @param buf Buf value supplied to `_M_WriteU16LE`.
+/// @param off Zero-based byte or element offset.
+/// @param value Value consumed by the operation.
+/// @internal
 function inline _M_WriteU16LE(buf, off, value)
   if value < 0 then value = value + 65536 end if
   buf[off] = value & 255
   buf[off + 1] =(value >> 8) & 255
 end function
 
-/*
-* Function: _M_MakeShotName
-* Purpose: Formats a two-digit screenshot slot as the classic DOOMnn.pcx filename.
-*/
+/// Formats a two-digit screenshot slot as the classic DOOMnn.pcx filename.
+/// @param i Zero-based iteration index.
+/// @internal
 function inline _M_MakeShotName(i)
   b = bytes("DOOM00.pcx")
   b[4] = 48 +(_MMISC_IDiv(i, 10) % 10)
@@ -91,10 +91,13 @@ function inline _M_MakeShotName(i)
   return decode(b)
 end function
 
-/*
-* Function: _M_WritePCXfile
-* Purpose: Validates indexed pixels and palette, RLE-encodes a complete 8-bit PCX image, and saves it to disk.
-*/
+/// Validates indexed pixels and palette, RLE-encodes a complete 8-bit PCX image, and saves it to disk.
+/// @param filename Filesystem name of the target resource.
+/// @param data Binary or structured data to process.
+/// @param width Width of the target in pixels or map units.
+/// @param height Height of the target in pixels or map units.
+/// @param palette Palette value supplied to `_M_WritePCXfile`.
+/// @internal
 function _M_WritePCXfile(filename, data, width, height, palette)
   if typeof(filename) != "string" then return false end if
   if typeof(data) != "bytes" then return false end if
@@ -150,26 +153,26 @@ function _M_WritePCXfile(filename, data, width, height, palette)
   return M_WriteFile(filename, pcx, pack)
 end function
 
-/*
-* Function: WritePCXfile
-* Purpose: Exposes the validated 8-bit PCX encoder through Doom's public screenshot-writing entry point.
-*/
+/// Exposes the validated 8-bit PCX encoder through Doom's public screenshot-writing entry point.
+/// @param filename Filesystem name of the target resource.
+/// @param data Binary or structured data to process.
+/// @param width Width of the target in pixels or map units.
+/// @param height Height of the target in pixels or map units.
+/// @param palette Palette value supplied to `WritePCXfile`.
 function WritePCXfile(filename, data, width, height, palette)
   return _M_WritePCXfile(filename, data, width, height, palette)
 end function
 
-/*
-* Function: _M_IsSpaceByte
-* Purpose: Recognizes the space and horizontal-tab delimiters accepted in configuration lines.
-*/
+/// Recognizes the space and horizontal-tab delimiters accepted in configuration lines.
+/// @param c C value supplied to `_M_IsSpaceByte`.
+/// @internal
 function inline _M_IsSpaceByte(c)
   return c == 32 or c == 9
 end function
 
-/*
-* Function: _M_Trim
-* Purpose: Removes leading and trailing configuration whitespace without altering embedded spaces.
-*/
+/// Removes leading and trailing configuration whitespace without altering embedded spaces.
+/// @param s0 S0 value supplied to `_M_Trim`.
+/// @internal
 function _M_Trim(s0)
   if typeof(s0) != "string" then return "" end if
   b = bytes(s0)
@@ -189,10 +192,9 @@ function _M_Trim(s0)
   return decode(slice(b, a,(z - a) + 1))
 end function
 
-/*
-* Function: _M_ParseInt
-* Purpose: Parses parse Int input into utility runtime data.
-*/
+/// Parses parse Int input into utility runtime data.
+/// @param s0 S0 value supplied to `_M_ParseInt`.
+/// @internal
 function _M_ParseInt(s0)
   if typeof(s0) != "string" then return end if
   s0 = _M_Trim(s0)
@@ -231,10 +233,9 @@ function _M_ParseInt(s0)
   return
 end function
 
-/*
-* Function: _M_ParseText
-* Purpose: Parses optional quoted text value from config lines.
-*/
+/// Parses optional quoted text value from config lines.
+/// @param s0 S0 value supplied to `_M_ParseText`.
+/// @internal
 function inline _M_ParseText(s0)
   if typeof(s0) != "string" then return "" end if
   s0 = _M_Trim(s0)
@@ -246,10 +247,9 @@ function inline _M_ParseText(s0)
   return s0
 end function
 
-/*
-* Function: _M_QuoteText
-* Purpose: Wraps text in quotes for config persistence.
-*/
+/// Wraps text in quotes for config persistence.
+/// @param s0 S0 value supplied to `_M_QuoteText`.
+/// @internal
 function _M_QuoteText(s0)
   if typeof(s0) != "string" then s0 = "" end if
   b = bytes(s0)
@@ -264,10 +264,10 @@ function _M_QuoteText(s0)
   return decode(qb)
 end function
 
-/*
-* Function: _M_ApplyDefaultKV
-* Purpose: Parses one configuration key/value pair and assigns the converted value to the matching registered default.
-*/
+/// Parses one configuration key/value pair and assigns the converted value to the matching registered default.
+/// @param key Input key code to process.
+/// @param val Val value supplied to `_M_ApplyDefaultKV`.
+/// @internal
 function _M_ApplyDefaultKV(key, val)
   global mouseSensitivity
   global snd_SfxVolume
@@ -375,10 +375,9 @@ function _M_ApplyDefaultKV(key, val)
   end if
 end function
 
-/*
-* Function: _M_GetDefaultFilePath
-* Purpose: Chooses the configuration path from -config, the -cdrom legacy location, an existing base override, or default.cfg.
-*/
+/// Chooses the configuration path from -config, the -cdrom legacy location, an existing base override, or
+/// default.cfg.
+/// @internal
 function _M_GetDefaultFilePath()
   i = M_CheckParm("-config")
   if i != 0 and i < myargc - 1 then
@@ -395,10 +394,9 @@ function _M_GetDefaultFilePath()
   return "default.cfg"
 end function
 
-/*
-* Function: _M_ParseDefaultLine
-* Purpose: Parses parse Default Line input into utility runtime data.
-*/
+/// Parses parse Default Line input into utility runtime data.
+/// @param line Map line or text line affected by the operation.
+/// @internal
 function _M_ParseDefaultLine(line)
   if typeof(line) != "string" then return end if
   line = _M_Trim(line)
@@ -423,10 +421,9 @@ function _M_ParseDefaultLine(line)
   _M_ApplyDefaultKV(key, val)
 end function
 
-/*
-* Function: _M_ParentDirExists
-* Purpose: Determines whether a target path can be written by verifying that its parent directory exists.
-*/
+/// Determines whether a target path can be written by verifying that its parent directory exists.
+/// @param path Filesystem path to process.
+/// @internal
 function _M_ParentDirExists(path)
   if typeof(path) != "string" then return false end if
   b = bytes(path)
@@ -447,10 +444,10 @@ function _M_ParentDirExists(path)
   return fs.isDir(dir)
 end function
 
-/*
-* Function: M_WriteFile
-* Purpose: Persists exactly the requested byte prefix and returns false when validation or filesystem output fails.
-*/
+/// Persists exactly the requested byte prefix and returns false when validation or filesystem output fails.
+/// @param name Resource or object name to resolve.
+/// @param source Source value or buffer.
+/// @param length Number of bytes or elements in the associated value.
 function M_WriteFile(name, source, length)
   if typeof(name) != "string" then return false end if
   if typeof(source) != "bytes" then return false end if
@@ -470,10 +467,10 @@ function M_WriteFile(name, source, length)
   return true
 end function
 
-/*
-* Function: M_ReadFile
-* Purpose: Loads an entire file into an output reference, returning its byte count and routing failures through I_Error.
-*/
+/// Loads an entire file into an output reference, returning its byte count and routing failures through
+/// I_Error.
+/// @param name Resource or object name to resolve.
+/// @param bufferOut Buffer out value supplied to `M_ReadFile`.
 function M_ReadFile(name, bufferOut)
   if typeof(bufferOut) == "array" and len(bufferOut) > 0 then
 
@@ -497,10 +494,7 @@ function M_ReadFile(name, bufferOut)
   return len(rd)
 end function
 
-/*
-* Function: M_ScreenShot
-* Purpose: Chooses the next unused DOOMxx screenshot name and writes the current framebuffer as a PCX image.
-*/
+/// Chooses the next unused DOOMxx screenshot name and writes the current framebuffer as a PCX image.
 function M_ScreenShot()
   linear = 0
   if typeof(screens) == "array" and len(screens) > 2 and typeof(screens[2]) == "bytes" then
@@ -545,10 +539,8 @@ function M_ScreenShot()
   end if
 end function
 
-/*
-* Function: M_LoadDefaults
-* Purpose: Restores built-in settings, parses recognized configuration keys, applies CLI multiplayer overrides, and clamps the result.
-*/
+/// Restores built-in settings, parses recognized configuration keys, applies CLI multiplayer overrides, and
+/// clamps the result.
 function M_LoadDefaults()
   global defaultfile
   global numdefaults
@@ -602,10 +594,7 @@ function M_LoadDefaults()
   MP_ClampSettings()
 end function
 
-/*
-* Function: M_SaveDefaults
-* Purpose: Serializes current input, audio, message, and multiplayer settings to the selected configuration file.
-*/
+/// Serializes current input, audio, message, and multiplayer settings to the selected configuration file.
 function M_SaveDefaults()
   global defaultfile
   global numdefaults
@@ -646,10 +635,12 @@ function M_SaveDefaults()
   end if
 end function
 
-/*
-* Function: M_DrawText
-* Purpose: Draws an uppercase patch-font string at logical screen coordinates and returns the x position after the final glyph.
-*/
+/// Draws an uppercase patch-font string at logical screen coordinates and returns the x position after the
+/// final glyph.
+/// @param x Horizontal map- or screen-space coordinate.
+/// @param y Vertical map- or screen-space coordinate.
+/// @param direct Direct value supplied to `M_DrawText`.
+/// @param string String value supplied to `M_DrawText`.
 function M_DrawText(x, y, direct, string)
   b = 0
   if typeof(string) == "bytes" then
@@ -695,24 +686,31 @@ function M_DrawText(x, y, direct, string)
   return x
 end function
 
+/// Tracks the mutable usemouse value used by the m misc subsystem.
 usemouse = 0
+/// Tracks the mutable usejoystick value used by the m misc subsystem.
 usejoystick = 0
 
+/// Tracks the mutable numdefaults value used by the m misc subsystem.
 numdefaults = 0
+/// Holds the optional defaultfile resource used by the m misc subsystem.
 defaultfile = void
 
-/*
-* Struct: default_t
-* Purpose: Binds a configuration key to its mutable runtime reference, default value, and numeric range metadata.
-*/
+/// Binds a configuration key to its mutable runtime reference, default value, and numeric range metadata.
 struct default_t
+  /// Stable resource or object name stored by `default_t`
   name
+  /// Stores location for `default_t`
   location
+  /// Stores defaultvalue for `default_t`
   defaultvalue
+  /// Stores scantranslate for `default_t`
   scantranslate
+  /// Stores untranslated for `default_t`
   untranslated
 end struct
 
+/// Stores the defaults collection used by the m misc subsystem.
 defaults =[]
 
 

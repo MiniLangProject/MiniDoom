@@ -13,25 +13,26 @@
   See the License for the specific language governing permissions and
   limitations under the License.
 
-  Script: mp_fnv1a.ml
-  Purpose: Provides fast, non-cryptographic WAD fingerprint helpers for multiplayer compatibility checks.
 */
 
+//! Provides fast, non-cryptographic WAD fingerprint helpers for multiplayer compatibility checks.
+
+
+/// Tracks the mutable mp hash hex table value used by the mp fnv1a subsystem.
+/// @internal
 _mp_hash_hex_table = bytes("0123456789abcdef")
 
-/*
-* Function: _MP_HASH_U32
-* Purpose: Normalizes integer arithmetic to 32-bit unsigned space.
-*/
+/// Normalizes integer arithmetic to 32-bit unsigned space.
+/// @param v Value consumed by the operation.
+/// @internal
 function inline _MP_HASH_U32(v)
   if typeof(v) != "int" then return 0 end if
   return v & 0xFFFFFFFF
 end function
 
-/*
-* Function: _MP_HASH_ToHex8
-* Purpose: Formats one 32-bit value as eight lowercase hexadecimal characters.
-*/
+/// Formats one 32-bit value as eight lowercase hexadecimal characters.
+/// @param v Value consumed by the operation.
+/// @internal
 function _MP_HASH_ToHex8(v)
   x = _MP_HASH_U32(v)
   hexout = bytes(8, 0)
@@ -44,11 +45,9 @@ function _MP_HASH_ToHex8(v)
   return decode(hexout)
 end function
 
-/*
-* Function: MP_FNV1A_Hex
-* Purpose: Returns `<fnv32><length32>` as 16 lowercase hex digits for deterministic IWAD compatibility checks.
-* Security: This detects accidental content mismatches; it is not an authentication or tamper-proof hash.
-*/
+/// Returns `<fnv32><length32>` as 16 lowercase hex digits for deterministic IWAD compatibility checks.
+/// Security: This detects accidental content mismatches; it is not an authentication or tamper-proof hash.
+/// @param data Binary or structured data to process.
 function MP_FNV1A_Hex(data)
   if typeof(data) != "bytes" then return "" end if
 

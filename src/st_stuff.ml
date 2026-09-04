@@ -13,9 +13,11 @@
   See the License for the specific language governing permissions and
   limitations under the License.
 
-  Script: st_stuff.ml
-  Purpose: Drives the classic status bar's player values, face state machine, palette flashes, cheats, resources, and widgets.
 */
+
+//! Drives the classic status bar's player values, face state machine, palette flashes, cheats, resources, and
+//! widgets.
+
 import doomtype
 import d_event
 import i_system
@@ -41,162 +43,280 @@ import dstrings
 import sounds
 import d_items
 
+/// Defines st height for the st stuff subsystem.
 const ST_HEIGHT = 32
+/// Defines st width for the st stuff subsystem.
 const ST_WIDTH = 320
+/// Defines st y for the st stuff subsystem.
 const ST_Y = 168
 
+/// Defines startredpals for the st stuff subsystem.
 const STARTREDPALS = 1
+/// Defines startbonuspals for the st stuff subsystem.
 const STARTBONUSPALS = 9
+/// Defines the numredpals count used by the st stuff subsystem.
 const NUMREDPALS = 8
+/// Defines the numbonuspals count used by the st stuff subsystem.
 const NUMBONUSPALS = 4
+/// Defines radiationpal for the st stuff subsystem.
 const RADIATIONPAL = 13
 
+/// Defines st fx for the st stuff subsystem.
 const ST_FX = 143
+/// Defines st fy for the st stuff subsystem.
 const ST_FY = 169
 
+/// Defines the st numpainfaces count used by the st stuff subsystem.
 const ST_NUMPAINFACES = 5
+/// Defines the st numstraightfaces count used by the st stuff subsystem.
 const ST_NUMSTRAIGHTFACES = 3
+/// Defines the st numturnfaces count used by the st stuff subsystem.
 const ST_NUMTURNFACES = 2
+/// Defines the st numspecialfaces count used by the st stuff subsystem.
 const ST_NUMSPECIALFACES = 3
+/// Defines st facestride for the st stuff subsystem.
 const ST_FACESTRIDE = ST_NUMSTRAIGHTFACES + ST_NUMTURNFACES + ST_NUMSPECIALFACES
+/// Defines the st numextrafaces count used by the st stuff subsystem.
 const ST_NUMEXTRAFACES = 2
+/// Defines the st numfaces count used by the st stuff subsystem.
 const ST_NUMFACES = ST_FACESTRIDE * ST_NUMPAINFACES + ST_NUMEXTRAFACES
+/// Defines st turnoffset for the st stuff subsystem.
 const ST_TURNOFFSET = ST_NUMSTRAIGHTFACES
+/// Defines st ouchoffset for the st stuff subsystem.
 const ST_OUCHOFFSET = ST_TURNOFFSET + ST_NUMTURNFACES
+/// Defines st evilgrinoffset for the st stuff subsystem.
 const ST_EVILGRINOFFSET = ST_OUCHOFFSET + 1
+/// Defines st rampageoffset for the st stuff subsystem.
 const ST_RAMPAGEOFFSET = ST_EVILGRINOFFSET + 1
+/// Defines st godface for the st stuff subsystem.
 const ST_GODFACE = ST_NUMPAINFACES * ST_FACESTRIDE
+/// Defines st deadface for the st stuff subsystem.
 const ST_DEADFACE = ST_GODFACE + 1
+/// Defines st facesx for the st stuff subsystem.
 const ST_FACESX = 143
+/// Defines st facesy for the st stuff subsystem.
 const ST_FACESY = 168
+/// Defines st evilgrincount for the st stuff subsystem.
 const ST_EVILGRINCOUNT = 2 * TICRATE
+/// Defines st straightfacecount for the st stuff subsystem.
 const ST_STRAIGHTFACECOUNT = TICRATE >> 1
+/// Defines st turncount for the st stuff subsystem.
 const ST_TURNCOUNT = TICRATE
+/// Defines st rampagedelay for the st stuff subsystem.
 const ST_RAMPAGEDELAY = 2 * TICRATE
+/// Defines st muchpain for the st stuff subsystem.
 const ST_MUCHPAIN = 20
 
+/// Defines st ammowidth for the st stuff subsystem.
 const ST_AMMOWIDTH = 3
+/// Defines st ammox for the st stuff subsystem.
 const ST_AMMOX = 44
+/// Defines st ammoy for the st stuff subsystem.
 const ST_AMMOY = 171
 
+/// Defines st healthwidth for the st stuff subsystem.
 const ST_HEALTHWIDTH = 3
+/// Defines st healthx for the st stuff subsystem.
 const ST_HEALTHX = 90
+/// Defines st healthy for the st stuff subsystem.
 const ST_HEALTHY = 171
 
+/// Defines st armsx for the st stuff subsystem.
 const ST_ARMSX = 111
+/// Defines st armsy for the st stuff subsystem.
 const ST_ARMSY = 172
+/// Defines st armsbgx for the st stuff subsystem.
 const ST_ARMSBGX = 104
+/// Defines st armsbgy for the st stuff subsystem.
 const ST_ARMSBGY = 168
+/// Defines st armsxspace for the st stuff subsystem.
 const ST_ARMSXSPACE = 12
+/// Defines st armsyspace for the st stuff subsystem.
 const ST_ARMSYSPACE = 10
 
+/// Defines st fragsx for the st stuff subsystem.
 const ST_FRAGSX = 138
+/// Defines st fragsy for the st stuff subsystem.
 const ST_FRAGSY = 171
+/// Defines st fragswidth for the st stuff subsystem.
 const ST_FRAGSWIDTH = 2
 
+/// Defines st armorwidth for the st stuff subsystem.
 const ST_ARMORWIDTH = 3
+/// Defines st armorx for the st stuff subsystem.
 const ST_ARMORX = 221
+/// Defines st armory for the st stuff subsystem.
 const ST_ARMORY = 171
 
+/// Defines st key0 x for the st stuff subsystem.
 const ST_KEY0X = 239
+/// Defines st key0 y for the st stuff subsystem.
 const ST_KEY0Y = 171
+/// Defines st key1 x for the st stuff subsystem.
 const ST_KEY1X = 239
+/// Defines st key1 y for the st stuff subsystem.
 const ST_KEY1Y = 181
+/// Defines st key2 x for the st stuff subsystem.
 const ST_KEY2X = 239
+/// Defines st key2 y for the st stuff subsystem.
 const ST_KEY2Y = 191
 
+/// Defines st ammo0 width for the st stuff subsystem.
 const ST_AMMO0WIDTH = 3
+/// Defines st ammo0 x for the st stuff subsystem.
 const ST_AMMO0X = 288
+/// Defines st ammo0 y for the st stuff subsystem.
 const ST_AMMO0Y = 173
+/// Defines st ammo1 width for the st stuff subsystem.
 const ST_AMMO1WIDTH = ST_AMMO0WIDTH
+/// Defines st ammo1 x for the st stuff subsystem.
 const ST_AMMO1X = 288
+/// Defines st ammo1 y for the st stuff subsystem.
 const ST_AMMO1Y = 179
+/// Defines st ammo2 width for the st stuff subsystem.
 const ST_AMMO2WIDTH = ST_AMMO0WIDTH
+/// Defines st ammo2 x for the st stuff subsystem.
 const ST_AMMO2X = 288
+/// Defines st ammo2 y for the st stuff subsystem.
 const ST_AMMO2Y = 191
+/// Defines st ammo3 width for the st stuff subsystem.
 const ST_AMMO3WIDTH = ST_AMMO0WIDTH
+/// Defines st ammo3 x for the st stuff subsystem.
 const ST_AMMO3X = 288
+/// Defines st ammo3 y for the st stuff subsystem.
 const ST_AMMO3Y = 185
 
+/// Defines the maximum st maxammo0 width accepted by the st stuff subsystem.
 const ST_MAXAMMO0WIDTH = 3
+/// Defines the maximum st maxammo0 x accepted by the st stuff subsystem.
 const ST_MAXAMMO0X = 314
+/// Defines the maximum st maxammo0 y accepted by the st stuff subsystem.
 const ST_MAXAMMO0Y = 173
+/// Defines the maximum st maxammo1 width accepted by the st stuff subsystem.
 const ST_MAXAMMO1WIDTH = ST_MAXAMMO0WIDTH
+/// Defines the maximum st maxammo1 x accepted by the st stuff subsystem.
 const ST_MAXAMMO1X = 314
+/// Defines the maximum st maxammo1 y accepted by the st stuff subsystem.
 const ST_MAXAMMO1Y = 179
+/// Defines the maximum st maxammo2 width accepted by the st stuff subsystem.
 const ST_MAXAMMO2WIDTH = ST_MAXAMMO0WIDTH
+/// Defines the maximum st maxammo2 x accepted by the st stuff subsystem.
 const ST_MAXAMMO2X = 314
+/// Defines the maximum st maxammo2 y accepted by the st stuff subsystem.
 const ST_MAXAMMO2Y = 191
+/// Defines the maximum st maxammo3 width accepted by the st stuff subsystem.
 const ST_MAXAMMO3WIDTH = ST_MAXAMMO0WIDTH
+/// Defines the maximum st maxammo3 x accepted by the st stuff subsystem.
 const ST_MAXAMMO3X = 314
+/// Defines the maximum st maxammo3 y accepted by the st stuff subsystem.
 const ST_MAXAMMO3Y = 185
 
-/*
-* Enum: st_stateenum_t
-* Purpose: Distinguishes automap and first-person status-bar presentation state.
-*/
+/// Distinguishes automap and first-person status-bar presentation state.
 enum st_stateenum_t
+  /// Represents automap state in `st_stateenum_t`
   AutomapState = 0
+  /// Represents first person state in `st_stateenum_t`
   FirstPersonState = 1
 end enum
 
-/*
-* Enum: st_chatstateenum_t
-* Purpose: Tracks the legacy status-bar chat input phases retained for compatibility.
-*/
+/// Tracks the legacy status-bar chat input phases retained for compatibility.
 enum st_chatstateenum_t
+  /// Represents start chat state in `st_chatstateenum_t`
   StartChatState = 0
+  /// Represents wait dest state in `st_chatstateenum_t`
   WaitDestState = 1
+  /// Represents get chat state in `st_chatstateenum_t`
   GetChatState = 2
 end enum
 
+/// Tracks whether st firsttime is active in the st stuff subsystem.
 st_firsttime = true
+/// Tracks whether st started is active in the st stuff subsystem.
 st_started = false
 
+/// Tracks the mutable lu palette value used by the st stuff subsystem.
 lu_palette = -1
+/// Tracks the mutable st clock value used by the st stuff subsystem.
 st_clock = 0
+/// Tracks the mutable st msgcounter value used by the st stuff subsystem.
 st_msgcounter = 0
+/// Exposes `st_chatstateenum_t.StartChatState` through the legacy `st_chatstate` alias.
 st_chatstate = st_chatstateenum_t.StartChatState
+/// Exposes `st_stateenum_t.FirstPersonState` through the legacy `st_state` alias.
 st_state = st_stateenum_t.FirstPersonState
+/// Tracks the mutable st palette value used by the st stuff subsystem.
 st_palette = 0
 
+/// Stores the st statusbaron ref collection used by the st stuff subsystem.
 st_statusbaron_ref =[true]
+/// Stores the st notdeathmatch ref collection used by the st stuff subsystem.
 st_notdeathmatch_ref =[true]
+/// Stores the st armson ref collection used by the st stuff subsystem.
 st_armson_ref =[true]
+/// Stores the st fragson ref collection used by the st stuff subsystem.
 st_fragson_ref =[false]
 
+/// Tracks whether st chat is active in the st stuff subsystem.
 st_chat = false
+/// Tracks whether st oldchat is active in the st stuff subsystem.
 st_oldchat = false
+/// Tracks whether st cursoron is active in the st stuff subsystem.
 st_cursoron = false
 
+/// Holds the optional st plyr resource used by the st stuff subsystem.
 st_plyr = void
 
+/// Holds the optional st stbar resource used by the st stuff subsystem.
 st_stbar = void
+/// Holds the optional st faceback resource used by the st stuff subsystem.
 st_faceback = void
+/// Holds the optional st armsbg patch resource used by the st stuff subsystem.
 st_armsbg_patch = void
+/// Stores the st tallnum collection used by the st stuff subsystem.
 st_tallnum =[]
+/// Holds the optional st tallpercent resource used by the st stuff subsystem.
 st_tallpercent = void
+/// Stores the st shortnum collection used by the st stuff subsystem.
 st_shortnum =[]
+/// Stores the st keys collection used by the st stuff subsystem.
 st_keys =[]
+/// Stores the st faces collection used by the st stuff subsystem.
 st_faces =[]
+/// Stores the st arms patches collection used by the st stuff subsystem.
 st_arms_patches =[[void, void],[void, void],[void, void],[void, void],[void, void],[void, void]]
 
+/// Stores the st ready ref collection used by the st stuff subsystem.
 st_ready_ref =[1994]
+/// Stores the st health ref collection used by the st stuff subsystem.
 st_health_ref =[100]
+/// Stores the st armor ref collection used by the st stuff subsystem.
 st_armor_ref =[0]
+/// Stores the st frags ref collection used by the st stuff subsystem.
 st_frags_ref =[0]
+/// Stores the st face ref collection used by the st stuff subsystem.
 st_face_ref =[0]
+/// Stores the st keyrefs collection used by the st stuff subsystem.
 st_keyrefs =[[-1],[-1],[-1]]
+/// Stores the st weaponowned refs collection used by the st stuff subsystem.
 st_weaponowned_refs =[[0],[0],[0],[0],[0],[0]]
+/// Stores the st ammo refs collection used by the st stuff subsystem.
 st_ammo_refs =[[0],[0],[0],[0]]
+/// Stores the st maxammo refs collection used by the st stuff subsystem.
 st_maxammo_refs =[[0],[0],[0],[0]]
 
+/// Tracks the mutable w ready value used by the st stuff subsystem.
 w_ready = st_number_t(0, 0, 0, 0, st_ready_ref, st_statusbaron_ref, st_tallnum, 0)
+/// Tracks the mutable w frags value used by the st stuff subsystem.
 w_frags = st_number_t(0, 0, 0, 0, st_frags_ref, st_fragson_ref, st_tallnum, 0)
+/// Tracks the mutable w health value used by the st stuff subsystem.
 w_health = st_percent_t(st_number_t(0, 0, 0, 0, st_health_ref, st_statusbaron_ref, st_tallnum, 0), st_tallpercent)
+/// Tracks the mutable w armsbg value used by the st stuff subsystem.
 w_armsbg = st_binicon_t(0, 0, false, st_notdeathmatch_ref, st_statusbaron_ref, st_armsbg_patch, 0)
+/// Tracks the mutable w faces value used by the st stuff subsystem.
 w_faces = st_multicon_t(0, 0, -1, st_face_ref, st_statusbaron_ref, st_faces, 0)
+/// Tracks the mutable w armor value used by the st stuff subsystem.
 w_armor = st_percent_t(st_number_t(0, 0, 0, 0, st_armor_ref, st_statusbaron_ref, st_tallnum, 0), st_tallpercent)
+/// Stores the w arms collection used by the st stuff subsystem.
 w_arms =[
 st_multicon_t(0, 0, -1, st_weaponowned_refs[0], st_armson_ref, st_arms_patches[0], 0),
 st_multicon_t(0, 0, -1, st_weaponowned_refs[1], st_armson_ref, st_arms_patches[1], 0),
@@ -205,17 +325,20 @@ st_multicon_t(0, 0, -1, st_weaponowned_refs[3], st_armson_ref, st_arms_patches[3
 st_multicon_t(0, 0, -1, st_weaponowned_refs[4], st_armson_ref, st_arms_patches[4], 0),
 st_multicon_t(0, 0, -1, st_weaponowned_refs[5], st_armson_ref, st_arms_patches[5], 0)
 ]
+/// Stores the w keyboxes collection used by the st stuff subsystem.
 w_keyboxes =[
 st_multicon_t(0, 0, -1, st_keyrefs[0], st_statusbaron_ref, st_keys, 0),
 st_multicon_t(0, 0, -1, st_keyrefs[1], st_statusbaron_ref, st_keys, 0),
 st_multicon_t(0, 0, -1, st_keyrefs[2], st_statusbaron_ref, st_keys, 0)
 ]
+/// Stores the w ammo collection used by the st stuff subsystem.
 w_ammo =[
 st_number_t(0, 0, 0, 0, st_ammo_refs[0], st_statusbaron_ref, st_shortnum, 0),
 st_number_t(0, 0, 0, 0, st_ammo_refs[1], st_statusbaron_ref, st_shortnum, 0),
 st_number_t(0, 0, 0, 0, st_ammo_refs[2], st_statusbaron_ref, st_shortnum, 0),
 st_number_t(0, 0, 0, 0, st_ammo_refs[3], st_statusbaron_ref, st_shortnum, 0)
 ]
+/// Stores the w maxammo collection used by the st stuff subsystem.
 w_maxammo =[
 st_number_t(0, 0, 0, 0, st_maxammo_refs[0], st_statusbaron_ref, st_shortnum, 0),
 st_number_t(0, 0, 0, 0, st_maxammo_refs[1], st_statusbaron_ref, st_shortnum, 0),
@@ -223,23 +346,40 @@ st_number_t(0, 0, 0, 0, st_maxammo_refs[2], st_statusbaron_ref, st_shortnum, 0),
 st_number_t(0, 0, 0, 0, st_maxammo_refs[3], st_statusbaron_ref, st_shortnum, 0)
 ]
 
+/// Tracks the mutable st facecount value used by the st stuff subsystem.
 st_facecount = 0
+/// Tracks the mutable st faceindex value used by the st stuff subsystem.
 st_faceindex = 0
+/// Tracks the mutable st facepriority value used by the st stuff subsystem.
 st_facepriority = 0
+/// Tracks the mutable st oldhealth value used by the st stuff subsystem.
 st_oldhealth = -1
+/// Stores the st oldweaponsowned collection used by the st stuff subsystem.
 st_oldweaponsowned =[]
+/// Tracks the mutable st lastattackdown value used by the st stuff subsystem.
 st_lastattackdown = -1
+/// Tracks the mutable st randomnumber value used by the st stuff subsystem.
 st_randomnumber = 0
+/// Tracks the mutable st lastcalc value used by the st stuff subsystem.
 st_lastcalc = 0
+/// Tracks the mutable st calc oldhealth value used by the st stuff subsystem.
 st_calc_oldhealth = -1
 
+/// Tracks the mutable cheat mus value used by the st stuff subsystem.
 cheat_mus = cheatseq_t(bytes([0xb2, 0x26, 0xb6, 0xae, 0xea, 1, 0, 0, 0xff]), 0)
+/// Tracks the mutable cheat choppers value used by the st stuff subsystem.
 cheat_choppers = cheatseq_t(bytes([0xb2, 0x26, 0xe2, 0x32, 0xf6, 0x2a, 0x2a, 0xa6, 0x6a, 0xea, 0xff]), 0)
+/// Tracks the mutable cheat god value used by the st stuff subsystem.
 cheat_god = cheatseq_t(bytes([0xb2, 0x26, 0x26, 0xaa, 0x26, 0xff]), 0)
+/// Tracks the mutable cheat ammo value used by the st stuff subsystem.
 cheat_ammo = cheatseq_t(bytes([0xb2, 0x26, 0xf2, 0x66, 0xa2, 0xff]), 0)
+/// Tracks the mutable cheat ammonokey value used by the st stuff subsystem.
 cheat_ammonokey = cheatseq_t(bytes([0xb2, 0x26, 0x66, 0xa2, 0xff]), 0)
+/// Tracks the mutable cheat noclip value used by the st stuff subsystem.
 cheat_noclip = cheatseq_t(bytes([0xb2, 0x26, 0xea, 0x2a, 0xb2, 0xea, 0x2a, 0xf6, 0x2a, 0x26, 0xff]), 0)
+/// Tracks the mutable cheat commercial noclip value used by the st stuff subsystem.
 cheat_commercial_noclip = cheatseq_t(bytes([0xb2, 0x26, 0xe2, 0x36, 0xb2, 0x2a, 0xff]), 0)
+/// Stores the cheat powerup collection used by the st stuff subsystem.
 cheat_powerup =[
 cheatseq_t(bytes([0xb2, 0x26, 0x62, 0xa6, 0x32, 0xf6, 0x36, 0x26, 0x6e, 0xff]), 0),
 cheatseq_t(bytes([0xb2, 0x26, 0x62, 0xa6, 0x32, 0xf6, 0x36, 0x26, 0xea, 0xff]), 0),
@@ -249,13 +389,13 @@ cheatseq_t(bytes([0xb2, 0x26, 0x62, 0xa6, 0x32, 0xf6, 0x36, 0x26, 0xa2, 0xff]), 
 cheatseq_t(bytes([0xb2, 0x26, 0x62, 0xa6, 0x32, 0xf6, 0x36, 0x26, 0x36, 0xff]), 0),
 cheatseq_t(bytes([0xb2, 0x26, 0x62, 0xa6, 0x32, 0xf6, 0x36, 0x26, 0xff]), 0)
 ]
+/// Tracks the mutable cheat clev value used by the st stuff subsystem.
 cheat_clev = cheatseq_t(bytes([0xb2, 0x26, 0xe2, 0x36, 0xa6, 0x6e, 1, 0, 0, 0xff]), 0)
+/// Tracks the mutable cheat mypos value used by the st stuff subsystem.
 cheat_mypos = cheatseq_t(bytes([0xb2, 0x26, 0xb6, 0xba, 0x2a, 0xf6, 0xea, 0xff]), 0)
 
-/*
-* Function: _ST_Player
-* Purpose: Returns the checked console-player record consumed by status widgets and cheats.
-*/
+/// Returns the checked console-player record consumed by status widgets and cheats.
+/// @internal
 function inline _ST_Player()
   if typeof(players) != "array" then return void end if
   if typeof(consoleplayer) != "int" then return void end if
@@ -263,10 +403,10 @@ function inline _ST_Player()
   return players[consoleplayer]
 end function
 
-/*
-* Function: _ST_ToInt
-* Purpose: Converts numeric or numeric-string widget values by truncating toward zero, otherwise returning a fallback.
-*/
+/// Converts numeric or numeric-string widget values by truncating toward zero, otherwise returning a fallback.
+/// @param v Value consumed by the operation.
+/// @param fallback Value returned when the requested conversion or lookup is unavailable.
+/// @internal
 function _ST_ToInt(v, fallback)
   if typeof(v) == "int" then return v end if
   if typeof(v) == "float" then
@@ -282,10 +422,10 @@ function _ST_ToInt(v, fallback)
   return fallback
 end function
 
-/*
-* Function: _ST_EnumIndex
-* Purpose: Converts integer/enum values to a checked table index below the requested limit.
-*/
+/// Converts integer/enum values to a checked table index below the requested limit.
+/// @param v Value consumed by the operation.
+/// @param limit Limit value supplied to `_ST_EnumIndex`.
+/// @internal
 function _ST_EnumIndex(v, limit)
   vi = _ST_ToInt(v, -1)
   if vi >= 0 then
@@ -303,10 +443,10 @@ function _ST_EnumIndex(v, limit)
   return -1
 end function
 
-/*
-* Function: _ST_IDiv
-* Purpose: Divides status calculations with truncation toward zero and returns zero for a zero divisor.
-*/
+/// Divides status calculations with truncation toward zero and returns zero for a zero divisor.
+/// @param a First input operand.
+/// @param b Second input operand.
+/// @internal
 function inline _ST_IDiv(a, b)
   a = _ST_ToInt(a, 0)
   b = _ST_ToInt(b, 0)
@@ -316,19 +456,18 @@ function inline _ST_IDiv(a, b)
   return std.math.ceil(q)
 end function
 
-/*
-* Function: _ST_SetMessage
-* Purpose: Writes a cheat/status notification into the active console player's HUD message slot.
-*/
+/// Writes a cheat/status notification into the active console player's HUD message slot.
+/// @param msg Msg value supplied to `_ST_SetMessage`.
+/// @internal
 function inline _ST_SetMessage(msg)
   if st_plyr is void then return end if
   st_plyr.message = msg
 end function
 
-/*
-* Function: _ST_DigitFromParam
-* Purpose: Parses one checked decimal digit from a cheat-code parameter string, returning minus one on invalid input.
-*/
+/// Parses one checked decimal digit from a cheat-code parameter string, returning minus one on invalid input.
+/// @param param Param value supplied to `_ST_DigitFromParam`.
+/// @param idx Zero-based element or table index.
+/// @internal
 function inline _ST_DigitFromParam(param, idx)
   if typeof(param) != "string" then return -1 end if
   bb = bytes(param)
@@ -339,10 +478,9 @@ function inline _ST_DigitFromParam(param, idx)
   return d
 end function
 
-/*
-* Function: _ST_DigitString
-* Purpose: Formats one numeric status-bar lump suffix without implicit string conversion.
-*/
+/// Formats one numeric status-bar lump suffix without implicit string conversion.
+/// @param v Value consumed by the operation.
+/// @internal
 function inline _ST_DigitString(v)
   if v == 1 then return "1" end if
   if v == 2 then return "2" end if
@@ -356,10 +494,10 @@ function inline _ST_DigitString(v)
   return "0"
 end function
 
-/*
-* Function: _ST_ArrayAppend
-* Purpose: Returns a copy of an array with one appended item without using concatenation.
-*/
+/// Returns a copy of an array with one appended item without using concatenation.
+/// @param arr Arr value supplied to `_ST_ArrayAppend`.
+/// @param item Item value supplied to `_ST_ArrayAppend`.
+/// @internal
 function _ST_ArrayAppend(arr, item)
   n = 0
   if typeof(arr) == "array" then n = len(arr) end if
@@ -373,10 +511,8 @@ function _ST_ArrayAppend(arr, item)
   return result
 end function
 
-/*
-* Function: _ST_FacebackName
-* Purpose: Returns the fixed status-bar face background lump for the local player.
-*/
+/// Returns the fixed status-bar face background lump for the local player.
+/// @internal
 function inline _ST_FacebackName()
   if consoleplayer == 1 then return "STFB1" end if
   if consoleplayer == 2 then return "STFB2" end if
@@ -384,20 +520,19 @@ function inline _ST_FacebackName()
   return "STFB0"
 end function
 
-/*
-* Function: _ST_CheatParam
-* Purpose: Extracts the decoded parameter bytes accumulated by a parameterized cheat sequence.
-*/
+/// Extracts the decoded parameter bytes accumulated by a parameterized cheat sequence.
+/// @param cheat Cheat value supplied to `_ST_CheatParam`.
+/// @internal
 function inline _ST_CheatParam(cheat)
 
   tmp = bytes(8, 0)
   return cht_GetParam(cheat, tmp)
 end function
 
-/*
-* Function: _ST_GetRef
-* Purpose: Dereferences the status widget's single-element mutable-reference convention with a fallback.
-*/
+/// Dereferences the status widget's single-element mutable-reference convention with a fallback.
+/// @param refv Refv value supplied to `_ST_GetRef`.
+/// @param fallback Value returned when the requested conversion or lookup is unavailable.
+/// @internal
 function inline _ST_GetRef(refv, fallback)
   if typeof(refv) == "array" and len(refv) > 0 then
     return refv[0]
@@ -406,30 +541,28 @@ function inline _ST_GetRef(refv, fallback)
   return refv
 end function
 
-/*
-* Function: _ST_SetRef
-* Purpose: Writes through a non-empty single-element status-widget reference.
-*/
+/// Writes through a non-empty single-element status-widget reference.
+/// @param refv Refv value supplied to `_ST_SetRef`.
+/// @param v Value consumed by the operation.
+/// @internal
 function inline _ST_SetRef(refv, v)
   if typeof(refv) == "array" and len(refv) > 0 then
     refv[0] = v
   end if
 end function
 
-/*
-* Function: _ST_LoadPatchMaybe
-* Purpose: Caches an optional status-bar patch only when its lump exists.
-*/
+/// Caches an optional status-bar patch only when its lump exists.
+/// @param name Resource or object name to resolve.
+/// @internal
 function inline _ST_LoadPatchMaybe(name)
   if typeof(W_CheckNumForName) != "function" then return void end if
   if W_CheckNumForName(name) == -1 then return void end if
   return W_CacheLumpName(name, PU_STATIC)
 end function
 
-/*
-* Function: _ST_LoadPatchRequired
-* Purpose: Caches a required status-bar patch and registers its lump name for HD overlay lookup.
-*/
+/// Caches a required status-bar patch and registers its lump name for HD overlay lookup.
+/// @param name Resource or object name to resolve.
+/// @internal
 function inline _ST_LoadPatchRequired(name)
   if typeof(W_CacheLumpName) != "function" then return void end if
   p = W_CacheLumpName(name, PU_STATIC)
@@ -439,10 +572,10 @@ function inline _ST_LoadPatchRequired(name)
   return p
 end function
 
-/*
-* Function: _ST_GetPower
-* Purpose: Returns one checked player power timer or zero for absent/incomplete records.
-*/
+/// Returns one checked player power timer or zero for absent/incomplete records.
+/// @param player Player state affected by the operation.
+/// @param idx Zero-based element or table index.
+/// @internal
 function inline _ST_GetPower(player, idx)
   idx = _ST_ToInt(idx, -1)
   if idx < 0 then return 0 end if
@@ -452,10 +585,10 @@ function inline _ST_GetPower(player, idx)
   return _ST_ToInt(player.powers[idx], 0)
 end function
 
-/*
-* Function: _ST_GetCard
-* Purpose: Returns one checked player key/card ownership flag.
-*/
+/// Returns one checked player key/card ownership flag.
+/// @param player Player state affected by the operation.
+/// @param idx Zero-based element or table index.
+/// @internal
 function inline _ST_GetCard(player, idx)
   idx = _ST_ToInt(idx, -1)
   if player is void then return false end if
@@ -464,10 +597,10 @@ function inline _ST_GetCard(player, idx)
   return player.cards[idx]
 end function
 
-/*
-* Function: _ST_GetWeaponOwned
-* Purpose: Returns one checked player weapon-ownership flag.
-*/
+/// Returns one checked player weapon-ownership flag.
+/// @param player Player state affected by the operation.
+/// @param idx Zero-based element or table index.
+/// @internal
 function inline _ST_GetWeaponOwned(player, idx)
   idx = _ST_ToInt(idx, -1)
   if player is void then return false end if
@@ -476,10 +609,10 @@ function inline _ST_GetWeaponOwned(player, idx)
   return player.weaponowned[idx]
 end function
 
-/*
-* Function: _ST_GetAmmo
-* Purpose: Returns one checked player ammunition count as an integer.
-*/
+/// Returns one checked player ammunition count as an integer.
+/// @param player Player state affected by the operation.
+/// @param idx Zero-based element or table index.
+/// @internal
 function inline _ST_GetAmmo(player, idx)
   idx = _ST_ToInt(idx, -1)
   if player is void then return 0 end if
@@ -488,10 +621,10 @@ function inline _ST_GetAmmo(player, idx)
   return _ST_ToInt(player.ammo[idx], 0)
 end function
 
-/*
-* Function: _ST_GetMaxAmmo
-* Purpose: Returns one checked player ammunition-capacity value as an integer.
-*/
+/// Returns one checked player ammunition-capacity value as an integer.
+/// @param player Player state affected by the operation.
+/// @param idx Zero-based element or table index.
+/// @internal
 function inline _ST_GetMaxAmmo(player, idx)
   idx = _ST_ToInt(idx, -1)
   if player is void then return 0 end if
@@ -500,10 +633,9 @@ function inline _ST_GetMaxAmmo(player, idx)
   return _ST_ToInt(player.maxammo[idx], 0)
 end function
 
-/*
-* Function: _ST_WeaponAmmoType
-* Purpose: Resolves a checked ready-weapon index to its ammo pool or the no-ammo sentinel.
-*/
+/// Resolves a checked ready-weapon index to its ammo pool or the no-ammo sentinel.
+/// @param weapon Weapon value supplied to `_ST_WeaponAmmoType`.
+/// @internal
 function inline _ST_WeaponAmmoType(weapon)
   wi = _ST_EnumIndex(weapon, NUMWEAPONS)
   if wi < 0 then return am_noammo end if
@@ -516,10 +648,7 @@ function inline _ST_WeaponAmmoType(weapon)
   return am_noammo
 end function
 
-/*
-* Function: ST_calcPainOffset
-* Purpose: Maps clamped health to the cached five-tier face-patch row offset.
-*/
+/// Maps clamped health to the cached five-tier face-patch row offset.
 function ST_calcPainOffset()
   global st_lastcalc
   global st_calc_oldhealth
@@ -537,10 +666,7 @@ function ST_calcPainOffset()
   return st_lastcalc
 end function
 
-/*
-* Function: ST_updateFaceWidget
-* Purpose: Runs the prioritized death, grin, damage-direction, rampage, god, and idle face state machine.
-*/
+/// Runs the prioritized death, grin, damage-direction, rampage, god, and idle face state machine.
 function ST_updateFaceWidget()
   global st_facepriority
   global st_facecount
@@ -667,10 +793,8 @@ function ST_updateFaceWidget()
   st_face_ref[0] = st_faceindex
 end function
 
-/*
-* Function: ST_updateWidgets
-* Purpose: Copies current player health/armor/ammo/keys/weapons/frags into widget references and advances face/message state.
-*/
+/// Copies current player health/armor/ammo/keys/weapons/frags into widget references and advances face/message
+/// state.
 function ST_updateWidgets()
   global st_plyr
   st_plyr = _ST_Player()
@@ -746,10 +870,7 @@ function ST_updateWidgets()
   end if
 end function
 
-/*
-* Function: ST_Ticker
-* Purpose: Samples a new random face value, refreshes widget references, and records health once per game tic.
-*/
+/// Samples a new random face value, refreshes widget references, and records health once per game tic.
 function ST_Ticker()
   global st_clock
   global st_randomnumber
@@ -762,10 +883,8 @@ function ST_Ticker()
   if st_plyr is not void then st_oldhealth = _ST_ToInt(st_plyr.health, 0) end if
 end function
 
-/*
-* Function: ST_doPaletteStuff
-* Purpose: Selects damage, bonus, or radiation palette feedback and routes OpenGL flashes separately from indexed palettes.
-*/
+/// Selects damage, bonus, or radiation palette feedback and routes OpenGL flashes separately from indexed
+/// palettes.
 function ST_doPaletteStuff()
   global st_palette
   p = _ST_Player()
@@ -812,10 +931,7 @@ function ST_doPaletteStuff()
   end if
 end function
 
-/*
-* Function: ST_refreshBackground
-* Purpose: Rebuilds the static classic status-bar background, multiplayer faceback, and optional HD overlays.
-*/
+/// Rebuilds the static classic status-bar background, multiplayer faceback, and optional HD overlays.
 function ST_refreshBackground()
   if not _ST_GetRef(st_statusbaron_ref, false) then return end if
   if st_stbar is void then return end if
@@ -835,10 +951,8 @@ function ST_refreshBackground()
   end if
 end function
 
-/*
-* Function: ST_drawWidgets
-* Purpose: Draws enabled ammo, health, armor, arms/frags, face, and key widgets in dependency-safe order.
-*/
+/// Draws enabled ammo, health, armor, arms/frags, face, and key widgets in dependency-safe order.
+/// @param refresh Refresh value supplied to `ST_drawWidgets`.
 function ST_drawWidgets(refresh)
   if not _ST_GetRef(st_statusbaron_ref, false) then return end if
 
@@ -875,10 +989,7 @@ function ST_drawWidgets(refresh)
   STlib_updateNum(w_frags, refresh)
 end function
 
-/*
-* Function: ST_doRefresh
-* Purpose: Clears the first-frame flag, restores the static background, and forces every dynamic widget to redraw.
-*/
+/// Clears the first-frame flag, restores the static background, and forces every dynamic widget to redraw.
 function ST_doRefresh()
   global st_firsttime
   st_firsttime = false
@@ -886,18 +997,12 @@ function ST_doRefresh()
   ST_drawWidgets(true)
 end function
 
-/*
-* Function: ST_diffDraw
-* Purpose: Redraws only widgets whose referenced values changed since the previous frame.
-*/
+/// Redraws only widgets whose referenced values changed since the previous frame.
 function ST_diffDraw()
   ST_drawWidgets(false)
 end function
 
-/*
-* Function: ST_loadGraphics
-* Purpose: Caches and names all number, key, arms, face, faceback, and background patches used by status widgets.
-*/
+/// Caches and names all number, key, arms, face, faceback, and background patches used by status widgets.
 function ST_loadGraphics()
   global st_stbar
   global st_faceback
@@ -964,10 +1069,7 @@ function ST_loadGraphics()
   end while
 end function
 
-/*
-* Function: ST_loadData
-* Purpose: Resolves the PLAYPAL lump and loads the complete status-bar patch set.
-*/
+/// Resolves the PLAYPAL lump and loads the complete status-bar patch set.
 function ST_loadData()
   global lu_palette
   if typeof(W_GetNumForName) == "function" then
@@ -978,10 +1080,7 @@ function ST_loadData()
   ST_loadGraphics()
 end function
 
-/*
-* Function: ST_unloadGraphics
-* Purpose: Drops all status-bar patch references and clears compound arms icon slots.
-*/
+/// Drops all status-bar patch references and clears compound arms icon slots.
 function ST_unloadGraphics()
   global st_stbar
   st_stbar = void
@@ -1006,18 +1105,12 @@ function ST_unloadGraphics()
   end while
 end function
 
-/*
-* Function: ST_unloadData
-* Purpose: Releases status-bar graphics through the module's data-teardown entry point.
-*/
+/// Releases status-bar graphics through the module's data-teardown entry point.
 function ST_unloadData()
   ST_unloadGraphics()
 end function
 
-/*
-* Function: ST_initData
-* Purpose: Resets status/chat/face/palette history and snapshots initial player weapon ownership for a new level.
-*/
+/// Resets status/chat/face/palette history and snapshots initial player weapon ownership for a new level.
 function ST_initData()
   global st_firsttime
   global st_plyr
@@ -1074,10 +1167,8 @@ function ST_initData()
   STlib_init()
 end function
 
-/*
-* Function: ST_createWidgets
-* Purpose: Binds every status-bar widget to its screen coordinates, patch set, value reference, and visibility reference.
-*/
+/// Binds every status-bar widget to its screen coordinates, patch set, value reference, and visibility
+/// reference.
 function ST_createWidgets()
   STlib_initNum(w_ready, ST_AMMOX, ST_AMMOY, st_tallnum, st_ready_ref, st_statusbaron_ref, ST_AMMOWIDTH)
   w_ready.data = 0
@@ -1121,10 +1212,7 @@ function ST_createWidgets()
   STlib_initNum(w_maxammo[3], ST_MAXAMMO3X, ST_MAXAMMO3Y, st_shortnum, st_maxammo_refs[3], st_statusbaron_ref, ST_MAXAMMO3WIDTH)
 end function
 
-/*
-* Function: ST_Start
-* Purpose: Ensures graphics are loaded, resets per-level state, creates widgets, and activates status rendering.
-*/
+/// Ensures graphics are loaded, resets per-level state, creates widgets, and activates status rendering.
 function ST_Start()
   global st_started
   global statusbaractive
@@ -1141,10 +1229,7 @@ function ST_Start()
   statusbaractive = true
 end function
 
-/*
-* Function: ST_Stop
-* Purpose: Restores the base PLAYPAL palette and deactivates status-bar rendering.
-*/
+/// Restores the base PLAYPAL palette and deactivates status-bar rendering.
 function ST_Stop()
   global st_started
   global statusbaractive
@@ -1161,10 +1246,8 @@ function ST_Stop()
   statusbaractive = false
 end function
 
-/*
-* Function: ST_Responder
-* Purpose: Consumes automap enter/exit messages and recognized cheat sequences, including map-warp validation.
-*/
+/// Consumes automap enter/exit messages and recognized cheat sequences, including map-warp validation.
+/// @param ev Input event to process.
 function ST_Responder(ev)
   global st_plyr
   global st_state
@@ -1332,20 +1415,17 @@ function ST_Responder(ev)
   return false
 end function
 
-/*
-* Function: ST_ForceRefresh
-* Purpose: Forces the next status bar draw to rebuild all static and dynamic widgets.
-*/
+/// Forces the next status bar draw to rebuild all static and dynamic widgets.
 function ST_ForceRefresh()
   global st_firsttime
 
   st_firsttime = true
 end function
 
-/*
-* Function: ST_Drawer
-* Purpose: Chooses full or differential status redraw, synchronizes fullscreen/automap visibility, and applies palette feedback.
-*/
+/// Chooses full or differential status redraw, synchronizes fullscreen/automap visibility, and applies palette
+/// feedback.
+/// @param fullscreen Fullscreen value supplied to `ST_Drawer`.
+/// @param refresh Refresh value supplied to `ST_Drawer`.
 function ST_Drawer(fullscreen, refresh)
   global st_firsttime
   if not st_started then return end if
@@ -1367,10 +1447,7 @@ function ST_Drawer(fullscreen, refresh)
   end if
 end function
 
-/*
-* Function: ST_Init
-* Purpose: Loads status resources, allocates the dedicated 320x32 background screen, and requests an initial full draw.
-*/
+/// Loads status resources, allocates the dedicated 320x32 background screen, and requests an initial full draw.
 function ST_Init()
   global st_firsttime
   ST_loadData()

@@ -13,9 +13,10 @@
   See the License for the specific language governing permissions and
   limitations under the License.
 
-  Script: i_gl.ml
-  Purpose: Optional Win32/WGL OpenGL backend helpers.
 */
+
+//! Optional Win32/WGL OpenGL backend helpers.
+
 import m_argv
 import doomdef
 import r_renderer
@@ -24,596 +25,625 @@ import std.math
 import platform_linux
 #endif
 
+/// Defines igl pfd draw to window for the i gl subsystem.
 const IGL_PFD_DRAW_TO_WINDOW = 0x00000004
+/// Defines igl pfd support opengl for the i gl subsystem.
 const IGL_PFD_SUPPORT_OPENGL = 0x00000020
+/// Defines igl pfd doublebuffer for the i gl subsystem.
 const IGL_PFD_DOUBLEBUFFER = 0x00000001
+/// Defines igl pfd type rgba for the i gl subsystem.
 const IGL_PFD_TYPE_RGBA = 0
+/// Defines igl pfd main plane for the i gl subsystem.
 const IGL_PFD_MAIN_PLANE = 0
 
+/// Defines gl depth buffer bit for the i gl subsystem.
 const GL_DEPTH_BUFFER_BIT = 0x00000100
+/// Defines the Doom palette selection for gl color buffer bit.
 const GL_COLOR_BUFFER_BIT = 0x00004000
+/// Defines gl front for the i gl subsystem.
 const GL_FRONT = 0x0404
+/// Defines gl back for the i gl subsystem.
 const GL_BACK = 0x0405
+/// Defines gl lines for the i gl subsystem.
 const GL_LINES = 0x0001
+/// Defines gl triangles for the i gl subsystem.
 const GL_TRIANGLES = 0x0004
+/// Defines gl quads for the i gl subsystem.
 const GL_QUADS = 0x0007
+/// Defines gl polygon for the i gl subsystem.
 const GL_POLYGON = 0x0009
+/// Defines gl depth test for the i gl subsystem.
 const GL_DEPTH_TEST = 0x0B71
+/// Defines gl cull face for the i gl subsystem.
 const GL_CULL_FACE = 0x0B44
+/// Defines gl texture 2 d for the i gl subsystem.
 const GL_TEXTURE_2D = 0x0DE1
+/// Defines gl blend for the i gl subsystem.
 const GL_BLEND = 0x0BE2
+/// Defines gl alpha test for the i gl subsystem.
 const GL_ALPHA_TEST = 0x0BC0
+/// Defines gl one for the i gl subsystem.
 const GL_ONE = 0x0001
+/// Defines gl less for the i gl subsystem.
 const GL_LESS = 0x0201
+/// Defines gl lequal for the i gl subsystem.
 const GL_LEQUAL = 0x0203
+/// Defines gl src alpha for the i gl subsystem.
 const GL_SRC_ALPHA = 0x0302
+/// Defines the minimum gl one minus src alpha accepted by the i gl subsystem.
 const GL_ONE_MINUS_SRC_ALPHA = 0x0303
+/// Defines gl greater for the i gl subsystem.
 const GL_GREATER = 0x0204
+/// Defines gl projection for the i gl subsystem.
 const GL_PROJECTION = 0x1701
+/// Defines gl modelview for the i gl subsystem.
 const GL_MODELVIEW = 0x1700
+/// Defines gl texture for the i gl subsystem.
 const GL_TEXTURE = 0x1702
+/// Defines gl compile for the i gl subsystem.
 const GL_COMPILE = 0x1300
+/// Defines gl rgba for the i gl subsystem.
 const GL_RGBA = 0x1908
+/// Defines gl rgb for the i gl subsystem.
 const GL_RGB = 0x1907
+/// Defines gl int for the i gl subsystem.
 const GL_INT = 0x1404
+/// Defines gl unsigned byte for the i gl subsystem.
 const GL_UNSIGNED_BYTE = 0x1401
+/// Defines gl vertex array for the i gl subsystem.
 const GL_VERTEX_ARRAY = 0x8074
+/// Defines the Doom palette selection for gl color array.
 const GL_COLOR_ARRAY = 0x8076
+/// Defines gl texture coord array for the i gl subsystem.
 const GL_TEXTURE_COORD_ARRAY = 0x8078
+/// Defines gl texture mag filter for the i gl subsystem.
 const GL_TEXTURE_MAG_FILTER = 0x2800
+/// Defines the minimum gl texture min filter accepted by the i gl subsystem.
 const GL_TEXTURE_MIN_FILTER = 0x2801
+/// Defines gl texture wrap s for the i gl subsystem.
 const GL_TEXTURE_WRAP_S = 0x2802
+/// Defines gl texture wrap t for the i gl subsystem.
 const GL_TEXTURE_WRAP_T = 0x2803
+/// Defines gl nearest for the i gl subsystem.
 const GL_NEAREST = 0x2600
+/// Defines gl linear for the i gl subsystem.
 const GL_LINEAR = 0x2601
+/// Defines gl clamp for the i gl subsystem.
 const GL_CLAMP = 0x2900
+/// Defines gl repeat for the i gl subsystem.
 const GL_REPEAT = 0x2901
+/// Defines gl unpack alignment for the i gl subsystem.
 const GL_UNPACK_ALIGNMENT = 0x0CF5
+/// Defines gl pack alignment for the i gl subsystem.
 const GL_PACK_ALIGNMENT = 0x0D05
 
 #if TARGET_OS == "windows"
-/*
- * Function: ChoosePixelFormat
- *
- * Purpose: Asks GDI for the closest window pixel format matching the requested OpenGL framebuffer descriptor.
- */
+/// Asks GDI for the closest window pixel format matching the requested OpenGL framebuffer descriptor.
+/// @param hdc `ptr` value supplied as hdc to `ChoosePixelFormat`.
+/// @param pfd `bytes` value supplied as pfd to `ChoosePixelFormat`.
+/// @returns Result returned by the native `ChoosePixelFormat` binding as `int`.
 
 extern function ChoosePixelFormat(hdc as ptr, pfd as bytes) from "gdi32.dll" symbol "ChoosePixelFormat" returns int
-/*
- * Function: SetPixelFormat
- *
- * Purpose: Installs the selected immutable pixel format on the window device context before WGL context creation.
- */
+/// Installs the selected immutable pixel format on the window device context before WGL context creation.
+/// @param hdc `ptr` value supplied as hdc to `SetPixelFormat`.
+/// @param format `int` value supplied as format to `SetPixelFormat`.
+/// @param pfd `bytes` value supplied as pfd to `SetPixelFormat`.
+/// @returns Result returned by the native `SetPixelFormat` binding as `bool`.
 
 extern function SetPixelFormat(hdc as ptr, format as int, pfd as bytes) from "gdi32.dll" symbol "SetPixelFormat" returns bool
-/*
- * Function: SwapBuffers
- *
- * Purpose: Presents the device context's back buffer to the window after a rendered frame.
- */
+/// Presents the device context's back buffer to the window after a rendered frame.
+/// @param hdc `ptr` value supplied as hdc to `SwapBuffers`.
+/// @returns Result returned by the native `SwapBuffers` binding as `bool`.
 
 extern function SwapBuffers(hdc as ptr) from "gdi32.dll" symbol "SwapBuffers" returns bool
 
-/*
- * Function: wglCreateContext
- *
- * Purpose: Creates a legacy WGL rendering context for the configured window device context.
- */
+/// Creates a legacy WGL rendering context for the configured window device context.
+/// @param hdc `ptr` value supplied as hdc to `wglCreateContext`.
+/// @returns The resulting legacy WGL rendering context for the configured window device context.
 
 extern function wglCreateContext(hdc as ptr) from "opengl32.dll" symbol "wglCreateContext" returns ptr
-/*
- * Function: wglMakeCurrent
- *
- * Purpose: Associates a WGL context with the calling thread and its window device context.
- */
+/// Associates a WGL context with the calling thread and its window device context.
+/// @param hdc `ptr` value supplied as hdc to `wglMakeCurrent`.
+/// @param hglrc `ptr` value supplied as hglrc to `wglMakeCurrent`.
+/// @returns Result returned by the native `wglMakeCurrent` binding as `bool`.
 
 extern function wglMakeCurrent(hdc as ptr, hglrc as ptr) from "opengl32.dll" symbol "wglMakeCurrent" returns bool
-/*
- * Function: wglDeleteContext
- *
- * Purpose: Releases a WGL rendering context after it has been detached from the calling thread.
- */
+/// Releases a WGL rendering context after it has been detached from the calling thread.
+/// @param hglrc `ptr` value supplied as hglrc to `wglDeleteContext`.
+/// @returns Result returned by the native `wglDeleteContext` binding as `bool`.
 
 extern function wglDeleteContext(hglrc as ptr) from "opengl32.dll" symbol "wglDeleteContext" returns bool
 
-/*
- * Function: glViewport
- *
- * Purpose: Maps normalized device coordinates into the requested framebuffer rectangle.
- */
+/// Maps normalized device coordinates into the requested framebuffer rectangle.
+/// @param x Horizontal map- or screen-space coordinate.
+/// @param y Vertical map- or screen-space coordinate.
+/// @param width Width of the target in pixels or map units.
+/// @param height Height of the target in pixels or map units.
 
 extern function glViewport(x as int, y as int, width as int, height as int) from "opengl32.dll" symbol "glViewport" returns void
-/*
- * Function: glClear
- *
- * Purpose: Clears the framebuffer attachments selected by the caller's OpenGL mask.
- */
+/// Clears the framebuffer attachments selected by the caller's OpenGL mask.
+/// @param mask `u32` value supplied as mask to `glClear`.
 
 extern function glClear(mask as u32) from "opengl32.dll" symbol "glClear" returns void
-/*
- * Function: glClearDepth
- *
- * Purpose: Selects the depth value subsequently written by depth-buffer clears.
- */
+/// Selects the depth value subsequently written by depth-buffer clears.
+/// @param depth `double` value supplied as depth to `glClearDepth`.
 
 extern function glClearDepth(depth as double) from "opengl32.dll" symbol "glClearDepth" returns void
-/*
- * Function: glEnable
- *
- * Purpose: Enables one fixed-function OpenGL capability for subsequent draw calls.
- */
+/// Enables one fixed-function OpenGL capability for subsequent draw calls.
+/// @param cap `u32` value supplied as cap to `glEnable`.
 
 extern function glEnable(cap as u32) from "opengl32.dll" symbol "glEnable" returns void
-/*
- * Function: glDisable
- *
- * Purpose: Disables one fixed-function OpenGL capability for subsequent draw calls.
- */
+/// Disables one fixed-function OpenGL capability for subsequent draw calls.
+/// @param cap `u32` value supplied as cap to `glDisable`.
 
 extern function glDisable(cap as u32) from "opengl32.dll" symbol "glDisable" returns void
-/*
- * Function: glDepthMask
- *
- * Purpose: Controls whether rasterized fragments may write to the depth buffer.
- */
+/// Controls whether rasterized fragments may write to the depth buffer.
+/// @param flag `bool` value supplied as flag to `glDepthMask`.
 
 extern function glDepthMask(flag as bool) from "opengl32.dll" symbol "glDepthMask" returns void
-/*
- * Function: glColorMask
- *
- * Purpose: Controls framebuffer writes independently for red, green, blue, and alpha channels.
- */
+/// Controls framebuffer writes independently for red, green, blue, and alpha channels.
+/// @param red `bool` value supplied as red to `glColorMask`.
+/// @param green `bool` value supplied as green to `glColorMask`.
+/// @param blue `bool` value supplied as blue to `glColorMask`.
+/// @param alpha `bool` value supplied as alpha to `glColorMask`.
 
 extern function glColorMask(red as bool, green as bool, blue as bool, alpha as bool) from "opengl32.dll" symbol "glColorMask" returns void
-/*
- * Function: glDepthFunc
- *
- * Purpose: Selects the comparison applied between fragment depth and stored depth.
- */
+/// Selects the comparison applied between fragment depth and stored depth.
+/// @param func `u32` value supplied as func to `glDepthFunc`.
 
 extern function glDepthFunc(func as u32) from "opengl32.dll" symbol "glDepthFunc" returns void
-/*
- * Function: glMatrixMode
- *
- * Purpose: Selects the fixed-function matrix stack modified by following matrix operations.
- */
+/// Selects the fixed-function matrix stack modified by following matrix operations.
+/// @param mode `u32` value supplied as mode to `glMatrixMode`.
 
 extern function glMatrixMode(mode as u32) from "opengl32.dll" symbol "glMatrixMode" returns void
-/*
- * Function: glLoadIdentity
- *
- * Purpose: Replaces the current fixed-function matrix with the identity transform.
- */
+/// Replaces the current fixed-function matrix with the identity transform.
 
 extern function glLoadIdentity() from "opengl32.dll" symbol "glLoadIdentity" returns void
-/*
- * Function: glFrustum
- *
- * Purpose: Multiplies the current matrix by an asymmetric perspective projection frustum.
- */
+/// Multiplies the current matrix by an asymmetric perspective projection frustum.
+/// @param left `double` value supplied as left to `glFrustum`.
+/// @param right `double` value supplied as right to `glFrustum`.
+/// @param bottom `double` value supplied as bottom to `glFrustum`.
+/// @param top `double` value supplied as top to `glFrustum`.
+/// @param zNear `double` value supplied as z near to `glFrustum`.
+/// @param zFar `double` value supplied as z far to `glFrustum`.
 
 extern function glFrustum(left as double, right as double, bottom as double, top as double, zNear as double, zFar as double) from "opengl32.dll" symbol "glFrustum" returns void
-/*
- * Function: glRotated
- *
- * Purpose: Multiplies the current matrix by a double-precision axis-angle rotation.
- */
+/// Multiplies the current matrix by a double-precision axis-angle rotation.
+/// @param angle Doom binary-angle measurement.
+/// @param x Horizontal map- or screen-space coordinate.
+/// @param y Vertical map- or screen-space coordinate.
+/// @param z Vertical world-space coordinate.
 
 extern function glRotated(angle as double, x as double, y as double, z as double) from "opengl32.dll" symbol "glRotated" returns void
-/*
- * Function: glTranslated
- *
- * Purpose: Multiplies the current matrix by a double-precision translation.
- */
+/// Multiplies the current matrix by a double-precision translation.
+/// @param x Horizontal map- or screen-space coordinate.
+/// @param y Vertical map- or screen-space coordinate.
+/// @param z Vertical world-space coordinate.
 
 extern function glTranslated(x as double, y as double, z as double) from "opengl32.dll" symbol "glTranslated" returns void
-/*
- * Function: glScaled
- *
- * Purpose: Multiplies the current matrix by independent double-precision axis scales.
- */
+/// Multiplies the current matrix by independent double-precision axis scales.
+/// @param x Horizontal map- or screen-space coordinate.
+/// @param y Vertical map- or screen-space coordinate.
+/// @param z Vertical world-space coordinate.
 
 extern function glScaled(x as double, y as double, z as double) from "opengl32.dll" symbol "glScaled" returns void
-/*
- * Function: glPushMatrix
- *
- * Purpose: Saves the current transform on the active fixed-function matrix stack.
- */
+/// Saves the current transform on the active fixed-function matrix stack.
 
 extern function glPushMatrix() from "opengl32.dll" symbol "glPushMatrix" returns void
-/*
- * Function: glPopMatrix
- *
- * Purpose: Restores the previous transform from the active fixed-function matrix stack.
- */
+/// Restores the previous transform from the active fixed-function matrix stack.
 
 extern function glPopMatrix() from "opengl32.dll" symbol "glPopMatrix" returns void
-/*
- * Function: glBegin
- *
- * Purpose: Opens an immediate-mode primitive stream with the requested topology.
- */
+/// Opens an immediate-mode primitive stream with the requested topology.
+/// @param mode `u32` value supplied as mode to `glBegin`.
 
 extern function glBegin(mode as u32) from "opengl32.dll" symbol "glBegin" returns void
-/*
- * Function: glEnd
- *
- * Purpose: Closes the active immediate-mode primitive stream and submits its vertices.
- */
+/// Closes the active immediate-mode primitive stream and submits its vertices.
 
 extern function glEnd() from "opengl32.dll" symbol "glEnd" returns void
-/*
- * Function: glGenLists
- *
- * Purpose: Reserves a contiguous range of OpenGL display-list identifiers.
- */
+/// Reserves a contiguous range of OpenGL display-list identifiers.
+/// @param range `int` value supplied as range to `glGenLists`.
+/// @returns Result returned by the native `glGenLists` binding as `u32`.
 
 extern function glGenLists(range as int) from "opengl32.dll" symbol "glGenLists" returns u32
-/*
- * Function: glNewList
- *
- * Purpose: Begins compiling commands into a selected OpenGL display list.
- */
+/// Begins compiling commands into a selected OpenGL display list.
+/// @param list `u32` value supplied as list to `glNewList`.
+/// @param mode `u32` value supplied as mode to `glNewList`.
 
 extern function glNewList(list as u32, mode as u32) from "opengl32.dll" symbol "glNewList" returns void
-/*
- * Function: glEndList
- *
- * Purpose: Finishes compilation of the currently open OpenGL display list.
- */
+/// Finishes compilation of the currently open OpenGL display list.
 
 extern function glEndList() from "opengl32.dll" symbol "glEndList" returns void
-/*
- * Function: glCallList
- *
- * Purpose: Executes the commands compiled under one OpenGL display-list identifier.
- */
+/// Executes the commands compiled under one OpenGL display-list identifier.
+/// @param list `u32` value supplied as list to `glCallList`.
 
 extern function glCallList(list as u32) from "opengl32.dll" symbol "glCallList" returns void
-/*
- * Function: glDeleteLists
- *
- * Purpose: Releases a contiguous range of compiled OpenGL display lists.
- */
+/// Releases a contiguous range of compiled OpenGL display lists.
+/// @param list `u32` value supplied as list to `glDeleteLists`.
+/// @param range `int` value supplied as range to `glDeleteLists`.
 
 extern function glDeleteLists(list as u32, range as int) from "opengl32.dll" symbol "glDeleteLists" returns void
-/*
- * Function: glEnableClientState
- *
- * Purpose: Enables one legacy vertex-array attribute source for subsequent array draws.
- */
+/// Enables one legacy vertex-array attribute source for subsequent array draws.
+/// @param array Array that supplies or receives the operation's values.
 
 extern function glEnableClientState(array as u32) from "opengl32.dll" symbol "glEnableClientState" returns void
-/*
- * Function: glDisableClientState
- *
- * Purpose: Disables one legacy vertex-array attribute source after array drawing.
- */
+/// Disables one legacy vertex-array attribute source after array drawing.
+/// @param array Array that supplies or receives the operation's values.
 
 extern function glDisableClientState(array as u32) from "opengl32.dll" symbol "glDisableClientState" returns void
-/*
- * Function: glVertexPointer
- *
- * Purpose: Describes the component layout and storage of the active position array.
- */
+/// Describes the component layout and storage of the active position array.
+/// @param size Requested size in bytes or elements.
+/// @param typ `u32` value supplied as typ to `glVertexPointer`.
+/// @param stride `int` value supplied as stride to `glVertexPointer`.
+/// @param pointer `bytes` value supplied as pointer to `glVertexPointer`.
 
 extern function glVertexPointer(size as int, typ as u32, stride as int, pointer as bytes) from "opengl32.dll" symbol "glVertexPointer" returns void
-/*
- * Function: glTexCoordPointer
- *
- * Purpose: Describes the component layout and storage of the active texture-coordinate array.
- */
+/// Describes the component layout and storage of the active texture-coordinate array.
+/// @param size Requested size in bytes or elements.
+/// @param typ `u32` value supplied as typ to `glTexCoordPointer`.
+/// @param stride `int` value supplied as stride to `glTexCoordPointer`.
+/// @param pointer `bytes` value supplied as pointer to `glTexCoordPointer`.
 
 extern function glTexCoordPointer(size as int, typ as u32, stride as int, pointer as bytes) from "opengl32.dll" symbol "glTexCoordPointer" returns void
-/*
- * Function: glColorPointer
- *
- * Purpose: Describes the component layout and storage of the active per-vertex color array.
- */
+/// Describes the component layout and storage of the active per-vertex color array.
+/// @param size Requested size in bytes or elements.
+/// @param typ `u32` value supplied as typ to `glColorPointer`.
+/// @param stride `int` value supplied as stride to `glColorPointer`.
+/// @param pointer `bytes` value supplied as pointer to `glColorPointer`.
 
 extern function glColorPointer(size as int, typ as u32, stride as int, pointer as bytes) from "opengl32.dll" symbol "glColorPointer" returns void
-/*
- * Function: glDrawArrays
- *
- * Purpose: Emits a primitive range from the currently enabled legacy client arrays.
- */
+/// Emits a primitive range from the currently enabled legacy client arrays.
+/// @param mode `u32` value supplied as mode to `glDrawArrays`.
+/// @param first `int` value supplied as first to `glDrawArrays`.
+/// @param count Number of elements or iterations to process.
 
 extern function glDrawArrays(mode as u32, first as int, count as int) from "opengl32.dll" symbol "glDrawArrays" returns void
-/*
- * Function: MGL_InitVBO
- *
- * Purpose: Initializes optional MiniDoom OpenGL VBO helper functions for static geometry batches.
- */
+/// Initializes optional MiniDoom OpenGL VBO helper functions for static geometry batches.
+/// @returns Result returned by the native `MGL_InitVBO` binding as `bool`.
 
 extern function MGL_InitVBO() from "MiniDoomGL.dll" symbol "MGL_InitVBO" returns bool
-/*
- * Function: MGL_SetSwapInterval
- *
- * Purpose: Sets the WGL swap interval when the driver exposes wglSwapIntervalEXT.
- */
+/// Sets the WGL swap interval when the driver exposes wglSwapIntervalEXT.
+/// @param interval `int` value supplied as interval to `MGL_SetSwapInterval`.
+/// @returns Result returned by the native `MGL_SetSwapInterval` binding as `bool`.
 
 extern function MGL_SetSwapInterval(interval as int) from "MiniDoomGL.dll" symbol "MGL_SetSwapInterval" returns bool
-/*
- * Function: MGL_TimeMicroseconds
- *
- * Purpose: Reads the native high-resolution monotonic timer used by profiling and frame pacing.
- */
+/// Reads the native high-resolution monotonic timer used by profiling and frame pacing.
+/// @returns The requested the native high-resolution monotonic timer used by profiling and frame pacing.
 
 extern function MGL_TimeMicroseconds() from "MiniDoomGL.dll" symbol "MGL_TimeMicroseconds" returns i64
-/*
- * Function: MGL_FramePace
- *
- * Purpose: Applies a native high-resolution fallback frame limit when VSync is unavailable or disabled.
- */
+/// Applies a native high-resolution fallback frame limit when VSync is unavailable or disabled.
+/// @param targetFps `int` value supplied as target fps to `MGL_FramePace`.
+/// @param leadUs `int` value supplied as lead us to `MGL_FramePace`.
 
 extern function MGL_FramePace(targetFps as int, leadUs as int) from "MiniDoomGL.dll" symbol "MGL_FramePace" returns void
-/*
- * Function: MGL_FramePaceMark
- *
- * Purpose: Marks the actual completion time of a successful presentation as the anchor for the next native pacing deadline.
- */
+/// Marks the actual completion time of a successful presentation as the anchor for the next native pacing
+/// deadline.
 extern function MGL_FramePaceMark() from "MiniDoomGL.dll" symbol "MGL_FramePaceMark" returns void
-/*
- * Function: MGL_RasterColumn8
- *
- * Purpose: Rasterizes one clipped 8-bit software column in native code and rejects malformed buffer ranges.
- */
+/// Rasterizes one clipped 8-bit software column in native code and rejects malformed buffer ranges.
+/// @param dest `bytes` value supplied as dest to `MGL_RasterColumn8`.
+/// @param destBytes `int` value supplied as dest bytes to `MGL_RasterColumn8`.
+/// @param destIndex Index identifying dest.
+/// @param destStride `int` value supplied as dest stride to `MGL_RasterColumn8`.
+/// @param count Number of elements or iterations to process.
+/// @param source Source value or buffer.
+/// @param sourceBytes `int` value supplied as source bytes to `MGL_RasterColumn8`.
+/// @param sourceOffset `int` value supplied as source offset to `MGL_RasterColumn8`.
+/// @param sourceLength `int` value supplied as source length to `MGL_RasterColumn8`.
+/// @param colormap `bytes` value supplied as colormap to `MGL_RasterColumn8`.
+/// @param colormapLength `int` value supplied as colormap length to `MGL_RasterColumn8`.
+/// @param frac `int` value supplied as frac to `MGL_RasterColumn8`.
+/// @param fracStep `int` value supplied as frac step to `MGL_RasterColumn8`.
+/// @param sourceClamp `int` value supplied as source clamp to `MGL_RasterColumn8`.
+/// @returns Result returned by the native `MGL_RasterColumn8` binding as `bool`.
 
 extern function MGL_RasterColumn8(dest as bytes, destBytes as int, destIndex as int, destStride as int, count as int, source as bytes, sourceBytes as int, sourceOffset as int, sourceLength as int, colormap as bytes, colormapLength as int, frac as int, fracStep as int, sourceClamp as int) from "MiniDoomGL.dll" symbol "MGL_RasterColumn8" returns bool
-/*
- * Function: MGL_RasterSpan8
- *
- * Purpose: Rasterizes one clipped 8-bit software floor or ceiling span in native code and rejects malformed buffer ranges.
- */
+/// Rasterizes one clipped 8-bit software floor or ceiling span in native code and rejects malformed buffer
+/// ranges.
+/// @param dest `bytes` value supplied as dest to `MGL_RasterSpan8`.
+/// @param destBytes `int` value supplied as dest bytes to `MGL_RasterSpan8`.
+/// @param destIndex Index identifying dest.
+/// @param count Number of elements or iterations to process.
+/// @param source Source value or buffer.
+/// @param sourceBytes `int` value supplied as source bytes to `MGL_RasterSpan8`.
+/// @param colormap `bytes` value supplied as colormap to `MGL_RasterSpan8`.
+/// @param colormapLength `int` value supplied as colormap length to `MGL_RasterSpan8`.
+/// @param sourceWidth Width of source width in pixels or map units.
+/// @param sourceHeight Height of source height in pixels or map units.
+/// @param xFrac `int` value supplied as x frac to `MGL_RasterSpan8`.
+/// @param yFrac `int` value supplied as y frac to `MGL_RasterSpan8`.
+/// @param xStep `int` value supplied as x step to `MGL_RasterSpan8`.
+/// @param yStep `int` value supplied as y step to `MGL_RasterSpan8`.
+/// @returns Result returned by the native `MGL_RasterSpan8` binding as `bool`.
 
 extern function MGL_RasterSpan8(dest as bytes, destBytes as int, destIndex as int, count as int, source as bytes, sourceBytes as int, colormap as bytes, colormapLength as int, sourceWidth as int, sourceHeight as int, xFrac as int, yFrac as int, xStep as int, yStep as int) from "MiniDoomGL.dll" symbol "MGL_RasterSpan8" returns bool
-/*
- * Function: MGL_ExpandIndexed8
- *
- * Purpose: Expands an indexed software frame through its RGB palette into opaque RGBA bytes in native code.
- */
+/// Expands an indexed software frame through its RGB palette into opaque RGBA bytes in native code.
+/// @param source Source value or buffer.
+/// @param sourceBytes `int` value supplied as source bytes to `MGL_ExpandIndexed8`.
+/// @param dest `bytes` value supplied as dest to `MGL_ExpandIndexed8`.
+/// @param destBytes `int` value supplied as dest bytes to `MGL_ExpandIndexed8`.
+/// @param palette `bytes` value supplied as palette to `MGL_ExpandIndexed8`.
+/// @param paletteBytes `int` value supplied as palette bytes to `MGL_ExpandIndexed8`.
+/// @param pixels `int` value supplied as pixels to `MGL_ExpandIndexed8`.
+/// @returns Result returned by the native `MGL_ExpandIndexed8` binding as `bool`.
 
 extern function MGL_ExpandIndexed8(source as bytes, sourceBytes as int, dest as bytes, destBytes as int, palette as bytes, paletteBytes as int, pixels as int) from "MiniDoomGL.dll" symbol "MGL_ExpandIndexed8" returns bool
-/*
- * Function: MGL_CreateArrayBuffer
- *
- * Purpose: Uploads raw bytes to an OpenGL array buffer through the MiniDoom GL helper.
- */
+/// Uploads raw bytes to an OpenGL array buffer through the MiniDoom GL helper.
+/// @param data Binary or structured data to process.
+/// @param size Requested size in bytes or elements.
+/// @returns Result returned by the native `MGL_CreateArrayBuffer` binding as `u32`.
 
 extern function MGL_CreateArrayBuffer(data as bytes, size as int) from "MiniDoomGL.dll" symbol "MGL_CreateArrayBuffer" returns u32
-/*
- * Function: MGL_CreateInterleavedGeomBuffer
- *
- * Purpose: Uploads MiniDoom fixed-point interleaved geometry as a float OpenGL VBO.
- */
+/// Uploads MiniDoom fixed-point interleaved geometry as a float OpenGL VBO.
+/// @param data Binary or structured data to process.
+/// @param size Requested size in bytes or elements.
+/// @returns Result returned by the native `MGL_CreateInterleavedGeomBuffer` binding as `u32`.
 
 extern function MGL_CreateInterleavedGeomBuffer(data as bytes, size as int) from "MiniDoomGL.dll" symbol "MGL_CreateInterleavedGeomBuffer" returns u32
-/*
- * Function: MGL_DeleteArrayBuffer
- *
- * Purpose: Deletes one OpenGL array buffer created through the MiniDoom GL helper.
- */
+/// Deletes one OpenGL array buffer created through the MiniDoom GL helper.
+/// @param id `u32` value supplied as id to `MGL_DeleteArrayBuffer`.
 
 extern function MGL_DeleteArrayBuffer(id as u32) from "MiniDoomGL.dll" symbol "MGL_DeleteArrayBuffer" returns void
-/*
- * Function: MGL_DrawArrayBatch
- *
- * Purpose: Draws one VBO-backed vertex/texture/color array batch through the MiniDoom GL helper.
- */
+/// Draws one VBO-backed vertex/texture/color array batch through the MiniDoom GL helper.
+/// @param mode `u32` value supplied as mode to `MGL_DrawArrayBatch`.
+/// @param vertexBuffer `u32` value supplied as vertex buffer to `MGL_DrawArrayBatch`.
+/// @param texcoordBuffer `u32` value supplied as texcoord buffer to `MGL_DrawArrayBatch`.
+/// @param colorBuffer `u32` value supplied as color buffer to `MGL_DrawArrayBatch`.
+/// @param count Number of elements or iterations to process.
 
 extern function MGL_DrawArrayBatch(mode as u32, vertexBuffer as u32, texcoordBuffer as u32, colorBuffer as u32, count as int) from "MiniDoomGL.dll" symbol "MGL_DrawArrayBatch" returns void
-/*
- * Function: MGL_DrawInterleavedBatch
- *
- * Purpose: Draws one VBO-backed interleaved vertex/texture/color batch through the MiniDoom GL helper.
- */
+/// Draws one VBO-backed interleaved vertex/texture/color batch through the MiniDoom GL helper.
+/// @param mode `u32` value supplied as mode to `MGL_DrawInterleavedBatch`.
+/// @param buffer Buffer that supplies or receives data.
+/// @param count Number of elements or iterations to process.
 
 extern function MGL_DrawInterleavedBatch(mode as u32, buffer as u32, count as int) from "MiniDoomGL.dll" symbol "MGL_DrawInterleavedBatch" returns void
-/*
- * Function: MGL_DrawVisibleGeomBatches
- *
- * Purpose: Draws and culls a native batch-record buffer in the MiniDoom GL helper.
- */
+/// Draws and culls a native batch-record buffer in the MiniDoom GL helper.
+/// @param mode `u32` value supplied as mode to `MGL_DrawVisibleGeomBatches`.
+/// @param records `bytes` value supplied as records to `MGL_DrawVisibleGeomBatches`.
+/// @param recordCount Number of record to process.
+/// @param viewX Horizontal coordinate or vector component represented by view x.
+/// @param viewY Vertical coordinate or vector component represented by view y.
+/// @param viewYaw `double` value supplied as view yaw to `MGL_DrawVisibleGeomBatches`.
+/// @returns Result returned by the native `MGL_DrawVisibleGeomBatches` binding as `bool`.
 
 extern function MGL_DrawVisibleGeomBatches(mode as u32, records as bytes, recordCount as int, viewX as double, viewY as double, viewYaw as double) from "MiniDoomGL.dll" symbol "MGL_DrawVisibleGeomBatches" returns bool
-/*
- * Function: MGL_DrawDynamicLightSurfaces
- *
- * Purpose: Draws additive dynamic light contribution on cached map geometry.
- */
+/// Draws additive dynamic light contribution on cached map geometry.
+/// @param geomData `bytes` value supplied as geom data to `MGL_DrawDynamicLightSurfaces`.
+/// @param geomSize `int` value supplied as geom size to `MGL_DrawDynamicLightSurfaces`.
+/// @param lightData `bytes` value supplied as light data to `MGL_DrawDynamicLightSurfaces`.
+/// @param lightCount Number of light to process.
+/// @returns Result returned by the native `MGL_DrawDynamicLightSurfaces` binding as `bool`.
 
 extern function MGL_DrawDynamicLightSurfaces(geomData as bytes, geomSize as int, lightData as bytes, lightCount as int) from "MiniDoomGL.dll" symbol "MGL_DrawDynamicLightSurfaces" returns bool
-/*
- * Function: MGL_BeginSpriteBatch
- *
- * Purpose: Opens a native world-sprite stream and copies its frame-local lighting state.
- */
+/// Opens a native world-sprite stream and copies its frame-local lighting state.
+/// @param lightData `bytes` value supplied as light data to `MGL_BeginSpriteBatch`.
+/// @param lightCount Number of light to process.
+/// @param viewX Horizontal coordinate or vector component represented by view x.
+/// @param viewY Vertical coordinate or vector component represented by view y.
+/// @param rightX Horizontal coordinate or vector component represented by right x.
+/// @param rightZ `double` value supplied as right z to `MGL_BeginSpriteBatch`.
+/// @param worldScale `double` value supplied as world scale to `MGL_BeginSpriteBatch`.
+/// @param footLift `double` value supplied as foot lift to `MGL_BeginSpriteBatch`.
+/// @returns Result returned by the native `MGL_BeginSpriteBatch` binding as `bool`.
 
 extern function MGL_BeginSpriteBatch(lightData as bytes, lightCount as int, viewX as double, viewY as double, rightX as double, rightZ as double, worldScale as double, footLift as double) from "MiniDoomGL.dll" symbol "MGL_BeginSpriteBatch" returns bool
-/*
- * Function: MGL_SubmitSprite
- *
- * Purpose: Streams one packed world sprite into the active native batch, including lighting, flip, and fuzz-shadow flags.
- */
+/// Streams one packed world sprite into the active native batch, including lighting, flip, and fuzz-shadow
+/// flags.
+/// @param texid `u32` value supplied as texid to `MGL_SubmitSprite`.
+/// @param flags Bit flags that control the operation.
+/// @param baseLight `int` value supplied as base light to `MGL_SubmitSprite`.
+/// @param fixedX Horizontal coordinate or vector component represented by fixed x.
+/// @param fixedY Vertical coordinate or vector component represented by fixed y.
+/// @param fixedZ `int` value supplied as fixed z to `MGL_SubmitSprite`.
+/// @param width Width of the target in pixels or map units.
+/// @param height Height of the target in pixels or map units.
+/// @param yOffset `int` value supplied as y offset to `MGL_SubmitSprite`.
 extern function MGL_SubmitSprite(texid as u32, flags as int, baseLight as int, fixedX as int, fixedY as int, fixedZ as int, width as int, height as int, yOffset as int) from "MiniDoomGL.dll" symbol "MGL_SubmitSprite" returns void
-/*
- * Function: MGL_DrawSpriteRecords
- *
- * Purpose: Validates and renders a complete packed sprite-record buffer through one native call.
- */
+/// Validates and renders a complete packed sprite-record buffer through one native call.
+/// @param records `bytes` value supplied as records to `MGL_DrawSpriteRecords`.
+/// @param recordsSize `int` value supplied as records size to `MGL_DrawSpriteRecords`.
+/// @param recordCount Number of record to process.
+/// @returns Result returned by the native `MGL_DrawSpriteRecords` binding as `bool`.
 extern function MGL_DrawSpriteRecords(records as bytes, recordsSize as int, recordCount as int) from "MiniDoomGL.dll" symbol "MGL_DrawSpriteRecords" returns bool
-/*
- * Function: MGL_EndSpriteBatch
- *
- * Purpose: Closes the native sprite stream and restores fixed-function state for subsequent renderer passes.
- */
+/// Closes the native sprite stream and restores fixed-function state for subsequent renderer passes.
 extern function MGL_EndSpriteBatch() from "MiniDoomGL.dll" symbol "MGL_EndSpriteBatch" returns void
-/*
- * Function: MGL_GetLastDrawnBatches
- *
- * Purpose: Returns the number of batches drawn by the last native batch-record draw.
- */
+/// Returns the number of batches drawn by the last native batch-record draw.
+/// @returns The number of batches drawn by the last native batch-record draw.
 
 extern function MGL_GetLastDrawnBatches() from "MiniDoomGL.dll" symbol "MGL_GetLastDrawnBatches" returns int
-/*
- * Function: MGL_GetLastDrawnVertices
- *
- * Purpose: Returns the number of vertices drawn by the last native batch-record draw.
- */
+/// Returns the number of vertices drawn by the last native batch-record draw.
+/// @returns The number of vertices drawn by the last native batch-record draw.
 
 extern function MGL_GetLastDrawnVertices() from "MiniDoomGL.dll" symbol "MGL_GetLastDrawnVertices" returns int
-/*
- * Function: MGL_DrawIndexedOverlay
- *
- * Purpose: Converts and draws an indexed overlay with transparency mask in native code.
- */
+/// Converts and draws an indexed overlay with transparency mask in native code.
+/// @param texid `u32` value supplied as texid to `MGL_DrawIndexedOverlay`.
+/// @param data Binary or structured data to process.
+/// @param mask `bytes` value supplied as mask to `MGL_DrawIndexedOverlay`.
+/// @param palette `bytes` value supplied as palette to `MGL_DrawIndexedOverlay`.
+/// @param width Width of the target in pixels or map units.
+/// @param height Height of the target in pixels or map units.
+/// @returns The converted and draws an indexed overlay with transparency mask in native code.
 
 extern function MGL_DrawIndexedOverlay(texid as u32, data as bytes, mask as bytes, palette as bytes, width as int, height as int) from "MiniDoomGL.dll" symbol "MGL_DrawIndexedOverlay" returns bool
-/*
- * Function: MGL_DrawIndexedLogicalOverlay
- *
- * Purpose: Converts the scaled status area plus dirty logical-mask bounds to one minimal native RGBA overlay draw.
- */
+/// Converts the scaled status area plus dirty logical-mask bounds to one minimal native RGBA overlay draw.
+/// @param texid `u32` value supplied as texid to `MGL_DrawIndexedLogicalOverlay`.
+/// @param data Binary or structured data to process.
+/// @param dataSize `int` value supplied as data size to `MGL_DrawIndexedLogicalOverlay`.
+/// @param mask `bytes` value supplied as mask to `MGL_DrawIndexedLogicalOverlay`.
+/// @param maskSize `int` value supplied as mask size to `MGL_DrawIndexedLogicalOverlay`.
+/// @param palette `bytes` value supplied as palette to `MGL_DrawIndexedLogicalOverlay`.
+/// @param logicalW `int` value supplied as logical w to `MGL_DrawIndexedLogicalOverlay`.
+/// @param logicalH `int` value supplied as logical h to `MGL_DrawIndexedLogicalOverlay`.
+/// @param scale `int` value supplied as scale to `MGL_DrawIndexedLogicalOverlay`.
+/// @param statusY Vertical coordinate or vector component represented by status y.
+/// @param minX Horizontal coordinate or vector component represented by min x.
+/// @param minY Vertical coordinate or vector component represented by min y.
+/// @param maxX Horizontal coordinate or vector component represented by max x.
+/// @param maxY Vertical coordinate or vector component represented by max y.
+/// @returns The converted the scaled status area plus dirty logical-mask bounds to one minimal native RGBA overlay draw.
 extern function MGL_DrawIndexedLogicalOverlay(texid as u32, data as bytes, dataSize as int, mask as bytes, maskSize as int, palette as bytes, logicalW as int, logicalH as int, scale as int, statusY as int, minX as int, minY as int, maxX as int, maxY as int) from "MiniDoomGL.dll" symbol "MGL_DrawIndexedLogicalOverlay" returns bool
-/*
- * Function: MGL_DrawIndexedOverlayRect
- *
- * Purpose: Converts and draws only the caller-specified dirty rectangle of a masked indexed overlay.
- */
+/// Converts and draws only the caller-specified dirty rectangle of a masked indexed overlay.
+/// @param texid `u32` value supplied as texid to `MGL_DrawIndexedOverlayRect`.
+/// @param data Binary or structured data to process.
+/// @param dataSize `int` value supplied as data size to `MGL_DrawIndexedOverlayRect`.
+/// @param mask `bytes` value supplied as mask to `MGL_DrawIndexedOverlayRect`.
+/// @param maskSize `int` value supplied as mask size to `MGL_DrawIndexedOverlayRect`.
+/// @param palette `bytes` value supplied as palette to `MGL_DrawIndexedOverlayRect`.
+/// @param width Width of the target in pixels or map units.
+/// @param height Height of the target in pixels or map units.
+/// @param minX Horizontal coordinate or vector component represented by min x.
+/// @param minY Vertical coordinate or vector component represented by min y.
+/// @param maxX Horizontal coordinate or vector component represented by max x.
+/// @param maxY Vertical coordinate or vector component represented by max y.
+/// @returns The converted and draws only the caller-specified dirty rectangle of a masked indexed overlay.
 extern function MGL_DrawIndexedOverlayRect(texid as u32, data as bytes, dataSize as int, mask as bytes, maskSize as int, palette as bytes, width as int, height as int, minX as int, minY as int, maxX as int, maxY as int) from "MiniDoomGL.dll" symbol "MGL_DrawIndexedOverlayRect" returns bool
-/*
- * Function: glVertex3d
- *
- * Purpose: Appends one double-precision position to the active immediate-mode primitive.
- */
+/// Appends one double-precision position to the active immediate-mode primitive.
+/// @param x Horizontal map- or screen-space coordinate.
+/// @param y Vertical map- or screen-space coordinate.
+/// @param z Vertical world-space coordinate.
 
 extern function glVertex3d(x as double, y as double, z as double) from "opengl32.dll" symbol "glVertex3d" returns void
-/*
- * Function: glTexCoord2d
- *
- * Purpose: Sets the texture coordinate attached to following immediate-mode vertices.
- */
+/// Sets the texture coordinate attached to following immediate-mode vertices.
+/// @param s `double` value supplied as s to `glTexCoord2d`.
+/// @param t `double` value supplied as t to `glTexCoord2d`.
 
 extern function glTexCoord2d(s as double, t as double) from "opengl32.dll" symbol "glTexCoord2d" returns void
-/*
- * Function: glColor3ub
- *
- * Purpose: Sets the opaque byte RGB color attached to following vertices.
- */
+/// Sets the opaque byte RGB color attached to following vertices.
+/// @param r `int` value supplied as r to `glColor3ub`.
+/// @param g `int` value supplied as g to `glColor3ub`.
+/// @param b Second input operand.
 
 extern function glColor3ub(r as int, g as int, b as int) from "opengl32.dll" symbol "glColor3ub" returns void
-/*
- * Function: glColor4ub
- *
- * Purpose: Sets the byte RGBA color attached to following vertices.
- */
+/// Sets the byte RGBA color attached to following vertices.
+/// @param r `int` value supplied as r to `glColor4ub`.
+/// @param g `int` value supplied as g to `glColor4ub`.
+/// @param b Second input operand.
+/// @param a First input operand.
 
 extern function glColor4ub(r as int, g as int, b as int, a as int) from "opengl32.dll" symbol "glColor4ub" returns void
-/*
- * Function: glBlendFunc
- *
- * Purpose: Selects source and destination factors for fixed-function color blending.
- */
+/// Selects source and destination factors for fixed-function color blending.
+/// @param sfactor `u32` value supplied as sfactor to `glBlendFunc`.
+/// @param dfactor `u32` value supplied as dfactor to `glBlendFunc`.
 
 extern function glBlendFunc(sfactor as u32, dfactor as u32) from "opengl32.dll" symbol "glBlendFunc" returns void
-/*
- * Function: glAlphaFunc
- *
- * Purpose: Selects the comparison and threshold used by fixed-function alpha testing.
- */
+/// Selects the comparison and threshold used by fixed-function alpha testing.
+/// @param func `u32` value supplied as func to `glAlphaFunc`.
+/// @param ref `double` value supplied as ref to `glAlphaFunc`.
 
 extern function glAlphaFunc(func as u32, ref as double) from "opengl32.dll" symbol "glAlphaFunc" returns void
-/*
- * Function: glGenTextures
- *
- * Purpose: Allocates caller-requested OpenGL texture object identifiers.
- */
+/// Allocates caller-requested OpenGL texture object identifiers.
+/// @param n Number of values to process.
+/// @param textures `bytes` value supplied as textures to `glGenTextures`.
 
 extern function glGenTextures(n as int, textures as bytes) from "opengl32.dll" symbol "glGenTextures" returns void
-/*
- * Function: glBindTexture
- *
- * Purpose: Makes a texture object current for operations on the selected texture target.
- */
+/// Makes a texture object current for operations on the selected texture target.
+/// @param target `u32` value supplied as target to `glBindTexture`.
+/// @param texture `u32` value supplied as texture to `glBindTexture`.
 
 extern function glBindTexture(target as u32, texture as u32) from "opengl32.dll" symbol "glBindTexture" returns void
-/*
- * Function: glTexParameteri
- *
- * Purpose: Sets an integer sampling or wrapping parameter on the current texture target.
- */
+/// Sets an integer sampling or wrapping parameter on the current texture target.
+/// @param target `u32` value supplied as target to `glTexParameteri`.
+/// @param pname `u32` value supplied as pname to `glTexParameteri`.
+/// @param param `int` value supplied as param to `glTexParameteri`.
 
 extern function glTexParameteri(target as u32, pname as u32, param as int) from "opengl32.dll" symbol "glTexParameteri" returns void
-/*
- * Function: glTexImage2D
- *
- * Purpose: Defines one two-dimensional texture image from caller-supplied pixel storage.
- */
+/// Defines one two-dimensional texture image from caller-supplied pixel storage.
+/// @param target `u32` value supplied as target to `glTexImage2D`.
+/// @param level `int` value supplied as level to `glTexImage2D`.
+/// @param internalFormat `int` value supplied as internal format to `glTexImage2D`.
+/// @param width Width of the target in pixels or map units.
+/// @param height Height of the target in pixels or map units.
+/// @param border `int` value supplied as border to `glTexImage2D`.
+/// @param format `u32` value supplied as format to `glTexImage2D`.
+/// @param typ `u32` value supplied as typ to `glTexImage2D`.
+/// @param pixels `bytes` value supplied as pixels to `glTexImage2D`.
 
 extern function glTexImage2D(target as u32, level as int, internalFormat as int, width as int, height as int, border as int, format as u32, typ as u32, pixels as bytes) from "opengl32.dll" symbol "glTexImage2D" returns void
-/*
- * Function: glPixelStorei
- *
- * Purpose: Configures byte-row alignment for texture uploads or framebuffer readback.
- */
+/// Configures byte-row alignment for texture uploads or framebuffer readback.
+/// @param pname `u32` value supplied as pname to `glPixelStorei`.
+/// @param param `int` value supplied as param to `glPixelStorei`.
 
 extern function glPixelStorei(pname as u32, param as int) from "opengl32.dll" symbol "glPixelStorei" returns void
-/*
- * Function: glReadPixels
- *
- * Purpose: Copies a framebuffer rectangle into caller-provided pixel storage with format conversion.
- */
+/// Copies a framebuffer rectangle into caller-provided pixel storage with format conversion.
+/// @param x Horizontal map- or screen-space coordinate.
+/// @param y Vertical map- or screen-space coordinate.
+/// @param width Width of the target in pixels or map units.
+/// @param height Height of the target in pixels or map units.
+/// @param format `u32` value supplied as format to `glReadPixels`.
+/// @param typ `u32` value supplied as typ to `glReadPixels`.
+/// @param pixels `bytes` value supplied as pixels to `glReadPixels`.
 
 extern function glReadPixels(x as int, y as int, width as int, height as int, format as u32, typ as u32, pixels as bytes) from "opengl32.dll" symbol "glReadPixels" returns void
-/*
- * Function: glReadBuffer
- *
- * Purpose: Selects the color buffer used by subsequent framebuffer readback.
- */
+/// Selects the color buffer used by subsequent framebuffer readback.
+/// @param mode `u32` value supplied as mode to `glReadBuffer`.
 
 extern function glReadBuffer(mode as u32) from "opengl32.dll" symbol "glReadBuffer" returns void
 #endif
 
+/// Tracks whether igl enabled is active in the i gl subsystem.
 igl_enabled = false
+/// Tracks whether igl active is active in the i gl subsystem.
 igl_active = false
+/// Tracks whether igl renderer enabled is active in the i gl subsystem.
 igl_renderer_enabled = false
+/// Tracks whether igl frame ready is active in the i gl subsystem.
 igl_frame_ready = false
+/// Holds the optional igl hdc resource used by the i gl subsystem.
 igl_hdc = void
+/// Holds the optional igl hrc resource used by the i gl subsystem.
 igl_hrc = void
+/// Tracks the mutable igl width value used by the i gl subsystem.
 igl_width = 320
+/// Tracks the mutable igl height value used by the i gl subsystem.
 igl_height = 200
+/// Holds the optional igl palette resource used by the i gl subsystem.
 igl_palette = void
+/// Holds the optional igl base palette resource used by the i gl subsystem.
 igl_base_palette = void
+/// Holds the optional igl texture palette resource used by the i gl subsystem.
 igl_texture_palette = void
+/// Tracks the mutable igl palette revision value used by the i gl subsystem.
 igl_palette_revision = 0
+/// Tracks the mutable igl overlay tex value used by the i gl subsystem.
 igl_overlay_tex = 0
+/// Holds the optional igl overlay rgba resource used by the i gl subsystem.
 igl_overlay_rgba = void
+/// Tracks the mutable igl frame tex value used by the i gl subsystem.
 igl_frame_tex = 0
+/// Holds the optional igl frame rgba resource used by the i gl subsystem.
 igl_frame_rgba = void
+/// Tracks the mutable igl flash r value used by the i gl subsystem.
 igl_flash_r = 255
+/// Tracks the mutable igl flash g value used by the i gl subsystem.
 igl_flash_g = 255
+/// Tracks the mutable igl flash b value used by the i gl subsystem.
 igl_flash_b = 255
+/// Tracks the mutable igl flash a value used by the i gl subsystem.
 igl_flash_a = 0
+/// Holds the optional igl capture rgba resource used by the i gl subsystem.
 igl_capture_rgba = void
+/// Stores the igl nearest cache collection used by the i gl subsystem.
 igl_nearest_cache =[]
+/// Tracks whether igl vsync requested is active in the i gl subsystem.
 igl_vsync_requested = true
+/// Tracks whether igl vsync active is active in the i gl subsystem.
 igl_vsync_active = false
+/// Tracks the mutable igl frame limit value used by the i gl subsystem.
 igl_frame_limit = 0
 
-/*
-* Function: IGL_WriteU16
-* Purpose: Encodes the low 16 bits of a value at a byte-buffer offset in little-endian order.
-*/
+/// Encodes the low 16 bits of a value at a byte-buffer offset in little-endian order.
+/// @param buf Buf value supplied to `IGL_WriteU16`.
+/// @param off Zero-based byte or element offset.
+/// @param value Value consumed by the operation.
 function inline IGL_WriteU16(buf, off, value)
   v = value & 0xffff
   buf[off] = v & 255
   buf[off + 1] =(v >> 8) & 255
 end function
 
-/*
-* Function: IGL_WriteU32
-* Purpose: Encodes the low 32 bits of a value at a byte-buffer offset in little-endian order.
-*/
+/// Encodes the low 32 bits of a value at a byte-buffer offset in little-endian order.
+/// @param buf Buf value supplied to `IGL_WriteU32`.
+/// @param off Zero-based byte or element offset.
+/// @param value Value consumed by the operation.
 function inline IGL_WriteU32(buf, off, value)
   v = value
   buf[off] = v & 255
@@ -622,18 +652,14 @@ function inline IGL_WriteU32(buf, off, value)
   buf[off + 3] =(v >> 24) & 255
 end function
 
-/*
-* Function: IGL_ReadU32
-* Purpose: Decodes one unsigned 32-bit little-endian value from a byte buffer offset.
-*/
+/// Decodes one unsigned 32-bit little-endian value from a byte buffer offset.
+/// @param buf Buf value supplied to `IGL_ReadU32`.
+/// @param off Zero-based byte or element offset.
 function inline IGL_ReadU32(buf, off)
   return buf[off] +(buf[off + 1] << 8) +(buf[off + 2] << 16) +(buf[off + 3] << 24)
 end function
 
-/*
-* Function: IGL_WantsOpenGL
-* Purpose: Detects OpenGL command-line aliases, records the corresponding renderer request, and reports the selection.
-*/
+/// Detects OpenGL command-line aliases, records the corresponding renderer request, and reports the selection.
 function IGL_WantsOpenGL()
   if typeof(M_CheckParm) != "function" then return false end if
   want = M_CheckParm("-opengl") != 0 or M_CheckParm("--opengl") != 0 or M_CheckParm("-gl") != 0 or M_CheckParm("--gl") != 0
@@ -645,10 +671,7 @@ function IGL_WantsOpenGL()
   return want
 end function
 
-/*
-* Function: IGL_ConfigureFramePacing
-* Purpose: Enables VSync by default and installs a deterministic fallback limiter when needed.
-*/
+/// Enables VSync by default and installs a deterministic fallback limiter when needed.
 function IGL_ConfigureFramePacing()
   global igl_vsync_requested
   global igl_vsync_active
@@ -679,36 +702,25 @@ function IGL_ConfigureFramePacing()
   end if
 end function
 
-/*
-* Function: IGL_IsActive
-* Purpose: Returns true when the OpenGL renderer is the active drawing path.
-*/
+/// Returns true when the OpenGL renderer is the active drawing path.
 function IGL_IsActive()
   return igl_active and igl_renderer_enabled and R_RendererIsOpenGL()
 end function
 
-/*
-* Function: IGL_IsAvailable
-* Purpose: Returns true when an OpenGL context exists for optional rendering.
-*/
+/// Returns true when an OpenGL context exists for optional rendering.
 function IGL_IsAvailable()
   return igl_active
 end function
 
-/*
-* Function: IGL_MakeCurrent
-* Purpose: Ensures the WGL context is current before issuing OpenGL commands.
-*/
+/// Ensures the WGL context is current before issuing OpenGL commands.
 function IGL_MakeCurrent()
   if not igl_active then return false end if
   if igl_hdc is void or igl_hrc is void then return false end if
   return wglMakeCurrent(igl_hdc, igl_hrc)
 end function
 
-/*
-* Function: IGL_SetRendererEnabled
-* Purpose: Selects whether the OpenGL renderer or the classic CPU renderer is active.
-*/
+/// Selects whether the OpenGL renderer or the classic CPU renderer is active.
+/// @param v Value consumed by the operation.
 function IGL_SetRendererEnabled(v)
   global igl_renderer_enabled
   global igl_frame_ready
@@ -736,19 +748,17 @@ function IGL_SetRendererEnabled(v)
   return igl_renderer_enabled
 end function
 
-/*
-* Function: IGL_ToggleRenderer
-* Purpose: Toggles between the OpenGL and classic renderers when OpenGL is available.
-*/
+/// Toggles between the OpenGL and classic renderers when OpenGL is available.
 function IGL_ToggleRenderer()
   if not igl_active then return false end if
   return IGL_SetRendererEnabled(not igl_renderer_enabled)
 end function
 
-/*
-* Function: IGL_Init
-* Purpose: Initializes init state for the OpenGL backend system.
-*/
+/// Initializes init state for the OpenGL backend system.
+/// @param hwnd Hwnd value supplied to `IGL_Init`.
+/// @param hdc Hdc value supplied to `IGL_Init`.
+/// @param width Width of the target in pixels or map units.
+/// @param height Height of the target in pixels or map units.
 function IGL_Init(hwnd, hdc, width, height)
   global igl_enabled
   global igl_active
@@ -820,10 +830,9 @@ function IGL_Init(hwnd, hdc, width, height)
   return true
 end function
 
-/*
-* Function: IGL_Resize
-* Purpose: Updates cached drawable dimensions and the OpenGL viewport, ignoring invalid or unchanged sizes.
-*/
+/// Updates cached drawable dimensions and the OpenGL viewport, ignoring invalid or unchanged sizes.
+/// @param width Width of the target in pixels or map units.
+/// @param height Height of the target in pixels or map units.
 function IGL_Resize(width, height)
   global igl_width
   global igl_height
@@ -835,10 +844,8 @@ function IGL_Resize(width, height)
   glViewport(0, 0, igl_width, igl_height)
 end function
 
-/*
-* Function: IGL_Begin3D
-* Purpose: Makes the context current, clears the frame, and installs the perspective projection and depth state for world rendering.
-*/
+/// Makes the context current, clears the frame, and installs the perspective projection and depth state for
+/// world rendering.
 function IGL_Begin3D()
   global igl_frame_ready
 
@@ -864,27 +871,19 @@ function IGL_Begin3D()
   return true
 end function
 
-/*
-* Function: IGL_MarkFrameReady
-* Purpose: Records that the active renderer completed a frame eligible for presentation.
-*/
+/// Records that the active renderer completed a frame eligible for presentation.
 function IGL_MarkFrameReady()
   global igl_frame_ready
   if igl_active then igl_frame_ready = true end if
 end function
 
-/*
-* Function: IGL_HasFrameReady
-* Purpose: Reports whether an active OpenGL context currently has an unpresented completed frame.
-*/
+/// Reports whether an active OpenGL context currently has an unpresented completed frame.
 function IGL_HasFrameReady()
   return IGL_IsActive() and igl_frame_ready
 end function
 
-/*
-* Function: IGL_Swap
-* Purpose: Paces a ready frame, presents it through SwapBuffers, marks the real presentation time, and clears readiness only on success.
-*/
+/// Paces a ready frame, presents it through SwapBuffers, marks the real presentation time, and clears readiness
+/// only on success.
 function IGL_Swap()
   global igl_frame_ready
 
@@ -904,10 +903,9 @@ function IGL_Swap()
   return ok
 end function
 
-/*
-* Function: IGL_SetPalette
-* Purpose: Copies a 256-color palette into render and conversion tables, invalidates nearest-color lookup, and bumps its revision.
-*/
+/// Copies a 256-color palette into render and conversion tables, invalidates nearest-color lookup, and bumps
+/// its revision.
+/// @param palette Palette value supplied to `IGL_SetPalette`.
 function IGL_SetPalette(palette)
   global igl_palette
   global igl_base_palette
@@ -923,10 +921,8 @@ function IGL_SetPalette(palette)
   igl_palette_revision = igl_palette_revision + 1
 end function
 
-/*
-* Function: IGL_SetPaletteFlash
-* Purpose: Converts Doom damage, bonus, and radiation palette indices into an RGBA fullscreen tint.
-*/
+/// Converts Doom damage, bonus, and radiation palette indices into an RGBA fullscreen tint.
+/// @param paletteIndex Index identifying palette.
 function IGL_SetPaletteFlash(paletteIndex)
   global igl_flash_r
   global igl_flash_g
@@ -961,10 +957,10 @@ function IGL_SetPaletteFlash(paletteIndex)
   if igl_flash_a > 48 then igl_flash_a = 48 end if
 end function
 
-/*
-* Function: IGL_NearestPaletteIndex
-* Purpose: Finds the closest RGB entry in the active 256-color palette and caches the result by quantized source color.
-*/
+/// Finds the closest RGB entry in the active 256-color palette and caches the result by quantized source color.
+/// @param r R value supplied to `IGL_NearestPaletteIndex`.
+/// @param g G value supplied to `IGL_NearestPaletteIndex`.
+/// @param b Second input operand.
 function IGL_NearestPaletteIndex(r, g, b)
   global igl_nearest_cache
 
@@ -1001,10 +997,11 @@ function IGL_NearestPaletteIndex(r, g, b)
   return best
 end function
 
-/*
-* Function: IGL_CaptureLogicalIndexed
-* Purpose: Reads back the GL framebuffer, downsamples it to logical dimensions, and quantizes each pixel to the nearest base-palette index.
-*/
+/// Reads back the GL framebuffer, downsamples it to logical dimensions, and quantizes each pixel to the nearest
+/// base-palette index.
+/// @param dest Dest value supplied to `IGL_CaptureLogicalIndexed`.
+/// @param logicalW Logical w value supplied to `IGL_CaptureLogicalIndexed`.
+/// @param logicalH Logical h value supplied to `IGL_CaptureLogicalIndexed`.
 function IGL_CaptureLogicalIndexed(dest, logicalW, logicalH)
   global igl_capture_rgba
 
@@ -1043,10 +1040,12 @@ function IGL_CaptureLogicalIndexed(dest, logicalW, logicalH)
   return true
 end function
 
-/*
-* Function: IGL_CaptureRGBA
-* Purpose: Reads the selected GL color buffer, flips its bottom-up rows, and nearest-neighbor resizes RGBA pixels into the destination.
-*/
+/// Reads the selected GL color buffer, flips its bottom-up rows, and nearest-neighbor resizes RGBA pixels into
+/// the destination.
+/// @param dest Dest value supplied to `IGL_CaptureRGBA`.
+/// @param outW Out w value supplied to `IGL_CaptureRGBA`.
+/// @param outH Out h value supplied to `IGL_CaptureRGBA`.
+/// @param front Front value supplied to `IGL_CaptureRGBA`.
 function IGL_CaptureRGBA(dest, outW, outH, front)
   global igl_capture_rgba
 
@@ -1093,10 +1092,12 @@ function IGL_CaptureRGBA(dest, outW, outH, front)
   return true
 end function
 
-/*
-* Function: IGL_CreateIndexedTextureEx
-* Purpose: Creates an indexed OpenGL texture with explicit alpha and wrap handling.
-*/
+/// Creates an indexed OpenGL texture with explicit alpha and wrap handling.
+/// @param data Binary or structured data to process.
+/// @param width Width of the target in pixels or map units.
+/// @param height Height of the target in pixels or map units.
+/// @param transparent Transparent value supplied to `IGL_CreateIndexedTextureEx`.
+/// @param repeatWrap Repeat wrap value supplied to `IGL_CreateIndexedTextureEx`.
 function IGL_CreateIndexedTextureEx(data, width, height, transparent, repeatWrap)
   if not igl_active then return 0 end if
   if typeof(data) != "bytes" then return 0 end if
@@ -1140,10 +1141,11 @@ function IGL_CreateIndexedTextureEx(data, width, height, transparent, repeatWrap
   return texid
 end function
 
-/*
-* Function: IGL_CreateFuzzMaskTexture
-* Purpose: Creates a neutral alpha mask texture for Doom's shadow/fuzz sprites.
-*/
+/// Creates a neutral alpha mask texture for Doom's shadow/fuzz sprites.
+/// @param data Binary or structured data to process.
+/// @param width Width of the target in pixels or map units.
+/// @param height Height of the target in pixels or map units.
+/// @param transparent Transparent value supplied to `IGL_CreateFuzzMaskTexture`.
 function IGL_CreateFuzzMaskTexture(data, width, height, transparent)
   if not igl_active then return 0 end if
   if typeof(data) != "bytes" then return 0 end if
@@ -1193,18 +1195,16 @@ function IGL_CreateFuzzMaskTexture(data, width, height, transparent)
   return texid
 end function
 
-/*
-* Function: IGL_CreateIndexedTexture
-* Purpose: Creates an indexed OpenGL texture using default Doom wall/sprite wrapping.
-*/
+/// Creates an indexed OpenGL texture using default Doom wall/sprite wrapping.
+/// @param data Binary or structured data to process.
+/// @param width Width of the target in pixels or map units.
+/// @param height Height of the target in pixels or map units.
+/// @param transparent Transparent value supplied to `IGL_CreateIndexedTexture`.
 function IGL_CreateIndexedTexture(data, width, height, transparent)
   return IGL_CreateIndexedTextureEx(data, width, height, transparent, not transparent)
 end function
 
-/*
-* Function: IGL_EnsureOverlayTexture
-* Purpose: Lazily allocates the reusable overlay texture and configures nearest filtering plus edge clamping.
-*/
+/// Lazily allocates the reusable overlay texture and configures nearest filtering plus edge clamping.
 function IGL_EnsureOverlayTexture()
   global igl_overlay_tex
 
@@ -1221,10 +1221,8 @@ function IGL_EnsureOverlayTexture()
   return igl_overlay_tex
 end function
 
-/*
-* Function: IGL_EnsureFrameTexture
-* Purpose: Lazily allocates the reusable full-frame texture and configures pixel-exact sampling for software-frame presentation.
-*/
+/// Lazily allocates the reusable full-frame texture and configures pixel-exact sampling for software-frame
+/// presentation.
 function IGL_EnsureFrameTexture()
   global igl_frame_tex
 
@@ -1241,10 +1239,8 @@ function IGL_EnsureFrameTexture()
   return igl_frame_tex
 end function
 
-/*
-* Function: IGL_Begin2D
-* Purpose: Replaces the world matrices with identity clip-space transforms and disables depth testing for screen-aligned overlays.
-*/
+/// Replaces the world matrices with identity clip-space transforms and disables depth testing for
+/// screen-aligned overlays.
 function IGL_Begin2D()
   if not igl_active then return false end if
   glDisable(GL_DEPTH_TEST)
@@ -1259,10 +1255,13 @@ function IGL_Begin2D()
   return true
 end function
 
-/*
-* Function: IGL_DrawTextureRect
-* Purpose: Draws a textured clip-space quad with caller-supplied bounds and resets the vertex color afterward.
-*/
+/// Draws a textured clip-space quad with caller-supplied bounds and resets the vertex color afterward.
+/// @param texid Texid value supplied to `IGL_DrawTextureRect`.
+/// @param x Horizontal map- or screen-space coordinate.
+/// @param y Vertical map- or screen-space coordinate.
+/// @param width Width of the target in pixels or map units.
+/// @param height Height of the target in pixels or map units.
+/// @param flipped Flipped value supplied to `IGL_DrawTextureRect`.
 function IGL_DrawTextureRect(texid, x, y, width, height, flipped)
   if texid <= 0 or not IGL_Begin2D() then return false end if
   if width <= 0 or height <= 0 then return false end if
@@ -1292,10 +1291,11 @@ function IGL_DrawTextureRect(texid, x, y, width, height, flipped)
   return true
 end function
 
-/*
-* Function: IGL_DrawIndexedFrame
-* Purpose: Expands a palette-indexed software frame to RGBA, uploads it to the frame texture, and covers the complete output surface.
-*/
+/// Expands a palette-indexed software frame to RGBA, uploads it to the frame texture, and covers the complete
+/// output surface.
+/// @param data Binary or structured data to process.
+/// @param width Width of the target in pixels or map units.
+/// @param height Height of the target in pixels or map units.
 function IGL_DrawIndexedFrame(data, width, height)
   global igl_frame_rgba
 
@@ -1354,10 +1354,10 @@ function IGL_DrawIndexedFrame(data, width, height)
   return true
 end function
 
-/*
-* Function: IGL_DrawRGBAFrame
-* Purpose: Uploads a validated RGBA frame directly to the reusable frame texture and presents it as a full-screen quad.
-*/
+/// Uploads a validated RGBA frame directly to the reusable frame texture and presents it as a full-screen quad.
+/// @param data Binary or structured data to process.
+/// @param width Width of the target in pixels or map units.
+/// @param height Height of the target in pixels or map units.
 function IGL_DrawRGBAFrame(data, width, height)
   if not igl_active then return false end if
   if not IGL_MakeCurrent() then return false end if
@@ -1395,10 +1395,7 @@ function IGL_DrawRGBAFrame(data, width, height)
   return true
 end function
 
-/*
-* Function: IGL_DrawPaletteFlash
-* Purpose: Blends the active damage, bonus, or radiation palette tint over the finished frame without affecting depth.
-*/
+/// Blends the active damage, bonus, or radiation palette tint over the finished frame without affecting depth.
 function IGL_DrawPaletteFlash()
   if not igl_active then return false end if
   if igl_flash_a <= 0 then return false end if
@@ -1417,10 +1414,12 @@ function IGL_DrawPaletteFlash()
   return true
 end function
 
-/*
-* Function: IGL_DrawIndexedOverlay
-* Purpose: Converts and draws masked indexed HUD pixels through the native dirty-rectangle path, falling back safely when no pixels are visible.
-*/
+/// Converts and draws masked indexed HUD pixels through the native dirty-rectangle path, falling back safely
+/// when no pixels are visible.
+/// @param data Binary or structured data to process.
+/// @param mask Mask value supplied to `IGL_DrawIndexedOverlay`.
+/// @param width Width of the target in pixels or map units.
+/// @param height Height of the target in pixels or map units.
 function IGL_DrawIndexedOverlay(data, mask, width, height)
   if not igl_active then return false end if
   if typeof(data) != "bytes" or typeof(mask) != "bytes" then return false end if
@@ -1437,10 +1436,22 @@ function IGL_DrawIndexedOverlay(data, mask, width, height)
   return MGL_DrawIndexedOverlay(texid, data, mask, overlaypal, width, height)
 end function
 
-/*
-* Function: IGL_DrawIndexedOverlayLayers
-* Purpose: Converts logical HUD pixels and prepared high-resolution patches in native code.
-*/
+/// Converts logical HUD pixels and prepared high-resolution patches in native code.
+/// @param logical Logical value supplied to `IGL_DrawIndexedOverlayLayers`.
+/// @param logicalMask Logical mask value supplied to `IGL_DrawIndexedOverlayLayers`.
+/// @param logicalMinX Horizontal coordinate or vector component represented by logical min x.
+/// @param logicalMinY Vertical coordinate or vector component represented by logical min y.
+/// @param logicalMaxX Horizontal coordinate or vector component represented by logical max x.
+/// @param logicalMaxY Vertical coordinate or vector component represented by logical max y.
+/// @param highres Highres value supplied to `IGL_DrawIndexedOverlayLayers`.
+/// @param highresMask Highres mask value supplied to `IGL_DrawIndexedOverlayLayers`.
+/// @param highresMinX Horizontal coordinate or vector component represented by highres min x.
+/// @param highresMinY Vertical coordinate or vector component represented by highres min y.
+/// @param highresMaxX Horizontal coordinate or vector component represented by highres max x.
+/// @param highresMaxY Vertical coordinate or vector component represented by highres max y.
+/// @param width Width of the target in pixels or map units.
+/// @param height Height of the target in pixels or map units.
+/// @param statusY Vertical coordinate or vector component represented by status y.
 function IGL_DrawIndexedOverlayLayers(logical, logicalMask, logicalMinX, logicalMinY, logicalMaxX, logicalMaxY, highres, highresMask, highresMinX, highresMinY, highresMaxX, highresMaxY, width, height, statusY)
   if not igl_active then return false end if
   if typeof(logical) != "bytes" or typeof(logicalMask) != "bytes" then return false end if
@@ -1465,10 +1476,8 @@ function IGL_DrawIndexedOverlayLayers(logical, logicalMask, logicalMinX, logical
   return drawn
 end function
 
-/*
-* Function: IGL_Shutdown
-* Purpose: Detaches and destroys the WGL context, clears backend handles, and returns renderer selection to classic software mode.
-*/
+/// Detaches and destroys the WGL context, clears backend handles, and returns renderer selection to classic
+/// software mode.
 function IGL_Shutdown()
   global igl_active
   global igl_renderer_enabled

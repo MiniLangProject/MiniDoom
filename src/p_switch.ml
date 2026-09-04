@@ -13,9 +13,10 @@
   See the License for the specific language governing permissions and
   limitations under the License.
 
-  Script: p_switch.ml
-  Purpose: Resolves switch texture pairs, manages timed buttons, and dispatches player-use line specials.
 */
+
+//! Resolves switch texture pairs, manages timed buttons, and dispatches player-use line specials.
+
 import i_system
 import doomdef
 import p_local
@@ -33,13 +34,24 @@ import p_spec
 import m_argv
 import std.math
 
+/// Stores the switchlist collection used by the p switch subsystem.
 switchlist =[]
+/// Tracks the mutable numswitches value used by the p switch subsystem.
 numswitches = 0
+/// Stores the buttonlist collection used by the p switch subsystem.
 buttonlist =[]
+/// Tracks whether psw diag use init is active in the p switch subsystem.
+/// @internal
 _pswDiagUseInit = false
+/// Tracks whether psw diag use is active in the p switch subsystem.
+/// @internal
 _pswDiagUse = false
+/// Tracks the mutable psw diag use count value used by the p switch subsystem.
+/// @internal
 _pswDiagUseCount = 0
 
+/// Stores the alph switch list collection used by the p switch subsystem.
+/// @internal
 _alphSwitchList =[
 switchlist_t("SW1BRCOM", "SW2BRCOM", 1),
 switchlist_t("SW1BRN1", "SW2BRN1", 1),
@@ -87,19 +99,16 @@ switchlist_t("SW1SKULL", "SW2SKULL", 3),
 switchlist_t("", "", 0)
 ]
 
-/*
-* Function: _PSW_IsSeq
-* Purpose: Tests whether an arbitrary value is an indexable array or byte sequence.
-*/
+/// Tests whether an arbitrary value is an indexable array or byte sequence.
+/// @param v Value consumed by the operation.
+/// @internal
 function inline _PSW_IsSeq(v)
   t = typeof(v)
   return t == "array" or t == "list"
 end function
 
-/*
-* Function: _InitButtonList
-* Purpose: Lazily creates the fixed set of reusable timed-button records with inactive timers.
-*/
+/// Lazily creates the fixed set of reusable timed-button records with inactive timers.
+/// @internal
 function _InitButtonList()
   global buttonlist
 
@@ -112,10 +121,9 @@ function _InitButtonList()
   end while
 end function
 
-/*
-* Function: _PSW_Side0
-* Purpose: Resolves a line's front sidedef while rejecting absent or out-of-range side indices.
-*/
+/// Resolves a line's front sidedef while rejecting absent or out-of-range side indices.
+/// @param line Map line or text line affected by the operation.
+/// @internal
 function inline _PSW_Side0(line)
   if line is void then return void end if
   if not _PSW_IsSeq(line.sidenum) or len(line.sidenum) <= 0 then return void end if
@@ -125,10 +133,10 @@ function inline _PSW_Side0(line)
   return sides[sn]
 end function
 
-/*
-* Function: _PSW_StartSound
-* Purpose: Emits a switch sound from a valid positional origin when audio support is available.
-*/
+/// Emits a switch sound from a valid positional origin when audio support is available.
+/// @param origin Origin value supplied to `_PSW_StartSound`.
+/// @param sound Sound value supplied to `_PSW_StartSound`.
+/// @internal
 function inline _PSW_StartSound(origin, sound)
   if origin is void then return end if
   if typeof(S_StartSound) == "function" then
@@ -136,10 +144,8 @@ function inline _PSW_StartSound(origin, sound)
   end if
 end function
 
-/*
-* Function: _PSW_DiagUseEnabled
-* Purpose: Caches whether switch-use diagnostic logging was enabled on the command line.
-*/
+/// Caches whether switch-use diagnostic logging was enabled on the command line.
+/// @internal
 function _PSW_DiagUseEnabled()
   global _pswDiagUseInit
   global _pswDiagUse
@@ -157,10 +163,9 @@ function _PSW_DiagUseEnabled()
   return _pswDiagUse
 end function
 
-/*
-* Function: _PSW_DiagUseLog
-* Purpose: Emits a switch-use diagnostic only when the cached diagnostic option is active.
-*/
+/// Emits a switch-use diagnostic only when the cached diagnostic option is active.
+/// @param msg Msg value supplied to `_PSW_DiagUseLog`.
+/// @internal
 function inline _PSW_DiagUseLog(msg)
   global _pswDiagUseCount
   if not _PSW_DiagUseEnabled() then return end if
@@ -170,10 +175,7 @@ function inline _PSW_DiagUseLog(msg)
   end if
 end function
 
-/*
-* Function: P_InitSwitchList
-* Purpose: Resolves texture pairs allowed by the current game edition and terminates the list with a sentinel.
-*/
+/// Resolves texture pairs allowed by the current game edition and terminates the list with a sentinel.
 function P_InitSwitchList()
   global switchlist
   global numswitches
@@ -210,10 +212,10 @@ function P_InitSwitchList()
   switchlist = switchlist +[-1]
 end function
 
-/*
-* Function: _PSW_Idiv
-* Purpose: Returns a signed quotient truncated toward zero, using zero when the divisor is zero.
-*/
+/// Returns a signed quotient truncated toward zero, using zero when the divisor is zero.
+/// @param a First input operand.
+/// @param b Second input operand.
+/// @internal
 function inline _PSW_Idiv(a, b)
   if b == 0 then return 0 end if
   q = a / b
@@ -221,10 +223,11 @@ function inline _PSW_Idiv(a, b)
   return std.math.ceil(q)
 end function
 
-/*
-* Function: P_StartButton
-* Purpose: Reserves a timer for a reusable switch texture, avoiding duplicate records for the same linedef.
-*/
+/// Reserves a timer for a reusable switch texture, avoiding duplicate records for the same linedef.
+/// @param line Map line or text line affected by the operation.
+/// @param w W value supplied to `P_StartButton`.
+/// @param texture Texture value supplied to `P_StartButton`.
+/// @param time Time value used by the operation.
 function P_StartButton(line, w, texture, time)
   _InitButtonList()
 
@@ -256,10 +259,10 @@ function P_StartButton(line, w, texture, time)
   I_Error("P_StartButton: no button slots left!")
 end function
 
-/*
-* Function: P_ChangeSwitchTexture
-* Purpose: Finds the activated sidedef texture's paired switch image, plays its sound, and optionally schedules restoration.
-*/
+/// Finds the activated sidedef texture's paired switch image, plays its sound, and optionally schedules
+/// restoration.
+/// @param line Map line or text line affected by the operation.
+/// @param useAgain Use again value supplied to `P_ChangeSwitchTexture`.
 function P_ChangeSwitchTexture(line, useAgain)
   if line is void then return end if
 
@@ -318,10 +321,8 @@ function P_ChangeSwitchTexture(line, useAgain)
   end while
 end function
 
-/*
-* Function: P_UpdateButtons
-* Purpose: Counts down reusable switches, restores their original sidedef texture at expiry, and frees their timer records.
-*/
+/// Counts down reusable switches, restores their original sidedef texture at expiry, and frees their timer
+/// records.
 function P_UpdateButtons()
   _InitButtonList()
 
@@ -354,10 +355,11 @@ function P_UpdateButtons()
   end while
 end function
 
-/*
-* Function: P_UseSpecialLine
-* Purpose: Enforces side and monster-use restrictions, dispatches a linedef's manual special, and changes its switch texture on success.
-*/
+/// Enforces side and monster-use restrictions, dispatches a linedef's manual special, and changes its switch
+/// texture on success.
+/// @param thing World object affected by the operation.
+/// @param line Map line or text line affected by the operation.
+/// @param side Map side affected by the operation.
 function P_UseSpecialLine(thing, line, side)
   if line is void then return false end if
 

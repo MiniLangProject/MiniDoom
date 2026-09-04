@@ -13,9 +13,11 @@
   See the License for the specific language governing permissions and
   limitations under the License.
 
-  Script: r_things.ml
-  Purpose: Builds sprite definitions, projects world/player sprites, clips them against drawsegs, and renders masked content.
 */
+
+//! Builds sprite definitions, projects world/player sprites, clips them against drawsegs, and renders masked
+//! content.
+
 import doomdef
 import m_swap
 import i_system
@@ -28,94 +30,153 @@ import r_upscaled
 import r_hires
 import std.math
 
+/// Defines the maximum maxvissprites accepted by the r things subsystem.
 const MAXVISSPRITES = 128
+/// Defines the minimum minz accepted by the r things subsystem.
 const MINZ = 262144
+/// Defines baseycenter for the r things subsystem.
 const BASEYCENTER = 100
+/// Defines rt transparent index for the r things subsystem.
 const RT_TRANSPARENT_INDEX = 255
 
+/// Stores the vissprites collection used by the r things subsystem.
 vissprites =[]
+/// Tracks the mutable vissprite p value used by the r things subsystem.
 vissprite_p = 0
+/// Holds the optional vsprsortedhead resource used by the r things subsystem.
 vsprsortedhead = void
 
+/// Stores the negonearray collection used by the r things subsystem.
 negonearray =[]
+/// Stores the screenheightarray collection used by the r things subsystem.
 screenheightarray =[]
 
+/// Holds the optional mfloorclip resource used by the r things subsystem.
 mfloorclip = void
+/// Holds the optional mceilingclip resource used by the r things subsystem.
 mceilingclip = void
+/// Tracks the mutable spryscale value used by the r things subsystem.
 spryscale = 0
+/// Tracks the mutable sprtopscreen value used by the r things subsystem.
 sprtopscreen = 0
 
+/// Tracks the mutable pspritescale value used by the r things subsystem.
 pspritescale = 0
+/// Tracks the mutable pspriteiscale value used by the r things subsystem.
 pspriteiscale = 0
+/// Holds the optional spritelights resource used by the r things subsystem.
 spritelights = void
 
+/// Stores the rt sorted collection used by the r things subsystem.
+/// @internal
 _rt_sorted =[]
+/// Tracks the mutable rt sorted count value used by the r things subsystem.
+/// @internal
 _rt_sorted_count = 0
+/// Holds the optional rt shadow map resource used by the r things subsystem.
+/// @internal
 _rt_shadowMap = void
+/// Stores the rt colormap cache collection used by the r things subsystem.
+/// @internal
 _rt_colormap_cache =[]
+/// Tracks the mutable rt colormap cache len value used by the r things subsystem.
+/// @internal
 _rt_colormap_cache_len = -1
+/// Holds the optional rt draw translation resource used by the r things subsystem.
+/// @internal
 _rt_drawTranslation = void
+/// Stores the rt clipbot work collection used by the r things subsystem.
+/// @internal
 _rt_clipbot_work =[]
+/// Stores the rt cliptop work collection used by the r things subsystem.
+/// @internal
 _rt_cliptop_work =[]
+/// Tracks whether rt prof enabled is active in the r things subsystem.
+/// @internal
 _rt_prof_enabled = false
+/// Tracks the mutable rt prof things value used by the r things subsystem.
+/// @internal
 _rt_profThings = 0
+/// Tracks the mutable rt prof projected value used by the r things subsystem.
+/// @internal
 _rt_profProjected = 0
+/// Tracks the mutable rt prof rejected value used by the r things subsystem.
+/// @internal
 _rt_profRejected = 0
+/// Tracks the mutable rt prof drawn value used by the r things subsystem.
+/// @internal
 _rt_profDrawn = 0
+/// Tracks the mutable rt rej no thing value used by the r things subsystem.
+/// @internal
 _rt_rejNoThing = 0
+/// Tracks the mutable rt rej no sprites value used by the r things subsystem.
+/// @internal
 _rt_rejNoSprites = 0
+/// Tracks the mutable rt rej bad sprite value used by the r things subsystem.
+/// @internal
 _rt_rejBadSprite = 0
+/// Tracks the mutable rt rej behind value used by the r things subsystem.
+/// @internal
 _rt_rejBehind = 0
+/// Tracks the mutable rt rej side value used by the r things subsystem.
+/// @internal
 _rt_rejSide = 0
+/// Tracks the mutable rt rej bad def value used by the r things subsystem.
+/// @internal
 _rt_rejBadDef = 0
+/// Tracks the mutable rt rej bad frame value used by the r things subsystem.
+/// @internal
 _rt_rejBadFrame = 0
+/// Tracks the mutable rt rej no frame value used by the r things subsystem.
+/// @internal
 _rt_rejNoFrame = 0
+/// Tracks the mutable rt rej bad lump value used by the r things subsystem.
+/// @internal
 _rt_rejBadLump = 0
+/// Tracks the mutable rt rej off right value used by the r things subsystem.
+/// @internal
 _rt_rejOffRight = 0
+/// Tracks the mutable rt rej off left value used by the r things subsystem.
+/// @internal
 _rt_rejOffLeft = 0
+/// Tracks the mutable rt rej no vis value used by the r things subsystem.
+/// @internal
 _rt_rejNoVis = 0
+/// Tracks the mutable rt debug disable sprites value used by the r things subsystem.
+/// @internal
 _rt_debug_disable_sprites = 0
 
-/*
-* Function: R_ThingsProfileSetEnabled
-* Purpose: Enables or disables sprite/render profiling counters in hot paths.
-*/
+/// Enables or disables sprite/render profiling counters in hot paths.
+/// @param on On value supplied to `R_ThingsProfileSetEnabled`.
 function R_ThingsProfileSetEnabled(on)
   global _rt_prof_enabled
   _rt_prof_enabled = on
 end function
 
-/*
-* Function: _RT_ProfThingSeen
-* Purpose: Tracks visited things for renderer profiling when profiling is active.
-*/
+/// Tracks visited things for renderer profiling when profiling is active.
+/// @internal
 function inline _RT_ProfThingSeen()
   global _rt_profThings
   if _rt_prof_enabled then _rt_profThings = _rt_profThings + 1 end if
 end function
 
-/*
-* Function: _RT_ProfProjected
-* Purpose: Tracks successful sprite projections for renderer profiling.
-*/
+/// Tracks successful sprite projections for renderer profiling.
+/// @internal
 function inline _RT_ProfProjected()
   global _rt_profProjected
   if _rt_prof_enabled then _rt_profProjected = _rt_profProjected + 1 end if
 end function
 
-/*
-* Function: _RT_ProfDrawn
-* Purpose: Tracks drawn sprites for renderer profiling.
-*/
+/// Tracks drawn sprites for renderer profiling.
+/// @internal
 function inline _RT_ProfDrawn()
   global _rt_profDrawn
   if _rt_prof_enabled then _rt_profDrawn = _rt_profDrawn + 1 end if
 end function
 
-/*
-* Function: _RT_ProfReject
-* Purpose: Tracks sprite reject categories for renderer profiling.
-*/
+/// Tracks sprite reject categories for renderer profiling.
+/// @param kind Kind value supplied to `_RT_ProfReject`.
+/// @internal
 function inline _RT_ProfReject(kind)
   global _rt_profRejected
   global _rt_rejNoThing
@@ -147,29 +208,26 @@ function inline _RT_ProfReject(kind)
   end if
 end function
 
-/*
-* Function: _makeVisSprite
-* Purpose: Allocates a zeroed visible-sprite record with no linked-list neighbors or colormap.
-*/
+/// Allocates a zeroed visible-sprite record with no linked-list neighbors or colormap.
+/// @internal
 function inline _makeVisSprite()
 
   return vissprite_t(void, void, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, void, 0)
 end function
 
-/*
-* Function: _RT_MakeEmptyFrame
-* Purpose: Creates an unresolved sprite frame with eight missing rotation lumps and unflipped defaults.
-*/
+/// Creates an unresolved sprite frame with eight missing rotation lumps and unflipped defaults.
+/// @internal
 function inline _RT_MakeEmptyFrame()
   lumps = array(8, -1)
   flips = array(8, 0)
   return spriteframe_t(-1, lumps, flips)
 end function
 
-/*
-* Function: _RT_IDiv
-* Purpose: Returns a signed quotient truncated toward zero, or zero for invalid operands and a zero divisor.
-*/
+/// Returns a signed quotient truncated toward zero, or zero for invalid operands and a zero divisor in
+/// `_RT_IDiv`
+/// @param a First input operand.
+/// @param b Second input operand.
+/// @internal
 function inline _RT_IDiv(a, b)
   if typeof(a) != "int" or typeof(b) != "int" or b == 0 then return 0 end if
   q = a / b
@@ -177,30 +235,30 @@ function inline _RT_IDiv(a, b)
   return std.math.ceil(q)
 end function
 
-/*
-* Function: _RT_Abs
-* Purpose: Coerces a numeric value and returns its non-negative integer magnitude.
-*/
+/// Coerces a numeric value and returns its non-negative integer magnitude.
+/// @param v Value consumed by the operation.
+/// @internal
 function inline _RT_Abs(v)
   vi = _RT_ToInt(v, 0)
   if vi < 0 then return - vi end if
   return vi
 end function
 
-/*
-* Function: _RT_Clamp
-* Purpose: Constrains a sprite-rendering scalar to the supplied inclusive bounds.
-*/
+/// Constrains a sprite-rendering scalar to the supplied inclusive bounds.
+/// @param v Value consumed by the operation.
+/// @param lo Inclusive lower bound.
+/// @param hi Inclusive upper bound.
+/// @internal
 function inline _RT_Clamp(v, lo, hi)
   if v < lo then return lo end if
   if v > hi then return hi end if
   return v
 end function
 
-/*
-* Function: _RT_ToInt
-* Purpose: Coerces numeric values to truncation-toward-zero integers and returns fallback on failure.
-*/
+/// Coerces numeric values to truncation-toward-zero integers and returns fallback on failure in `_RT_ToInt`
+/// @param v Value consumed by the operation.
+/// @param fallback Value returned when the requested conversion or lookup is unavailable.
+/// @internal
 function inline _RT_ToInt(v, fallback)
   if typeof(v) == "int" then return v end if
   if typeof(v) == "float" then
@@ -216,10 +274,9 @@ function inline _RT_ToInt(v, fallback)
   return fallback
 end function
 
-/*
-* Function: _RT_S32
-* Purpose: Reinterprets the low 32 bits of a coerced numeric value as a signed coordinate.
-*/
+/// Reinterprets the low 32 bits of a coerced numeric value as a signed coordinate.
+/// @param v Value consumed by the operation.
+/// @internal
 function inline _RT_S32(v)
   vi = _RT_ToInt(v, 0)
   x = vi & 0xFFFFFFFF
@@ -227,28 +284,27 @@ function inline _RT_S32(v)
   return x
 end function
 
-/*
-* Function: _RT_AngNorm
-* Purpose: Normalizes a numeric value to Doom's unsigned 32-bit binary-angle domain.
-*/
+/// Normalizes a numeric value to Doom's unsigned 32-bit binary-angle domain.
+/// @param a First input operand.
+/// @internal
 function inline _RT_AngNorm(a)
   ai = _RT_ToInt(a, 0)
   return ai & 0xFFFFFFFF
 end function
 
-/*
-* Function: _RT_IsSeq
-* Purpose: Recognizes the array and list containers used for sprite definitions, clips, and renderer tables.
-*/
+/// Recognizes the array and list containers used for sprite definitions, clips, and renderer tables.
+/// @param v Value consumed by the operation.
+/// @internal
 function inline _RT_IsSeq(v)
   t = typeof(v)
   return t == "array" or t == "list"
 end function
 
-/*
-* Function: _RT_GetClipValue
-* Purpose: Reads a column clip from a direct sequence or x-biased openings-arena reference.
-*/
+/// Reads a column clip from a direct sequence or x-biased openings-arena reference.
+/// @param clipref Clipref value supplied to `_RT_GetClipValue`.
+/// @param x Horizontal map- or screen-space coordinate.
+/// @param fallback Value returned when the requested conversion or lookup is unavailable.
+/// @internal
 function inline _RT_GetClipValue(clipref, x, fallback)
   if typeof(x) != "int" or x < 0 then return fallback end if
   if _RT_IsSeq(clipref) then
@@ -262,10 +318,10 @@ function inline _RT_GetClipValue(clipref, x, fallback)
   return fallback
 end function
 
-/*
-* Function: _RT_EnumIndex
-* Purpose: Resolves integer, numeric, or enum values to a bounded sprite-table index, returning -1 when invalid.
-*/
+/// Resolves integer, numeric, or enum values to a bounded sprite-table index, returning -1 when invalid.
+/// @param v Value consumed by the operation.
+/// @param limit Limit value supplied to `_RT_EnumIndex`.
+/// @internal
 function inline _RT_EnumIndex(v, limit)
   if typeof(v) == "int" then return v end if
   n = toNumber(v)
@@ -281,10 +337,9 @@ function inline _RT_EnumIndex(v, limit)
   return -1
 end function
 
-/*
-* Function: _RT_SpriteIndex
-* Purpose: Resolves a sprite identifier against the loaded definition count.
-*/
+/// Resolves a sprite identifier against the loaded definition count.
+/// @param v Value consumed by the operation.
+/// @internal
 function inline _RT_SpriteIndex(v)
   max = 0
   if _RT_IsSeq(sprites) then
@@ -295,19 +350,17 @@ function inline _RT_SpriteIndex(v)
   return _RT_EnumIndex(v, max)
 end function
 
-/*
-* Function: _RT_UpperAscii
-* Purpose: Normalizes lowercase ASCII bytes before comparing case-insensitive WAD sprite names.
-*/
+/// Normalizes lowercase ASCII bytes before comparing case-insensitive WAD sprite names.
+/// @param c C value supplied to `_RT_UpperAscii`.
+/// @internal
 function inline _RT_UpperAscii(c)
   if c >= 97 and c <= 122 then return c - 32 end if
   return c
 end function
 
-/*
-* Function: _RT_Name4
-* Purpose: Returns the uppercase four-byte sprite prefix from a name, or an empty string when too short.
-*/
+/// Returns the uppercase four-byte sprite prefix from a name, or an empty string when too short.
+/// @param s S value supplied to `_RT_Name4`.
+/// @internal
 function inline _RT_Name4(s)
   if typeof(s) != "string" then return "" end if
   b = bytes(s)
@@ -321,10 +374,9 @@ function inline _RT_Name4(s)
   return decode(nm4)
 end function
 
-/*
-* Function: _RT_LumpNameAt
-* Purpose: Decodes a validated lump directory entry's zero-terminated eight-byte name.
-*/
+/// Decodes a validated lump directory entry's zero-terminated eight-byte name.
+/// @param lumpnum Index identifying lump.
+/// @internal
 function inline _RT_LumpNameAt(lumpnum)
   if not _RT_IsSeq(lumpinfo) then return "" end if
   if lumpnum < 0 or lumpnum >= len(lumpinfo) then return "" end if
@@ -333,10 +385,12 @@ function inline _RT_LumpNameAt(lumpnum)
   return decodeZ(li.name)
 end function
 
-/*
-* Function: R_InstallSpriteLump
-* Purpose: Retains the classic public hook; sprite-lump installation is performed on explicit frame arrays by the internal builder.
-*/
+/// Retains the classic public hook; sprite-lump installation is performed on explicit frame arrays by the
+/// internal builder.
+/// @param lump Lump value supplied to `R_InstallSpriteLump`.
+/// @param frame Frame value supplied to `R_InstallSpriteLump`.
+/// @param rotation Rotation value supplied to `R_InstallSpriteLump`.
+/// @param flipped Flipped value supplied to `R_InstallSpriteLump`.
 function R_InstallSpriteLump(lump, frame, rotation, flipped)
 
   lump = lump
@@ -345,10 +399,16 @@ function R_InstallSpriteLump(lump, frame, rotation, flipped)
   flipped = flipped
 end function
 
-/*
-* Function: _RT_InstallSpriteLump
-* Purpose: Installs one rot=0 or directional lump into a frame table while rejecting mixed, duplicate, or invalid rotations.
-*/
+/// Installs one rot=0 or directional lump into a frame table while rejecting mixed, duplicate, or invalid
+/// rotations.
+/// @param frames Frames value supplied to `_RT_InstallSpriteLump`.
+/// @param frame Frame value supplied to `_RT_InstallSpriteLump`.
+/// @param rotation Rotation value supplied to `_RT_InstallSpriteLump`.
+/// @param lump Lump value supplied to `_RT_InstallSpriteLump`.
+/// @param flipped Flipped value supplied to `_RT_InstallSpriteLump`.
+/// @param sprname Sprname value supplied to `_RT_InstallSpriteLump`.
+/// @param maxframe Maxframe value supplied to `_RT_InstallSpriteLump`.
+/// @internal
 function _RT_InstallSpriteLump(frames, frame, rotation, lump, flipped, sprname, maxframe)
   if frame < 0 or frame >= 29 or rotation < 0 or rotation > 8 then
     I_Error("R_InstallSpriteLump: bad frame/rotation")
@@ -398,10 +458,10 @@ function _RT_InstallSpriteLump(frames, frame, rotation, lump, flipped, sprname, 
   return maxframe
 end function
 
-/*
-* Function: _RT_BuildSpriteDef
-* Purpose: Scans the sprite lump namespace for a four-letter prefix, installs primary/flip pairs, and validates every frame rotation.
-*/
+/// Scans the sprite lump namespace for a four-letter prefix, installs primary/flip pairs, and validates every
+/// frame rotation.
+/// @param sprname Sprname value supplied to `_RT_BuildSpriteDef`.
+/// @internal
 function _RT_BuildSpriteDef(sprname)
   frames = array(29)
   i = 0
@@ -462,10 +522,8 @@ function _RT_BuildSpriteDef(sprname)
   return spritedef_t(maxframe + 1, framesOut)
 end function
 
-/*
-* Function: R_ClearSprites
-* Purpose: Resets the visible-sprite pool, sorting/clipping workspaces, profiler counters, and sentinel list for a new frame.
-*/
+/// Resets the visible-sprite pool, sorting/clipping workspaces, profiler counters, and sentinel list for a new
+/// frame.
 function R_ClearSprites()
   global vissprites
   global vissprite_p
@@ -546,10 +604,7 @@ function R_ClearSprites()
   end if
 end function
 
-/*
-* Function: R_NewVisSprite
-* Purpose: Reserves the next preallocated visible-sprite record, returning void when MAXVISSPRITES is exhausted.
-*/
+/// Reserves the next preallocated visible-sprite record, returning void when MAXVISSPRITES is exhausted.
 function R_NewVisSprite()
   global vissprite_p
   global vissprites
@@ -559,10 +614,8 @@ function R_NewVisSprite()
   return vis
 end function
 
-/*
-* Function: _RT_RebuildColormapCache
-* Purpose: Builds reusable colormap slices to avoid per-sprite slice allocations.
-*/
+/// Builds reusable colormap slices to avoid per-sprite slice allocations.
+/// @internal
 function _RT_RebuildColormapCache()
   global _rt_colormap_cache
   global _rt_colormap_cache_len
@@ -590,10 +643,9 @@ function _RT_RebuildColormapCache()
   _rt_colormap_cache_len = len(colormaps)
 end function
 
-/*
-* Function: _RT_ColormapAt
-* Purpose: Returns a clamped cached 256-entry COLORMAP slice and rebuilds the cache when its source length changes.
-*/
+/// Returns a clamped cached 256-entry COLORMAP slice and rebuilds the cache when its source length changes.
+/// @param idx Zero-based element or table index.
+/// @internal
 function inline _RT_ColormapAt(idx)
   global _rt_colormap_cache
   global _rt_colormap_cache_len
@@ -607,10 +659,8 @@ function inline _RT_ColormapAt(idx)
   return _rt_colormap_cache[idx]
 end function
 
-/*
-* Function: _RT_ShadowColormap
-* Purpose: Lazily caches the dark level-24 colormap used when fuzz rendering is unavailable.
-*/
+/// Lazily caches the dark level-24 colormap used when fuzz rendering is unavailable.
+/// @internal
 function inline _RT_ShadowColormap()
   global _rt_shadowMap
 
@@ -621,10 +671,9 @@ function inline _RT_ShadowColormap()
   return _rt_shadowMap
 end function
 
-/*
-* Function: _RT_SelectSpriteLights
-* Purpose: Selects and clamps the scale-light row used to shade sprites in the current sector.
-*/
+/// Selects and clamps the scale-light row used to shade sprites in the current sector.
+/// @param lightnum Index identifying light.
+/// @internal
 function inline _RT_SelectSpriteLights(lightnum)
   global spritelights
   if not _RT_IsSeq(scalelight) or len(scalelight) == 0 then
@@ -640,10 +689,11 @@ function inline _RT_SelectSpriteLights(lightnum)
   end if
 end function
 
-/*
-* Function: _RT_DrawMaskedPatchColumn
-* Purpose: Decodes and clips every post in one patch column, dispatches the active column drawer, and restores shared source state.
-*/
+/// Decodes and clips every post in one patch column, dispatches the active column drawer, and restores shared
+/// source state.
+/// @param patch Patch value supplied to `_RT_DrawMaskedPatchColumn`.
+/// @param coloff Coloff value supplied to `_RT_DrawMaskedPatchColumn`.
+/// @internal
 function _RT_DrawMaskedPatchColumn(patch, coloff)
   global colfunc
   global dc_yl
@@ -712,29 +762,26 @@ function _RT_DrawMaskedPatchColumn(patch, coloff)
   dc_sourceclamp = oldSourceClamp
 end function
 
-/*
-* Function: R_DrawMaskedColumn
-* Purpose: Retains the classic public hook; patch-column decoding is handled by _RT_DrawMaskedPatchColumn with explicit bytes and offsets.
-*/
+/// Retains the classic public hook; patch-column decoding is handled by _RT_DrawMaskedPatchColumn with explicit
+/// bytes and offsets.
+/// @param column Column value supplied to `R_DrawMaskedColumn`.
 function R_DrawMaskedColumn(column)
 
   column = column
 end function
 
-/*
-* Function: _RT_TargetBuffer
-* Purpose: Returns the active sprite render target.
-*/
+/// Returns the active sprite render target.
+/// @internal
 function inline _RT_TargetBuffer()
   if typeof(RH_IsActive) == "function" and RH_IsActive() then return RH_Buffer() end if
   if typeof(screens) == "array" and len(screens) > 0 then return screens[0] end if
   return void
 end function
 
-/*
-* Function: _RT_SourceScaleFromEntry
-* Purpose: Resolves the high-resolution source scale for an upscaled sprite entry.
-*/
+/// Resolves the high-resolution source scale for an upscaled sprite entry.
+/// @param entry Entry value supplied to `_RT_SourceScaleFromEntry`.
+/// @param origW Orig w value supplied to `_RT_SourceScaleFromEntry`.
+/// @internal
 function inline _RT_SourceScaleFromEntry(entry, origW)
   if entry is void or typeof(entry.width) != "int" or typeof(origW) != "int" or origW <= 0 then return 1 end if
   s = _RT_IDiv(entry.width, origW)
@@ -743,10 +790,13 @@ function inline _RT_SourceScaleFromEntry(entry, origW)
   return s
 end function
 
-/*
-* Function: _RT_DrawUpscaledLinearSprite
-* Purpose: Draws an upscaled transparent sprite image directly into the active framebuffer.
-*/
+/// Draws an upscaled transparent sprite image directly into the active framebuffer.
+/// @param vis Vis value supplied to `_RT_DrawUpscaledLinearSprite`.
+/// @param entry Entry value supplied to `_RT_DrawUpscaledLinearSprite`.
+/// @param origW Orig w value supplied to `_RT_DrawUpscaledLinearSprite`.
+/// @param x1 Horizontal coordinate of the first endpoint.
+/// @param x2 Horizontal coordinate of the second endpoint.
+/// @internal
 function _RT_DrawUpscaledLinearSprite(vis, entry, origW, x1, x2)
   global dc_translation
 
@@ -828,10 +878,11 @@ function _RT_DrawUpscaledLinearSprite(vis, entry, origW, x1, x2)
   return true
 end function
 
-/*
-* Function: R_DrawVisSprite
-* Purpose: Selects fuzz/translation/base drawing, maps screen columns to patch columns, and renders a clipped visible sprite.
-*/
+/// Selects fuzz/translation/base drawing, maps screen columns to patch columns, and renders a clipped visible
+/// sprite.
+/// @param vis Vis value supplied to `R_DrawVisSprite`.
+/// @param x1 Horizontal coordinate of the first endpoint.
+/// @param x2 Horizontal coordinate of the second endpoint.
 function R_DrawVisSprite(vis, x1, x2)
   global _rt_drawTranslation
   global colfunc
@@ -916,10 +967,9 @@ function R_DrawVisSprite(vis, x1, x2)
   _rt_drawTranslation = void
 end function
 
-/*
-* Function: R_ProjectSprite
-* Purpose: Transforms a world mobj into screen bounds, selects rotation/flip/light, and appends a visible sprite when in view.
-*/
+/// Transforms a world mobj into screen bounds, selects rotation/flip/light, and appends a visible sprite when
+/// in view.
+/// @param thing World object affected by the operation.
 function R_ProjectSprite(thing)
   global viewx
   global viewy
@@ -1078,10 +1128,8 @@ function R_ProjectSprite(thing)
   return true
 end function
 
-/*
-* Function: R_AddSprites
-* Purpose: Projects each non-viewplayer thing in a sector once per validcount using that sector's light row.
-*/
+/// Projects each non-viewplayer thing in a sector once per validcount using that sector's light row.
+/// @param sec Sec value supplied to `R_AddSprites`.
 function R_AddSprites(sec)
   global viewplayer
   if sec is void then return end if
@@ -1109,10 +1157,7 @@ function R_AddSprites(sec)
   end while
 end function
 
-/*
-* Function: R_AddPSprites
-* Purpose: Draws the display player's first-person weapon/flash layers after validating player ownership.
-*/
+/// Draws the display player's first-person weapon/flash layers after validating player ownership.
 function R_AddPSprites()
   if not _RT_IsSeq(players) then return end if
   if displayplayer < 0 or displayplayer >= len(players) then return end if
@@ -1121,10 +1166,8 @@ function R_AddPSprites()
   R_DrawPlayerSprites(player)
 end function
 
-/*
-* Function: R_SortVisSprites
-* Purpose: Copies active visible sprites into reusable storage and insertion-sorts them back-to-front by projection scale.
-*/
+/// Copies active visible sprites into reusable storage and insertion-sorts them back-to-front by projection
+/// scale.
 function R_SortVisSprites()
   global _rt_sorted
   global _rt_sorted_count
@@ -1154,10 +1197,9 @@ function R_SortVisSprites()
   end while
 end function
 
-/*
-* Function: R_DrawSprite
-* Purpose: Builds per-column top/bottom clips from overlapping drawseg silhouettes, draws nearer masked walls, then renders the sprite.
-*/
+/// Builds per-column top/bottom clips from overlapping drawseg silhouettes, draws nearer masked walls, then
+/// renders the sprite.
+/// @param spr Spr value supplied to `R_DrawSprite`.
 function R_DrawSprite(spr)
   if spr is void then return end if
   if spr.x2 < spr.x1 then return end if
@@ -1276,10 +1318,7 @@ function R_DrawSprite(spr)
   R_DrawVisSprite(spr, spr.x1, spr.x2)
 end function
 
-/*
-* Function: R_DrawSprites
-* Purpose: Sorts and renders all projected world sprites unless the sprite debug-disable flag is set.
-*/
+/// Sorts and renders all projected world sprites unless the sprite debug-disable flag is set.
 function R_DrawSprites()
   global _rt_debug_disable_sprites
   if _rt_debug_disable_sprites != 0 then
@@ -1294,10 +1333,8 @@ function R_DrawSprites()
   end while
 end function
 
-/*
-* Function: R_InitSprites
-* Purpose: Sizes sprite clip sentinels and builds every named sprite definition from the WAD sprite-lump range.
-*/
+/// Sizes sprite clip sentinels and builds every named sprite definition from the WAD sprite-lump range.
+/// @param namelist Namelist value supplied to `R_InitSprites`.
 function R_InitSprites(namelist)
   global numsprites
   global sprites
@@ -1340,18 +1377,16 @@ function R_InitSprites(namelist)
   end if
 end function
 
-/*
-* Function: R_InitSpriteDefs
-* Purpose: Compatibility entry point that rebuilds sprite definitions and clip arrays from a name list.
-*/
+/// Compatibility entry point that rebuilds sprite definitions and clip arrays from a name list.
+/// @param namelist Namelist value supplied to `R_InitSpriteDefs`.
 function R_InitSpriteDefs(namelist)
   R_InitSprites(namelist)
 end function
 
-/*
-* Function: R_DrawPSprite
-* Purpose: Projects one weapon/flash state in screen space, selects invisibility or lighting colormap, and draws its patch.
-*/
+/// Projects one weapon/flash state in screen space, selects invisibility or lighting colormap, and draws its
+/// patch.
+/// @param player Player state affected by the operation.
+/// @param psp Psp value supplied to `R_DrawPSprite`.
 function R_DrawPSprite(player, psp)
   if player is void or psp is void or psp.state is void then return end if
   if not _RT_IsSeq(sprites) then return end if
@@ -1428,10 +1463,9 @@ function R_DrawPSprite(player, psp)
   R_DrawVisSprite(vis, vis.x1, vis.x2)
 end function
 
-/*
-* Function: R_DrawPlayerSprites
-* Purpose: Selects the player's sector lighting, disables world clipping, and draws each active first-person sprite layer.
-*/
+/// Selects the player's sector lighting, disables world clipping, and draws each active first-person sprite
+/// layer.
+/// @param player Player state affected by the operation.
 function R_DrawPlayerSprites(player)
   global mfloorclip
   global mceilingclip
@@ -1459,10 +1493,10 @@ function R_DrawPlayerSprites(player)
   end while
 end function
 
-/*
-* Function: R_ClipVisSprite
-* Purpose: Retains the classic clipping hook; drawseg silhouette clipping is integrated into R_DrawSprite.
-*/
+/// Retains the classic clipping hook; drawseg silhouette clipping is integrated into R_DrawSprite.
+/// @param vis Vis value supplied to `R_ClipVisSprite`.
+/// @param xl Xl value supplied to `R_ClipVisSprite`.
+/// @param xh Xh value supplied to `R_ClipVisSprite`.
 function R_ClipVisSprite(vis, xl, xh)
   vis = vis
   xl = xl
@@ -1470,10 +1504,8 @@ function R_ClipVisSprite(vis, xl, xh)
 
 end function
 
-/*
-* Function: R_DrawMasked
-* Purpose: Draws sorted world sprites, remaining masked wall ranges, and first-person sprites in final masked-pass order.
-*/
+/// Draws sorted world sprites, remaining masked wall ranges, and first-person sprites in final masked-pass
+/// order.
 function R_DrawMasked()
   R_DrawSprites()
 

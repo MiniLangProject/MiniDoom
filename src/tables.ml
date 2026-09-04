@@ -13,39 +13,55 @@
   See the License for the specific language governing permissions and
   limitations under the License.
 
-  Script: tables.ml
-  Purpose: Provides precomputed lookup tables used by fixed-point math and rendering.
 */
+
+//! Provides precomputed lookup tables used by fixed-point math and rendering.
+
 import m_fixed
 import std.math
 import tables
 
+/// Defines pi for the tables subsystem.
 const PI = 3.141592657
 
+/// Defines fineangles for the tables subsystem.
 const FINEANGLES = 8192
+/// Defines finemask for the tables subsystem.
 const FINEMASK = FINEANGLES - 1
 
+/// Defines angletofineshift for the tables subsystem.
 const ANGLETOFINESHIFT = 19
 
+/// Holds the optional finesine resource used by the tables subsystem.
 finesine = void
+/// Holds the optional finecosine resource used by the tables subsystem.
 finecosine = void
+/// Holds the optional finetangent resource used by the tables subsystem.
 finetangent = void
 
+/// Holds the optional tantoangle resource used by the tables subsystem.
 tantoangle = void
 
+/// Defines ang45 for the tables subsystem.
 const ANG45 = 0x20000000
+/// Defines ang90 for the tables subsystem.
 const ANG90 = 0x40000000
+/// Defines ang180 for the tables subsystem.
 const ANG180 = 0x80000000
+/// Defines ang270 for the tables subsystem.
 const ANG270 = 0xC0000000
 
+/// Defines sloperange for the tables subsystem.
 const SLOPERANGE = 2048
+/// Defines slopebits for the tables subsystem.
 const SLOPEBITS = 11
+/// Defines dbits for the tables subsystem.
 const DBITS = 5
 
-/*
-* Function: SlopeDiv
-* Purpose: Maps an unsigned rise/run ratio into Doom's bounded slope-table index without overflowing the numerator shift.
-*/
+/// Maps an unsigned rise/run ratio into Doom's bounded slope-table index without overflowing the numerator
+/// shift.
+/// @param num Index identifying the requested item.
+/// @param den Den value supplied to `SlopeDiv`.
 function SlopeDiv(num, den)
 
   num = num & 0xFFFFFFFF
@@ -74,10 +90,9 @@ function SlopeDiv(num, den)
   return SLOPERANGE
 end function
 
-/*
-* Function: _TB_Trunc
-* Purpose: Truncates a numeric value toward zero for deterministic lookup-table generation.
-*/
+/// Truncates a numeric value toward zero for deterministic lookup-table generation.
+/// @param v Value consumed by the operation.
+/// @internal
 function inline _TB_Trunc(v)
   if v >= 0 then
     return std.math.floor(v)
@@ -85,10 +100,8 @@ function inline _TB_Trunc(v)
   return std.math.ceil(v)
 end function
 
-/*
-* Function: Tables_Init
-* Purpose: Lazily generates the fixed-point sine, cosine, tangent, and slope-to-angle lookup tables at their canonical Doom sizes.
-*/
+/// Lazily generates the fixed-point sine, cosine, tangent, and slope-to-angle lookup tables at their canonical
+/// Doom sizes.
 function Tables_Init()
   global finesine
   global finecosine

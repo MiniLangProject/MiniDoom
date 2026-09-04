@@ -13,9 +13,11 @@
   See the License for the specific language governing permissions and
   limitations under the License.
 
-  Script: p_spec.ml
-  Purpose: Defines and updates sector/line specials, animated surfaces, buttons, movers, environmental damage, and tag searches.
 */
+
+//! Defines and updates sector/line specials, animated surfaces, buttons, movers, environmental damage, and tag
+//! searches.
+
 import doomdef
 import doomstat
 import i_system
@@ -35,306 +37,400 @@ import sounds
 import p_telept
 import std.math
 
+/// Tracks whether level timer is active in the p spec subsystem.
 levelTimer = false
+/// Tracks the mutable level time count value used by the p spec subsystem.
 levelTimeCount = 0
+/// Tracks the mutable p picanim revision value used by the p spec subsystem.
 p_picanim_revision = 0
 
+/// Defines mo teleportman for the p spec subsystem.
 const MO_TELEPORTMAN = 14
 
-/*
-* Struct: fireflicker_t
-* Purpose: Couples a thinker and sector with countdown and min/max light levels for randomized fire flicker.
-*/
+/// Couples a thinker and sector with countdown and min/max light levels for randomized fire flicker.
 struct fireflicker_t
+  /// Stores thinker for `fireflicker_t`
   thinker
+  /// Stores sector for `fireflicker_t`
   sector
+  /// Number of associated items stored by `fireflicker_t`
   count
+  /// Stores maxlight for `fireflicker_t`
   maxlight
+  /// Stores minlight for `fireflicker_t`
   minlight
 end struct
 
-/*
-* Struct: lightflash_t
-* Purpose: Tracks randomized bright/dark sector flashes, including current delay and each phase's maximum duration.
-*/
+/// Tracks randomized bright/dark sector flashes, including current delay and each phase's maximum duration.
 struct lightflash_t
+  /// Stores thinker for `lightflash_t`
   thinker
+  /// Stores sector for `lightflash_t`
   sector
+  /// Number of associated items stored by `lightflash_t`
   count
+  /// Stores maxlight for `lightflash_t`
   maxlight
+  /// Stores minlight for `lightflash_t`
   minlight
+  /// Stores maxtime for `lightflash_t`
   maxtime
+  /// Stores mintime for `lightflash_t`
   mintime
 end struct
 
-/*
-* Struct: strobe_t
-* Purpose: Tracks a sector's alternating bright/dark levels and independent phase durations.
-*/
+/// Tracks a sector's alternating bright/dark levels and independent phase durations.
 struct strobe_t
+  /// Stores thinker for `strobe_t`
   thinker
+  /// Stores sector for `strobe_t`
   sector
+  /// Number of associated items stored by `strobe_t`
   count
+  /// Stores minlight for `strobe_t`
   minlight
+  /// Stores maxlight for `strobe_t`
   maxlight
+  /// Stores darktime for `strobe_t`
   darktime
+  /// Stores brighttime for `strobe_t`
   brighttime
 end struct
 
-/*
-* Struct: glow_t
-* Purpose: Tracks a sector's smooth light oscillation between min/max levels and its current direction.
-*/
+/// Tracks a sector's smooth light oscillation between min/max levels and its current direction.
 struct glow_t
+  /// Stores thinker for `glow_t`
   thinker
+  /// Stores sector for `glow_t`
   sector
+  /// Stores minlight for `glow_t`
   minlight
+  /// Stores maxlight for `glow_t`
   maxlight
+  /// Stores direction for `glow_t`
   direction
 end struct
 
+/// Defines glowspeed for the p spec subsystem.
 const GLOWSPEED = 8
+/// Defines strobebright for the p spec subsystem.
 const STROBEBRIGHT = 5
+/// Defines fastdark for the p spec subsystem.
 const FASTDARK = 15
+/// Defines slowdark for the p spec subsystem.
 const SLOWDARK = 35
 
-/*
-* Struct: switchlist_t
-* Purpose: Pairs the two texture names that toggle when a wall switch is activated.
-*/
+/// Pairs the two texture names that toggle when a wall switch is activated.
 struct switchlist_t
+  /// Stores name1 for `switchlist_t`
   name1
+  /// Stores name2 for `switchlist_t`
   name2
+  /// Stores episode for `switchlist_t`
   episode
 end struct
 
-/*
-* Enum: bwhere_e
-* Purpose: Identifies which top, middle, or bottom sidedef texture a timed button temporarily replaces.
-*/
+/// Identifies which top, middle, or bottom sidedef texture a timed button temporarily replaces.
 enum bwhere_e
+  /// Represents top in `bwhere_e`
   top
+  /// Represents middle in `bwhere_e`
   middle
+  /// Represents bottom in `bwhere_e`
   bottom
 end enum
 
-/*
-* Struct: button_t
-* Purpose: Records a pressed switch's line, texture slot/original texture, reset timer, and sound origin.
-*/
+/// Records a pressed switch's line, texture slot/original texture, reset timer, and sound origin.
 struct button_t
+  /// Stores line for `button_t`
   line
+  /// Stores where for `button_t`
   where
+  /// Stores btexture for `button_t`
   btexture
+  /// Stores btimer for `button_t`
   btimer
+  /// Stores soundorg for `button_t`
   soundorg
 end struct
 
+/// Defines the maximum maxswitches accepted by the p spec subsystem.
 const MAXSWITCHES = 50
+/// Defines the maximum maxbuttons accepted by the p spec subsystem.
 const MAXBUTTONS = 16
+/// Defines buttontime for the p spec subsystem.
 const BUTTONTIME = 35
 
-/*
-* Enum: plat_e
-* Purpose: Names the moving, waiting, and suspended phases of a platform thinker.
-*/
+/// Names the moving, waiting, and suspended phases of a platform thinker.
 enum plat_e
+  /// Represents up in `plat_e`
   up
+  /// Represents down in `plat_e`
   down
+  /// Represents waiting in `plat_e`
   waiting
+  /// Represents in stasis in `plat_e`
   in_stasis
 end enum
 
-/*
-* Enum: plattype_e
-* Purpose: Selects the platform motion program used for perpetual, one-shot, blaze, raise, or lower actions.
-*/
+/// Selects the platform motion program used for perpetual, one-shot, blaze, raise, or lower actions.
 enum plattype_e
+  /// Represents perpetual raise in `plattype_e`
   perpetualRaise
+  /// Represents down wait up stay in `plattype_e`
   downWaitUpStay
+  /// Represents raise and change in `plattype_e`
   raiseAndChange
+  /// Represents raise to nearest and change in `plattype_e`
   raiseToNearestAndChange
+  /// Represents blaze dwus in `plattype_e`
   blazeDWUS
 end enum
 
-/*
-* Struct: plat_t
-* Purpose: Holds a platform thinker's sector, bounds, speed, wait/count state, crush policy, tag, and motion program.
-*/
+/// Holds a platform thinker's sector, bounds, speed, wait/count state, crush policy, tag, and motion program.
 struct plat_t
+  /// Stores thinker for `plat_t`
   thinker
+  /// Stores sector for `plat_t`
   sector
+  /// Stores speed for `plat_t`
   speed
+  /// Stores low for `plat_t`
   low
+  /// Stores high for `plat_t`
   high
+  /// Stores wait for `plat_t`
   wait
+  /// Number of associated items stored by `plat_t`
   count
+  /// Stores status for `plat_t`
   status
+  /// Stores oldstatus for `plat_t`
   oldstatus
+  /// Stores crush for `plat_t`
   crush
+  /// Stores tag for `plat_t`
   tag
+  /// Kind discriminator for this record stored by `plat_t`
   type
 end struct
 
+/// Defines platwait for the p spec subsystem.
 const PLATWAIT = 3
+/// Defines platspeed for the p spec subsystem.
 const PLATSPEED = 65536
+/// Defines the maximum maxplats accepted by the p spec subsystem.
 const MAXPLATS = 30
 
-/*
-* Enum: vldoor_e
-* Purpose: Selects a vertical door program such as normal open/wait/close, delayed close/open, or fast variants.
-*/
+/// Selects a vertical door program such as normal open/wait/close, delayed close/open, or fast variants.
 enum vldoor_e
+  /// Represents normal in `vldoor_e`
   normal
+  /// Represents close30 then open in `vldoor_e`
   close30ThenOpen
+  /// Represents close in `vldoor_e`
   close
+  /// Represents open in `vldoor_e`
   open
+  /// Represents raise in5 mins in `vldoor_e`
   raiseIn5Mins
+  /// Represents blaze raise in `vldoor_e`
   blazeRaise
+  /// Represents blaze open in `vldoor_e`
   blazeOpen
+  /// Represents blaze close in `vldoor_e`
   blazeClose
 end enum
 
-/*
-* Struct: vldoor_t
-* Purpose: Holds a vertical door's sector, target height, speed, direction, wait counters, and selected motion program.
-*/
+/// Holds a vertical door's sector, target height, speed, direction, wait counters, and selected motion program.
 struct vldoor_t
+  /// Stores thinker for `vldoor_t`
   thinker
+  /// Kind discriminator for this record stored by `vldoor_t`
   type
+  /// Stores sector for `vldoor_t`
   sector
+  /// Stores topheight for `vldoor_t`
   topheight
+  /// Stores speed for `vldoor_t`
   speed
+  /// Stores direction for `vldoor_t`
   direction
+  /// Stores topwait for `vldoor_t`
   topwait
+  /// Stores topcountdown for `vldoor_t`
   topcountdown
 end struct
 
+/// Defines vdoorspeed for the p spec subsystem.
 const VDOORSPEED = 131072
+/// Defines vdoorwait for the p spec subsystem.
 const VDOORWAIT = 150
 
-/*
-* Enum: ceiling_e
-* Purpose: Selects crushing, lowering, raising, or silent ceiling movement behavior.
-*/
+/// Selects crushing, lowering, raising, or silent ceiling movement behavior.
 enum ceiling_e
+  /// Represents lower to floor in `ceiling_e`
   lowerToFloor
+  /// Represents raise to highest in `ceiling_e`
   raiseToHighest
+  /// Represents lower and crush in `ceiling_e`
   lowerAndCrush
+  /// Represents crush and raise in `ceiling_e`
   crushAndRaise
+  /// Represents fast crush and raise in `ceiling_e`
   fastCrushAndRaise
+  /// Represents silent crush and raise in `ceiling_e`
   silentCrushAndRaise
 end enum
 
-/*
-* Struct: ceiling_t
-* Purpose: Holds an active ceiling's sector, movement bounds/speed/direction, crush policy, tag, and suspended direction.
-*/
+/// Holds an active ceiling's sector, movement bounds/speed/direction, crush policy, tag, and suspended
+/// direction.
 struct ceiling_t
+  /// Stores thinker for `ceiling_t`
   thinker
+  /// Kind discriminator for this record stored by `ceiling_t`
   type
+  /// Stores sector for `ceiling_t`
   sector
+  /// Stores bottomheight for `ceiling_t`
   bottomheight
+  /// Stores topheight for `ceiling_t`
   topheight
+  /// Stores speed for `ceiling_t`
   speed
+  /// Stores crush for `ceiling_t`
   crush
+  /// Stores direction for `ceiling_t`
   direction
+  /// Stores tag for `ceiling_t`
   tag
+  /// Stores olddirection for `ceiling_t`
   olddirection
 end struct
 
+/// Defines ceilspeed for the p spec subsystem.
 const CEILSPEED = 65536
+/// Defines ceilwait for the p spec subsystem.
 const CEILWAIT = 150
+/// Defines the maximum maxceilings accepted by the p spec subsystem.
 const MAXCEILINGS = 30
 
-/*
-* Enum: floor_e
-* Purpose: Selects a floor motion target and any texture/special transfer performed on arrival.
-*/
+/// Selects a floor motion target and any texture/special transfer performed on arrival.
 enum floor_e
+  /// Represents lower floor in `floor_e`
   lowerFloor
+  /// Represents lower floor to lowest in `floor_e`
   lowerFloorToLowest
+  /// Represents turbo lower in `floor_e`
   turboLower
+  /// Represents raise floor in `floor_e`
   raiseFloor
+  /// Represents raise floor to nearest in `floor_e`
   raiseFloorToNearest
+  /// Represents raise to texture in `floor_e`
   raiseToTexture
+  /// Represents lower and change in `floor_e`
   lowerAndChange
+  /// Represents raise floor24 in `floor_e`
   raiseFloor24
+  /// Represents raise floor24 and change in `floor_e`
   raiseFloor24AndChange
+  /// Represents raise floor crush in `floor_e`
   raiseFloorCrush
+  /// Represents raise floor turbo in `floor_e`
   raiseFloorTurbo
+  /// Represents donut raise in `floor_e`
   donutRaise
+  /// Represents raise floor512 in `floor_e`
   raiseFloor512
 end enum
 
-/*
-* Enum: stair_e
-* Purpose: Selects the standard 8-unit or turbo 16-unit staircase build profile.
-*/
+/// Selects the standard 8-unit or turbo 16-unit staircase build profile.
 enum stair_e
+  /// Represents build8 in `stair_e`
   build8
+  /// Represents turbo16 in `stair_e`
   turbo16
 end enum
 
-/*
-* Struct: floormove_t
-* Purpose: Holds a floor thinker's sector, direction, destination, speed, crush flag, and post-move texture/special values.
-*/
+/// Holds a floor thinker's sector, direction, destination, speed, crush flag, and post-move texture/special
+/// values.
 struct floormove_t
+  /// Stores thinker for `floormove_t`
   thinker
+  /// Kind discriminator for this record stored by `floormove_t`
   type
+  /// Stores crush for `floormove_t`
   crush
+  /// Stores sector for `floormove_t`
   sector
+  /// Stores direction for `floormove_t`
   direction
+  /// Stores newspecial for `floormove_t`
   newspecial
+  /// Stores texture for `floormove_t`
   texture
+  /// Stores floordestheight for `floormove_t`
   floordestheight
+  /// Stores speed for `floormove_t`
   speed
 end struct
 
+/// Defines floorspeed for the p spec subsystem.
 const FLOORSPEED = 65536
 
-/*
-* Enum: result_e
-* Purpose: Reports whether a plane movement completed, continues normally, or encountered a crushing obstruction.
-*/
+/// Reports whether a plane movement completed, continues normally, or encountered a crushing obstruction.
 enum result_e
+  /// Represents ok in `result_e`
   ok
+  /// Represents crushed in `result_e`
   crushed
+  /// Represents pastdest in `result_e`
   pastdest
 end enum
 
-/*
-* Struct: ps_anim_t
-* Purpose: Stores a resolved flat/texture animation's base index, frame count, and tic speed.
-*/
+/// Stores a resolved flat/texture animation's base index, frame count, and tic speed.
 struct ps_anim_t
+  /// Stores istexture for `ps_anim_t`
   istexture
+  /// Stores picnum for `ps_anim_t`
   picnum
+  /// Stores basepic for `ps_anim_t`
   basepic
+  /// Stores numpics for `ps_anim_t`
   numpics
+  /// Stores speed for `ps_anim_t`
   speed
 end struct
 
-/*
-* Struct: ps_animdef_t
-* Purpose: Describes an animation by surface kind, first/last lump names, and tics per frame before WAD resolution.
-*/
+/// Describes an animation by surface kind, first/last lump names, and tics per frame before WAD resolution.
 struct ps_animdef_t
+  /// Stores istexture for `ps_animdef_t`
   istexture
+  /// Stores endname for `ps_animdef_t`
   endname
+  /// Stores startname for `ps_animdef_t`
   startname
+  /// Stores speed for `ps_animdef_t`
   speed
 end struct
 
+/// Defines the maximum maxanims accepted by the p spec subsystem.
 const MAXANIMS = 32
+/// Stores the anims collection used by the p spec subsystem.
 anims =[]
+/// Tracks the mutable lastanim value used by the p spec subsystem.
 lastanim = 0
 
+/// Defines the maximum maxlineanims accepted by the p spec subsystem.
 const MAXLINEANIMS = 64
+/// Tracks the mutable numlinespecials value used by the p spec subsystem.
 numlinespecials = 0
+/// Stores the linespeciallist collection used by the p spec subsystem.
 linespeciallist =[]
 
+/// Stores the ps animdefs collection used by the p spec subsystem.
+/// @internal
 _PS_animdefs =[
 ps_animdef_t(false, "NUKAGE3", "NUKAGE1", 8),
 ps_animdef_t(false, "FWATER4", "FWATER1", 8),
@@ -361,10 +457,9 @@ ps_animdef_t(true, "DBRAIN4", "DBRAIN1", 8),
 ps_animdef_t(-1, "", "", 0)
 ]
 
-/*
-* Function: _PS_ParseInt
-* Purpose: Parses an integer or numeric string with truncation toward zero, returning void when conversion fails.
-*/
+/// Parses an integer or numeric string with truncation toward zero, returning void when conversion fails.
+/// @param v Value consumed by the operation.
+/// @internal
 function _PS_ParseInt(v)
   if typeof(v) == "int" then return v end if
   if typeof(v) == "float" then
@@ -384,10 +479,11 @@ function _PS_ParseInt(v)
   return 0
 end function
 
-/*
-* Function: _PS_IDiv
-* Purpose: Returns a signed quotient truncated toward zero, or zero for invalid operands and a zero divisor.
-*/
+/// Returns a signed quotient truncated toward zero, or zero for invalid operands and a zero divisor in
+/// `_PS_IDiv`
+/// @param a First input operand.
+/// @param b Second input operand.
+/// @internal
 function inline _PS_IDiv(a, b)
   if typeof(a) != "int" or typeof(b) != "int" or b == 0 then return 0 end if
   q = a / b
@@ -395,28 +491,24 @@ function inline _PS_IDiv(a, b)
   return std.math.ceil(q)
 end function
 
-/*
-* Function: _PS_IsSeq
-* Purpose: Recognizes array and list containers used by level geometry and animation tables.
-*/
+/// Recognizes array and list containers used by level geometry and animation tables.
+/// @param v Value consumed by the operation.
+/// @internal
 function inline _PS_IsSeq(v)
   t = typeof(v)
   return t == "array" or t == "list"
 end function
 
-/*
-* Function: _PS_IsProjectileType
-* Purpose: Identifies player and monster missile types allowed to trigger projectile-sensitive line specials.
-*/
+/// Identifies player and monster missile types allowed to trigger projectile-sensitive line specials.
+/// @param t T value supplied to `_PS_IsProjectileType`.
+/// @internal
 function inline _PS_IsProjectileType(t)
   return t == mobjtype_t.MT_ROCKET or t == mobjtype_t.MT_PLASMA or t == mobjtype_t.MT_BFG or
   t == mobjtype_t.MT_TROOPSHOT or t == mobjtype_t.MT_HEADSHOT or t == mobjtype_t.MT_BRUISERSHOT
 end function
 
-/*
-* Function: _PS_ResetButtons
-* Purpose: Reinitializes the fixed timed-button registry or clears existing entries when the helper is unavailable.
-*/
+/// Reinitializes the fixed timed-button registry or clears existing entries when the helper is unavailable.
+/// @internal
 function _PS_ResetButtons()
   if typeof(_InitButtonList) == "function" then
     _InitButtonList()
@@ -430,10 +522,8 @@ function _PS_ResetButtons()
   end if
 end function
 
-/*
-* Function: P_InitPicAnims
-* Purpose: Resolves built-in flat/texture animation name ranges, validates contiguity, and records runtime frame cycles.
-*/
+/// Resolves built-in flat/texture animation name ranges, validates contiguity, and records runtime frame
+/// cycles.
 function P_InitPicAnims()
   global anims
   global lastanim
@@ -479,10 +569,8 @@ function P_InitPicAnims()
   end while
 end function
 
-/*
-* Function: P_SpawnSpecials
-* Purpose: Parses the level timer, spawns sector lighting/door effects, collects scrolling lines, and resets active movers/buttons.
-*/
+/// Parses the level timer, spawns sector lighting/door effects, collects scrolling lines, and resets active
+/// movers/buttons.
 function P_SpawnSpecials()
   global levelTimer
   global levelTimeCount
@@ -593,10 +681,8 @@ function P_SpawnSpecials()
   _PS_ResetButtons()
 end function
 
-/*
-* Function: P_UpdateSpecials
-* Purpose: Advances level timeout, surface animation translations, scrolling walls, and timed button restoration each tic.
-*/
+/// Advances level timeout, surface animation translations, scrolling walls, and timed button restoration each
+/// tic.
 function P_UpdateSpecials()
   global levelTimer
   global levelTimeCount
@@ -661,10 +747,9 @@ function P_UpdateSpecials()
   end if
 end function
 
-/*
-* Function: P_ShootSpecialLine
-* Purpose: Dispatches gun-triggered line types to floor, door, or switch actions while enforcing monster restrictions.
-*/
+/// Dispatches gun-triggered line types to floor, door, or switch actions while enforcing monster restrictions.
+/// @param thing World object affected by the operation.
+/// @param line Map line or text line affected by the operation.
 function P_ShootSpecialLine(thing, line)
   if thing is void or line is void then return end if
 
@@ -690,10 +775,11 @@ function P_ShootSpecialLine(thing, line)
   end switch
 end function
 
-/*
-* Function: P_CrossSpecialLine
-* Purpose: Dispatches one-shot and repeatable walkover specials after validating line index, side, actor, and projectile rules.
-*/
+/// Dispatches one-shot and repeatable walkover specials after validating line index, side, actor, and
+/// projectile rules.
+/// @param linenum Index identifying line.
+/// @param side Map side affected by the operation.
+/// @param thing World object affected by the operation.
 function P_CrossSpecialLine(linenum, side, thing)
   if thing is void then return end if
   if typeof(lines) != "array" then return end if
@@ -976,10 +1062,9 @@ function P_CrossSpecialLine(linenum, side, thing)
   end switch
 end function
 
-/*
-* Function: _PSpec_PowerIndex
-* Purpose: Maps a supported player-power enum or integer to its powers-array slot.
-*/
+/// Maps a supported player-power enum or integer to its powers-array slot.
+/// @param pw Pw value supplied to `_PSpec_PowerIndex`.
+/// @internal
 function _PSpec_PowerIndex(pw)
   if typeof(pw) == "int" then
     if pw >= 0 and pw < NUMPOWERS then return pw end if
@@ -999,10 +1084,10 @@ function _PSpec_PowerIndex(pw)
   return -1
 end function
 
-/*
-* Function: _PSpec_GetPower
-* Purpose: Reads a validated player power duration/value, treating legacy booleans as zero or one.
-*/
+/// Reads a validated player power duration/value, treating legacy booleans as zero or one.
+/// @param player Player state affected by the operation.
+/// @param pw Pw value supplied to `_PSpec_GetPower`.
+/// @internal
 function _PSpec_GetPower(player, pw)
   if player is void then return 0 end if
   idx = _PSpec_PowerIndex(pw)
@@ -1019,10 +1104,8 @@ function _PSpec_GetPower(player, pw)
   return v
 end function
 
-/*
-* Function: P_PlayerInSpecialSector
-* Purpose: Applies floor-contact damage, secret discovery, and exit effects for the player's current sector special.
-*/
+/// Applies floor-contact damage, secret discovery, and exit effects for the player's current sector special.
+/// @param player Player state affected by the operation.
 function P_PlayerInSpecialSector(player)
   if player is void or player.mo is void then return end if
   if player.mo.subsector is void or player.mo.subsector.sector is void then return end if
@@ -1070,10 +1153,8 @@ function P_PlayerInSpecialSector(player)
   end switch
 end function
 
-/*
-* Function: _P_NumSectors
-* Purpose: Returns the loaded sector count for either supported sequence representation.
-*/
+/// Returns the loaded sector count for either supported sequence representation.
+/// @internal
 function inline _P_NumSectors()
   if typeof(sectors) == "array" then return len(sectors) end if
   if typeof(sectors) == "list" then return len(sectors) end if
@@ -1081,10 +1162,8 @@ function inline _P_NumSectors()
   return 0
 end function
 
-/*
-* Function: _P_NumLines
-* Purpose: Returns the loaded linedef count for either supported sequence representation.
-*/
+/// Returns the loaded linedef count for either supported sequence representation.
+/// @internal
 function inline _P_NumLines()
   if typeof(lines) == "array" then return len(lines) end if
   if typeof(lines) == "list" then return len(lines) end if
@@ -1092,10 +1171,9 @@ function inline _P_NumLines()
   return 0
 end function
 
-/*
-* Function: _PS_SectorIndex
-* Purpose: Finds a sector by object identity in the loaded sector table, returning -1 when absent.
-*/
+/// Finds a sector by object identity in the loaded sector table, returning -1 when absent.
+/// @param sec Sec value supplied to `_PS_SectorIndex`.
+/// @internal
 function _PS_SectorIndex(sec)
   if sec is void then return -1 end if
   if not _PS_IsSeq(sectors) then return -1 end if
@@ -1107,10 +1185,10 @@ function _PS_SectorIndex(sec)
   return -1
 end function
 
-/*
-* Function: _PS_LineSideSector
-* Purpose: Resolves a line's requested side to its front/back sector through direct references or sidedef indices.
-*/
+/// Resolves a line's requested side to its front/back sector through direct references or sidedef indices.
+/// @param line Map line or text line affected by the operation.
+/// @param side Map side affected by the operation.
+/// @internal
 function _PS_LineSideSector(line, side)
   if line is void then return void end if
   if side < 0 or side > 1 then return void end if
@@ -1128,10 +1206,9 @@ function _PS_LineSideSector(line, side)
   return sd.sector
 end function
 
-/*
-* Function: twoSided
-* Purpose: Tests whether a sector-owned line index references a valid ML_TWOSIDED linedef.
-*/
+/// Tests whether a sector-owned line index references a valid ML_TWOSIDED linedef.
+/// @param sectorIndex Index identifying sector.
+/// @param lineIndex Index identifying line.
 function twoSided(sectorIndex, lineIndex)
   if not _PS_IsSeq(sectors) then return 0 end if
   if sectorIndex < 0 or sectorIndex >= len(sectors) then return 0 end if
@@ -1144,10 +1221,10 @@ function twoSided(sectorIndex, lineIndex)
   return (l.flags & ML_TWOSIDED) != 0
 end function
 
-/*
-* Function: getSide
-* Purpose: Resolves a sector-local line and side number to the corresponding sidedef with index validation.
-*/
+/// Resolves a sector-local line and side number to the corresponding sidedef with index validation.
+/// @param currentSector Current sector value supplied to `getSide`.
+/// @param lineIndex Index identifying line.
+/// @param side Map side affected by the operation.
 function getSide(currentSector, lineIndex, side)
   if not _PS_IsSeq(sectors) then return void end if
   if currentSector < 0 or currentSector >= len(sectors) then return void end if
@@ -1168,20 +1245,19 @@ function getSide(currentSector, lineIndex, side)
   return sides[sn]
 end function
 
-/*
-* Function: getSector
-* Purpose: Returns the sector referenced by a resolved sidedef, or void when the side is missing.
-*/
+/// Returns the sector referenced by a resolved sidedef, or void when the side is missing.
+/// @param currentSector Current sector value supplied to `getSector`.
+/// @param lineIndex Index identifying line.
+/// @param side Map side affected by the operation.
 function getSector(currentSector, lineIndex, side)
   sd = getSide(currentSector, lineIndex, side)
   if sd is void then return void end if
   return sd.sector
 end function
 
-/*
-* Function: getNextSector
-* Purpose: Given one sector on a two-sided line, returns the opposite adjacent sector.
-*/
+/// Given one sector on a two-sided line, returns the opposite adjacent sector.
+/// @param line Map line or text line affected by the operation.
+/// @param sec Sec value supplied to `getNextSector`.
 function getNextSector(line, sec)
   if line is void or sec is void then return void end if
   if (line.flags & ML_TWOSIDED) == 0 then return void end if
@@ -1210,10 +1286,8 @@ function getNextSector(line, sec)
   return void
 end function
 
-/*
-* Function: P_FindLowestFloorSurrounding
-* Purpose: Returns the minimum floor height among all valid sectors adjacent to the supplied sector.
-*/
+/// Returns the minimum floor height among all valid sectors adjacent to the supplied sector.
+/// @param sec Sec value supplied to `P_FindLowestFloorSurrounding`.
 function P_FindLowestFloorSurrounding(sec)
   if sec is void then return 0 end if
   best = sec.floorheight
@@ -1235,10 +1309,8 @@ function P_FindLowestFloorSurrounding(sec)
   return best
 end function
 
-/*
-* Function: P_FindHighestFloorSurrounding
-* Purpose: Returns the maximum floor height among all valid sectors adjacent to the supplied sector.
-*/
+/// Returns the maximum floor height among all valid sectors adjacent to the supplied sector.
+/// @param sec Sec value supplied to `P_FindHighestFloorSurrounding`.
 function P_FindHighestFloorSurrounding(sec)
   if sec is void then return 0 end if
   best = -500 * FRACUNIT
@@ -1260,10 +1332,9 @@ function P_FindHighestFloorSurrounding(sec)
   return best
 end function
 
-/*
-* Function: P_FindNextHighestFloor
-* Purpose: Returns the lowest adjacent floor strictly above currentheight, or currentheight when none exists.
-*/
+/// Returns the lowest adjacent floor strictly above currentheight, or currentheight when none exists.
+/// @param sec Sec value supplied to `P_FindNextHighestFloor`.
+/// @param currentheight Height of current in pixels or map units.
 function P_FindNextHighestFloor(sec, currentheight)
   if sec is void then return currentheight end if
   next = MAXINT
@@ -1289,10 +1360,8 @@ function P_FindNextHighestFloor(sec, currentheight)
   return next
 end function
 
-/*
-* Function: P_FindLowestCeilingSurrounding
-* Purpose: Returns the minimum ceiling height among all valid sectors adjacent to the supplied sector.
-*/
+/// Returns the minimum ceiling height among all valid sectors adjacent to the supplied sector.
+/// @param sec Sec value supplied to `P_FindLowestCeilingSurrounding`.
 function P_FindLowestCeilingSurrounding(sec)
   if sec is void then return 0 end if
   best = MAXINT
@@ -1314,10 +1383,8 @@ function P_FindLowestCeilingSurrounding(sec)
   return best
 end function
 
-/*
-* Function: P_FindHighestCeilingSurrounding
-* Purpose: Returns the maximum ceiling height among all valid sectors adjacent to the supplied sector.
-*/
+/// Returns the maximum ceiling height among all valid sectors adjacent to the supplied sector.
+/// @param sec Sec value supplied to `P_FindHighestCeilingSurrounding`.
 function P_FindHighestCeilingSurrounding(sec)
   if sec is void then return 0 end if
   best = 0
@@ -1339,10 +1406,9 @@ function P_FindHighestCeilingSurrounding(sec)
   return best
 end function
 
-/*
-* Function: P_FindSectorFromLineTag
-* Purpose: Continues a linear search after start for the next sector whose tag matches the triggering line.
-*/
+/// Continues a linear search after start for the next sector whose tag matches the triggering line.
+/// @param line Map line or text line affected by the operation.
+/// @param start Start value supplied to `P_FindSectorFromLineTag`.
 function P_FindSectorFromLineTag(line, start)
   if line is void then return -1 end if
   n = _P_NumSectors()
@@ -1357,10 +1423,9 @@ function P_FindSectorFromLineTag(line, start)
   return -1
 end function
 
-/*
-* Function: P_FindMinSurroundingLight
-* Purpose: Finds the lowest adjacent sector light level without exceeding the caller-provided starting maximum.
-*/
+/// Finds the lowest adjacent sector light level without exceeding the caller-provided starting maximum.
+/// @param sector Map sector affected by the operation.
+/// @param max Maximum permitted value.
 function P_FindMinSurroundingLight(sector, max)
   if sector is void then return 0 end if
   minl = max
@@ -1382,10 +1447,9 @@ function P_FindMinSurroundingLight(sector, max)
   return minl
 end function
 
-/*
-* Function: EV_DoDonut
-* Purpose: Starts the coupled donut action: lower the tagged pillar while raising its surrounding ring to the outer sector.
-*/
+/// Starts the coupled donut action: lower the tagged pillar while raising its surrounding ring to the outer
+/// sector.
+/// @param line Map line or text line affected by the operation.
 function EV_DoDonut(line)
   if line is void then return 0 end if
 

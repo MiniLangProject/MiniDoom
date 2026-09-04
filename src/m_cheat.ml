@@ -13,36 +13,36 @@
   See the License for the specific language governing permissions and
   limitations under the License.
 
-  Script: m_cheat.ml
-  Purpose: Matches scrambled cheat-key sequences and captures optional numeric parameters from player input.
 */
 
-/*
-* Struct: cheatseq_t
-* Purpose: Holds an encoded cheat key sequence, its current match cursor, and optional parameter bytes collected after the fixed prefix.
-*/
+//! Matches scrambled cheat-key sequences and captures optional numeric parameters from player input.
+
+
+/// Holds an encoded cheat key sequence, its current match cursor, and optional parameter bytes collected after
+/// the fixed prefix.
 struct cheatseq_t
+  /// Stores sequence for `cheatseq_t`
   sequence
+  /// Stores p for `cheatseq_t`
   p
 end struct
 
+/// Tracks the mutable firsttime value used by the m cheat subsystem.
 firsttime = 1
+/// Stores the cheat xlate table collection used by the m cheat subsystem.
 cheat_xlate_table =[]
 
-/*
-* Function: _cht_scramble
-* Purpose: Applies Doom's reversible cheat-key bit permutation to one byte.
-*/
+/// Applies Doom's reversible cheat-key bit permutation to one byte.
+/// @param a First input operand.
+/// @internal
 function inline _cht_scramble(a)
   a = a & 255
   v =((a & 1) << 7) +((a & 2) << 5) +(a & 4) +((a & 8) << 1) +((a & 16) >> 1) +(a & 32) +((a & 64) >> 5) +((a & 128) >> 7)
   return v & 255
 end function
 
-/*
-* Function: _cht_ensure_table
-* Purpose: Lazily builds the 256-entry scrambled-key lookup table once and reuses it for subsequent cheat checks.
-*/
+/// Lazily builds the 256-entry scrambled-key lookup table once and reuses it for subsequent cheat checks.
+/// @internal
 function _cht_ensure_table()
   global firsttime
   global cheat_xlate_table
@@ -57,10 +57,9 @@ function _cht_ensure_table()
   end while
 end function
 
-/*
-* Function: _cht_key_byte
-* Purpose: Normalizes an input key to its low byte and converts uppercase ASCII letters to lowercase.
-*/
+/// Normalizes an input key to its low byte and converts uppercase ASCII letters to lowercase.
+/// @param key Input key code to process.
+/// @internal
 function inline _cht_key_byte(key)
   if typeof(key) == "int" then return key & 255 end if
   if typeof(key) == "string" then
@@ -71,20 +70,19 @@ function inline _cht_key_byte(key)
   return 0
 end function
 
-/*
-* Function: _cht_seq_len
-* Purpose: Locates the encoded terminator and returns the number of fixed cheat-sequence bytes before parameters begin.
-*/
+/// Locates the encoded terminator and returns the number of fixed cheat-sequence bytes before parameters begin.
+/// @param seq Seq value supplied to `_cht_seq_len`.
+/// @internal
 function inline _cht_seq_len(seq)
   if typeof(seq) == "bytes" then return len(seq) end if
   if typeof(seq) == "array" then return len(seq) end if
   return 0
 end function
 
-/*
-* Function: _cht_seq_get
-* Purpose: Returns cht seq get information from utility state.
-*/
+/// Returns cht seq get information from utility state.
+/// @param seq Seq value supplied to `_cht_seq_get`.
+/// @param idx Zero-based element or table index.
+/// @internal
 function inline _cht_seq_get(seq, idx)
   if idx < 0 then return 0 end if
   n = _cht_seq_len(seq)
@@ -92,10 +90,11 @@ function inline _cht_seq_get(seq, idx)
   return seq[idx]
 end function
 
-/*
-* Function: _cht_seq_set
-* Purpose: Replaces a cheat definition's encoded byte sequence and resets its matching and parameter cursors.
-*/
+/// Replaces a cheat definition's encoded byte sequence and resets its matching and parameter cursors.
+/// @param seq Seq value supplied to `_cht_seq_set`.
+/// @param idx Zero-based element or table index.
+/// @param v Value consumed by the operation.
+/// @internal
 function inline _cht_seq_set(seq, idx, v)
   if idx < 0 then return end if
   n = _cht_seq_len(seq)
@@ -103,10 +102,10 @@ function inline _cht_seq_set(seq, idx, v)
   seq[idx] = v & 255
 end function
 
-/*
-* Function: cht_CheckCheat
-* Purpose: Feeds one key through a scrambled cheat sequence, advances or resets its cursor, and reports a completed match.
-*/
+/// Feeds one key through a scrambled cheat sequence, advances or resets its cursor, and reports a completed
+/// match.
+/// @param cht Cht value supplied to `cht_CheckCheat`.
+/// @param key Input key code to process.
 function cht_CheckCheat(cht, key)
   _cht_ensure_table()
 
@@ -141,10 +140,9 @@ function cht_CheckCheat(cht, key)
   return rc
 end function
 
-/*
-* Function: _cht_bytes_from_list
-* Purpose: Packs integer list entries into a byte buffer, truncating each value to the low eight bits.
-*/
+/// Packs integer list entries into a byte buffer, truncating each value to the low eight bits.
+/// @param lst Lst value supplied to `_cht_bytes_from_list`.
+/// @internal
 function _cht_bytes_from_list(lst)
   b = bytes(len(lst), 0)
   i = 0
@@ -155,10 +153,11 @@ function _cht_bytes_from_list(lst)
   return b
 end function
 
-/*
-* Function: _cht_write_buffer
-* Purpose: Copies a captured cheat parameter into either a byte buffer or legacy string-reference array and terminates it.
-*/
+/// Copies a captured cheat parameter into either a byte buffer or legacy string-reference array and terminates
+/// it.
+/// @param buffer Buffer that supplies or receives data.
+/// @param outList Out list value supplied to `_cht_write_buffer`.
+/// @internal
 function _cht_write_buffer(buffer, outList)
   if typeof(buffer) == "bytes" then
     n = len(outList)
@@ -183,10 +182,9 @@ function _cht_write_buffer(buffer, outList)
   end if
 end function
 
-/*
-* Function: cht_GetParam
-* Purpose: Returns cht Get Param information from utility state.
-*/
+/// Returns cht Get Param information from utility state.
+/// @param cht Cht value supplied to `cht_GetParam`.
+/// @param buffer Buffer that supplies or receives data.
 function cht_GetParam(cht, buffer)
   if cht is void then return "" end if
   seq = cht.sequence

@@ -13,38 +13,36 @@
   See the License for the specific language governing permissions and
   limitations under the License.
 
-  Script: p_lights.ml
-  Purpose: Implements sector fire-flicker, flash, strobe, glow, and tagged lighting effects as thinkers.
 */
+
+//! Implements sector fire-flicker, flash, strobe, glow, and tagged lighting effects as thinkers.
+
 import z_zone
 import m_random
 import doomdef
 import p_local
 import r_state
 
-/*
-* Function: _P_MakeThinker
-* Purpose: Constructs an unlinked thinker node whose primary callback drives a sector lighting effect.
-*/
+/// Constructs an unlinked thinker node whose primary callback drives a sector lighting effect.
+/// @param acp1 Acp1 value supplied to `_P_MakeThinker`.
+/// @internal
 function inline _P_MakeThinker(acp1)
 
   return thinker_t(void, void, actionf_t(acp1, void, void), void)
 end function
 
-/*
-* Function: _P_AddThinkerIfPossible
-* Purpose: Registers a lighting thinker when the full thinker list API is present, allowing reduced test harnesses to omit it.
-*/
+/// Registers a lighting thinker when the full thinker list API is present, allowing reduced test harnesses to
+/// omit it.
+/// @param th Th value supplied to `_P_AddThinkerIfPossible`.
+/// @internal
 function inline _P_AddThinkerIfPossible(th)
   if typeof(P_AddThinker) == "function" then
     P_AddThinker(th)
   end if
 end function
 
-/*
-* Function: T_FireFlicker
-* Purpose: Every four tics chooses a randomized fire brightness no darker than the sector's neighboring minimum.
-*/
+/// Every four tics chooses a randomized fire brightness no darker than the sector's neighboring minimum.
+/// @param flick Flick value supplied to `T_FireFlicker`.
 function T_FireFlicker(flick)
   if flick is void or flick.sector is void then return end if
 
@@ -65,10 +63,9 @@ function T_FireFlicker(flick)
   flick.count = 4
 end function
 
-/*
-* Function: P_SpawnFireFlicker
-* Purpose: Attaches a fire-flicker thinker using the sector's current light as maximum and its darkest neighbor as minimum.
-*/
+/// Attaches a fire-flicker thinker using the sector's current light as maximum and its darkest neighbor as
+/// minimum.
+/// @param sector Map sector affected by the operation.
 function P_SpawnFireFlicker(sector)
   if sector is void then return end if
 
@@ -80,10 +77,8 @@ function P_SpawnFireFlicker(sector)
   _P_AddThinkerIfPossible(t.thinker)
 end function
 
-/*
-* Function: T_LightFlash
-* Purpose: Alternates a sector between its bright and dark levels using randomized flash durations.
-*/
+/// Alternates a sector between its bright and dark levels using randomized flash durations.
+/// @param flash Flash value supplied to `T_LightFlash`.
 function T_LightFlash(flash)
   if flash is void or flash.sector is void then return end if
 
@@ -104,10 +99,9 @@ function T_LightFlash(flash)
   end if
 end function
 
-/*
-* Function: P_SpawnLightFlash
-* Purpose: Attaches a randomized two-level flash thinker bounded by the sector's original and darkest neighboring light.
-*/
+/// Attaches a randomized two-level flash thinker bounded by the sector's original and darkest neighboring
+/// light.
+/// @param sector Map sector affected by the operation.
 function P_SpawnLightFlash(sector)
   if sector is void then return end if
 
@@ -122,10 +116,9 @@ function P_SpawnLightFlash(sector)
   _P_AddThinkerIfPossible(f.thinker)
 end function
 
-/*
-* Function: T_StrobeFlash
-* Purpose: Advances a sector strobe between minimum and maximum light levels with independent bright and dark intervals.
-*/
+/// Advances a sector strobe between minimum and maximum light levels with independent bright and dark
+/// intervals.
+/// @param flash Flash value supplied to `T_StrobeFlash`.
 function T_StrobeFlash(flash)
   if flash is void or flash.sector is void then return end if
 
@@ -143,10 +136,10 @@ function T_StrobeFlash(flash)
   end if
 end function
 
-/*
-* Function: P_SpawnStrobeFlash
-* Purpose: Attaches a fast or slow strobe thinker, optionally synchronizing its initial countdown with peer sectors.
-*/
+/// Attaches a fast or slow strobe thinker, optionally synchronizing its initial countdown with peer sectors.
+/// @param sector Map sector affected by the operation.
+/// @param fastOrSlow Fast or slow value supplied to `P_SpawnStrobeFlash`.
+/// @param inSync In sync value supplied to `P_SpawnStrobeFlash`.
 function P_SpawnStrobeFlash(sector, fastOrSlow, inSync)
   if sector is void then return end if
 
@@ -176,10 +169,8 @@ function P_SpawnStrobeFlash(sector, fastOrSlow, inSync)
   _P_AddThinkerIfPossible(st.thinker)
 end function
 
-/*
-* Function: EV_StartLightStrobing
-* Purpose: Adds unsynchronized slow strobe thinkers to every sector carrying the trigger line's tag.
-*/
+/// Adds unsynchronized slow strobe thinkers to every sector carrying the trigger line's tag.
+/// @param line Map line or text line affected by the operation.
 function EV_StartLightStrobing(line)
 
   if line is void then return end if
@@ -193,10 +184,8 @@ function EV_StartLightStrobing(line)
     end loop
   end function
 
-  /*
-* Function: EV_TurnTagLightsOff
-* Purpose: Sets every tagged sector to the darkest light level found in its neighboring sectors.
-  */
+  /// Sets every tagged sector to the darkest light level found in its neighboring sectors.
+  /// @param line Map line or text line affected by the operation.
   function EV_TurnTagLightsOff(line)
     if line is void then return end if
     secnum = -1
@@ -210,10 +199,10 @@ function EV_StartLightStrobing(line)
       end loop
     end function
 
-    /*
-* Function: EV_LightTurnOn
-* Purpose: Sets tagged sectors to an explicit brightness or, when zero is requested, their brightest neighboring level.
-    */
+    /// Sets tagged sectors to an explicit brightness or, when zero is requested, their brightest neighboring
+    /// level.
+    /// @param line Map line or text line affected by the operation.
+    /// @param bright Bright value supplied to `EV_LightTurnOn`.
     function EV_LightTurnOn(line, bright)
       if line is void then return end if
 
@@ -232,10 +221,8 @@ function EV_StartLightStrobing(line)
         end loop
       end function
 
-      /*
-* Function: T_Glow
-* Purpose: Smoothly oscillates a sector's light level between neighboring minimum and maximum bounds.
-      */
+      /// Smoothly oscillates a sector's light level between neighboring minimum and maximum bounds.
+      /// @param g G value supplied to `T_Glow`.
       function T_Glow(g)
         if g is void or g.sector is void then return end if
 
@@ -254,10 +241,9 @@ function EV_StartLightStrobing(line)
         end if
       end function
 
-      /*
-      * Function: P_SpawnGlowingLight
-      * Purpose: Attaches a glow thinker that begins dimming from the sector's current light toward its darkest neighbor.
-      */
+      /// Attaches a glow thinker that begins dimming from the sector's current light toward its darkest
+      /// neighbor.
+      /// @param sector Map sector affected by the operation.
       function P_SpawnGlowingLight(sector)
         if sector is void then return end if
 

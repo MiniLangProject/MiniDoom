@@ -13,9 +13,10 @@
   See the License for the specific language governing permissions and
   limitations under the License.
 
-  Script: mp_state.ml
-  Purpose: Stores multiplayer runtime/config state and utility helpers for map lists and WAD checks.
 */
+
+//! Stores multiplayer runtime/config state and utility helpers for map lists and WAD checks.
+
 
 import doomdef
 import m_argv
@@ -23,37 +24,60 @@ import mp_fnv1a
 import std.fs as fs
 import std.math
 
+/// Defines mp mode coop for the mp state subsystem.
 const MP_MODE_COOP = 0
+/// Defines mp mode deathmatch for the mp state subsystem.
 const MP_MODE_DEATHMATCH = 1
+/// Defines the maximum mp max name len accepted by the mp state subsystem.
 const MP_MAX_NAME_LEN = 25
+/// Defines mp default port for the mp state subsystem.
 const MP_DEFAULT_PORT = 2342
+/// Defines mp skill baby for the mp state subsystem.
 const MP_SKILL_BABY = 0
+/// Defines mp skill easy for the mp state subsystem.
 const MP_SKILL_EASY = 1
+/// Defines mp skill medium for the mp state subsystem.
 const MP_SKILL_MEDIUM = 2
+/// Defines mp skill hard for the mp state subsystem.
 const MP_SKILL_HARD = 3
+/// Defines mp skill nightmare for the mp state subsystem.
 const MP_SKILL_NIGHTMARE = 4
 
+/// Stores the mutable mp player name text used by the mp state subsystem.
 mp_player_name = "Player"
+/// Stores the mutable mp join host text used by the mp state subsystem.
 mp_join_host = "127.0.0.1"
+/// Tracks the mutable mp join port value used by the mp state subsystem.
 mp_join_port = MP_DEFAULT_PORT
+/// Tracks the mutable mp host port value used by the mp state subsystem.
 mp_host_port = MP_DEFAULT_PORT
+/// Tracks the mutable mp host mode value used by the mp state subsystem.
 mp_host_mode = MP_MODE_COOP
+/// Tracks the mutable mp host skill value used by the mp state subsystem.
 mp_host_skill = MP_SKILL_MEDIUM
+/// Tracks the mutable mp host max players value used by the mp state subsystem.
 mp_host_max_players = 4
+/// Tracks the mutable mp dm frag limit value used by the mp state subsystem.
 mp_dm_frag_limit = 20
+/// Tracks the mutable mp dm time limit value used by the mp state subsystem.
 mp_dm_time_limit = 10
 
+/// Stores the mp map list collection used by the mp state subsystem.
 mp_map_list = []
+/// Tracks the mutable mp map index value used by the mp state subsystem.
 mp_map_index = 0
+/// Stores the mutable mp preferred map name text used by the mp state subsystem.
 mp_preferred_map_name = "MAP01"
 
+/// Stores the mutable mp iwad path text used by the mp state subsystem.
 mp_iwad_path = ""
+/// Stores the mutable mp iwad fnv1a hex text used by the mp state subsystem.
 mp_iwad_fnv1a_hex = ""
 
-/*
-* Function: _MP_ToInt
-* Purpose: Converts values to int with safe fallback.
-*/
+/// Converts values to int with safe fallback.
+/// @param v Value consumed by the operation.
+/// @param fallback Value returned when the requested conversion or lookup is unavailable.
+/// @internal
 function _MP_ToInt(v, fallback)
   if typeof(v) == "int" then return v end if
   if typeof(v) == "float" then
@@ -69,10 +93,11 @@ function _MP_ToInt(v, fallback)
   return fallback
 end function
 
-/*
-* Function: _MP_Clamp
-* Purpose: Clamps integer values.
-*/
+/// Clamps integer values.
+/// @param v Value consumed by the operation.
+/// @param lo Inclusive lower bound.
+/// @param hi Inclusive upper bound.
+/// @internal
 function _MP_Clamp(v, lo, hi)
   vi = _MP_ToInt(v, 0)
   lo_i = _MP_ToInt(lo, 0)
@@ -87,10 +112,9 @@ function _MP_Clamp(v, lo, hi)
   return vi
 end function
 
-/*
-* Function: _MP_ToUpperAscii
-* Purpose: Converts ASCII letters to uppercase.
-*/
+/// Converts ASCII letters to uppercase.
+/// @param s S value supplied to `_MP_ToUpperAscii`.
+/// @internal
 function _MP_ToUpperAscii(s)
   if typeof(s) != "string" then return "" end if
   b = bytes(s)
@@ -102,10 +126,10 @@ function _MP_ToUpperAscii(s)
   return decode(b)
 end function
 
-/*
-* Function: _MP_StrContains
-* Purpose: Checks if haystack contains needle.
-*/
+/// Checks if haystack contains needle.
+/// @param haystack Haystack value supplied to `_MP_StrContains`.
+/// @param needle Needle value supplied to `_MP_StrContains`.
+/// @internal
 function _MP_StrContains(haystack, needle)
   if typeof(haystack) != "string" or typeof(needle) != "string" then return false end if
   hb = bytes(haystack)
@@ -129,10 +153,9 @@ function _MP_StrContains(haystack, needle)
   return false
 end function
 
-/*
-* Function: _MP_IsAllowedNameByte
-* Purpose: Validates player-name ASCII bytes.
-*/
+/// Validates player-name ASCII bytes.
+/// @param c C value supplied to `_MP_IsAllowedNameByte`.
+/// @internal
 function inline _MP_IsAllowedNameByte(c)
   if c >= 48 and c <= 57 then return true end if
   if c >= 65 and c <= 90 then return true end if
@@ -141,10 +164,8 @@ function inline _MP_IsAllowedNameByte(c)
   return false
 end function
 
-/*
-* Function: MP_SanitizeName
-* Purpose: Sanitizes and trims player names to protocol constraints.
-*/
+/// Sanitizes and trims player names to protocol constraints.
+/// @param name Resource or object name to resolve.
 function MP_SanitizeName(name)
   if typeof(name) != "string" then return "Player" end if
   src = bytes(name)
@@ -171,28 +192,22 @@ function MP_SanitizeName(name)
   return decode(slice(namebuf, 0, oi))
 end function
 
-/*
-* Function: MP_SetPlayerName
-* Purpose: Stores sanitized multiplayer player name.
-*/
+/// Stores sanitized multiplayer player name.
+/// @param name Resource or object name to resolve.
 function MP_SetPlayerName(name)
   global mp_player_name
   mp_player_name = MP_SanitizeName(name)
 end function
 
-/*
-* Function: MP_GetPlayerName
-* Purpose: Returns current multiplayer player name.
-*/
+/// Returns current multiplayer player name.
 function MP_GetPlayerName()
   if typeof(mp_player_name) != "string" or mp_player_name == "" then return "Player" end if
   return mp_player_name
 end function
 
-/*
-* Function: _MP_TwoDigits
-* Purpose: Formats a number as two ASCII digits.
-*/
+/// Formats a number as two ASCII digits.
+/// @param v Value consumed by the operation.
+/// @internal
 function inline _MP_TwoDigits(v)
   if v < 0 then v = 0 end if
   if v > 99 then v = 99 end if
@@ -204,10 +219,7 @@ function inline _MP_TwoDigits(v)
   return decode(b)
 end function
 
-/*
-* Function: MP_RebuildMapList
-* Purpose: Rebuilds host-map selection list based on IWAD filename family.
-*/
+/// Rebuilds host-map selection list based on IWAD filename family.
 function MP_RebuildMapList()
   global mp_map_list
   global mp_map_index
@@ -253,10 +265,7 @@ function MP_RebuildMapList()
   MP_SetSelectedMapByName(mp_preferred_map_name)
 end function
 
-/*
-* Function: MP_GetSelectedMap
-* Purpose: Returns currently selected host map name.
-*/
+/// Returns currently selected host map name.
 function MP_GetSelectedMap()
   global mp_preferred_map_name
   global mp_map_index
@@ -268,10 +277,8 @@ function MP_GetSelectedMap()
   return mp_map_list[mp_map_index]
 end function
 
-/*
-* Function: MP_StepMap
-* Purpose: Moves selected map index by delta with wraparound.
-*/
+/// Moves selected map index by delta with wraparound.
+/// @param delta Delta value supplied to `MP_StepMap`.
 function MP_StepMap(delta)
   global mp_map_index
   global mp_preferred_map_name
@@ -289,10 +296,8 @@ function MP_StepMap(delta)
   mp_preferred_map_name = _MP_ToUpperAscii(mp_map_list[mp_map_index])
 end function
 
-/*
-* Function: MP_SetSelectedMapByName
-* Purpose: Selects map by name if present and stores it as preferred map.
-*/
+/// Selects map by name if present and stores it as preferred map.
+/// @param name Resource or object name to resolve.
 function MP_SetSelectedMapByName(name)
   global mp_map_index
   global mp_preferred_map_name
@@ -311,10 +316,8 @@ function MP_SetSelectedMapByName(name)
   return false
 end function
 
-/*
-* Function: MP_SetMode
-* Purpose: Sets multiplayer host mode.
-*/
+/// Sets multiplayer host mode.
+/// @param mode Mode value supplied to `MP_SetMode`.
 function MP_SetMode(mode)
   global mp_host_mode
   m = _MP_ToInt(mode, MP_MODE_COOP)
@@ -322,10 +325,7 @@ function MP_SetMode(mode)
   mp_host_mode = m
 end function
 
-/*
-* Function: MP_GetIwadPath
-* Purpose: Returns selected IWAD file path if available.
-*/
+/// Returns selected IWAD file path if available.
 function MP_GetIwadPath()
   p = M_CheckParm("-iwad")
   if p != 0 and p < myargc - 1 then
@@ -354,10 +354,7 @@ function MP_GetIwadPath()
   return ""
 end function
 
-/*
-* Function: MP_UpdateIwadFingerprint
-* Purpose: Fingerprints every gameplay WAD in load order so host/client PWAD mismatches are rejected too.
-*/
+/// Fingerprints every gameplay WAD in load order so host/client PWAD mismatches are rejected too.
 function MP_UpdateIwadFingerprint()
   global mp_iwad_path
   global mp_iwad_fnv1a_hex
@@ -421,10 +418,7 @@ function MP_UpdateIwadFingerprint()
   return typeof(mp_iwad_fnv1a_hex) == "string" and mp_iwad_fnv1a_hex != ""
 end function
 
-/*
-* Function: MP_ClampSettings
-* Purpose: Normalizes multiplayer configuration ranges.
-*/
+/// Normalizes multiplayer configuration ranges.
 function MP_ClampSettings()
   global mp_join_host
   global mp_join_port

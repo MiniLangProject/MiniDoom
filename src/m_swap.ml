@@ -13,25 +13,24 @@
   See the License for the specific language governing permissions and
   limitations under the License.
 
-  Script: m_swap.ml
-  Purpose: Normalizes signed 16-bit values and byte-swaps 16- and 32-bit integers across host endianness.
 */
 
+//! Normalizes signed 16-bit values and byte-swaps 16- and 32-bit integers across host endianness.
+
+
+/// Defines big endian for the m swap subsystem.
+/// @internal
 const __BIG_ENDIAN__ = false
 
-/*
-* Function: SwapSHORT
-* Purpose: Reverses the two bytes in the low 16 bits of an integer.
-*/
+/// Reverses the two bytes in the low 16 bits of an integer.
+/// @param x Horizontal map- or screen-space coordinate.
 function SwapSHORT(x)
   u = x & 0xFFFF
   return ((u >> 8) & 0xFF) |((u << 8) & 0xFF00)
 end function
 
-/*
-* Function: SwapLONG
-* Purpose: Reverses all four bytes of an integer's low 32-bit representation.
-*/
+/// Reverses all four bytes of an integer's low 32-bit representation.
+/// @param x Horizontal map- or screen-space coordinate.
 function SwapLONG(x)
   u = x & 0xFFFFFFFF
   return ((u >> 24) & 0xFF) |
@@ -40,19 +39,15 @@ function SwapLONG(x)
   ((u << 24) & 0xFF000000)
 end function
 
-/*
-* Function: SHORT
-* Purpose: Byte-swaps the low 16 bits and returns the result with signed 16-bit interpretation.
-*/
+/// Byte-swaps the low 16 bits and returns the result with signed 16-bit interpretation.
+/// @param x Horizontal map- or screen-space coordinate.
 function SHORT(x)
   if __BIG_ENDIAN__ then return SwapSHORT(x) end if
   return x
 end function
 
-/*
-* Function: LONG
-* Purpose: Reverses all four bytes of a 32-bit value and returns the signed result.
-*/
+/// Reverses all four bytes of a 32-bit value and returns the signed result.
+/// @param x Horizontal map- or screen-space coordinate.
 function LONG(x)
   if __BIG_ENDIAN__ then return SwapLONG(x) end if
   return x

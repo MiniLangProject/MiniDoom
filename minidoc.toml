@@ -1,0 +1,38 @@
+[project]
+name = "MiniDoom"
+description = "API and implementation reference for the MiniLang DOOM engine port, including gameplay, renderers, audio, console, platform integration, and multiplayer."
+entry = "src/i_main.ml"
+source_roots = ["src"]
+include = ["src"]
+exclude = ["build", "docs/api"]
+target = "windows-x64"
+
+[documentation]
+include_internal = true
+reachable_only = false
+strict = true
+dependencies = "summary"
+contract_warnings = "all"
+summary_quality_warnings = "all"
+duplicate_summary_threshold = 3
+page_granularity = "container"
+
+[output]
+formats = ["html", "markdown"]
+html_dir = "docs/api/html"
+markdown_dir = "docs/api/markdown"
+markdown_profile = "repository"
+include_timestamp = false
+
+[graphs]
+imports = true
+calls = true
+types = true
+format = "svg"
+max_nodes = 300
+granularity = "package"
+hide_empty = true
+
+[links]
+repository = "https://github.com/MiniLangProject/MiniDoom"
+ref = "main"

@@ -13,9 +13,10 @@
   See the License for the specific language governing permissions and
   limitations under the License.
 
-  Script: d_main.ml
-  Purpose: Bootstraps WADs and engine subsystems, then drives title sequencing, frame dispatch, and profiling.
 */
+
+//! Bootstraps WADs and engine subsystems, then drives title sequencing, frame dispatch, and profiling.
+
 import d_event
 import doomdef
 import doomstat
@@ -53,13 +54,13 @@ import std.fs as fs
 import std.math
 import std.time
 
+/// Defines the maximum maxwadfiles accepted by the d main subsystem.
 const MAXWADFILES = 20
+/// Stores the wadfiles collection used by the d main subsystem.
 wadfiles =[]
 
-/*
-* Function: D_AddFile
-* Purpose: Adds file entries to the Doom core.
-*/
+/// Adds file entries to the Doom core.
+/// @param file File value supplied to `D_AddFile`.
 function D_AddFile(file)
   global wadfiles
 
@@ -83,87 +84,183 @@ function D_AddFile(file)
   wadfiles = wadfiles +[file]
 end function
 
+/// Holds the optional events resource used by the d main subsystem.
 events = void
+/// Tracks the mutable eventhead value used by the d main subsystem.
 eventhead = 0
+/// Tracks the mutable eventtail value used by the d main subsystem.
 eventtail = 0
 
+/// Tracks whether advancedemo is active in the d main subsystem.
 advancedemo = false
+/// Tracks the mutable demosequence value used by the d main subsystem.
 demosequence = -1
+/// Tracks the mutable pagetic value used by the d main subsystem.
 pagetic = 0
+/// Stores the mutable pagename text used by the d main subsystem.
 pagename = "TITLEPIC"
 
+/// Tracks whether d profile render is active in the d main subsystem.
+/// @internal
 _d_profile_render = false
+/// Tracks the mutable d prof t0 value used by the d main subsystem.
+/// @internal
 _d_prof_t0 = 0
+/// Tracks the mutable d prof frames value used by the d main subsystem.
+/// @internal
 _d_prof_frames = 0
+/// Tracks the mutable d prof r ms value used by the d main subsystem.
+/// @internal
 _d_prof_r_ms = 0
+/// Tracks the mutable d prof st ms value used by the d main subsystem.
+/// @internal
 _d_prof_st_ms = 0
+/// Tracks the mutable d prof hu ms value used by the d main subsystem.
+/// @internal
 _d_prof_hu_ms = 0
+/// Tracks the mutable d prof am ms value used by the d main subsystem.
+/// @internal
 _d_prof_am_ms = 0
+/// Tracks the mutable d prof other ms value used by the d main subsystem.
+/// @internal
 _d_prof_other_ms = 0
+/// Tracks the mutable d prof vid ms value used by the d main subsystem.
+/// @internal
 _d_prof_vid_ms = 0
+/// Tracks the mutable d prof tick ms value used by the d main subsystem.
+/// @internal
 _d_prof_tick_ms = 0
+/// Tracks the mutable d prof player ms value used by the d main subsystem.
+/// @internal
 _d_prof_player_ms = 0
+/// Tracks the mutable d prof thinker ms value used by the d main subsystem.
+/// @internal
 _d_prof_thinker_ms = 0
+/// Tracks the mutable d prof special ms value used by the d main subsystem.
+/// @internal
 _d_prof_special_ms = 0
+/// Tracks the mutable d prof tics value used by the d main subsystem.
+/// @internal
 _d_prof_tics = 0
+/// Tracks the mutable d prof thinkers value used by the d main subsystem.
+/// @internal
 _d_prof_thinkers = 0
+/// Tracks the mutable d prof mobj thinkers value used by the d main subsystem.
+/// @internal
 _d_prof_mobj_thinkers = 0
+/// Tracks the mutable d prof gl dyn ms value used by the d main subsystem.
+/// @internal
 _d_prof_gl_dyn_ms = 0
+/// Tracks the mutable d prof gl cache ms value used by the d main subsystem.
+/// @internal
 _d_prof_gl_cache_ms = 0
+/// Tracks the mutable d prof gl sky ms value used by the d main subsystem.
+/// @internal
 _d_prof_gl_sky_ms = 0
+/// Tracks the mutable d prof gl boundary ms value used by the d main subsystem.
+/// @internal
 _d_prof_gl_boundary_ms = 0
+/// Tracks the mutable d prof gl depth ms value used by the d main subsystem.
+/// @internal
 _d_prof_gl_depth_ms = 0
+/// Tracks the mutable d prof gl flats ms value used by the d main subsystem.
+/// @internal
 _d_prof_gl_flats_ms = 0
+/// Tracks the mutable d prof gl walls ms value used by the d main subsystem.
+/// @internal
 _d_prof_gl_walls_ms = 0
+/// Tracks the mutable d prof gl sprites ms value used by the d main subsystem.
+/// @internal
 _d_prof_gl_sprites_ms = 0
+/// Tracks the mutable d prof gl masked ms value used by the d main subsystem.
+/// @internal
 _d_prof_gl_masked_ms = 0
+/// Tracks the mutable d prof gl weapon ms value used by the d main subsystem.
+/// @internal
 _d_prof_gl_weapon_ms = 0
+/// Tracks the mutable d prof gl light ms value used by the d main subsystem.
+/// @internal
 _d_prof_gl_light_ms = 0
+/// Tracks the mutable d prof gl flat batches value used by the d main subsystem.
+/// @internal
 _d_prof_gl_flat_batches = 0
+/// Tracks the mutable d prof gl flat drawn value used by the d main subsystem.
+/// @internal
 _d_prof_gl_flat_drawn = 0
+/// Tracks the mutable d prof gl flat vertices value used by the d main subsystem.
+/// @internal
 _d_prof_gl_flat_vertices = 0
+/// Tracks the mutable d prof gl wall batches value used by the d main subsystem.
+/// @internal
 _d_prof_gl_wall_batches = 0
+/// Tracks the mutable d prof gl wall drawn value used by the d main subsystem.
+/// @internal
 _d_prof_gl_wall_drawn = 0
+/// Tracks the mutable d prof gl wall vertices value used by the d main subsystem.
+/// @internal
 _d_prof_gl_wall_vertices = 0
+/// Stores the d prof frame hist collection used by the d main subsystem.
+/// @internal
 _d_prof_frame_hist =[]
+/// Tracks the mutable d prof frame samples value used by the d main subsystem.
+/// @internal
 _d_prof_frame_samples = 0
+/// Tracks the mutable d prof frame max us value used by the d main subsystem.
+/// @internal
 _d_prof_frame_max_us = 0
+/// Tracks the mutable d prof last frame us value used by the d main subsystem.
+/// @internal
 _d_prof_last_frame_us = 0
+/// Defines the d profile log path text used by the d main subsystem.
 const D_PROFILE_LOG_PATH = "minidoom_profile.log"
+/// Tracks whether d force wipe is active in the d main subsystem.
 d_force_wipe = false
+/// Stores the mutable d hdwad status text text used by the d main subsystem.
+/// @internal
 _d_hdwad_status_text = ""
+/// Tracks the mutable d hdwad progress start ms value used by the d main subsystem.
+/// @internal
 _d_hdwad_progress_start_ms = 0
+/// Tracks the mutable d hdwad progress total value used by the d main subsystem.
+/// @internal
 _d_hdwad_progress_total = 0
+/// Tracks the mutable d hdwad progress done value used by the d main subsystem.
+/// @internal
 _d_hdwad_progress_done = 0
+/// Tracks the mutable d hdwad progress phase base value used by the d main subsystem.
+/// @internal
 _d_hdwad_progress_phase_base = 0
+/// Tracks the mutable d hdwad progress phase span value used by the d main subsystem.
+/// @internal
 _d_hdwad_progress_phase_span = 0
+/// Tracks the mutable d hdwad progress phase done value used by the d main subsystem.
+/// @internal
 _d_hdwad_progress_phase_done = 0
+/// Tracks the mutable d hdwad progress phase expected value used by the d main subsystem.
+/// @internal
 _d_hdwad_progress_phase_expected = 1
+/// Tracks the mutable d hdwad progress last draw ms value used by the d main subsystem.
+/// @internal
 _d_hdwad_progress_last_draw_ms = 0
 
-/*
-* Function: D_ForceWipe
-* Purpose: Forces the next display pass to run a full screen-wipe transition.
-*/
+/// Forces the next display pass to run a full screen-wipe transition.
 function D_ForceWipe()
   global d_force_wipe
   d_force_wipe = true
 end function
 
-/*
-* Function: _D_TimeMs
-* Purpose: Returns the monotonic runtime clock used by loading and profiling telemetry.
-*/
+/// Returns the monotonic runtime clock used by loading and profiling telemetry.
+/// @internal
 function inline _D_TimeMs()
   t = std.time.ticks()
   if typeof(t) != "int" then return 0 end if
   return t
 end function
 
-/*
-* Function: _D_ProfileAdd
-* Purpose: Adds one measured duration to its renderer/gameplay profiling bucket when profiling is enabled.
-*/
+/// Adds one measured duration to its renderer/gameplay profiling bucket when profiling is enabled.
+/// @param slot Slot value supplied to `_D_ProfileAdd`.
+/// @param delta Delta value supplied to `_D_ProfileAdd`.
+/// @internal
 function _D_ProfileAdd(slot, delta)
   global _d_prof_r_ms
   global _d_prof_st_ms
@@ -200,19 +297,16 @@ function _D_ProfileAdd(slot, delta)
   end if
 end function
 
-/*
-* Function: _D_ProfileGameTick
-* Purpose: Counts one executed game tic for runtime profiling.
-*/
+/// Counts one executed game tic for runtime profiling.
+/// @internal
 function _D_ProfileGameTick()
   global _d_prof_tics
   if _d_profile_render then _d_prof_tics = _d_prof_tics + 1 end if
 end function
 
-/*
-* Function: _D_ProfileThinker
-* Purpose: Counts thinker execution and separates mobj thinkers for gameplay profiling.
-*/
+/// Counts thinker execution and separates mobj thinkers for gameplay profiling.
+/// @param isMobj Whether is mobj holds.
+/// @internal
 function _D_ProfileThinker(isMobj)
   global _d_prof_thinkers
   global _d_prof_mobj_thinkers
@@ -221,10 +315,9 @@ function _D_ProfileThinker(isMobj)
   if typeof(isMobj) == "bool" and isMobj then _d_prof_mobj_thinkers = _d_prof_mobj_thinkers + 1 end if
 end function
 
-/*
-* Function: _D_ProfileLog
-* Purpose: Writes profiler output to stdout and to a log file for windows-subsystem builds.
-*/
+/// Writes profiler output to stdout and to a log file for windows-subsystem builds.
+/// @param line Map line or text line affected by the operation.
+/// @internal
 function _D_ProfileLog(line)
   if typeof(line) != "string" then return end if
   print line
@@ -233,10 +326,10 @@ function _D_ProfileLog(line)
   end if
 end function
 
-/*
-* Function: _D_ProfileGLAdd
-* Purpose: Accumulates fine-grained OpenGL renderer timings for the profile log.
-*/
+/// Accumulates fine-grained OpenGL renderer timings for the profile log.
+/// @param slot Slot value supplied to `_D_ProfileGLAdd`.
+/// @param delta Delta value supplied to `_D_ProfileGLAdd`.
+/// @internal
 function _D_ProfileGLAdd(slot, delta)
   global _d_prof_gl_light_ms
   global _d_prof_gl_dyn_ms
@@ -279,10 +372,8 @@ function _D_ProfileGLAdd(slot, delta)
   end if
 end function
 
-/*
-* Function: _D_ProfileTimeUs
-* Purpose: Reads a high-resolution monotonic timestamp without changing game timing.
-*/
+/// Reads a high-resolution monotonic timestamp without changing game timing.
+/// @internal
 function inline _D_ProfileTimeUs()
   if typeof(MGL_TimeMicroseconds) == "function" then
     t = MGL_TimeMicroseconds()
@@ -291,10 +382,9 @@ function inline _D_ProfileTimeUs()
   return _D_TimeMs() * 1000
 end function
 
-/*
-* Function: _D_ProfileFrameSample
-* Purpose: Adds one complete frame duration to a compact millisecond histogram.
-*/
+/// Adds one complete frame duration to a compact millisecond histogram.
+/// @param deltaUs Delta us value supplied to `_D_ProfileFrameSample`.
+/// @internal
 function _D_ProfileFrameSample(deltaUs)
   global _d_prof_frame_hist
   global _d_prof_frame_samples
@@ -311,10 +401,9 @@ function _D_ProfileFrameSample(deltaUs)
   if deltaUs > _d_prof_frame_max_us then _d_prof_frame_max_us = deltaUs end if
 end function
 
-/*
-* Function: _D_ProfilePercentileMs
-* Purpose: Reads a percentile from the current frame histogram.
-*/
+/// Reads a percentile from the current frame histogram.
+/// @param percent Percent value supplied to `_D_ProfilePercentileMs`.
+/// @internal
 function _D_ProfilePercentileMs(percent)
   if typeof(_d_prof_frame_hist) != "array" or _d_prof_frame_samples <= 0 then return 0 end if
   target = _D_IDiv(_d_prof_frame_samples * percent + 99, 100)
@@ -329,18 +418,19 @@ function _D_ProfilePercentileMs(percent)
   return 250
 end function
 
-/*
-* Function: _D_ProfileMs
-* Purpose: Converts accumulated microseconds to whole milliseconds for compact profile output.
-*/
+/// Converts accumulated microseconds to whole milliseconds for compact profile output.
+/// @param us Us value supplied to `_D_ProfileMs`.
+/// @internal
 function inline _D_ProfileMs(us)
   return _D_IDiv(us, 1000)
 end function
 
-/*
-* Function: _D_ProfileGLBatches
-* Purpose: Accumulates OpenGL batch visibility counts for renderer profiling.
-*/
+/// Accumulates OpenGL batch visibility counts for renderer profiling.
+/// @param kind Kind value supplied to `_D_ProfileGLBatches`.
+/// @param total Total value supplied to `_D_ProfileGLBatches`.
+/// @param drawn Drawn value supplied to `_D_ProfileGLBatches`.
+/// @param vertices Vertices value supplied to `_D_ProfileGLBatches`.
+/// @internal
 function _D_ProfileGLBatches(kind, total, drawn, vertices)
   global _d_prof_gl_flat_batches
   global _d_prof_gl_flat_drawn
@@ -364,10 +454,8 @@ function _D_ProfileGLBatches(kind, total, drawn, vertices)
   end if
 end function
 
-/*
-* Function: _D_DrawMPDebugOverlay
-* Purpose: Renders multiplayer debug telemetry text overlay when MP runtime is active.
-*/
+/// Renders multiplayer debug telemetry text overlay when MP runtime is active.
+/// @internal
 function _D_DrawMPDebugOverlay()
   if typeof(MP_PlatformGetDebugOverlayText) != "function" then return end if
   txt = MP_PlatformGetDebugOverlayText()
@@ -387,10 +475,10 @@ function _D_DrawMPDebugOverlay()
   end if
 end function
 
-/*
-* Function: _D_IDiv
-* Purpose: Returns a quotient truncated toward zero, mapping non-integers and division by zero to zero.
-*/
+/// Returns a quotient truncated toward zero, mapping non-integers and division by zero to zero.
+/// @param a First input operand.
+/// @param b Second input operand.
+/// @internal
 function inline _D_IDiv(a, b)
   if typeof(a) != "int" or typeof(b) != "int" or b == 0 then return 0 end if
   q = a / b
@@ -398,10 +486,8 @@ function inline _D_IDiv(a, b)
   return std.math.ceil(q)
 end function
 
-/*
-* Function: _D_ProfileFlushMaybe
-* Purpose: Flushes one-second profiling aggregates and resets their counters after the interval elapsed.
-*/
+/// Flushes one-second profiling aggregates and resets their counters after the interval elapsed.
+/// @internal
 function _D_ProfileFlushMaybe()
   global _d_prof_gl_light_ms
   global _d_prof_frame_hist
@@ -502,10 +588,8 @@ function _D_ProfileFlushMaybe()
   _d_prof_frame_max_us = 0
 end function
 
-/*
-* Function: _D_InitEventQueue
-* Purpose: Clears the fixed-size input event ring and resets both producer and consumer cursors.
-*/
+/// Clears the fixed-size input event ring and resets both producer and consumer cursors.
+/// @internal
 function _D_InitEventQueue()
   global events
   global eventhead
@@ -522,10 +606,8 @@ function _D_InitEventQueue()
   eventtail = 0
 end function
 
-/*
-* Function: D_PostEvent
-* Purpose: Enqueues one input event in the bounded power-of-two responder ring.
-*/
+/// Enqueues one input event in the bounded power-of-two responder ring.
+/// @param ev Input event to process.
 function D_PostEvent(ev)
   global eventhead
 
@@ -536,10 +618,7 @@ function D_PostEvent(ev)
   eventhead =(eventhead + 1) &(MAXEVENTS - 1)
 end function
 
-/*
-* Function: D_ProcessEvents
-* Purpose: Dispatches queued input through menu then gameplay responders in deterministic order.
-*/
+/// Dispatches queued input through menu then gameplay responders in deterministic order.
 function D_ProcessEvents()
   global eventtail
 
@@ -579,10 +658,7 @@ function D_ProcessEvents()
   end while
 end function
 
-/*
-* Function: D_PageTicker
-* Purpose: Counts down the current title/help page and queues the next demo-sequence entry on expiry.
-*/
+/// Counts down the current title/help page and queues the next demo-sequence entry on expiry.
 function D_PageTicker()
   global pagetic
 
@@ -594,10 +670,7 @@ function D_PageTicker()
   end if
 end function
 
-/*
-* Function: D_PageDrawer
-* Purpose: Draws the current title/demo page or clears the framebuffer when its lump is unavailable.
-*/
+/// Draws the current title/demo page or clears the framebuffer when its lump is unavailable.
 function D_PageDrawer()
   name = "TITLEPIC"
   if typeof(pagename) == "string" and len(pagename) > 0 then
@@ -619,20 +692,14 @@ function D_PageDrawer()
   end if
 end function
 
-/*
-* Function: D_AdvanceDemo
-* Purpose: Defers a title/demo sequence advance until the main loop reaches a safe game-action boundary.
-*/
+/// Defers a title/demo sequence advance until the main loop reaches a safe game-action boundary.
 function D_AdvanceDemo()
   global advancedemo
 
   advancedemo = true
 end function
 
-/*
-* Function: D_DoAdvanceDemo
-* Purpose: Rotates through title pages and built-in demos, selecting mission-specific page durations and music.
-*/
+/// Rotates through title pages and built-in demos, selecting mission-specific page durations and music.
 function D_DoAdvanceDemo()
   global advancedemo
   global demosequence
@@ -724,10 +791,7 @@ function D_DoAdvanceDemo()
   end if
 end function
 
-/*
-* Function: D_StartTitle
-* Purpose: Resets game actions to the title demo screen and restarts the attract-mode sequence.
-*/
+/// Resets game actions to the title demo screen and restarts the attract-mode sequence.
 function D_StartTitle()
   global demosequence
   global pagename
@@ -743,10 +807,8 @@ function D_StartTitle()
   D_AdvanceDemo()
 end function
 
-/*
-* Function: _D_ParseWadFilesFromArgs
-* Purpose: Parses parse Wad Files From Args input into Doom core runtime data.
-*/
+/// Parses parse Wad Files From Args input into Doom core runtime data.
+/// @internal
 function _D_ParseWadFilesFromArgs()
 
   i = M_CheckParm("-iwad")
@@ -773,10 +835,9 @@ function _D_ParseWadFilesFromArgs()
   end if
 end function
 
-/*
-* Function: _D_ArgValue
-* Purpose: Returns the string immediately following a command-line flag without consuming later options.
-*/
+/// Returns the string immediately following a command-line flag without consuming later options.
+/// @param flag Flag value supplied to `_D_ArgValue`.
+/// @internal
 function _D_ArgValue(flag)
   p = M_CheckParm(flag)
   if p == 0 or p >= myargc - 1 then return "" end if
@@ -785,10 +846,9 @@ function _D_ArgValue(flag)
   return ""
 end function
 
-/*
-* Function: _D_IsWadPath
-* Purpose: Recognizes case-insensitive .wad filenames before deriving an adjacent HDWAD cache path.
-*/
+/// Recognizes case-insensitive .wad filenames before deriving an adjacent HDWAD cache path.
+/// @param path Filesystem path to process.
+/// @internal
 function _D_IsWadPath(path)
   if typeof(path) != "string" then return false end if
   b = bytes(path)
@@ -804,18 +864,15 @@ function _D_IsWadPath(path)
   return dot == 46 and a == 87 and c == 65 and d == 68
 end function
 
-/*
-* Function: _D_HDWADPathForWad
-* Purpose: Derives the automatic HD rendering-cache sidecar path for a gameplay WAD.
-*/
+/// Derives the automatic HD rendering-cache sidecar path for a gameplay WAD.
+/// @param wad Wad value supplied to `_D_HDWADPathForWad`.
+/// @internal
 function _D_HDWADPathForWad(wad)
   return wad + ".hdwad"
 end function
 
-/*
-* Function: _D_AutoHDWADShouldRun
-* Purpose: Checks whether OpenGL should automatically use a generated HDWAD.
-*/
+/// Checks whether OpenGL should automatically use a generated HDWAD.
+/// @internal
 function _D_AutoHDWADShouldRun()
   if M_CheckParm("-nohdwad") != 0 or M_CheckParm("--nohdwad") != 0 then return false end if
   if M_CheckParm("-hdwad") != 0 or M_CheckParm("--hdwad") != 0 then return false end if
@@ -823,10 +880,8 @@ function _D_AutoHDWADShouldRun()
   return true
 end function
 
-/*
-* Function: _D_AttachExistingAutoHDWAD
-* Purpose: Adds an existing automatic HDWAD to the WAD list before the WAD system starts.
-*/
+/// Adds an existing automatic HDWAD to the WAD list before the WAD system starts.
+/// @internal
 function _D_AttachExistingAutoHDWAD()
   global wadfiles
 
@@ -842,10 +897,10 @@ function _D_AttachExistingAutoHDWAD()
   return false
 end function
 
-/*
-* Function: _D_DigitAt
-* Purpose: Decodes one ASCII decimal digit at a checked string offset.
-*/
+/// Decodes one ASCII decimal digit at a checked string offset.
+/// @param s S value supplied to `_D_DigitAt`.
+/// @param idx Zero-based element or table index.
+/// @internal
 function _D_DigitAt(s, idx)
   if typeof(s) != "string" then return -1 end if
   b = bytes(s)
@@ -855,10 +910,10 @@ function _D_DigitAt(s, idx)
   return c - 48
 end function
 
-/*
-* Function: _D_MapNameFor
-* Purpose: Formats an episode/map pair using the active IWAD naming convention.
-*/
+/// Formats an episode/map pair using the active IWAD naming convention.
+/// @param episode Episode value supplied to `_D_MapNameFor`.
+/// @param map Map value supplied to `_D_MapNameFor`.
+/// @internal
 function _D_MapNameFor(episode, map)
   if gamemode == GameMode_t.commercial then
     if map == 1 then return "MAP01" end if
@@ -934,18 +989,16 @@ function _D_MapNameFor(episode, map)
   return "E1M1"
 end function
 
-/*
-* Function: _D_GeomNameForMapName
-* Purpose: Converts a map marker into its deterministic cached-geometry lump name.
-*/
+/// Converts a map marker into its deterministic cached-geometry lump name.
+/// @param mapName Map name value supplied to `_D_GeomNameForMapName`.
+/// @internal
 function _D_GeomNameForMapName(mapName)
   return mapName + "GL"
 end function
 
-/*
-* Function: _D_IsMapMarkerName
-* Purpose: Recognizes canonical MAPxx and ExMy lump markers with decimal digit validation.
-*/
+/// Recognizes canonical MAPxx and ExMy lump markers with decimal digit validation.
+/// @param name Resource or object name to resolve.
+/// @internal
 function _D_IsMapMarkerName(name)
   if typeof(name) != "string" then return false end if
   b = bytes(name)
@@ -958,10 +1011,9 @@ function _D_IsMapMarkerName(name)
   return false
 end function
 
-/*
-* Function: _D_MapPairsFromLumps
-* Purpose: Discovers playable episode/map pairs from loaded WAD marker lumps.
-*/
+/// Discovers playable episode/map pairs from loaded WAD marker lumps.
+/// @param lumps Lumps value supplied to `_D_MapPairsFromLumps`.
+/// @internal
 function _D_MapPairsFromLumps(lumps)
   maps =[]
   if typeof(lumps) != "array" then return maps end if
@@ -983,10 +1035,9 @@ function _D_MapPairsFromLumps(lumps)
   return maps
 end function
 
-/*
-* Function: _D_ReadHDWADLumpNames
-* Purpose: Validates an HDWAD v6 directory and extracts its eight-byte lump-name table.
-*/
+/// Validates an HDWAD v6 directory and extracts its eight-byte lump-name table.
+/// @param path Filesystem path to process.
+/// @internal
 function _D_ReadHDWADLumpNames(path)
   names =[]
   if typeof(path) != "string" or not fs.exists(path) or not fs.isFile(path) then return names end if
@@ -1013,10 +1064,9 @@ function _D_ReadHDWADLumpNames(path)
   return names
 end function
 
-/*
-* Function: _D_ReadHDWADImageNames
-* Purpose: Reads HDWAD image names from the high-resolution image directory.
-*/
+/// Reads HDWAD image names from the high-resolution image directory.
+/// @param path Filesystem path to process.
+/// @internal
 function _D_ReadHDWADImageNames(path)
   names =[]
   if typeof(path) != "string" or not fs.exists(path) or not fs.isFile(path) then return names end if
@@ -1040,10 +1090,10 @@ function _D_ReadHDWADImageNames(path)
   return names
 end function
 
-/*
-* Function: _D_NameInList
-* Purpose: Tests ASCII map/lump membership without allocating a secondary lookup table.
-*/
+/// Tests ASCII map/lump membership without allocating a secondary lookup table.
+/// @param names Names value supplied to `_D_NameInList`.
+/// @param name Resource or object name to resolve.
+/// @internal
 function _D_NameInList(names, name)
   if typeof(names) != "array" then return false end if
   i = 0
@@ -1054,10 +1104,9 @@ function _D_NameInList(names, name)
   return false
 end function
 
-/*
-* Function: _D_HDWADLooksComplete
-* Purpose: Validates that an HDWAD contains metadata and generated geometry required for reuse.
-*/
+/// Validates that an HDWAD contains metadata and generated geometry required for reuse.
+/// @param path Filesystem path to process.
+/// @internal
 function _D_HDWADLooksComplete(path)
   names = _D_ReadHDWADLumpNames(path)
   if len(names) == 0 then return false end if
@@ -1081,18 +1130,15 @@ function _D_HDWADLooksComplete(path)
   return mapCount > 0
 end function
 
-/*
-* Function: _D_HDWADScaleFromArgs
-* Purpose: Parses and clamps the requested offline HDWAD upscale factor.
-*/
+/// Parses and clamps the requested offline HDWAD upscale factor.
+/// @internal
 function _D_HDWADScaleFromArgs()
   return 3
 end function
 
-/*
-* Function: _D_HDWADFontLump
-* Purpose: Builds the STCFN lump name used for HDWAD loading text.
-*/
+/// Builds the STCFN lump name used for HDWAD loading text.
+/// @param code Code value supplied to `_D_HDWADFontLump`.
+/// @internal
 function _D_HDWADFontLump(code)
   h = _D_IDiv(code, 100) % 10
   t = _D_IDiv(code, 10) % 10
@@ -1100,19 +1146,17 @@ function _D_HDWADFontLump(code)
   return "STCFN" + h + t + o
 end function
 
-/*
-* Function: _D_HDWADTextByte
-* Purpose: Normalizes one byte for the HDWAD loading font.
-*/
+/// Normalizes one byte for the HDWAD loading font.
+/// @param c C value supplied to `_D_HDWADTextByte`.
+/// @internal
 function inline _D_HDWADTextByte(c)
   if c >= 97 and c <= 122 then return c - 32 end if
   return c
 end function
 
-/*
-* Function: _D_HDWADPatchWidth
-* Purpose: Reads a Doom patch width without depending on renderer init.
-*/
+/// Reads a Doom patch width without depending on renderer init.
+/// @param patch Patch value supplied to `_D_HDWADPatchWidth`.
+/// @internal
 function inline _D_HDWADPatchWidth(patch)
   if typeof(patch) != "bytes" or len(patch) < 2 then return 0 end if
   v = patch[0] +(patch[1] << 8)
@@ -1120,10 +1164,9 @@ function inline _D_HDWADPatchWidth(patch)
   return v
 end function
 
-/*
-* Function: _D_HDWADTextWidth
-* Purpose: Measures loading text using Doom STCFN font patches.
-*/
+/// Measures loading text using Doom STCFN font patches.
+/// @param text Text to process.
+/// @internal
 function _D_HDWADTextWidth(text)
   if typeof(text) != "string" then return 0 end if
   b = bytes(text)
@@ -1148,10 +1191,10 @@ function _D_HDWADTextWidth(text)
   return w
 end function
 
-/*
-* Function: _D_HDWADDrawText
-* Purpose: Draws centered loading text with Doom STCFN font patches.
-*/
+/// Draws centered loading text with Doom STCFN font patches.
+/// @param text Text to process.
+/// @param y Vertical map- or screen-space coordinate.
+/// @internal
 function _D_HDWADDrawText(text, y)
   if typeof(text) != "string" then return end if
   b = bytes(text)
@@ -1177,10 +1220,9 @@ function _D_HDWADDrawText(text, y)
   end while
 end function
 
-/*
-* Function: _D_HDWADDurationText
-* Purpose: Formats a millisecond duration for the HDWAD loading progress line.
-*/
+/// Formats a millisecond duration for the HDWAD loading progress line.
+/// @param ms Ms value supplied to `_D_HDWADDurationText`.
+/// @internal
 function _D_HDWADDurationText(ms)
   if typeof(ms) != "int" or ms <= 0 then return "--" end if
   sec = _D_IDiv(ms + 999, 1000)
@@ -1191,10 +1233,8 @@ function _D_HDWADDurationText(ms)
   return ("" + sec) + "s"
 end function
 
-/*
-* Function: _D_HDWADProgressLine
-* Purpose: Builds the second HDWAD loading line with percent and remaining time.
-*/
+/// Builds the second HDWAD loading line with percent and remaining time.
+/// @internal
 function _D_HDWADProgressLine()
   if _d_hdwad_progress_total <= 0 then return "" end if
   done = _d_hdwad_progress_done
@@ -1216,10 +1256,9 @@ function _D_HDWADProgressLine()
   return ("" + pct) + "%  REMAINING " + eta
 end function
 
-/*
-* Function: _D_HDWADDrawLoadingScreen
-* Purpose: Presents TITLEPIC with centered Doom-font HDWAD progress text.
-*/
+/// Presents TITLEPIC with centered Doom-font HDWAD progress text.
+/// @param text Text to process.
+/// @internal
 function _D_HDWADDrawLoadingScreen(text)
   if typeof(screens) != "array" or len(screens) == 0 or typeof(screens[0]) != "bytes" then return end if
   if typeof(V_ClearHighresOverlay) == "function" then V_ClearHighresOverlay() end if
@@ -1239,10 +1278,8 @@ function _D_HDWADDrawLoadingScreen(text)
   if typeof(I_FinishUpdate) == "function" then I_FinishUpdate() end if
 end function
 
-/*
-* Function: _D_HDWADProgressReset
-* Purpose: Clears HDWAD loading progress state.
-*/
+/// Clears HDWAD loading progress state.
+/// @internal
 function _D_HDWADProgressReset()
   global _d_hdwad_status_text
   global _d_hdwad_progress_start_ms
@@ -1265,10 +1302,12 @@ function _D_HDWADProgressReset()
   _d_hdwad_progress_last_draw_ms = 0
 end function
 
-/*
-* Function: _D_HDWADSetProgressPhase
-* Purpose: Starts a weighted HDWAD generation phase.
-*/
+/// Starts a weighted HDWAD generation phase.
+/// @param text Text to process.
+/// @param basePct Base pct value supplied to `_D_HDWADSetProgressPhase`.
+/// @param spanPct Span pct value supplied to `_D_HDWADSetProgressPhase`.
+/// @param expectedUnits Expected units value supplied to `_D_HDWADSetProgressPhase`.
+/// @internal
 function _D_HDWADSetProgressPhase(text, basePct, spanPct, expectedUnits)
   global _d_hdwad_progress_start_ms
   global _d_hdwad_progress_total
@@ -1289,10 +1328,8 @@ function _D_HDWADSetProgressPhase(text, basePct, spanPct, expectedUnits)
   _D_HDWADStatus(text)
 end function
 
-/*
-* Function: _D_HDWADFinishProgressPhase
-* Purpose: Completes the current weighted HDWAD generation phase.
-*/
+/// Completes the current weighted HDWAD generation phase.
+/// @internal
 function _D_HDWADFinishProgressPhase()
   global _d_hdwad_progress_done
   global _d_hdwad_progress_phase_done
@@ -1302,10 +1339,8 @@ function _D_HDWADFinishProgressPhase()
   if _d_hdwad_status_text != "" then _D_HDWADDrawLoadingScreen(_d_hdwad_status_text) end if
 end function
 
-/*
-* Function: D_HDWADProgressStep
-* Purpose: Advances the visible HDWAD generation progress from builder callbacks.
-*/
+/// Advances the visible HDWAD generation progress from builder callbacks.
+/// @param units Units value supplied to `D_HDWADProgressStep`.
 function D_HDWADProgressStep(units)
   global _d_hdwad_progress_done
   global _d_hdwad_progress_phase_done
@@ -1335,10 +1370,9 @@ function D_HDWADProgressStep(units)
   end if
 end function
 
-/*
-* Function: _D_HDWADStatus
-* Purpose: Shows the current HDWAD generation phase in the application title.
-*/
+/// Shows the current HDWAD generation phase in the application title.
+/// @param text Text to process.
+/// @internal
 function _D_HDWADStatus(text)
   global _d_hdwad_status_text
   if typeof(text) != "string" then text = "" end if
@@ -1355,10 +1389,8 @@ function _D_HDWADStatus(text)
   if text == "" then _D_HDWADProgressReset() end if
 end function
 
-/*
-* Function: _D_GenerateHDWADCacheAfterInit
-* Purpose: Initializes generate HDWADCache After Init state for the Doom core system.
-*/
+/// Initializes generate HDWADCache After Init state for the Doom core system.
+/// @internal
 function _D_GenerateHDWADCacheAfterInit()
   global wadfiles
   global gameepisode
@@ -1464,10 +1496,9 @@ function _D_GenerateHDWADCacheAfterInit()
   return true
 end function
 
-/*
-* Function: _D_AddDemoLmpFromArgs
-* Purpose: Adds demo lump from args entries to the Doom core.
-*/
+/// Adds demo lump from args entries to the Doom core.
+/// @param flag Flag value supplied to `_D_AddDemoLmpFromArgs`.
+/// @internal
 function inline _D_AddDemoLmpFromArgs(flag)
   p = M_CheckParm(flag)
   if p == 0 or p >= myargc - 1 then return end if
@@ -1480,10 +1511,9 @@ function inline _D_AddDemoLmpFromArgs(flag)
   end if
 end function
 
-/*
-* Function: _D_FileReadable
-* Purpose: Accepts only non-empty paths that currently resolve to regular files.
-*/
+/// Accepts only non-empty paths that currently resolve to regular files.
+/// @param path Filesystem path to process.
+/// @internal
 function inline _D_FileReadable(path)
   if typeof(path) != "string" or len(path) == 0 then return false end if
   if not fs.exists(path) then return false end if
@@ -1492,10 +1522,9 @@ function inline _D_FileReadable(path)
   return true
 end function
 
-/*
-* Function: _D_ToLowerAscii
-* Purpose: Converts lower ASCII values for the Doom core.
-*/
+/// Converts lower ASCII values for the Doom core.
+/// @param s S value supplied to `_D_ToLowerAscii`.
+/// @internal
 function _D_ToLowerAscii(s)
   if typeof(s) != "string" then return "" end if
   b = bytes(s)
@@ -1507,10 +1536,10 @@ function _D_ToLowerAscii(s)
   return decode(b)
 end function
 
-/*
-* Function: _D_StrContains
-* Purpose: Performs a bytewise substring search used while classifying command-line paths.
-*/
+/// Performs a bytewise substring search used while classifying command-line paths.
+/// @param haystack Haystack value supplied to `_D_StrContains`.
+/// @param needle Needle value supplied to `_D_StrContains`.
+/// @internal
 function _D_StrContains(haystack, needle)
   if typeof(haystack) != "string" or typeof(needle) != "string" then return false end if
   hb = bytes(haystack)
@@ -1535,18 +1564,16 @@ function _D_StrContains(haystack, needle)
   return false
 end function
 
-/*
-* Function: _D_IsResponseTokenByte
-* Purpose: Accepts the non-whitespace printable byte range used while tokenizing response files.
-*/
+/// Accepts the non-whitespace printable byte range used while tokenizing response files.
+/// @param c C value supplied to `_D_IsResponseTokenByte`.
+/// @internal
 function inline _D_IsResponseTokenByte(c)
   return c >= 33 and c <= 122
 end function
 
-/*
-* Function: _D_ParseResponseArgs
-* Purpose: Parses parse Response Args input into Doom core runtime data.
-*/
+/// Parses parse Response Args input into Doom core runtime data.
+/// @param data Binary or structured data to process.
+/// @internal
 function _D_ParseResponseArgs(data)
   argsOut =[]
   if typeof(data) != "bytes" then return argsOut end if
@@ -1571,10 +1598,7 @@ function _D_ParseResponseArgs(data)
   return argsOut
 end function
 
-/*
-* Function: IdentifyVersion
-* Purpose: Selects the IWAD, game mode, language, and mission family before resource initialization.
-*/
+/// Selects the IWAD, game mode, language, and mission family before resource initialization.
 function IdentifyVersion()
   global gamemode
   global language
@@ -1624,10 +1648,7 @@ function IdentifyVersion()
   gamemode = GameMode_t.indetermined
 end function
 
-/*
-* Function: FindResponseFile
-* Purpose: Computes response file values for the Doom core.
-*/
+/// Computes response file values for the Doom core.
 function FindResponseFile()
   global myargv
   global myargc
@@ -1697,10 +1718,7 @@ function FindResponseFile()
   end while
 end function
 
-/*
-* Function: D_DoomMain
-* Purpose: Runs the main Doom core entry point.
-*/
+/// Runs the main Doom core entry point.
 function D_DoomMain()
   global wadfiles
   global devparm
@@ -1908,10 +1926,9 @@ function D_DoomMain()
   D_DoomLoop()
 end function
 
-/*
-* Function: _D_StatusBarVisible
-* Purpose: Determines classic status-bar visibility without comparing a scaled HD view height to logical screen dimensions.
-*/
+/// Determines classic status-bar visibility without comparing a scaled HD view height to logical screen
+/// dimensions.
+/// @internal
 function inline _D_StatusBarVisible()
   if gamestate != gamestate_t.GS_LEVEL then return false end if
   if automapactive then return true end if
@@ -1923,10 +1940,7 @@ function inline _D_StatusBarVisible()
   return viewheight < SCREENHEIGHT
 end function
 
-/*
-* Function: D_Display
-* Purpose: Composes one frame, including wipes, view/HUD layers, palette updates, and profiling.
-*/
+/// Composes one frame, including wipes, view/HUD layers, palette updates, and profiling.
 function D_Display()
   global _d_profile_render
   global _d_prof_frames
@@ -2270,10 +2284,7 @@ function D_Display()
   end if
 end function
 
-/*
-* Function: D_DoomLoop
-* Purpose: Runs the permanent event/tic/render loop with capped or interpolated presentation scheduling.
-*/
+/// Runs the permanent event/tic/render loop with capped or interpolated presentation scheduling.
 function D_DoomLoop()
 
   global render_lerp_frac

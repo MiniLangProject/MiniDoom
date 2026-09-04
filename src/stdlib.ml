@@ -13,14 +13,13 @@
   See the License for the specific language governing permissions and
   limitations under the License.
 
-  Script: stdlib.ml
-  Purpose: Supplies the small numeric and string compatibility helpers expected by translated Doom modules.
 */
 
-/*
-* Function: abs
-* Purpose: Returns a numeric magnitude while preserving integer or floating-point representation.
-*/
+//! Supplies the small numeric and string compatibility helpers expected by translated Doom modules.
+
+
+/// Returns a numeric magnitude while preserving integer or floating-point representation.
+/// @param x Horizontal map- or screen-space coordinate.
 function inline abs(x)
   if x < 0 then return - x end if
   return x

@@ -13,9 +13,11 @@
   See the License for the specific language governing permissions and
   limitations under the License.
 
-  Script: r_bsp.ml
-  Purpose: Traverses front-to-back BSP nodes, culls occluded child bounds, and clips wall segments against solid screen ranges.
 */
+
+//! Traverses front-to-back BSP nodes, culls occluded child bounds, and clips wall segments against solid screen
+//! ranges.
+
 import doomdef
 import m_bbox
 import i_system
@@ -27,39 +29,58 @@ import r_state
 import std.time
 import std.math
 
+/// Holds the optional curline resource used by the r bsp subsystem.
 curline = void
+/// Holds the optional sidedef resource used by the r bsp subsystem.
 sidedef = void
+/// Holds the optional linedef resource used by the r bsp subsystem.
 linedef = void
+/// Holds the optional frontsector resource used by the r bsp subsystem.
 frontsector = void
+/// Holds the optional backsector resource used by the r bsp subsystem.
 backsector = void
 
+/// Tracks the mutable rw x value used by the r bsp subsystem.
 rw_x = 0
+/// Tracks the mutable rw stopx value used by the r bsp subsystem.
 rw_stopx = 0
 
+/// Tracks whether segtextured is active in the r bsp subsystem.
 segtextured = false
+/// Tracks whether markfloor is active in the r bsp subsystem.
 markfloor = false
+/// Tracks whether markceiling is active in the r bsp subsystem.
 markceiling = false
+/// Tracks whether skymap is active in the r bsp subsystem.
 skymap = false
 
+/// Stores the drawsegs collection used by the r bsp subsystem.
 drawsegs =[]
+/// Tracks the mutable ds p value used by the r bsp subsystem.
 ds_p = 0
 
+/// Holds the optional hscalelight resource used by the r bsp subsystem.
 hscalelight = void
+/// Holds the optional vscalelight resource used by the r bsp subsystem.
 vscalelight = void
+/// Holds the optional dscalelight resource used by the r bsp subsystem.
 dscalelight = void
 
-/*
-* Struct: cliprange_t
-* Purpose: Represents one inclusive horizontal screen interval already occluded by solid walls.
-*/
+/// Represents one inclusive horizontal screen interval already occluded by solid walls.
 struct cliprange_t
+  /// Stores first for `cliprange_t`
   first
+  /// Stores last for `cliprange_t`
   last
 end struct
 
+/// Defines the maximum maxsegs accepted by the r bsp subsystem.
 const MAXSEGS = 32
+/// Stores the solidsegs collection used by the r bsp subsystem.
 solidsegs =[]
+/// Tracks the mutable newend value used by the r bsp subsystem.
 newend = 0
+/// Stores the checkcoord collection used by the r bsp subsystem.
 checkcoord =[
 [3, 0, 2, 1],
 [3, 0, 2, 0],
@@ -75,35 +96,60 @@ checkcoord =[
 [0, 0, 0, 0]
 ]
 
+/// Tracks the mutable rb prof addline ms value used by the r bsp subsystem.
+/// @internal
 _rb_prof_addline_ms = 0
+/// Tracks the mutable rb prof addline calls value used by the r bsp subsystem.
+/// @internal
 _rb_prof_addline_calls = 0
+/// Tracks the mutable rb prof store ms value used by the r bsp subsystem.
+/// @internal
 _rb_prof_store_ms = 0
+/// Tracks the mutable rb prof store calls value used by the r bsp subsystem.
+/// @internal
 _rb_prof_store_calls = 0
+/// Tracks the mutable rb prof segloop ms value used by the r bsp subsystem.
+/// @internal
 _rb_prof_segloop_ms = 0
+/// Tracks the mutable rb prof subsector calls value used by the r bsp subsystem.
+/// @internal
 _rb_prof_subsector_calls = 0
+/// Tracks the mutable rb prof bbox ms value used by the r bsp subsystem.
+/// @internal
 _rb_prof_bbox_ms = 0
+/// Tracks the mutable rb prof bbox calls value used by the r bsp subsystem.
+/// @internal
 _rb_prof_bbox_calls = 0
+/// Tracks the mutable rb prof pointonside ms value used by the r bsp subsystem.
+/// @internal
 _rb_prof_pointonside_ms = 0
+/// Tracks the mutable rb prof pointonside calls value used by the r bsp subsystem.
+/// @internal
 _rb_prof_pointonside_calls = 0
+/// Tracks the mutable rb prof node calls value used by the r bsp subsystem.
+/// @internal
 _rb_prof_node_calls = 0
+/// Tracks the mutable rb prof newend max value used by the r bsp subsystem.
+/// @internal
 _rb_prof_newend_max = 0
+/// Tracks the mutable rb prof revspans value used by the r bsp subsystem.
+/// @internal
 _rb_prof_revspans = 0
+/// Tracks whether rb prof enabled is active in the r bsp subsystem.
+/// @internal
 _rb_prof_enabled = false
+/// Tracks whether rbsp disable bbox cull is active in the r bsp subsystem.
+/// @internal
 _rbsp_disable_bbox_cull = false
 
-/*
-* Function: R_BspProfileSetEnabled
-* Purpose: Enables or disables collection of BSP traversal, clipping, and wall-storage timing counters.
-*/
+/// Enables or disables collection of BSP traversal, clipping, and wall-storage timing counters.
+/// @param on On value supplied to `R_BspProfileSetEnabled`.
 function R_BspProfileSetEnabled(on)
   global _rb_prof_enabled
   _rb_prof_enabled = on
 end function
 
-/*
-* Function: R_BspProfileReset
-* Purpose: Zeros every BSP timing, call-count, span, and peak-clip statistic before a new measurement window.
-*/
+/// Zeros every BSP timing, call-count, span, and peak-clip statistic before a new measurement window.
 function R_BspProfileReset()
   global _rb_prof_addline_ms
   global _rb_prof_addline_calls
@@ -134,19 +180,18 @@ function R_BspProfileReset()
   _rb_prof_revspans = 0
 end function
 
-/*
-* Function: _RBSP_TimeMs
-* Purpose: Returns the runtime tick clock as a truncation-toward-zero integer for BSP profiling deltas.
-*/
+/// Returns the runtime tick clock as a truncation-toward-zero integer for BSP profiling deltas.
+/// @internal
 function inline _RBSP_TimeMs()
   t = std.time.ticks()
   return _RBSP_ToInt(t, 0)
 end function
 
-/*
-* Function: _RBSP_StoreWallRange
-* Purpose: Delegates a visible wall-column range and, when profiling is active, accumulates its storage time and call count.
-*/
+/// Delegates a visible wall-column range and, when profiling is active, accumulates its storage time and call
+/// count.
+/// @param first First value supplied to `_RBSP_StoreWallRange`.
+/// @param last Last value supplied to `_RBSP_StoreWallRange`.
+/// @internal
 function inline _RBSP_StoreWallRange(first, last)
   global _rb_prof_store_ms
   global _rb_prof_store_calls
@@ -162,36 +207,33 @@ function inline _RBSP_StoreWallRange(first, last)
   _rb_prof_store_calls = _rb_prof_store_calls + 1
 end function
 
-/*
-* Function: _makeDrawseg
-* Purpose: Constructs an empty draw-segment record used to preallocate the reusable masked-sprite clipping table.
-*/
+/// Constructs an empty draw-segment record used to preallocate the reusable masked-sprite clipping table.
+/// @internal
 function inline _makeDrawseg()
 
   return drawseg_t(void, 0, 0, 0, 0, 0, 0, 0, 0, void, void, void)
 end function
 
-/*
-* Function: _makeClip
-* Purpose: Constructs one inclusive solid-column interval for the occlusion list.
-*/
+/// Constructs one inclusive solid-column interval for the occlusion list.
+/// @param first First value supplied to `_makeClip`.
+/// @param last Last value supplied to `_makeClip`.
+/// @internal
 function inline _makeClip(first, last)
   return cliprange_t(first, last)
 end function
 
-/*
-* Function: _R_ClipGet
-* Purpose: Returns a solid clip interval by index, substituting an empty sentinel for invalid access.
-*/
+/// Returns a solid clip interval by index, substituting an empty sentinel for invalid access.
+/// @param i Zero-based iteration index.
+/// @internal
 function inline _R_ClipGet(i)
   if i < 0 or i >= len(solidsegs) then return _makeClip(0, 0) end if
   return solidsegs[i]
 end function
 
-/*
-* Function: _R_ClipSet
-* Purpose: Replaces or appends a solid clip interval, growing intermediate slots with empty sentinels.
-*/
+/// Replaces or appends a solid clip interval, growing intermediate slots with empty sentinels.
+/// @param i Zero-based iteration index.
+/// @param c C value supplied to `_R_ClipSet`.
+/// @internal
 function inline _R_ClipSet(i, c)
   global solidsegs
   if i < 0 then return end if
@@ -205,19 +247,19 @@ function inline _R_ClipSet(i, c)
   solidsegs[i] = c
 end function
 
-/*
-* Function: _RBSP_IsSeq
-* Purpose: Recognizes both array and list containers accepted by BSP geometry and lookup tables.
-*/
+/// Recognizes both array and list containers accepted by BSP geometry and lookup tables.
+/// @param v Value consumed by the operation.
+/// @internal
 function inline _RBSP_IsSeq(v)
   t = typeof(v)
   return t == "array" or t == "list"
 end function
 
-/*
-* Function: _RBSP_ToInt
-* Purpose: Coerces numeric values to truncation-toward-zero integers and returns a caller fallback on conversion failure.
-*/
+/// Coerces numeric values to truncation-toward-zero integers and returns a caller fallback on conversion
+/// failure.
+/// @param v Value consumed by the operation.
+/// @param fallback Value returned when the requested conversion or lookup is unavailable.
+/// @internal
 function inline _RBSP_ToInt(v, fallback)
   if typeof(v) == "int" then return v end if
   if typeof(v) == "float" then
@@ -233,10 +275,10 @@ function inline _RBSP_ToInt(v, fallback)
   return fallback
 end function
 
-/*
-* Function: _R_ViewAngleToX
-* Purpose: Clamps a fine view-angle index and maps it to a projected screen column, falling back to view center when unavailable.
-*/
+/// Clamps a fine view-angle index and maps it to a projected screen column, falling back to view center when
+/// unavailable.
+/// @param aidx Aidx value supplied to `_R_ViewAngleToX`.
+/// @internal
 function inline _R_ViewAngleToX(aidx)
   if not _RBSP_IsSeq(viewangletox) or len(viewangletox) == 0 then return centerx end if
   idx = _RBSP_ToInt(aidx, 0)
@@ -245,27 +287,23 @@ function inline _R_ViewAngleToX(aidx)
   return viewangletox[idx]
 end function
 
-/*
-* Function: _RBSP_AngNorm
-* Purpose: Normalizes a coerced angle to Doom's unsigned 32-bit binary-angle domain.
-*/
+/// Normalizes a coerced angle to Doom's unsigned 32-bit binary-angle domain.
+/// @param a First input operand.
+/// @internal
 function inline _RBSP_AngNorm(a)
   ai = _RBSP_ToInt(a, 0)
   return ai & 0xFFFFFFFF
 end function
 
-/*
-* Function: _RBSP_AngSub
-* Purpose: Subtracts two binary angles with explicit unsigned 32-bit wraparound.
-*/
+/// Subtracts two binary angles with explicit unsigned 32-bit wraparound.
+/// @param a First input operand.
+/// @param b Second input operand.
+/// @internal
 function inline _RBSP_AngSub(a, b)
   return _RBSP_AngNorm(_RBSP_AngNorm(a) - _RBSP_AngNorm(b))
 end function
 
-/*
-* Function: R_ClearDrawSegs
-* Purpose: Rewinds draw-segment allocation for a frame and lazily seeds the reusable table to its baseline capacity.
-*/
+/// Rewinds draw-segment allocation for a frame and lazily seeds the reusable table to its baseline capacity.
 function R_ClearDrawSegs()
   global ds_p
   global drawsegs
@@ -281,10 +319,8 @@ function R_ClearDrawSegs()
   end if
 end function
 
-/*
-* Function: R_ClearClipSegs
-* Purpose: Resets solid-wall occlusion to left and right offscreen sentinels and records the baseline peak when profiling.
-*/
+/// Resets solid-wall occlusion to left and right offscreen sentinels and records the baseline peak when
+/// profiling.
 function R_ClearClipSegs()
   global solidsegs
   global newend
@@ -295,10 +331,10 @@ function R_ClearClipSegs()
   if _rb_prof_enabled and _rb_prof_newend_max < newend then _rb_prof_newend_max = newend end if
 end function
 
-/*
-* Function: R_ClipSolidWallSegment
-* Purpose: Emits visible portions of a solid wall range, then merges that range into the ordered screen-space occlusion intervals.
-*/
+/// Emits visible portions of a solid wall range, then merges that range into the ordered screen-space occlusion
+/// intervals.
+/// @param first First value supplied to `R_ClipSolidWallSegment`.
+/// @param last Last value supplied to `R_ClipSolidWallSegment`.
 function R_ClipSolidWallSegment(first, last)
   global newend
   global _rb_prof_newend_max
@@ -372,10 +408,9 @@ function R_ClipSolidWallSegment(first, last)
   if _rb_prof_enabled and _rb_prof_newend_max < newend then _rb_prof_newend_max = newend end if
 end function
 
-/*
-* Function: R_ClipPassWallSegment
-* Purpose: Computes pass wall segment values for the renderer.
-*/
+/// Computes pass wall segment values for the renderer.
+/// @param first First value supplied to `R_ClipPassWallSegment`.
+/// @param last Last value supplied to `R_ClipPassWallSegment`.
 function R_ClipPassWallSegment(first, last)
   global _rb_prof_newend_max
   if last < first then return end if
@@ -408,10 +443,8 @@ function R_ClipPassWallSegment(first, last)
   if _rb_prof_enabled and _rb_prof_newend_max < newend then _rb_prof_newend_max = newend end if
 end function
 
-/*
-* Function: R_AddLine
-* Purpose: Adds line entries to the renderer.
-*/
+/// Adds line entries to the renderer.
+/// @param line Map line or text line affected by the operation.
 function R_AddLine(line)
   global _rb_prof_addline_ms
   global _rb_prof_addline_calls
@@ -492,10 +525,9 @@ function R_AddLine(line)
   if _rb_prof_enabled then _rb_prof_addline_ms = _rb_prof_addline_ms +(_RBSP_TimeMs() - t0) end if
 end function
 
-/*
-* Function: R_CheckBBox
-* Purpose: Projects the visible corners of a BSP child bound and rejects it only when its complete screen span is already occluded.
-*/
+/// Projects the visible corners of a BSP child bound and rejects it only when its complete screen span is
+/// already occluded.
+/// @param bspcoord Bspcoord value supplied to `R_CheckBBox`.
 function R_CheckBBox(bspcoord)
   if _rbsp_disable_bbox_cull then return true end if
   if bspcoord is void or len(bspcoord) < 4 then return false end if
@@ -568,10 +600,9 @@ function R_CheckBBox(bspcoord)
   return true
 end function
 
-/*
-* Function: R_Subsector
-* Purpose: Selects visible floor/ceiling planes, queues sector sprites, and submits every seg belonging to one BSP leaf.
-*/
+/// Selects visible floor/ceiling planes, queues sector sprites, and submits every seg belonging to one BSP
+/// leaf.
+/// @param num Index identifying the requested item.
 function R_Subsector(num)
   global _rb_prof_subsector_calls
   global _rb_prof_segloop_ms
@@ -628,10 +659,9 @@ function R_Subsector(num)
   end if
 end function
 
-/*
-* Function: R_RenderBSPNode
-* Purpose: Recurses front-to-back through a BSP node, always renders the near child, and visits the far child only if its bound remains visible.
-*/
+/// Recurses front-to-back through a BSP node, always renders the near child, and visits the far child only if
+/// its bound remains visible.
+/// @param bspnum Index identifying bsp.
 function R_RenderBSPNode(bspnum)
   global _rb_prof_bbox_ms
   global _rb_prof_bbox_calls

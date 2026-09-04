@@ -13,9 +13,11 @@
   See the License for the specific language governing permissions and
   limitations under the License.
 
-  Script: hu_lib.ml
-  Purpose: Implements HUD scrolling text, editable input lines, font drawing, and dirty-region erasure for classic view borders.
 */
+
+//! Implements HUD scrolling text, editable input lines, font drawing, and dirty-region erasure for classic view
+//! borders.
+
 import r_defs
 import doomdef
 import v_video
@@ -23,59 +25,68 @@ import m_swap
 import r_local
 import r_draw
 
+/// Defines hu charerase for the hu lib subsystem.
 const HU_CHARERASE = 127
+/// Defines the maximum hu maxlines accepted by the hu lib subsystem.
 const HU_MAXLINES = 4
+/// Defines the maximum hu maxlinelength accepted by the hu lib subsystem.
 const HU_MAXLINELENGTH = 80
 
-/*
-* Struct: hu_textline_t
-* Purpose: Describes textline geometry or asset data used by the heads-up display system.
-*/
+/// Describes textline geometry or asset data used by the heads-up display system.
 struct hu_textline_t
+  /// Horizontal map- or screen-space coordinate stored by `hu_textline_t`
   x
+  /// Vertical map- or screen-space coordinate stored by `hu_textline_t`
   y
+  /// Stores f for `hu_textline_t`
   f
+  /// Stores sc for `hu_textline_t`
   sc
+  /// Stores l for `hu_textline_t`
   l
+  /// Stores len for `hu_textline_t`
   len
+  /// Stores needsupdate for `hu_textline_t`
   needsupdate
 end struct
 
-/*
-* Struct: hu_stext_t
-* Purpose: Implements a circular stack of HUD text lines with height, current-line index, and externally referenced visibility state.
-*/
+/// Implements a circular stack of HUD text lines with height, current-line index, and externally referenced
+/// visibility state.
 struct hu_stext_t
+  /// Stores l for `hu_stext_t`
   l
+  /// Stores h for `hu_stext_t`
   h
+  /// Stores cl for `hu_stext_t`
   cl
+  /// Stores on for `hu_stext_t`
   on
+  /// Stores laston for `hu_stext_t`
   laston
 end struct
 
-/*
-* Struct: hu_itext_t
-* Purpose: Holds one editable HUD input line, its immutable prefix boundary, and externally referenced visibility state.
-*/
+/// Holds one editable HUD input line, its immutable prefix boundary, and externally referenced visibility
+/// state.
 struct hu_itext_t
+  /// Stores l for `hu_itext_t`
   l
+  /// Stores lm for `hu_itext_t`
   lm
+  /// Stores on for `hu_itext_t`
   on
+  /// Stores laston for `hu_itext_t`
   laston
 end struct
 
-/*
-* Function: HUlib_init
-* Purpose: Preserves the original HUD-library initialization hook; this implementation has no module-wide resources to allocate.
-*/
+/// Preserves the original HUD-library initialization hook; this implementation has no module-wide resources to
+/// allocate.
 function HUlib_init()
 
 end function
 
-/*
-* Function: _HUlib_toByte
-* Purpose: Normalizes an integer or one-character string to the byte value stored in HUD text buffers.
-*/
+/// Normalizes an integer or one-character string to the byte value stored in HUD text buffers.
+/// @param ch Ch value supplied to `_HUlib_toByte`.
+/// @internal
 function inline _HUlib_toByte(ch)
   if typeof(ch) == "int" then
     return ch & 255
@@ -87,10 +98,9 @@ function inline _HUlib_toByte(ch)
   return 0
 end function
 
-/*
-* Function: _HUlib_refBool
-* Purpose: Resolves direct or single-element referenced values to the truth value used by HUD visibility toggles.
-*/
+/// Resolves direct or single-element referenced values to the truth value used by HUD visibility toggles.
+/// @param v Value consumed by the operation.
+/// @internal
 function inline _HUlib_refBool(v)
   if typeof(v) == "array" and len(v) > 0 then v = v[0] end if
   if typeof(v) == "bool" then return v end if
@@ -98,47 +108,43 @@ function inline _HUlib_refBool(v)
   return v is not void
 end function
 
-/*
-* Function: _HUlib_patchWidth
-* Purpose: Reads a validated font patch's signed little-endian width, returning zero for absent data.
-*/
+/// Reads a validated font patch's signed little-endian width, returning zero for absent data.
+/// @param p Object or data record consumed by the operation.
+/// @internal
 function inline _HUlib_patchWidth(p)
   if typeof(p) != "bytes" then return 0 end if
   return RDefs_I16LE(p, 0)
 end function
 
-/*
-* Function: _HUlib_patchHeight
-* Purpose: Reads a validated font patch's signed little-endian height, returning zero for absent data.
-*/
+/// Reads a validated font patch's signed little-endian height, returning zero for absent data.
+/// @param p Object or data record consumed by the operation.
+/// @internal
 function inline _HUlib_patchHeight(p)
   if typeof(p) != "bytes" then return 0 end if
   return RDefs_I16LE(p, 2)
 end function
 
-/*
-* Function: _HUlib_patchAt
-* Purpose: Safely retrieves one glyph patch from a font array without exposing out-of-range indexing.
-*/
+/// Safely retrieves one glyph patch from a font array without exposing out-of-range indexing.
+/// @param font Font value supplied to `_HUlib_patchAt`.
+/// @param idx Zero-based element or table index.
+/// @internal
 function inline _HUlib_patchAt(font, idx)
   if typeof(font) != "array" then return void end if
   if idx < 0 or idx >= len(font) then return void end if
   return font[idx]
 end function
 
-/*
-* Function: _HUlib_upper
-* Purpose: Converts lowercase ASCII glyph codes to the uppercase range used by Doom's HUD font.
-*/
+/// Converts lowercase ASCII glyph codes to the uppercase range used by Doom's HUD font.
+/// @param c C value supplied to `_HUlib_upper`.
+/// @internal
 function inline _HUlib_upper(c)
   if c >= 97 and c <= 122 then return c - 32 end if
   return c
 end function
 
-/*
-* Function: _HUlib_needsVal
-* Purpose: Normalizes numeric or boolean dirty-line state to the integer redraw count consumed by erase logic.
-*/
+/// Normalizes numeric or boolean dirty-line state to the integer redraw count consumed by erase logic.
+/// @param v Value consumed by the operation.
+/// @internal
 function inline _HUlib_needsVal(v)
   if typeof(v) == "int" or typeof(v) == "float" then return v end if
   if typeof(v) == "bool" then
@@ -148,10 +154,8 @@ function inline _HUlib_needsVal(v)
   return 0
 end function
 
-/*
-* Function: HUlib_clearTextLine
-* Purpose: Clears hUlib clear Text Line state before the next heads-up display update.
-*/
+/// Clears hUlib clear Text Line state before the next heads-up display update.
+/// @param t T value supplied to `HUlib_clearTextLine`.
 function HUlib_clearTextLine(t)
   if t == 0 then return end if
   if t.l == 0 or typeof(t.l) != "bytes" then
@@ -165,10 +169,12 @@ function HUlib_clearTextLine(t)
   t.needsupdate = 1
 end function
 
-/*
-* Function: HUlib_initTextLine
-* Purpose: Assigns position and font metadata, allocates a bounded text buffer, and marks a HUD line dirty.
-*/
+/// Assigns position and font metadata, allocates a bounded text buffer, and marks a HUD line dirty.
+/// @param t T value supplied to `HUlib_initTextLine`.
+/// @param x Horizontal map- or screen-space coordinate.
+/// @param y Vertical map- or screen-space coordinate.
+/// @param f F value supplied to `HUlib_initTextLine`.
+/// @param sc Sc value supplied to `HUlib_initTextLine`.
 function HUlib_initTextLine(t, x, y, f, sc)
   if t == 0 then return end if
   t.x = x
@@ -180,10 +186,10 @@ function HUlib_initTextLine(t, x, y, f, sc)
   t.needsupdate = 1
 end function
 
-/*
-* Function: HUlib_addCharToTextLine
-* Purpose: Appends one normalized byte when capacity permits, maintains the zero terminator, and schedules four redraws.
-*/
+/// Appends one normalized byte when capacity permits, maintains the zero terminator, and schedules four
+/// redraws.
+/// @param t T value supplied to `HUlib_addCharToTextLine`.
+/// @param ch Ch value supplied to `HUlib_addCharToTextLine`.
 function HUlib_addCharToTextLine(t, ch)
   if t == 0 then return false end if
   if t.len >= HU_MAXLINELENGTH then return false end if
@@ -195,10 +201,8 @@ function HUlib_addCharToTextLine(t, ch)
   return true
 end function
 
-/*
-* Function: HUlib_delCharFromTextLine
-* Purpose: Removes the final byte from a nonempty HUD line, restores termination, and schedules redraws.
-*/
+/// Removes the final byte from a nonempty HUD line, restores termination, and schedules redraws.
+/// @param t T value supplied to `HUlib_delCharFromTextLine`.
 function HUlib_delCharFromTextLine(t)
   if t == 0 then return false end if
   if t.len <= 0 then return false end if
@@ -208,10 +212,9 @@ function HUlib_delCharFromTextLine(t)
   return true
 end function
 
-/*
-* Function: HUlib_drawTextLine
-* Purpose: Renders a HUD text buffer with patch-font glyph widths, optional cursor, spaces, and right-edge clipping.
-*/
+/// Renders a HUD text buffer with patch-font glyph widths, optional cursor, spaces, and right-edge clipping.
+/// @param l L value supplied to `HUlib_drawTextLine`.
+/// @param drawcursor Drawcursor value supplied to `HUlib_drawTextLine`.
 function HUlib_drawTextLine(l, drawcursor)
   if l == 0 then return end if
 
@@ -242,10 +245,8 @@ function HUlib_drawTextLine(l, drawcursor)
   end if
 end function
 
-/*
-* Function: HUlib_eraseTextLine
-* Purpose: Restores border regions covered by a dirty HUD line and decrements its multi-frame redraw counter.
-*/
+/// Restores border regions covered by a dirty HUD line and decrements its multi-frame redraw counter.
+/// @param l L value supplied to `HUlib_eraseTextLine`.
 function HUlib_eraseTextLine(l)
   if l == 0 then return end if
 
@@ -273,10 +274,14 @@ function HUlib_eraseTextLine(l)
   end if
 end function
 
-/*
-* Function: HUlib_initSText
-* Purpose: Builds a fixed-height circular message stack whose lines are vertically spaced from the font height.
-*/
+/// Builds a fixed-height circular message stack whose lines are vertically spaced from the font height.
+/// @param s S value supplied to `HUlib_initSText`.
+/// @param x Horizontal map- or screen-space coordinate.
+/// @param y Vertical map- or screen-space coordinate.
+/// @param h H value supplied to `HUlib_initSText`.
+/// @param font Font value supplied to `HUlib_initSText`.
+/// @param startchar Startchar value supplied to `HUlib_initSText`.
+/// @param on On value supplied to `HUlib_initSText`.
 function HUlib_initSText(s, x, y, h, font, startchar, on)
   if s == 0 then return end if
   s.h = h
@@ -297,10 +302,8 @@ function HUlib_initSText(s, x, y, h, font, startchar, on)
   end while
 end function
 
-/*
-* Function: HUlib_addLineToSText
-* Purpose: Advances the circular message cursor, clears the reused line, and marks every visible stack line dirty.
-*/
+/// Advances the circular message cursor, clears the reused line, and marks every visible stack line dirty.
+/// @param s S value supplied to `HUlib_addLineToSText`.
 function HUlib_addLineToSText(s)
   if s == 0 then return end if
   s.cl = s.cl + 1
@@ -314,10 +317,10 @@ function HUlib_addLineToSText(s)
   end while
 end function
 
-/*
-* Function: _HUlib_appendBytes
-* Purpose: Appends an entire byte sequence through the text-line capacity and dirty-state rules.
-*/
+/// Appends an entire byte sequence through the text-line capacity and dirty-state rules.
+/// @param tl Tl value supplied to `_HUlib_appendBytes`.
+/// @param b Second input operand.
+/// @internal
 function _HUlib_appendBytes(tl, b)
   if tl == 0 or b == 0 then return end if
   for i = 0 to len(b) - 1
@@ -325,10 +328,10 @@ function _HUlib_appendBytes(tl, b)
   end for
 end function
 
-/*
-* Function: HUlib_addMessageToSText
-* Purpose: Opens a new stack line and concatenates an optional prefix with the message text.
-*/
+/// Opens a new stack line and concatenates an optional prefix with the message text.
+/// @param s S value supplied to `HUlib_addMessageToSText`.
+/// @param prefix Prefix value supplied to `HUlib_addMessageToSText`.
+/// @param msg Msg value supplied to `HUlib_addMessageToSText`.
 function HUlib_addMessageToSText(s, prefix, msg)
   if s == 0 then return end if
   HUlib_addLineToSText(s)
@@ -337,10 +340,8 @@ function HUlib_addMessageToSText(s, prefix, msg)
   if msg != 0 then _HUlib_appendBytes(tl, bytes(msg)) end if
 end function
 
-/*
-* Function: HUlib_drawSText
-* Purpose: Draws visible stack lines newest-first by walking backward through the circular buffer.
-*/
+/// Draws visible stack lines newest-first by walking backward through the circular buffer.
+/// @param s S value supplied to `HUlib_drawSText`.
 function HUlib_drawSText(s)
   if s == 0 then return end if
   if not _HUlib_refBool(s.on) then return end if
@@ -354,10 +355,9 @@ function HUlib_drawSText(s)
   end while
 end function
 
-/*
-* Function: HUlib_eraseSText
-* Purpose: Marks lines dirty on visibility transitions, erases every stack line, and remembers the current visibility state.
-*/
+/// Marks lines dirty on visibility transitions, erases every stack line, and remembers the current visibility
+/// state.
+/// @param s S value supplied to `HUlib_eraseSText`.
 function HUlib_eraseSText(s)
   if s == 0 then return end if
 
@@ -373,10 +373,13 @@ function HUlib_eraseSText(s)
   s.laston = _HUlib_refBool(s.on)
 end function
 
-/*
-* Function: HUlib_initIText
-* Purpose: Creates an editable HUD line, clears its protected-prefix boundary, and attaches its visibility reference.
-*/
+/// Creates an editable HUD line, clears its protected-prefix boundary, and attaches its visibility reference.
+/// @param it It value supplied to `HUlib_initIText`.
+/// @param x Horizontal map- or screen-space coordinate.
+/// @param y Vertical map- or screen-space coordinate.
+/// @param font Font value supplied to `HUlib_initIText`.
+/// @param startchar Startchar value supplied to `HUlib_initIText`.
+/// @param on On value supplied to `HUlib_initIText`.
 function HUlib_initIText(it, x, y, font, startchar, on)
   if it == 0 then return end if
   it.l = hu_textline_t(0, 0, 0, 0, 0, 0, 0)
@@ -386,20 +389,16 @@ function HUlib_initIText(it, x, y, font, startchar, on)
   it.laston = true
 end function
 
-/*
-* Function: HUlib_delCharFromIText
-* Purpose: Deletes one input byte only when it lies after the protected prefix boundary.
-*/
+/// Deletes one input byte only when it lies after the protected prefix boundary.
+/// @param it It value supplied to `HUlib_delCharFromIText`.
 function HUlib_delCharFromIText(it)
   if it == 0 then return false end if
   if it.l.len <= it.lm then return false end if
   return HUlib_delCharFromTextLine(it.l)
 end function
 
-/*
-* Function: HUlib_eraseLineFromIText
-* Purpose: Removes all editable input while retaining the protected prefix bytes.
-*/
+/// Removes all editable input while retaining the protected prefix bytes.
+/// @param it It value supplied to `HUlib_eraseLineFromIText`.
 function HUlib_eraseLineFromIText(it)
   if it == 0 then return end if
   while it.l.len > it.lm
@@ -407,20 +406,17 @@ function HUlib_eraseLineFromIText(it)
   end while
 end function
 
-/*
-* Function: HUlib_resetIText
-* Purpose: Clears hUlib reset IText state before the next heads-up display update.
-*/
+/// Clears hUlib reset IText state before the next heads-up display update.
+/// @param it It value supplied to `HUlib_resetIText`.
 function HUlib_resetIText(it)
   if it == 0 then return end if
   it.lm = 0
   HUlib_clearTextLine(it.l)
 end function
 
-/*
-* Function: HUlib_addPrefixToIText
-* Purpose: Appends a fixed prompt prefix and advances the deletion boundary to protect it from backspace.
-*/
+/// Appends a fixed prompt prefix and advances the deletion boundary to protect it from backspace.
+/// @param it It value supplied to `HUlib_addPrefixToIText`.
+/// @param str Str value supplied to `HUlib_addPrefixToIText`.
 function HUlib_addPrefixToIText(it, str)
   if it == 0 then return end if
   if str == 0 then return end if
@@ -428,10 +424,10 @@ function HUlib_addPrefixToIText(it, str)
   it.lm = it.l.len
 end function
 
-/*
-* Function: HUlib_keyInIText
-* Purpose: Applies printable, backspace, or enter input to an editable HUD line and reports whether the key was consumed.
-*/
+/// Applies printable, backspace, or enter input to an editable HUD line and reports whether the key was
+/// consumed.
+/// @param it It value supplied to `HUlib_keyInIText`.
+/// @param ch Ch value supplied to `HUlib_keyInIText`.
 function HUlib_keyInIText(it, ch)
   if it == 0 then return false end if
   c = _HUlib_toByte(ch)
@@ -447,20 +443,16 @@ function HUlib_keyInIText(it, ch)
   return true
 end function
 
-/*
-* Function: HUlib_drawIText
-* Purpose: Draws a visible editable line with the cursor glyph placed after its current text.
-*/
+/// Draws a visible editable line with the cursor glyph placed after its current text.
+/// @param it It value supplied to `HUlib_drawIText`.
 function HUlib_drawIText(it)
   if it == 0 then return end if
   if not _HUlib_refBool(it.on) then return end if
   HUlib_drawTextLine(it.l, true)
 end function
 
-/*
-* Function: HUlib_eraseIText
-* Purpose: Erases a dirty input line, forcing redraws when its externally controlled visibility turns off.
-*/
+/// Erases a dirty input line, forcing redraws when its externally controlled visibility turns off.
+/// @param it It value supplied to `HUlib_eraseIText`.
 function HUlib_eraseIText(it)
   if it == 0 then return end if
   if it.laston and(not _HUlib_refBool(it.on)) then

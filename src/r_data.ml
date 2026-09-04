@@ -13,9 +13,11 @@
   See the License for the specific language governing permissions and
   limitations under the License.
 
-  Script: r_data.ml
-  Purpose: Parses texture definitions and exposes cached flat, wall-column, sprite, colormap, and level-precache data to renderers.
 */
+
+//! Parses texture definitions and exposes cached flat, wall-column, sprite, colormap, and level-precache data
+//! to renderers.
+
 import r_defs
 import r_state
 import i_system
@@ -29,70 +31,102 @@ import doomstat
 import r_sky
 import r_upscaled
 
+/// Tracks the mutable firstflat value used by the r data subsystem.
 firstflat = 0
+/// Tracks the mutable lastflat value used by the r data subsystem.
 lastflat = 0
+/// Tracks the mutable numflats value used by the r data subsystem.
 numflats = 0
 
+/// Tracks the mutable firstpatch value used by the r data subsystem.
 firstpatch = 0
+/// Tracks the mutable lastpatch value used by the r data subsystem.
 lastpatch = 0
+/// Tracks the mutable numpatches value used by the r data subsystem.
 numpatches = 0
 
+/// Tracks the mutable firstspritelump value used by the r data subsystem.
 firstspritelump = 0
+/// Tracks the mutable lastspritelump value used by the r data subsystem.
 lastspritelump = 0
+/// Tracks the mutable numspritelumps value used by the r data subsystem.
 numspritelumps = 0
 
+/// Tracks the mutable numtextures value used by the r data subsystem.
 numtextures = 0
+/// Holds the optional textures resource used by the r data subsystem.
 textures = void
 
+/// Holds the optional texturewidthmask resource used by the r data subsystem.
 texturewidthmask = void
+/// Holds the optional textureheight resource used by the r data subsystem.
 textureheight = void
+/// Holds the optional texturecompositesize resource used by the r data subsystem.
 texturecompositesize = void
+/// Holds the optional texturecolumnlump resource used by the r data subsystem.
 texturecolumnlump = void
+/// Holds the optional texturecolumnofs resource used by the r data subsystem.
 texturecolumnofs = void
+/// Holds the optional texturecomposite resource used by the r data subsystem.
 texturecomposite = void
+/// Holds the optional texturecolumncache resource used by the r data subsystem.
 texturecolumncache = void
 
+/// Holds the optional flattranslation resource used by the r data subsystem.
 flattranslation = void
+/// Holds the optional texturetranslation resource used by the r data subsystem.
 texturetranslation = void
+/// Holds the optional rd upscaledtexturecolumncache resource used by the r data subsystem.
 rd_upscaledtexturecolumncache = void
+/// Tracks the mutable rd column source scale value used by the r data subsystem.
 rd_column_source_scale = 1
 
+/// Holds the optional spritewidth resource used by the r data subsystem.
 spritewidth = void
+/// Holds the optional spriteoffset resource used by the r data subsystem.
 spriteoffset = void
+/// Holds the optional spritetopoffset resource used by the r data subsystem.
 spritetopoffset = void
 
+/// Holds the optional colormaps resource used by the r data subsystem.
 colormaps = void
 
+/// Tracks the mutable flatmemory value used by the r data subsystem.
 flatmemory = 0
+/// Tracks the mutable texturememory value used by the r data subsystem.
 texturememory = 0
+/// Tracks the mutable spritememory value used by the r data subsystem.
 spritememory = 0
+/// Tracks whether r all sprites precached is active in the r data subsystem.
+/// @internal
 _r_allSpritesPrecached = false
 
-/*
-* Struct: rd_texpatch_t
-* Purpose: Places one source patch lump at a signed origin inside a composite wall texture.
-*/
+/// Places one source patch lump at a signed origin inside a composite wall texture.
 struct rd_texpatch_t
+  /// Stores originx for `rd_texpatch_t`
   originx
+  /// Stores originy for `rd_texpatch_t`
   originy
+  /// Stores patch for `rd_texpatch_t`
   patch
 end struct
 
-/*
-* Struct: rd_texture_t
-* Purpose: Holds a normalized wall-texture name, logical dimensions, and its ordered patch placements.
-*/
+/// Holds a normalized wall-texture name, logical dimensions, and its ordered patch placements.
 struct rd_texture_t
+  /// Stable resource or object name stored by `rd_texture_t`
   name
+  /// Width in pixels or map units stored by `rd_texture_t`
   width
+  /// Height in pixels or map units stored by `rd_texture_t`
   height
+  /// Stores patches for `rd_texture_t`
   patches
 end struct
 
-/*
-* Function: _allocIntArray
-* Purpose: Allocates a filled array after normalizing invalid or negative requested lengths to zero.
-*/
+/// Allocates a filled array after normalizing invalid or negative requested lengths to zero.
+/// @param n Number of values to process.
+/// @param fill Fill value supplied to `_allocIntArray`.
+/// @internal
 function inline _allocIntArray(n, fill)
   nn = n
   if typeof(nn) != "int" then nn = 0 end if
@@ -100,29 +134,29 @@ function inline _allocIntArray(n, fill)
   return array(nn, fill)
 end function
 
-/*
-* Function: _rd_isSeq
-* Purpose: Recognizes both array and list containers accepted by renderer resource tables.
-*/
+/// Recognizes both array and list containers accepted by renderer resource tables.
+/// @param v Value consumed by the operation.
+/// @internal
 function inline _rd_isSeq(v)
   t = typeof(v)
   return t == "array" or t == "list"
 end function
 
-/*
-* Function: _rd_clamp
-* Purpose: Restricts a texture dimension, index, or allocation size to caller-supplied inclusive bounds.
-*/
+/// Restricts a texture dimension, index, or allocation size to caller-supplied inclusive bounds.
+/// @param v Value consumed by the operation.
+/// @param lo Inclusive lower bound.
+/// @param hi Inclusive upper bound.
+/// @internal
 function inline _rd_clamp(v, lo, hi)
   if v < lo then return lo end if
   if v > hi then return hi end if
   return v
 end function
 
-/*
-* Function: _rd_idiv
-* Purpose: Performs integer division with truncation toward zero.
-*/
+/// Performs integer division with truncation toward zero.
+/// @param a First input operand.
+/// @param b Second input operand.
+/// @internal
 function inline _rd_idiv(a, b)
   if typeof(a) != "int" or typeof(b) != "int" or b == 0 then return 0 end if
   q = a / b
@@ -130,10 +164,11 @@ function inline _rd_idiv(a, b)
   return std.math.ceil(q)
 end function
 
-/*
-* Function: _rd_wrapColumn
-* Purpose: Wraps a requested wall column through its width mask and corrects non-power-of-two or negative results.
-*/
+/// Wraps a requested wall column through its width mask and corrects non-power-of-two or negative results.
+/// @param col Col value supplied to `_rd_wrapColumn`.
+/// @param mask Mask value supplied to `_rd_wrapColumn`.
+/// @param width Width of the target in pixels or map units.
+/// @internal
 function inline _rd_wrapColumn(col, mask, width)
   c = col
   if typeof(c) != "int" then c = 0 end if
@@ -150,10 +185,9 @@ function inline _rd_wrapColumn(col, mask, width)
   return c
 end function
 
-/*
-* Function: _nameTo8
-* Purpose: Truncates a resource name to Doom's eight-character lookup limit while leaving shorter names unchanged.
-*/
+/// Truncates a resource name to Doom's eight-character lookup limit while leaving shorter names unchanged.
+/// @param name Resource or object name to resolve.
+/// @internal
 function inline _nameTo8(name)
 
   if len(name) <= 8 then return name end if
@@ -166,10 +200,9 @@ function inline _nameTo8(name)
   return outName
 end function
 
-/*
-* Function: _rd_upperName8
-* Purpose: Normalizes string or byte resource names to uppercase, zero-terminated, at-most-eight-character text.
-*/
+/// Normalizes string or byte resource names to uppercase, zero-terminated, at-most-eight-character text.
+/// @param v Value consumed by the operation.
+/// @internal
 function _rd_upperName8(v)
   s = v
   if typeof(v) == "bytes" then
@@ -192,26 +225,26 @@ function _rd_upperName8(v)
   return decodeZ(namebuf)
 end function
 
-/*
-* Function: _rd_i16
-* Purpose: Delegates signed 16-bit little-endian decoding for texture directory fields.
-*/
+/// Delegates signed 16-bit little-endian decoding for texture directory fields.
+/// @param b Second input operand.
+/// @param off Zero-based byte or element offset.
+/// @internal
 function inline _rd_i16(b, off)
   return RDefs_I16LE(b, off)
 end function
 
-/*
-* Function: _rd_i32
-* Purpose: Delegates signed 32-bit little-endian decoding for texture counts and offsets.
-*/
+/// Delegates signed 32-bit little-endian decoding for texture counts and offsets.
+/// @param b Second input operand.
+/// @param off Zero-based byte or element offset.
+/// @internal
 function inline _rd_i32(b, off)
   return RDefs_I32LE(b, off)
 end function
 
-/*
-* Function: _rd_markPresent
-* Purpose: Sets one validated resource-usage bitmap entry without risking malformed map indices.
-*/
+/// Sets one validated resource-usage bitmap entry without risking malformed map indices.
+/// @param arr Arr value supplied to `_rd_markPresent`.
+/// @param idx Zero-based element or table index.
+/// @internal
 function inline _rd_markPresent(arr, idx)
   if not _rd_isSeq(arr) then return end if
   if typeof(idx) != "int" then return end if
@@ -219,10 +252,10 @@ function inline _rd_markPresent(arr, idx)
   arr[idx] = 1
 end function
 
-/*
-* Function: _rd_enumIndex
-* Purpose: Converts integer-like or enum metadata to a validated zero-based index below a caller limit.
-*/
+/// Converts integer-like or enum metadata to a validated zero-based index below a caller limit.
+/// @param v Value consumed by the operation.
+/// @param limit Limit value supplied to `_rd_enumIndex`.
+/// @internal
 function inline _rd_enumIndex(v, limit)
   if typeof(v) == "int" then
     if v >= 0 and v < limit then return v end if
@@ -243,10 +276,9 @@ function inline _rd_enumIndex(v, limit)
   return -1
 end function
 
-/*
-* Function: _rd_loadPulse
-* Purpose: Pumps window/audio updates periodically while expensive renderer precache loops run.
-*/
+/// Pumps window/audio updates periodically while expensive renderer precache loops run.
+/// @param iter Iter value supplied to `_rd_loadPulse`.
+/// @internal
 function inline _rd_loadPulse(iter)
   if typeof(iter) != "int" then return end if
   if (iter & 31) != 0 then return end if
@@ -259,10 +291,11 @@ function inline _rd_loadPulse(iter)
   end if
 end function
 
-/*
-* Function: _rd_parseTextureLump
-* Purpose: Decodes one optional TEXTURE directory into normalized definitions and resolves each PNAMES patch reference to a lump.
-*/
+/// Decodes one optional TEXTURE directory into normalized definitions and resolves each PNAMES patch reference
+/// to a lump.
+/// @param lumpname Lumpname value supplied to `_rd_parseTextureLump`.
+/// @param patchlookup Patchlookup value supplied to `_rd_parseTextureLump`.
+/// @internal
 function _rd_parseTextureLump(lumpname, patchlookup)
   result =[]
   lump = W_CheckNumForName(lumpname)
@@ -316,10 +349,15 @@ function _rd_parseTextureLump(lumpname, patchlookup)
   return result
 end function
 
-/*
-* Function: _rd_drawPatchColumnToCanvas
-* Purpose: Decodes a patch column's transparent posts into one clipped x position of a row-major composite canvas.
-*/
+/// Decodes a patch column's transparent posts into one clipped x position of a row-major composite canvas.
+/// @param patchBytes Patch bytes value supplied to `_rd_drawPatchColumnToCanvas`.
+/// @param colOff Col off value supplied to `_rd_drawPatchColumnToCanvas`.
+/// @param canvas Canvas value supplied to `_rd_drawPatchColumnToCanvas`.
+/// @param texW Tex w value supplied to `_rd_drawPatchColumnToCanvas`.
+/// @param texH Tex h value supplied to `_rd_drawPatchColumnToCanvas`.
+/// @param dstX Horizontal coordinate or vector component represented by dst x.
+/// @param originY Vertical coordinate or vector component represented by origin y.
+/// @internal
 function _rd_drawPatchColumnToCanvas(patchBytes, colOff, canvas, texW, texH, dstX, originY)
   off = colOff
   while off >= 0 and off < len(patchBytes)
@@ -342,10 +380,10 @@ function _rd_drawPatchColumnToCanvas(patchBytes, colOff, canvas, texW, texH, dst
   end while
 end function
 
-/*
-* Function: _rd_generateTextureComposite
-* Purpose: Overlays every placed patch into a row-major wall canvas and caches independent vertical columns for fallback sampling.
-*/
+/// Overlays every placed patch into a row-major wall canvas and caches independent vertical columns for
+/// fallback sampling.
+/// @param texnum Index identifying tex.
+/// @internal
 function _rd_generateTextureComposite(texnum)
   global texturecomposite
   global texturecolumncache
@@ -406,10 +444,11 @@ function _rd_generateTextureComposite(texnum)
   end if
 end function
 
-/*
-* Function: R_DrawColumnInCache
-* Purpose: Decodes a patch-column post stream into a clipped vertical cache at the requested texture y origin.
-*/
+/// Decodes a patch-column post stream into a clipped vertical cache at the requested texture y origin.
+/// @param patch Patch value supplied to `R_DrawColumnInCache`.
+/// @param cache Cache value supplied to `R_DrawColumnInCache`.
+/// @param originy Vertical coordinate or vector component represented by originy.
+/// @param cacheheight Height of cache in pixels or map units.
 function R_DrawColumnInCache(patch, cache, originy, cacheheight)
   if typeof(patch) != "bytes" or typeof(cache) != "bytes" then return end if
 
@@ -442,10 +481,15 @@ function R_DrawColumnInCache(patch, cache, originy, cacheheight)
   end while
 end function
 
-/*
-* Function: _rd_drawColumnInCacheAt
-* Purpose: Decodes a patch column from an explicit lump offset into a selected vertical region of a shared composite buffer.
-*/
+/// Decodes a patch column from an explicit lump offset into a selected vertical region of a shared composite
+/// buffer.
+/// @param patchBytes Patch bytes value supplied to `_rd_drawColumnInCacheAt`.
+/// @param colOff Col off value supplied to `_rd_drawColumnInCacheAt`.
+/// @param cache Cache value supplied to `_rd_drawColumnInCacheAt`.
+/// @param cacheOff Cache off value supplied to `_rd_drawColumnInCacheAt`.
+/// @param originy Vertical coordinate or vector component represented by originy.
+/// @param cacheheight Height of cache in pixels or map units.
+/// @internal
 function _rd_drawColumnInCacheAt(patchBytes, colOff, cache, cacheOff, originy, cacheheight)
   if typeof(patchBytes) != "bytes" or typeof(cache) != "bytes" then return end if
   if typeof(colOff) != "int" or colOff < 0 or colOff >= len(patchBytes) then return end if
@@ -480,10 +524,9 @@ function _rd_drawColumnInCacheAt(patchBytes, colOff, cache, cacheOff, originy, c
   end while
 end function
 
-/*
-* Function: R_GenerateComposite
-* Purpose: Materializes only columns requiring multiple patch overlays into the packed composite layout computed by the lookup pass.
-*/
+/// Materializes only columns requiring multiple patch overlays into the packed composite layout computed by the
+/// lookup pass.
+/// @param texnum Index identifying tex.
 function R_GenerateComposite(texnum)
   global texturecomposite
 
@@ -540,10 +583,9 @@ function R_GenerateComposite(texnum)
   end if
 end function
 
-/*
-* Function: R_GenerateLookup
-* Purpose: Classifies each texture column as direct single-patch data or composite storage and assigns its lump and byte offset.
-*/
+/// Classifies each texture column as direct single-patch data or composite storage and assigns its lump and
+/// byte offset.
+/// @param texnum Index identifying tex.
 function R_GenerateLookup(texnum)
   global texturecolumnlump
   global texturecolumnofs
@@ -629,10 +671,7 @@ function R_GenerateLookup(texnum)
   texturecolumnofs[texnum] = colofs
 end function
 
-/*
-* Function: R_InitFlats
-* Purpose: Resolves the F_START/F_END flat range and seeds an identity animation-translation table.
-*/
+/// Resolves the F_START/F_END flat range and seeds an identity animation-translation table.
 function R_InitFlats()
   global firstflat
   global lastflat
@@ -651,10 +690,9 @@ function R_InitFlats()
   end while
 end function
 
-/*
-* Function: R_FlatNumForName
-* Purpose: Resolves an eight-character flat name to its range-relative index and treats missing required flats as fatal.
-*/
+/// Resolves an eight-character flat name to its range-relative index and treats missing required flats as
+/// fatal.
+/// @param name Resource or object name to resolve.
 function R_FlatNumForName(name)
 
   n = _nameTo8(name)
@@ -667,10 +705,8 @@ function R_FlatNumForName(name)
   return lump - firstflat
 end function
 
-/*
-* Function: R_GetFlat
-* Purpose: Applies flat animation translation, validates the resulting range, and returns the cached lump bytes.
-*/
+/// Applies flat animation translation, validates the resulting range, and returns the cached lump bytes.
+/// @param flatnum Index identifying flat.
 function R_GetFlat(flatnum)
   if typeof(flatnum) != "int" then return void end if
   if typeof(flattranslation) == "array" and flatnum >= 0 and flatnum < len(flattranslation) then
@@ -681,10 +717,8 @@ function R_GetFlat(flatnum)
   return W_CacheLumpNum(lump, PU_CACHE)
 end function
 
-/*
-* Function: R_InitSpriteLumps
-* Purpose: Resolves the sprite lump range and precomputes fixed-point width, left offset, and top offset for every patch.
-*/
+/// Resolves the sprite lump range and precomputes fixed-point width, left offset, and top offset for every
+/// patch.
 function R_InitSpriteLumps()
   global firstspritelump
   global lastspritelump
@@ -716,10 +750,7 @@ function R_InitSpriteLumps()
   end while
 end function
 
-/*
-* Function: R_InitColormaps
-* Purpose: Pins the COLORMAP lump as the renderer's static light-remapping table.
-*/
+/// Pins the COLORMAP lump as the renderer's static light-remapping table.
 function R_InitColormaps()
   global colormaps
 
@@ -728,10 +759,8 @@ function R_InitColormaps()
   colormaps = W_CacheLumpNum(lump, PU_STATIC)
 end function
 
-/*
-* Function: R_InitTextures
-* Purpose: Resolves PNAMES and texture directories, allocates animation/column caches, and classifies every wall-texture column.
-*/
+/// Resolves PNAMES and texture directories, allocates animation/column caches, and classifies every
+/// wall-texture column.
 function R_InitTextures()
   global numtextures
   global textures
@@ -833,10 +862,10 @@ function R_InitTextures()
   end while
 end function
 
-/*
-* Function: _rd_ensureColumnCache
-* Purpose: Returns a texture's correctly sized lazy column-cache array, replacing malformed storage when necessary.
-*/
+/// Returns a texture's correctly sized lazy column-cache array, replacing malformed storage when necessary.
+/// @param tex Texture identifier or texture data to process.
+/// @param width Width of the target in pixels or map units.
+/// @internal
 function inline _rd_ensureColumnCache(tex, width)
   if not _rd_isSeq(texturecolumncache) then return void end if
   if typeof(tex) != "int" or tex < 0 or tex >= len(texturecolumncache) then return void end if
@@ -852,10 +881,10 @@ function inline _rd_ensureColumnCache(tex, width)
   return cols
 end function
 
-/*
-* Function: _rd_getUpscaledTextureColumn
-* Purpose: Returns a column from an upscaled composited wall texture, if available.
-*/
+/// Returns a column from an upscaled composited wall texture, if available.
+/// @param tex Texture identifier or texture data to process.
+/// @param col Col value supplied to `_rd_getUpscaledTextureColumn`.
+/// @internal
 function _rd_getUpscaledTextureColumn(tex, col)
   global rd_column_source_scale
   if not _rd_isSeq(textures) or tex < 0 or tex >= len(textures) then return void end if
@@ -908,10 +937,10 @@ function _rd_getUpscaledTextureColumn(tex, col)
   return colBytes
 end function
 
-/*
-* Function: R_GetColumn
-* Purpose: Returns a wrapped wall column from HD data, the lazy cache, a direct patch post, or a generated composite in that order.
-*/
+/// Returns a wrapped wall column from HD data, the lazy cache, a direct patch post, or a generated composite in
+/// that order.
+/// @param tex Texture identifier or texture data to process.
+/// @param col Col value supplied to `R_GetColumn`.
 function R_GetColumn(tex, col)
   global rd_column_source_scale
   rd_column_source_scale = 1
@@ -981,10 +1010,10 @@ function R_GetColumn(tex, col)
   return void
 end function
 
-/*
-* Function: R_GetMaskedColumnRaw
-* Purpose: Returns the source patch bytes and post-stream offset for a wrapped direct masked column, rejecting composite columns.
-*/
+/// Returns the source patch bytes and post-stream offset for a wrapped direct masked column, rejecting
+/// composite columns.
+/// @param tex Texture identifier or texture data to process.
+/// @param col Col value supplied to `R_GetMaskedColumnRaw`.
 function R_GetMaskedColumnRaw(tex, col)
   if not _rd_isSeq(textures) then return void end if
   if typeof(tex) != "int" or tex < 0 or tex >= len(textures) then return void end if
@@ -1017,10 +1046,9 @@ function R_GetMaskedColumnRaw(tex, col)
   return [patchBytes, start]
 end function
 
-/*
-* Function: R_CheckTextureNumForName
-* Purpose: Resolves a normalized wall-texture name without failure, treating Doom's '-' no-texture marker as index zero.
-*/
+/// Resolves a normalized wall-texture name without failure, treating Doom's '-' no-texture marker as index
+/// zero.
+/// @param name Resource or object name to resolve.
 function R_CheckTextureNumForName(name)
   n = _rd_upperName8(name)
   if len(n) > 0 and bytes(n)[0] == 45 then
@@ -1039,10 +1067,9 @@ function R_CheckTextureNumForName(name)
   return -1
 end function
 
-/*
-* Function: R_TextureNumForName
-* Purpose: Resolves a required wall texture and falls back to index zero while optionally logging missing names in developer mode.
-*/
+/// Resolves a required wall texture and falls back to index zero while optionally logging missing names in
+/// developer mode.
+/// @param name Resource or object name to resolve.
 function R_TextureNumForName(name)
   n = R_CheckTextureNumForName(name)
   if n < 0 then
@@ -1054,10 +1081,8 @@ function R_TextureNumForName(name)
   return n
 end function
 
-/*
-* Function: R_PrecacheLevel
-* Purpose: Marks flats, textures, patches, and sprite frames referenced by the current level, caches them, and totals their memory use.
-*/
+/// Marks flats, textures, patches, and sprite frames referenced by the current level, caches them, and totals
+/// their memory use.
 function R_PrecacheLevel()
   global flatmemory
   global texturememory
@@ -1257,10 +1282,7 @@ function R_PrecacheLevel()
   end if
 end function
 
-/*
-* Function: R_InitData
-* Purpose: Initializes wall textures, flats, sprite metrics, colormaps, and sky identifiers in dependency-safe order.
-*/
+/// Initializes wall textures, flats, sprite metrics, colormaps, and sky identifiers in dependency-safe order.
 function R_InitData()
   R_InitTextures()
   R_InitFlats()
