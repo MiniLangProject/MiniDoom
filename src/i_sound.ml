@@ -1668,7 +1668,8 @@ function I_UpdateSoundParams(handle, vol, sep, pitch)
   if sid >= 0 and sid < len(_I_sfxRates) then rate = _IS_ToInt(_I_sfxRates[sid], _IS_MIX_RATE) end if
 
   _I_chStep[slot] = _IS_PitchToStep(pitch, rate)
-  _IS_SetChannelVolumes(slot, _IS_ToInt(vol, 127), _IS_ToInt(sep, 128))
+  // Position updates receive the same Doom volume scale as I_StartSound.
+  _IS_SetChannelVolumes(slot, _IS_NormalizeVolume127(vol), _IS_ToInt(sep, 128))
 end function
 
 /// Clears song registration/playback state, opens MIDI output, and applies the default master volume.

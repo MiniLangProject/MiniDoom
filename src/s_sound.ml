@@ -889,7 +889,9 @@ function S_AdjustSoundParams(listener, source, vol, sep, pitch)
     if s_attenuator <= 0 then
       v = snd_SfxVolume
     else
-      v = 15 + _S_IDiv((snd_SfxVolume - 15) *((s_clipping_dist - approx_dist) >> S_FRACBITS), s_attenuator)
+      // Preserve the original 15/127 floor relative to the selected volume.
+      floorVolume = _S_IDiv(snd_SfxVolume * 15, S_MAX_VOLUME)
+      v = floorVolume + _S_IDiv((snd_SfxVolume - floorVolume) *((s_clipping_dist - approx_dist) >> S_FRACBITS), s_attenuator)
     end if
   else
     if s_attenuator <= 0 then
