@@ -211,14 +211,14 @@ function P_CrossBSPNode(bspnum)
   bsp = nodes[bspnum]
   if bsp is void then return false end if
 
-  div = divline_t(bsp.x, bsp.y, bsp.dx, bsp.dy)
+  bspDivline = divline_t(bsp.x, bsp.y, bsp.dx, bsp.dy)
 
-  side = P_DivlineSide(strace.x, strace.y, div)
+  side = P_DivlineSide(strace.x, strace.y, bspDivline)
   if side == 2 then side = 0 end if
 
   if not P_CrossBSPNode(bsp.children[side]) then return false end if
 
-  if side == P_DivlineSide(t2x, t2y, div) then
+  if side == P_DivlineSide(t2x, t2y, bspDivline) then
     return true
   end if
 

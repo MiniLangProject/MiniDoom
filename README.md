@@ -30,8 +30,11 @@ This project keeps the original DOOM architecture and module split concept, but 
 
 ## Download and Quick Start
 
-Prebuilt Windows and Linux packages are available on the
+The current Windows package is available on the
 [GitHub Releases page](https://github.com/MiniLangProject/MiniDoom/releases/latest).
+The [Linux x64 package from v2.0.4](https://github.com/MiniLangProject/MiniDoom/releases/tag/v2.0.4)
+remains available.
+The current Windows package is compiled with MiniLang Compiler 1.2.16.
 The packages contain the engine only; copyrighted DOOM IWADs are never included.
 
 Windows:
