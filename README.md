@@ -34,7 +34,9 @@ The current Windows package is available on the
 [GitHub Releases page](https://github.com/MiniLangProject/MiniDoom/releases/latest).
 The [Linux x64 package from v2.0.4](https://github.com/MiniLangProject/MiniDoom/releases/tag/v2.0.4)
 remains available.
-The current Windows package is compiled with MiniLang Compiler 1.2.16.
+The current Windows package is compiled with MiniLang Compiler 1.2.22 and
+packed with UPX 5.2.1 after icon injection. It uses the normal garbage
+collector; concurrent GC remains an opt-in development option.
 The packages contain the engine only; copyrighted DOOM IWADs are never included.
 
 Windows:
@@ -280,6 +282,30 @@ build/MiniDoom.exe
 build/MiniDoomGL.dll
 ```
 
+#### Packed Windows release build
+
+MiniLang Compiler 1.2.22 or newer can pack the finalized executable with UPX.
+The recommended release configuration keeps the normal collector and passes an
+explicit trusted UPX executable (version 5.2.1 is validated by the compiler):
+
+```powershell
+python .\build.py `
+  --compiler "C:\path\to\MiniLangCompilerPy\mlc_win64.py" `
+  --std "C:\path\to\MiniLangCompilerPy\std" `
+  --target windows-x64 `
+  --pack `
+  --upx "C:\path\to\upx.exe"
+```
+
+The build compiles MiniDoom, injects its icon, and only then packs the completed
+PE image. Packing primarily reduces download size; it adds startup
+decompression and does not promise higher FPS.
+
+The experimental background SATB collector remains available by additionally
+passing `--gc-concurrent`. MiniDoom benchmarks show that its permanent
+write-barrier and synchronization overhead lowers average FPS in this workload,
+so it is not enabled in the recommended release configuration.
+
 ### Linux x64
 
 On Linux, install GCC plus the SDL2 and OpenGL runtime libraries, then run:
@@ -352,6 +378,9 @@ attribution.
 - `--icon-group <id>` / `--icon-lang <id>`: resource ids for icon injection
 - `--skip-gl-helper`: reuse an existing Windows `MiniDoomGL.dll` without rebuilding it (Linux always builds its helpers)
 - `--linux-music-runtime <path>`: bundle FluidSynth, libinstpatch, and `MiniDoom.sf3` in a Linux build
+- `--gc-concurrent`: enable the Windows-only background SATB garbage collector
+- `--pack`: pack the completed executable after icon/resource processing
+- `--upx <path>`: trusted UPX executable used by `--pack`; alternatively set `MINILANG_UPX`
 
 ## Build MiniDoom Manually (Without build.py)
 

@@ -7,14 +7,17 @@ Build flow:
 2) Compile src/i_main.ml to a Windows PE or Linux ELF image.
 3) On Windows, optionally compile the icon tool and inject MiniDoom.ico.
 4) On Linux, emit a launcher that provides the local shared-library path.
+5) Optionally pack the completed image after all platform-specific mutations.
 """
 
 from __future__ import annotations
 
 import argparse
+import os
 import shutil
 import subprocess
 import sys
+import uuid
 from pathlib import Path
 
 
@@ -58,6 +61,7 @@ def _compiler_cmd(
     include_dirs: list[Path],
     subsystem: str,
     target: str,
+    extra_options: list[str] | None = None,
 ) -> list[str]:
     """Build a MiniLang compiler argv for script or native compiler frontends.
 
@@ -78,6 +82,8 @@ def _compiler_cmd(
     cmd += ["--target", target]
     if target == "windows-x64":
         cmd += ["--subsystem", subsystem]
+    if extra_options:
+        cmd += extra_options
     return cmd
 
 
@@ -331,6 +337,7 @@ def _build_game(
     out_exe: Path,
     game_entry: Path,
     target: str,
+    concurrent_gc: bool,
 ) -> None:
     """Compile the selected MiniDoom entry module for the requested native target."""
     out_exe.parent.mkdir(parents=True, exist_ok=True)
@@ -342,8 +349,43 @@ def _build_game(
         include_dirs=[PROJECT_ROOT / "src", std_import_root],
         subsystem="windows",
         target=target,
+        extra_options=["--gc-concurrent"] if concurrent_gc else None,
     )
     _run(cmd, PROJECT_ROOT)
+
+
+def _pack_executable(
+    compiler_path: Path,
+    python_exe: Path,
+    executable: Path,
+    upx_path: Path,
+) -> None:
+    """Pack the fully finalized executable and atomically replace the input.
+
+    Packing is deliberately performed after Windows resource injection.  UPX
+    compresses the PE image, so mutating resources afterwards would invalidate
+    the compiler's byte-exact restoration metadata.
+    """
+    comp = compiler_path.resolve()
+    source = executable.resolve()
+    packed = source.with_name(f".{source.name}.packed-{uuid.uuid4().hex}")
+    if comp.suffix.lower() == ".py":
+        cmd = [str(python_exe.resolve()), str(comp)]
+    else:
+        cmd = [str(comp)]
+    cmd += [
+        "--pack-exe",
+        str(source),
+        str(packed),
+        "--upx",
+        str(upx_path.resolve()),
+    ]
+    try:
+        _run(cmd, PROJECT_ROOT)
+        packed.replace(source)
+    finally:
+        if packed.exists():
+            packed.unlink()
 
 
 def _inject_icon(
@@ -439,6 +481,21 @@ def main() -> int:
         ),
     )
     parser.add_argument(
+        "--gc-concurrent",
+        action="store_true",
+        help="Use the Windows background SATB garbage collector for MiniDoom.",
+    )
+    parser.add_argument(
+        "--pack",
+        action="store_true",
+        help="Pack the completed MiniDoom executable with UPX.",
+    )
+    parser.add_argument(
+        "--upx",
+        default="",
+        help="Trusted UPX executable used by --pack (or set MINILANG_UPX).",
+    )
+    parser.add_argument(
         "--clean",
         action="store_true",
         help="Delete output directory before building.",
@@ -455,6 +512,19 @@ def main() -> int:
         raise FileNotFoundError(f"Python executable not found: {python_exe}")
 
     std_import_root = _resolve_std_import_root(Path(args.std))
+
+    if args.gc_concurrent and args.target != "windows-x64":
+        raise ValueError("--gc-concurrent is currently supported only for windows-x64.")
+
+    upx_path: Path | None = None
+    if args.pack:
+        upx_value = args.upx or os.environ.get("MINILANG_UPX", "")
+        if not upx_value:
+            raise ValueError("--pack requires --upx PATH or MINILANG_UPX.")
+        resolved_upx = shutil.which(upx_value)
+        upx_path = Path(resolved_upx if resolved_upx else upx_value).resolve()
+        if not upx_path.is_file():
+            raise FileNotFoundError(f"UPX executable not found: {upx_path}")
 
     default_output_dir = PROJECT_ROOT / "build"
     if args.target == "linux-x64":
@@ -520,6 +590,7 @@ def main() -> int:
         out_exe=game_exe,
         game_entry=game_entry,
         target=args.target,
+        concurrent_gc=args.gc_concurrent,
     )
 
     if is_linux:
@@ -543,6 +614,16 @@ def main() -> int:
             icon_path=icon_path,
             group_id=args.icon_group,
             lang_id=args.icon_lang,
+        )
+
+    if args.pack:
+        assert upx_path is not None
+        print("Packing finalized MiniDoom executable...")
+        _pack_executable(
+            compiler_path=compiler_path,
+            python_exe=python_exe,
+            executable=game_exe,
+            upx_path=upx_path,
         )
 
     print("")
