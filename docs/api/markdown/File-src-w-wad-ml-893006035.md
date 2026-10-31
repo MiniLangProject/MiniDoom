@@ -15,8 +15,8 @@ Reachable from entry: **yes**
 - `i_system.ml` → [src/i_system.ml](File-src-i-system-ml-1632920966.md)
 - `m_argv.ml` → [src/m_argv.ml](File-src-m-argv-ml-728984635.md)
 - `m_swap.ml` → [src/m_swap.ml](File-src-m-swap-ml-1401834276.md)
-- `std/fs.ml` as `fs` → `../MiniLangCompilerOptimization/MiniLangCompilerPy/std/fs.ml` — external dependency
-- `std/math.ml` → `../MiniLangCompilerOptimization/MiniLangCompilerPy/std/math.ml` — external dependency
+- `std/fs.ml` as `fs` → `../MiniLangCompilerML/std/fs.ml` — external dependency
+- `std/math.ml` → `../MiniLangCompilerML/std/math.ml` — external dependency
 - `w_wad.ml` → [src/w_wad.ml](File-src-w-wad-ml-893006035.md)
 - `z_zone.ml` → [src/z_zone.ml](File-src-z-zone-ml-1788911354.md)
 

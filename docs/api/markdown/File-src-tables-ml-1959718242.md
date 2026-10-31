@@ -11,7 +11,7 @@ Reachable from entry: **yes**
 ## Imports
 
 - `m_fixed.ml` → [src/m_fixed.ml](File-src-m-fixed-ml-2129187227.md)
-- `std/math.ml` → `../MiniLangCompilerOptimization/MiniLangCompilerPy/std/math.ml` — external dependency
+- `std/math.ml` → `../MiniLangCompilerML/std/math.ml` — external dependency
 - `tables.ml` → [src/tables.ml](File-src-tables-ml-1959718242.md)
 
 ## Declarations

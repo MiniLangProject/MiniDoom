@@ -18,7 +18,7 @@ Reachable from entry: **yes**
 - `m_argv.ml` → [src/m_argv.ml](File-src-m-argv-ml-728984635.md)
 - `m_misc.ml` → [src/m_misc.ml](File-src-m-misc-ml-906836777.md)
 - `sounds.ml` → [src/sounds.ml](File-src-sounds-ml-1875364049.md)
-- `std/math.ml` → `../MiniLangCompilerOptimization/MiniLangCompilerPy/std/math.ml` — external dependency
+- `std/math.ml` → `../MiniLangCompilerML/std/math.ml` — external dependency
 - `w_wad.ml` → [src/w_wad.ml](File-src-w-wad-ml-893006035.md)
 - `z_zone.ml` → [src/z_zone.ml](File-src-z-zone-ml-1788911354.md)
 
@@ -1436,7 +1436,7 @@ Assigns cached PCM to a mixing channel, initializes cursor/gains, and returns a 
 | `seperation` | `dynamic` | — | Seperation value supplied to `addsfx`. |
 
 
-[View source](https://github.com/MiniLangProject/MiniDoom/blob/main/src/i_sound.ml#L1856)
+[View source](https://github.com/MiniLangProject/MiniDoom/blob/main/src/i_sound.ml#L1857)
 
 <a id="function-function-getsfx-function-getsfx-name-lenout-src-i-sound-ml-650364777"></a>
 ### getsfx
@@ -1453,7 +1453,7 @@ Loads a named `DS*` sound lump and writes its byte length through the legacy out
 | `lenOut` | `dynamic` | — | Len out value supplied to `getsfx`. |
 
 
-[View source](https://github.com/MiniLangProject/MiniDoom/blob/main/src/i_sound.ml#L1834)
+[View source](https://github.com/MiniLangProject/MiniDoom/blob/main/src/i_sound.ml#L1835)
 
 <a id="extern_function-extern-function-globalalloc-extern-function-globalalloc-flags-as-u32-size-as-u32-from-kernel32-dll-symbol-globalalloc-returns-ptr-src-i-sound-ml-409902495"></a>
 ### GlobalAlloc
@@ -1518,7 +1518,7 @@ function I_HandleSoundTimer()
 Preserves the legacy timer callback hook; WinMM/MUS advancement is driven by the main update loop.
 
 
-[View source](https://github.com/MiniLangProject/MiniDoom/blob/main/src/i_sound.ml#L1889)
+[View source](https://github.com/MiniLangProject/MiniDoom/blob/main/src/i_sound.ml#L1890)
 
 <a id="function-function-i-initmusic-function-i-initmusic-src-i-sound-ml-1768395553"></a>
 ### I_InitMusic
@@ -1530,7 +1530,7 @@ function I_InitMusic()
 Clears song registration/playback state, opens MIDI output, and applies the default master volume.
 
 
-[View source](https://github.com/MiniLangProject/MiniDoom/blob/main/src/i_sound.ml#L1675)
+[View source](https://github.com/MiniLangProject/MiniDoom/blob/main/src/i_sound.ml#L1676)
 
 <a id="function-function-i-initsound-function-i-initsound-src-i-sound-ml-1264338381"></a>
 ### I_InitSound
@@ -1558,7 +1558,7 @@ Pauses the active registered song, resets sounding MIDI notes, and updates its s
 | `handle` | `dynamic` | — | Handle value supplied to `I_PauseSong`. |
 
 
-[View source](https://github.com/MiniLangProject/MiniDoom/blob/main/src/i_sound.ml#L1718)
+[View source](https://github.com/MiniLangProject/MiniDoom/blob/main/src/i_sound.ml#L1719)
 
 <a id="function-function-i-playsong-function-i-playsong-handle-looping-src-i-sound-ml-349515657"></a>
 ### I_PlaySong
@@ -1575,7 +1575,7 @@ Resolves a registered song, validates/starts its MUS stream, and records request
 | `looping` | `dynamic` | — | Looping value supplied to `I_PlaySong`. |
 
 
-[View source](https://github.com/MiniLangProject/MiniDoom/blob/main/src/i_sound.ml#L1759)
+[View source](https://github.com/MiniLangProject/MiniDoom/blob/main/src/i_sound.ml#L1760)
 
 <a id="function-function-i-precachesfx-function-i-precachesfx-id-src-i-sound-ml-1086435546"></a>
 ### I_PrecacheSfx
@@ -1607,7 +1607,7 @@ Reports whether the requested handle is the active, unpaused MUS song.
 | `handle` | `dynamic` | — | Handle value supplied to `I_QrySongPlaying`. |
 
 
-[View source](https://github.com/MiniLangProject/MiniDoom/blob/main/src/i_sound.ml#L1814)
+[View source](https://github.com/MiniLangProject/MiniDoom/blob/main/src/i_sound.ml#L1815)
 
 <a id="function-function-i-registersong-function-i-registersong-data-src-i-sound-ml-1797909367"></a>
 ### I_RegisterSong
@@ -1623,7 +1623,7 @@ Stores immutable MUS bytes under a new handle with initial stopped/non-looping m
 | `data` | `dynamic` | — | Binary or structured data to process. |
 
 
-[View source](https://github.com/MiniLangProject/MiniDoom/blob/main/src/i_sound.ml#L1745)
+[View source](https://github.com/MiniLangProject/MiniDoom/blob/main/src/i_sound.ml#L1746)
 
 <a id="function-function-i-resumesong-function-i-resumesong-handle-src-i-sound-ml-1150755005"></a>
 ### I_ResumeSong
@@ -1639,7 +1639,7 @@ Resumes the active paused song from its MUS cursor with a rebased wall-clock tim
 | `handle` | `dynamic` | — | Handle value supplied to `I_ResumeSong`. |
 
 
-[View source](https://github.com/MiniLangProject/MiniDoom/blob/main/src/i_sound.ml#L1731)
+[View source](https://github.com/MiniLangProject/MiniDoom/blob/main/src/i_sound.ml#L1732)
 
 <a id="function-function-i-setchannels-function-i-setchannels-src-i-sound-ml-2043678511"></a>
 ### I_SetChannels
@@ -1667,7 +1667,7 @@ Normalizes Doom music volume and applies it to both WinMM MIDI output channels.
 | `volume` | `dynamic` | — | Volume value supplied to `I_SetMusicVolume`. |
 
 
-[View source](https://github.com/MiniLangProject/MiniDoom/blob/main/src/i_sound.ml#L1697)
+[View source](https://github.com/MiniLangProject/MiniDoom/blob/main/src/i_sound.ml#L1698)
 
 <a id="function-function-i-setsfxvolume-function-i-setsfxvolume-volume-src-i-sound-ml-1877243865"></a>
 ### I_SetSfxVolume
@@ -1683,7 +1683,7 @@ Normalizes and stores the master SFX gain used when starting/mixing effects.
 | `volume` | `dynamic` | — | Volume value supplied to `I_SetSfxVolume`. |
 
 
-[View source](https://github.com/MiniLangProject/MiniDoom/blob/main/src/i_sound.ml#L1711)
+[View source](https://github.com/MiniLangProject/MiniDoom/blob/main/src/i_sound.ml#L1712)
 
 <a id="function-function-i-shutdownmusic-function-i-shutdownmusic-src-i-sound-ml-1252286321"></a>
 ### I_ShutdownMusic
@@ -1695,7 +1695,7 @@ function I_ShutdownMusic()
 Stops the active MUS score and resets/closes the platform MIDI backend.
 
 
-[View source](https://github.com/MiniLangProject/MiniDoom/blob/main/src/i_sound.ml#L1690)
+[View source](https://github.com/MiniLangProject/MiniDoom/blob/main/src/i_sound.ml#L1691)
 
 <a id="function-function-i-shutdownsound-function-i-shutdownsound-src-i-sound-ml-528136829"></a>
 ### I_ShutdownSound
@@ -1719,7 +1719,7 @@ function I_SoundDelTimer()
 Clears the legacy sound-timer enabled flag during backend teardown.
 
 
-[View source](https://github.com/MiniLangProject/MiniDoom/blob/main/src/i_sound.ml#L1902)
+[View source](https://github.com/MiniLangProject/MiniDoom/blob/main/src/i_sound.ml#L1903)
 
 <a id="function-function-i-soundisplaying-function-i-soundisplaying-handle-src-i-sound-ml-199282925"></a>
 ### I_SoundIsPlaying
@@ -1751,7 +1751,7 @@ Marks the legacy sound timer enabled while ignoring its obsolete tick-period arg
 | `ticks` | `dynamic` | — | Ticks value supplied to `I_SoundSetTimer`. |
 
 
-[View source](https://github.com/MiniLangProject/MiniDoom/blob/main/src/i_sound.ml#L1895)
+[View source](https://github.com/MiniLangProject/MiniDoom/blob/main/src/i_sound.ml#L1896)
 
 <a id="function-function-i-startsound-function-i-startsound-id-vol-sep-pitch-priority-src-i-sound-ml-1272039505"></a>
 ### I_StartSound
@@ -1787,7 +1787,7 @@ Stops the active song decoder or clears only the metadata flags of a different r
 | `handle` | `dynamic` | — | Handle value supplied to `I_StopSong`. |
 
 
-[View source](https://github.com/MiniLangProject/MiniDoom/blob/main/src/i_sound.ml#L1777)
+[View source](https://github.com/MiniLangProject/MiniDoom/blob/main/src/i_sound.ml#L1778)
 
 <a id="function-function-i-stopsound-function-i-stopsound-handle-src-i-sound-ml-1659252435"></a>
 ### I_StopSound
@@ -1831,7 +1831,7 @@ Stops a matching active song and removes its handle/data record from the registr
 | `handle` | `dynamic` | — | Handle value supplied to `I_UnRegisterSong`. |
 
 
-[View source](https://github.com/MiniLangProject/MiniDoom/blob/main/src/i_sound.ml#L1789)
+[View source](https://github.com/MiniLangProject/MiniDoom/blob/main/src/i_sound.ml#L1790)
 
 <a id="function-function-i-updatesound-function-i-updatesound-src-i-sound-ml-817754735"></a>
 ### I_UpdateSound
@@ -1988,7 +1988,7 @@ Retains the legacy Unix audio-control entry point as a deterministic no-op on Wi
 | `arg` | `dynamic` | — | Arg value supplied to `myioctl`. |
 
 
-[View source](https://github.com/MiniLangProject/MiniDoom/blob/main/src/i_sound.ml#L1824)
+[View source](https://github.com/MiniLangProject/MiniDoom/blob/main/src/i_sound.ml#L1825)
 
 <a id="extern_function-extern-function-rtlmovememoryfromptr-extern-function-rtlmovememoryfromptr-dst-as-bytes-src-as-ptr-len-as-u32-from-kernel32-dll-symbol-rtlmovememory-returns-void-src-i-sound-ml-1898916798"></a>
 ### RtlMoveMemoryFromPtr

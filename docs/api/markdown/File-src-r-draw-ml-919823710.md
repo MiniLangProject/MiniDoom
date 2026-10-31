@@ -16,7 +16,7 @@ Reachable from entry: **yes**
 - `i_system.ml` → [src/i_system.ml](File-src-i-system-ml-1632920966.md)
 - `r_hires.ml` → [src/r_hires.ml](File-src-r-hires-ml-694005807.md)
 - `r_local.ml` → [src/r_local.ml](File-src-r-local-ml-797040731.md)
-- `std/math.ml` → `../MiniLangCompilerOptimization/MiniLangCompilerPy/std/math.ml` — external dependency
+- `std/math.ml` → `../MiniLangCompilerML/std/math.ml` — external dependency
 - `v_video.ml` → [src/v_video.ml](File-src-v-video-ml-592999939.md)
 - `w_wad.ml` → [src/w_wad.ml](File-src-w-wad-ml-893006035.md)
 - `z_zone.ml` → [src/z_zone.ml](File-src-z-zone-ml-1788911354.md)

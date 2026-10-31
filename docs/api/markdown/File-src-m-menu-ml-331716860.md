@@ -27,7 +27,7 @@ Reachable from entry: **yes**
 - `r_renderer.ml` → [src/r_renderer.ml](File-src-r-renderer-ml-72894217.md)
 - `s_sound.ml` → [src/s_sound.ml](File-src-s-sound-ml-1485495390.md)
 - `sounds.ml` → [src/sounds.ml](File-src-sounds-ml-1875364049.md)
-- `std/fs.ml` as `fs` → `../MiniLangCompilerOptimization/MiniLangCompilerPy/std/fs.ml` — external dependency
+- `std/fs.ml` as `fs` → `../MiniLangCompilerML/std/fs.ml` — external dependency
 - `v_video.ml` → [src/v_video.ml](File-src-v-video-ml-592999939.md)
 - `w_wad.ml` → [src/w_wad.ml](File-src-w-wad-ml-893006035.md)
 - `z_zone.ml` → [src/z_zone.ml](File-src-z-zone-ml-1788911354.md)

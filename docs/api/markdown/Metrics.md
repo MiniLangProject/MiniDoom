@@ -11,16 +11,16 @@ Static metrics are calculated from target-specific preprocessed MiniLang files i
 | Blank lines | 8369 |
 | Clone groups | 915 |
 | Cognitive complexity | 22837 (maximum per function: 622) |
-| Comment lines | 14655 |
+| Comment lines | 14657 |
 | Cyclomatic complexity | 18886 (average: 8.5, maximum: 969) |
 | Documentation coverage | 100% (8146 of 8146 documentation items) |
 | Duplicated lines | 4547 (7.89%) |
 | Files | 88 |
 | Functions | 2222 |
 | Maintainability index | 1.61 / 100 |
-| Physical lines | 80638 |
-| Source lines | 57614 |
-| Statements | 42186 |
+| Physical lines | 80641 |
+| Source lines | 57615 |
+| Statements | 42187 |
 
 ## Documentation coverage
 
@@ -40,7 +40,7 @@ Coverage is split by documentation contract so strong API summaries cannot hide 
 
 | Distinct operators | Distinct operands | Total operators | Total operands | Vocabulary | Length | Volume | Difficulty | Effort | Estimated defects |
 | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| 58 | 12794 | 219561 | 165941 | 12852 | 385502 | 5261988.67 | 376.14 | 1979225434.38 | 1754 |
+| 58 | 12795 | 219565 | 165945 | 12853 | 385510 | 5262141.15 | 376.12 | 1979175801.73 | 1754.05 |
 
 ## Files
 
@@ -64,16 +64,16 @@ Coverage is split by documentation contract so strong API summaries cannot hide 
 | [`src/doomstat.ml`](File-src-doomstat-ml-1652708088.md) | 69 | 0 | 0 / 0. / 0 | 0 / 0 | 0 (0%) | 1514.11 | 37.62 |
 | [`src/doomtype.ml`](File-src-doomtype-ml-372549946.md) | 13 | 1 | 1 / 1 / 1 | 0 / 0 | 0 (0%) | 249.98 | 58.78 |
 | [`src/dstrings.ml`](File-src-dstrings-ml-567491523.md) | 32 | 0 | 0 / 0. / 0 | 0 / 0 | 0 (0%) | 383.18 | 49.08 |
-| [`src/f_finale.ml`](File-src-f-finale-ml-635076109.md) | 422 | 21 | 155 / 7.38 / 19 | 185 / 24 | 13 (3.08%) | 19202.43 | 0 |
+| [`src/f_finale.ml`](File-src-f-finale-ml-635076109.md) | 422 | 21 | 155 / 7.38 / 19 | 185 / 24 | 13 (3.08%) | 19202.44 | 0 |
 | [`src/f_wipe.ml`](File-src-f-wipe-ml-1921092045.md) | 268 | 15 | 92 / 6.13 / 15 | 109 / 31 | 12 (4.48%) | 11295.09 | 6.28 |
 | [`src/g_game.ml`](File-src-g-game-ml-257299317.md) | 1329 | 53 | 548 / 10.34 / 61 | 640 / 74 | 6 (0.45%) | 76391.96 | 0 |
-| [`src/hdwad_builder.ml`](File-src-hdwad-builder-ml-980370789.md) | 1284 | 79 | 481 / 6.09 / 36 | 592 / 69 | 116 (9.03%) | 102738.87 | 0 |
+| [`src/hdwad_builder.ml`](File-src-hdwad-builder-ml-980370789.md) | 1284 | 79 | 481 / 6.09 / 36 | 592 / 69 | 116 (9.03%) | 102738.88 | 0 |
 | [`src/hu_lib.ml`](File-src-hu-lib-ml-937975676.md) | 284 | 28 | 113 / 4.04 / 12 | 101 / 19 | 6 (2.11%) | 12744.34 | 2.54 |
 | [`src/hu_stuff.ml`](File-src-hu-stuff-ml-1965779679.md) | 522 | 28 | 157 / 5.61 / 37 | 207 / 96 | 15 (2.87%) | 29805.4 | 0 |
 | [`src/i_gl.ml`](File-src-i-gl-ml-2113703076.md) | 811 | 34 | 245 / 7.21 / 22 | 250 / 26 | 60 (7.4%) | 60469.02 | 0 |
 | [`src/i_main.ml`](File-src-i-main-ml-97520758.md) | 81 | 3 | 32 / 10.67 / 15 | 49 / 23 | 26 (32.1%) | 3486.16 | 29.26 |
 | [`src/i_net.ml`](File-src-i-net-ml-1331775872.md) | 326 | 16 | 141 / 8.81 / 44 | 172 / 75 | 27 (8.28%) | 18365.55 | 0 |
-| [`src/i_sound.ml`](File-src-i-sound-ml-33806980.md) | 1179 | 80 | 371 / 4.64 / 25 | 384 / 57 | 6 (0.51%) | 66028.9 | 0 |
+| [`src/i_sound.ml`](File-src-i-sound-ml-33806980.md) | 1179 | 80 | 371 / 4.64 / 25 | 384 / 57 | 6 (0.51%) | 66011.04 | 0 |
 | [`src/i_system.ml`](File-src-i-system-ml-1632920966.md) | 169 | 20 | 70 / 3.5 / 12 | 56 / 12 | 25 (14.79%) | 7457.29 | 14.87 |
 | [`src/i_video.ml`](File-src-i-video-ml-140536292.md) | 1859 | 85 | 696 / 8.19 / 42 | 796 / 63 | 289 (15.55%) | 117469.46 | 0 |
 | [`src/info.ml`](File-src-info-ml-1415270573.md) | 5331 | 2 | 973 / 486.5 / 969 | 5 / 3 | 0 (0%) | 547394.88 | 0 |
@@ -90,9 +90,9 @@ Coverage is split by documentation contract so strong API summaries cannot hide 
 | [`src/mp_state.ml`](File-src-mp-state-ml-130741680.md) | 326 | 17 | 117 / 6.88 / 16 | 138 / 27 | 59 (18.1%) | 15568.02 | 9.e-002 |
 | [`src/p_ceilng.ml`](File-src-p-ceilng-ml-226654252.md) | 143 | 9 | 55 / 6.11 / 15 | 71 / 26 | 7 (4.9%) | 5971.32 | 19.15 |
 | [`src/p_doors.ml`](File-src-p-doors-ml-224295587.md) | 354 | 17 | 122 / 7.18 / 28 | 140 / 40 | 20 (5.65%) | 16593.02 | 0 |
-| [`src/p_enemy.ml`](File-src-p-enemy-ml-1875479956.md) | 1207 | 74 | 531 / 7.18 / 38 | 600 / 65 | 27 (2.24%) | 78734.3 | 0 |
+| [`src/p_enemy.ml`](File-src-p-enemy-ml-1875479956.md) | 1207 | 74 | 531 / 7.18 / 38 | 600 / 65 | 27 (2.24%) | 78734.32 | 0 |
 | [`src/p_floor.ml`](File-src-p-floor-ml-1999892698.md) | 390 | 10 | 103 / 10.3 / 38 | 205 / 77 | 82 (21.03%) | 15567.82 | 0.27 |
-| [`src/p_inter.ml`](File-src-p-inter-ml-1430401638.md) | 756 | 23 | 404 / 17.57 / 107 | 521 / 171 | 53 (7.01%) | 48864.07 | 0 |
+| [`src/p_inter.ml`](File-src-p-inter-ml-1430401638.md) | 756 | 23 | 404 / 17.57 / 107 | 521 / 171 | 53 (7.01%) | 48864.08 | 0 |
 | [`src/p_lights.ml`](File-src-p-lights-ml-1710096069.md) | 162 | 13 | 59 / 4.54 / 7 | 57 / 8 | 12 (7.41%) | 7555.75 | 16.71 |
 | [`src/p_local.ml`](File-src-p-local-ml-1043095437.md) | 53 | 0 | 0 / 0. / 0 | 0 / 0 | 0 (0%) | 1058.75 | 41.21 |
 | [`src/p_map.ml`](File-src-p-map-ml-882556686.md) | 926 | 29 | 303 / 10.45 / 35 | 396 / 61 | 18 (1.94%) | 51029.29 | 0 |
@@ -117,14 +117,14 @@ Coverage is split by documentation contract so strong API summaries cannot hide 
 | [`src/r_hires.ml`](File-src-r-hires-ml-694005807.md) | 55 | 7 | 19 / 2.71 / 6 | 12 / 5 | 0 (0%) | 1569.05 | 37.1 |
 | [`src/r_local.ml`](File-src-r-local-ml-797040731.md) | 10 | 0 | 0 / 0. / 0 | 0 / 0 | 0 (0%) | 66.44 | 65.43 |
 | [`src/r_main.ml`](File-src-r-main-ml-1902335243.md) | 1052 | 39 | 342 / 8.77 / 46 | 407 / 45 | 61 (5.8%) | 55540.75 | 0 |
-| [`src/r_plane.ml`](File-src-r-plane-ml-1848108848.md) | 562 | 21 | 178 / 8.48 / 40 | 218 / 79 | 13 (2.31%) | 24999.99 | 0 |
+| [`src/r_plane.ml`](File-src-r-plane-ml-1848108848.md) | 562 | 21 | 178 / 8.48 / 40 | 218 / 79 | 13 (2.31%) | 25000 | 0 |
 | [`src/r_renderer.ml`](File-src-r-renderer-ml-72894217.md) | 46 | 10 | 14 / 1.4 / 3 | 4 / 2 | 0 (0%) | 885.61 | 41.21 |
 | [`src/r_segs.ml`](File-src-r-segs-ml-1658887754.md) | 792 | 25 | 304 / 12.16 / 67 | 423 / 104 | 34 (4.29%) | 41451.87 | 0 |
 | [`src/r_sky.ml`](File-src-r-sky-ml-918225537.md) | 23 | 1 | 5 / 5 / 5 | 4 / 4 | 0 (0%) | 451.38 | 51.04 |
 | [`src/r_state.ml`](File-src-r-state-ml-691819649.md) | 46 | 0 | 0 / 0. / 0 | 0 / 0 | 0 (0%) | 767.56 | 43.53 |
 | [`src/r_things.ml`](File-src-r-things-ml-545677447.md) | 1133 | 47 | 422 / 8.98 / 48 | 542 / 102 | 100 (8.83%) | 62624.83 | 0 |
 | [`src/r_upscaled.ml`](File-src-r-upscaled-ml-1801241933.md) | 240 | 20 | 96 / 4.8 / 22 | 92 / 23 | 19 (7.92%) | 11581.69 | 6.71 |
-| [`src/s_sound.ml`](File-src-s-sound-ml-1485495390.md) | 810 | 45 | 333 / 7.4 / 28 | 366 / 47 | 35 (4.32%) | 46737.03 | 0 |
+| [`src/s_sound.ml`](File-src-s-sound-ml-1485495390.md) | 811 | 45 | 333 / 7.4 / 28 | 366 / 47 | 35 (4.32%) | 46843.92 | 0 |
 | [`src/sounds.ml`](File-src-sounds-ml-1875364049.md) | 381 | 0 | 0 / 0. / 0 | 0 / 0 | 0 (0%) | 31879.13 | 12.17 |
 | [`src/st_lib.ml`](File-src-st-lib-ml-1845497584.md) | 323 | 29 | 114 / 3.93 / 20 | 120 / 27 | 13 (4.02%) | 14841.25 | 0.72 |
 | [`src/st_stuff.ml`](File-src-st-stuff-ml-811030939.md) | 1038 | 41 | 294 / 7.17 / 68 | 449 / 198 | 54 (5.2%) | 65062.7 | 0 |
@@ -190,7 +190,7 @@ Coverage is split by documentation contract so strong API summaries cannot hide 
 | [`_cht_write_buffer`](File-src-m-cheat-ml-440987496.md#function-function-cht-write-buffer-function-cht-write-buffer-buffer-outlist-src-m-cheat-ml-104556033) | `src/m_cheat.ml:161` | 22 | 15 | 8 | 12 | 2 | 658.91 | 49.9 |
 | [`_clampInt`](File-src-v-video-ml-592999939.md#function-function-clampint-inline-function-clampint-x-lo-hi-src-v-video-ml-1341042677) | `src/v_video.ml:207` | 5 | 5 | 3 | 2 | 1 | 125.02 | 69.67 |
 | [`_cstrClear`](File-src-m-menu-ml-331716860.md#function-function-cstrclear-function-cstrclear-buf-src-m-menu-ml-1304511364) | `src/m_menu.ml:175` | 6 | 4 | 3 | 2 | 1 | 165 | 67.1 |
-| [`_cstrCopy`](File-src-m-menu-ml-331716860.md#function-function-cstrcopy-function-cstrcopy-dst-src-src-m-menu-ml-289189592) | `src/m_menu.ml:213` | 9 | 8 | 5 | 4 | 1 | 402.36 | 60.27 |
+| [`_cstrCopy`](File-src-m-menu-ml-331716860.md#function-function-cstrcopy-function-cstrcopy-dst-src-src-m-menu-ml-289189592) | `src/m_menu.ml:213` | 9 | 8 | 5 | 4 | 1 | 402.37 | 60.27 |
 | [`_cstrEqString`](File-src-m-menu-ml-331716860.md#function-function-cstreqstring-inline-function-cstreqstring-buf-s-src-m-menu-ml-2073444738) | `src/m_menu.ml:227` | 4 | 3 | 2 | 1 | 1 | 120.93 | 72.02 |
 | [`_cstrFromString`](File-src-m-menu-ml-331716860.md#function-function-cstrfromstring-function-cstrfromstring-buf-s-src-m-menu-ml-647135047) | `src/m_menu.ml:198` | 10 | 9 | 4 | 3 | 1 | 397.46 | 59.45 |
 | [`_cstrLen`](File-src-m-menu-ml-331716860.md#function-function-cstrlen-function-cstrlen-buf-src-m-menu-ml-343553044) | `src/m_menu.ml:185` | 8 | 6 | 4 | 3 | 1 | 203.56 | 63.6 |
@@ -533,7 +533,7 @@ Coverage is split by documentation contract so strong API summaries cannot hide 
 | [`_INet_SlotIsActive`](File-src-i-net-ml-1331775872.md#function-function-inet-slotisactive-function-inet-slotisactive-activeslots-slot-src-i-net-ml-661025110) | `src/i_net.ml:184` | 9 | 8 | 4 | 4 | 2 | 281.76 | 61.49 |
 | [`_INet_SyncRuntimeFromPlatform`](File-src-i-net-ml-1331775872.md#function-function-inet-syncruntimefromplatform-function-inet-syncruntimefromplatform-src-i-net-ml-193128259) | `src/i_net.ml:256` | 94 | 99 | 44 | 75 | 5 | 4030.05 | 25.8 |
 | [`_INet_ToInt`](File-src-i-net-ml-1331775872.md#function-function-inet-toint-function-inet-toint-v-fallback-src-i-net-ml-1700000845) | `src/i_net.ml:45` | 14 | 14 | 7 | 8 | 2 | 515.47 | 55.07 |
-| [`_INet_WriteI32LE`](File-src-i-net-ml-1331775872.md#function-function-inet-writei32le-inline-function-inet-writei32le-buf-off-v-src-i-net-ml-1245780518) | `src/i_net.ml:65` | 8 | 7 | 2 | 1 | 1 | 402.36 | 61.79 |
+| [`_INet_WriteI32LE`](File-src-i-net-ml-1331775872.md#function-function-inet-writei32le-inline-function-inet-writei32le-buf-off-v-src-i-net-ml-1245780518) | `src/i_net.ml:65` | 8 | 7 | 2 | 1 | 1 | 402.37 | 61.79 |
 | [`_InitActiveCeilings`](File-src-p-ceilng-ml-226654252.md#function-function-initactiveceilings-function-initactiveceilings-src-p-ceilng-ml-1911881191) | `src/p_ceilng.ml:33` | 10 | 8 | 3 | 2 | 1 | 199.04 | 61.69 |
 | [`_InitActivePlats`](File-src-p-plats-ml-866228534.md#function-function-initactiveplats-function-initactiveplats-src-p-plats-ml-405742737) | `src/p_plats.ml:35` | 10 | 8 | 3 | 2 | 1 | 199.04 | 61.69 |
 | [`_InitButtonList`](File-src-p-switch-ml-925070734.md#function-function-initbuttonlist-function-initbuttonlist-src-p-switch-ml-1198639841) | `src/p_switch.ml:112` | 10 | 8 | 3 | 2 | 1 | 274.02 | 60.71 |
@@ -998,7 +998,7 @@ Coverage is split by documentation contract so strong API summaries cannot hide 
 | [`_S_SfxId`](File-src-s-sound-ml-1485495390.md#function-function-s-sfxid-inline-function-s-sfxid-v-src-s-sound-ml-970866184) | `src/s_sound.ml:183` | 10 | 12 | 7 | 6 | 1 | 459.04 | 58.61 |
 | [`_S_SfxPriority`](File-src-s-sound-ml-1485495390.md#function-function-s-sfxpriority-inline-function-s-sfxpriority-sfx-src-s-sound-ml-916113603) | `src/s_sound.ml:347` | 4 | 3 | 2 | 1 | 1 | 106.27 | 72.41 |
 | [`_S_ToInt`](File-src-s-sound-ml-1485495390.md#function-function-s-toint-inline-function-s-toint-v-fallback-src-s-sound-ml-366156502) | `src/s_sound.ml:126` | 14 | 14 | 7 | 8 | 2 | 526.45 | 55 |
-| [`_S_WriteI32`](File-src-s-sound-ml-1485495390.md#function-function-s-writei32-inline-function-s-writei32-buf-off-v-src-s-sound-ml-1574458978) | `src/s_sound.ml:426` | 8 | 7 | 2 | 1 | 1 | 402.36 | 61.79 |
+| [`_S_WriteI32`](File-src-s-sound-ml-1485495390.md#function-function-s-writei32-inline-function-s-writei32-buf-off-v-src-s-sound-ml-1574458978) | `src/s_sound.ml:426` | 8 | 7 | 2 | 1 | 1 | 402.37 | 61.79 |
 | [`_SetTMBox`](File-src-p-map-ml-882556686.md#function-function-settmbox-inline-function-settmbox-x-y-radius-src-p-map-ml-1363201131) | `src/p_map.ml:97` | 6 | 4 | 1 | 0 | 0 | 190.16 | 66.93 |
 | [`_ST_ArrayAppend`](File-src-st-stuff-ml-811030939.md#function-function-st-arrayappend-function-st-arrayappend-arr-item-src-st-stuff-ml-1734783620) | `src/st_stuff.ml:501` | 12 | 10 | 3 | 2 | 1 | 318.58 | 58.53 |
 | [`_ST_CheatParam`](File-src-st-stuff-ml-811030939.md#function-function-st-cheatparam-inline-function-st-cheatparam-cheat-src-st-stuff-ml-127806838) | `src/st_stuff.ml:526` | 4 | 2 | 1 | 0 | 0 | 89.86 | 73.05 |
@@ -1167,7 +1167,7 @@ Coverage is split by documentation contract so strong API summaries cannot hide 
 | [`A_WeaponReady`](File-src-p-pspr-ml-844718747.md#function-function-a-weaponready-function-a-weaponready-player-psp-src-p-pspr-ml-1879350942) | `src/p_pspr.ml:560` | 41 | 29 | 24 | 26 | 2 | 2098.49 | 38.33 |
 | [`A_XScream`](File-src-p-enemy-ml-1875479956.md#function-function-a-xscream-function-a-xscream-actor-src-p-enemy-ml-1914016882) | `src/p_enemy.ml:1300` | 3 | 1 | 1 | 0 | 0 | 51.89 | 77.45 |
 | [`abs`](File-src-stdlib-ml-366721133.md#function-function-abs-inline-function-abs-x-src-stdlib-ml-1036888773) | `src/stdlib.ml:23` | 4 | 3 | 2 | 1 | 1 | 74.01 | 73.51 |
-| [`addsfx`](File-src-i-sound-ml-33806980.md#function-function-addsfx-function-addsfx-sfxid-volume-step-seperation-src-i-sound-ml-1292713171) | `src/i_sound.ml:1856` | 24 | 26 | 5 | 4 | 1 | 1094.48 | 47.94 |
+| [`addsfx`](File-src-i-sound-ml-33806980.md#function-function-addsfx-function-addsfx-sfxid-volume-step-seperation-src-i-sound-ml-1292713171) | `src/i_sound.ml:1857` | 24 | 26 | 5 | 4 | 1 | 1094.48 | 47.94 |
 | [`AM_activateNewScale`](File-src-am-map-ml-1409794280.md#function-function-am-activatenewscale-function-am-activatenewscale-src-am-map-ml-1047704837) | `src/am_map.ml:433` | 16 | 14 | 1 | 0 | 0 | 351.39 | 55.77 |
 | [`AM_addMark`](File-src-am-map-ml-1409794280.md#function-function-am-addmark-function-am-addmark-src-am-map-ml-1060519389) | `src/am_map.ml:482` | 16 | 12 | 3 | 3 | 2 | 473.13 | 54.6 |
 | [`AM_changeWindowLoc`](File-src-am-map-ml-1409794280.md#function-function-am-changewindowloc-function-am-changewindowloc-src-am-map-ml-441067149) | `src/am_map.ml:549` | 17 | 18 | 8 | 7 | 1 | 552.2 | 52.88 |
@@ -1315,7 +1315,7 @@ Coverage is split by documentation contract so strong API summaries cannot hide 
 | [`getNextSector`](File-src-p-spec-ml-402508231.md#function-function-getnextsector-function-getnextsector-line-sec-src-p-spec-ml-66776559) | `src/p_spec.ml:1261` | 23 | 26 | 15 | 16 | 2 | 907.88 | 47.57 |
 | [`GetPackets`](File-src-d-net-ml-529296669.md#function-function-getpackets-function-getpackets-src-d-net-ml-1826830354) | `src/d_net.ml:7167` | 64 | 55 | 30 | 54 | 3 | 3155.3 | 32.06 |
 | [`getSector`](File-src-p-spec-ml-402508231.md#function-function-getsector-function-getsector-currentsector-lineindex-side-src-p-spec-ml-1222409722) | `src/p_spec.ml:1252` | 5 | 4 | 2 | 1 | 1 | 144.43 | 69.36 |
-| [`getsfx`](File-src-i-sound-ml-33806980.md#function-function-getsfx-function-getsfx-name-lenout-src-i-sound-ml-650364777) | `src/i_sound.ml:1834` | 14 | 13 | 10 | 11 | 2 | 671.55 | 53.86 |
+| [`getsfx`](File-src-i-sound-ml-33806980.md#function-function-getsfx-function-getsfx-name-lenout-src-i-sound-ml-650364777) | `src/i_sound.ml:1835` | 14 | 13 | 10 | 11 | 2 | 671.55 | 53.86 |
 | [`getSide`](File-src-p-spec-ml-402508231.md#function-function-getside-function-getside-currentsector-lineindex-side-src-p-spec-ml-801455564) | `src/p_spec.ml:1228` | 18 | 28 | 17 | 16 | 1 | 959.18 | 49.45 |
 | [`grabsharedmemory`](File-src-i-video-ml-140536292.md#function-function-grabsharedmemory-function-grabsharedmemory-size-src-i-video-ml-303888106) | `src/i_video.ml:2675` | 4 | 2 | 1 | 0 | 0 | 38.04 | 75.67 |
 | [`HDB_BuildImages`](File-src-hdwad-builder-ml-980370789.md#function-function-hdb-buildimages-function-hdb-buildimages-waddata-lumps-scale-src-hdwad-builder-ml-316101281) | `src/hdwad_builder.ml:1855` | 20 | 18 | 1 | 0 | 0 | 1026.26 | 50.4 |
@@ -1368,48 +1368,48 @@ Coverage is split by documentation contract so strong API summaries cannot hide 
 | [`I_GetSfxLumpNum`](File-src-i-sound-ml-33806980.md#function-function-i-getsfxlumpnum-function-i-getsfxlumpnum-sfxinfo-src-i-sound-ml-505533936) | `src/i_sound.ml:1591` | 10 | 6 | 4 | 3 | 1 | 239.75 | 60.98 |
 | [`I_GetTime`](File-src-i-system-ml-1632920966.md#function-function-i-gettime-function-i-gettime-src-i-system-ml-611096061) | `src/i_system.ml:127` | 8 | 8 | 3 | 2 | 1 | 212.61 | 63.6 |
 | [`I_GetTimeFrac`](File-src-i-system-ml-1632920966.md#function-function-i-gettimefrac-function-i-gettimefrac-src-i-system-ml-1933898069) | `src/i_system.ml:139` | 14 | 17 | 6 | 5 | 1 | 422.64 | 55.8 |
-| [`I_HandleSoundTimer`](File-src-i-sound-ml-33806980.md#function-function-i-handlesoundtimer-function-i-handlesoundtimer-src-i-sound-ml-651281695) | `src/i_sound.ml:1889` | 2 | 0 | 1 | 0 | 0 | 13.93 | 85.29 |
+| [`I_HandleSoundTimer`](File-src-i-sound-ml-33806980.md#function-function-i-handlesoundtimer-function-i-handlesoundtimer-src-i-sound-ml-651281695) | `src/i_sound.ml:1890` | 2 | 0 | 1 | 0 | 0 | 13.93 | 85.29 |
 | [`I_HDScreenWipe`](File-src-i-video-ml-140536292.md#function-function-i-hdscreenwipe-function-i-hdscreenwipe-tics-src-i-video-ml-1505333242) | `src/i_video.ml:820` | 43 | 46 | 20 | 30 | 4 | 1572.53 | 39.29 |
 | [`I_Init`](File-src-i-system-ml-1632920966.md#function-function-i-init-function-i-init-src-i-system-ml-1584407751) | `src/i_system.ml:108` | 3 | 2 | 2 | 1 | 1 | 65.73 | 76.6 |
 | [`I_InitGraphics`](File-src-i-video-ml-140536292.md#function-function-i-initgraphics-function-i-initgraphics-src-i-video-ml-1175045107) | `src/i_video.ml:2292` | 89 | 76 | 20 | 23 | 2 | 2525.78 | 30.96 |
-| [`I_InitMusic`](File-src-i-sound-ml-33806980.md#function-function-i-initmusic-function-i-initmusic-src-i-sound-ml-1768395553) | `src/i_sound.ml:1675` | 11 | 9 | 1 | 0 | 0 | 137.61 | 62.17 |
+| [`I_InitMusic`](File-src-i-sound-ml-33806980.md#function-function-i-initmusic-function-i-initmusic-src-i-sound-ml-1768395553) | `src/i_sound.ml:1676` | 11 | 9 | 1 | 0 | 0 | 137.61 | 62.17 |
 | [`I_InitNetwork`](File-src-i-net-ml-1331775872.md#function-function-i-initnetwork-function-i-initnetwork-src-i-net-ml-452360835) | `src/i_net.ml:363` | 5 | 2 | 2 | 1 | 1 | 65.73 | 71.76 |
 | [`I_InitSound`](File-src-i-sound-ml-33806980.md#function-function-i-initsound-function-i-initsound-src-i-sound-ml-1264338381) | `src/i_sound.ml:1548` | 10 | 8 | 1 | 0 | 0 | 113.3 | 63.67 |
 | [`I_LoadingPulse`](File-src-i-video-ml-140536292.md#function-function-i-loadingpulse-function-i-loadingpulse-src-i-video-ml-1839338687) | `src/i_video.ml:2542` | 13 | 16 | 8 | 9 | 2 | 404.09 | 56.37 |
 | [`I_NetCmd`](File-src-i-net-ml-1331775872.md#function-function-i-netcmd-function-i-netcmd-src-i-net-ml-118273743) | `src/i_net.ml:371` | 28 | 23 | 14 | 18 | 3 | 1049.95 | 45.39 |
-| [`I_PauseSong`](File-src-i-sound-ml-33806980.md#function-function-i-pausesong-function-i-pausesong-handle-src-i-sound-ml-1081518863) | `src/i_sound.ml:1718` | 9 | 10 | 6 | 5 | 1 | 312.11 | 60.91 |
-| [`I_PlaySong`](File-src-i-sound-ml-33806980.md#function-function-i-playsong-function-i-playsong-handle-looping-src-i-sound-ml-349515657) | `src/i_sound.ml:1759` | 12 | 12 | 3 | 2 | 1 | 388.64 | 57.92 |
+| [`I_PauseSong`](File-src-i-sound-ml-33806980.md#function-function-i-pausesong-function-i-pausesong-handle-src-i-sound-ml-1081518863) | `src/i_sound.ml:1719` | 9 | 10 | 6 | 5 | 1 | 312.11 | 60.91 |
+| [`I_PlaySong`](File-src-i-sound-ml-33806980.md#function-function-i-playsong-function-i-playsong-handle-looping-src-i-sound-ml-349515657) | `src/i_sound.ml:1760` | 12 | 12 | 3 | 2 | 1 | 388.64 | 57.92 |
 | [`I_PollInput`](File-src-i-video-ml-140536292.md#function-function-i-pollinput-function-i-pollinput-src-i-video-ml-1448869485) | `src/i_video.ml:2557` | 5 | 3 | 1 | 0 | 0 | 45 | 73.04 |
 | [`I_PrecacheSfx`](File-src-i-sound-ml-33806980.md#function-function-i-precachesfx-function-i-precachesfx-id-src-i-sound-ml-1086435546) | `src/i_sound.ml:1605` | 5 | 4 | 2 | 1 | 1 | 127.44 | 69.74 |
 | [`I_PrepareHDWipeEnd`](File-src-i-video-ml-140536292.md#function-function-i-preparehdwipeend-function-i-preparehdwipeend-src-i-video-ml-1620471307) | `src/i_video.ml:715` | 52 | 63 | 32 | 43 | 3 | 3106.53 | 33.81 |
-| [`I_QrySongPlaying`](File-src-i-sound-ml-33806980.md#function-function-i-qrysongplaying-function-i-qrysongplaying-handle-src-i-sound-ml-1385331997) | `src/i_sound.ml:1814` | 5 | 4 | 2 | 1 | 1 | 165.06 | 68.96 |
+| [`I_QrySongPlaying`](File-src-i-sound-ml-33806980.md#function-function-i-qrysongplaying-function-i-qrysongplaying-handle-src-i-sound-ml-1385331997) | `src/i_sound.ml:1815` | 5 | 4 | 2 | 1 | 1 | 165.06 | 68.96 |
 | [`I_Quit`](File-src-i-system-ml-1632920966.md#function-function-i-quit-function-i-quit-src-i-system-ml-835643483) | `src/i_system.ml:168` | 9 | 13 | 7 | 6 | 1 | 366.95 | 60.29 |
 | [`I_ReadScreen`](File-src-i-video-ml-140536292.md#function-function-i-readscreen-function-i-readscreen-scr-src-i-video-ml-741646909) | `src/i_video.ml:2661` | 5 | 4 | 2 | 1 | 1 | 171.9 | 68.83 |
-| [`I_RegisterSong`](File-src-i-sound-ml-33806980.md#function-function-i-registersong-function-i-registersong-data-src-i-sound-ml-1797909367) | `src/i_sound.ml:1745` | 8 | 6 | 1 | 0 | 0 | 150.12 | 64.93 |
-| [`I_ResumeSong`](File-src-i-sound-ml-33806980.md#function-function-i-resumesong-function-i-resumesong-handle-src-i-sound-ml-1150755005) | `src/i_sound.ml:1731` | 10 | 10 | 5 | 4 | 1 | 284.6 | 60.33 |
+| [`I_RegisterSong`](File-src-i-sound-ml-33806980.md#function-function-i-registersong-function-i-registersong-data-src-i-sound-ml-1797909367) | `src/i_sound.ml:1746` | 8 | 6 | 1 | 0 | 0 | 150.12 | 64.93 |
+| [`I_ResumeSong`](File-src-i-sound-ml-33806980.md#function-function-i-resumesong-function-i-resumesong-handle-src-i-sound-ml-1150755005) | `src/i_sound.ml:1732` | 10 | 10 | 5 | 4 | 1 | 284.6 | 60.33 |
 | [`I_SetChannels`](File-src-i-sound-ml-33806980.md#function-function-i-setchannels-function-i-setchannels-src-i-sound-ml-2043678511) | `src/i_sound.ml:1584` | 4 | 2 | 1 | 0 | 0 | 33.69 | 76.04 |
 | [`I_SetForceSoftwarePresent`](File-src-i-video-ml-140536292.md#function-function-i-setforcesoftwarepresent-function-i-setforcesoftwarepresent-v-src-i-video-ml-734667613) | `src/i_video.ml:558` | 5 | 4 | 3 | 2 | 1 | 110.36 | 70.05 |
 | [`I_SetLoadingStatus`](File-src-i-video-ml-140536292.md#function-function-i-setloadingstatus-function-i-setloadingstatus-text-src-i-video-ml-60940544) | `src/i_video.ml:2525` | 14 | 12 | 4 | 3 | 1 | 315.77 | 56.96 |
-| [`I_SetMusicVolume`](File-src-i-sound-ml-33806980.md#function-function-i-setmusicvolume-function-i-setmusicvolume-volume-src-i-sound-ml-1971671213) | `src/i_sound.ml:1697` | 9 | 6 | 2 | 1 | 1 | 269.21 | 61.9 |
+| [`I_SetMusicVolume`](File-src-i-sound-ml-33806980.md#function-function-i-setmusicvolume-function-i-setmusicvolume-volume-src-i-sound-ml-1971671213) | `src/i_sound.ml:1698` | 9 | 6 | 2 | 1 | 1 | 269.21 | 61.9 |
 | [`I_SetPalette`](File-src-i-video-ml-140536292.md#function-function-i-setpalette-function-i-setpalette-palette-src-i-video-ml-729637086) | `src/i_video.ml:2419` | 24 | 27 | 14 | 15 | 2 | 965.88 | 47.11 |
-| [`I_SetSfxVolume`](File-src-i-sound-ml-33806980.md#function-function-i-setsfxvolume-function-i-setsfxvolume-volume-src-i-sound-ml-1877243865) | `src/i_sound.ml:1711` | 4 | 2 | 1 | 0 | 0 | 49.83 | 74.85 |
+| [`I_SetSfxVolume`](File-src-i-sound-ml-33806980.md#function-function-i-setsfxvolume-function-i-setsfxvolume-volume-src-i-sound-ml-1877243865) | `src/i_sound.ml:1712` | 4 | 2 | 1 | 0 | 0 | 49.83 | 74.85 |
 | [`I_ShutdownGraphics`](File-src-i-video-ml-140536292.md#function-function-i-shutdowngraphics-function-i-shutdowngraphics-src-i-video-ml-876306099) | `src/i_video.ml:2392` | 20 | 16 | 5 | 6 | 2 | 366.63 | 52.99 |
-| [`I_ShutdownMusic`](File-src-i-sound-ml-33806980.md#function-function-i-shutdownmusic-function-i-shutdownmusic-src-i-sound-ml-1252286321) | `src/i_sound.ml:1690` | 4 | 2 | 1 | 0 | 0 | 39 | 75.59 |
+| [`I_ShutdownMusic`](File-src-i-sound-ml-33806980.md#function-function-i-shutdownmusic-function-i-shutdownmusic-src-i-sound-ml-1252286321) | `src/i_sound.ml:1691` | 4 | 2 | 1 | 0 | 0 | 39 | 75.59 |
 | [`I_ShutdownSound`](File-src-i-sound-ml-33806980.md#function-function-i-shutdownsound-function-i-shutdownsound-src-i-sound-ml-528136829) | `src/i_sound.ml:1577` | 5 | 3 | 1 | 0 | 0 | 45 | 73.04 |
-| [`I_SoundDelTimer`](File-src-i-sound-ml-33806980.md#function-function-i-sounddeltimer-function-i-sounddeltimer-src-i-sound-ml-162024089) | `src/i_sound.ml:1902` | 4 | 2 | 1 | 0 | 0 | 34.87 | 75.93 |
+| [`I_SoundDelTimer`](File-src-i-sound-ml-33806980.md#function-function-i-sounddeltimer-function-i-sounddeltimer-src-i-sound-ml-162024089) | `src/i_sound.ml:1903` | 4 | 2 | 1 | 0 | 0 | 34.87 | 75.93 |
 | [`I_SoundIsPlaying`](File-src-i-sound-ml-33806980.md#function-function-i-soundisplaying-function-i-soundisplaying-handle-src-i-sound-ml-199282925) | `src/i_sound.ml:1643` | 10 | 9 | 4 | 3 | 1 | 330.12 | 60.01 |
-| [`I_SoundSetTimer`](File-src-i-sound-ml-33806980.md#function-function-i-soundsettimer-function-i-soundsettimer-ticks-src-i-sound-ml-1630880039) | `src/i_sound.ml:1895` | 5 | 3 | 1 | 0 | 0 | 49.83 | 72.73 |
+| [`I_SoundSetTimer`](File-src-i-sound-ml-33806980.md#function-function-i-soundsettimer-function-i-soundsettimer-ticks-src-i-sound-ml-1630880039) | `src/i_sound.ml:1896` | 5 | 3 | 1 | 0 | 0 | 49.83 | 72.73 |
 | [`I_StartFrame`](File-src-i-video-ml-140536292.md#function-function-i-startframe-function-i-startframe-src-i-video-ml-2021092591) | `src/i_video.ml:2731` | 3 | 1 | 1 | 0 | 0 | 23.26 | 79.89 |
 | [`I_StartSound`](File-src-i-sound-ml-33806980.md#function-function-i-startsound-function-i-startsound-id-vol-sep-pitch-priority-src-i-sound-ml-1272039505) | `src/i_sound.ml:1617` | 11 | 12 | 5 | 4 | 1 | 557.41 | 57.38 |
 | [`I_StartTic`](File-src-i-video-ml-140536292.md#function-function-i-starttic-function-i-starttic-src-i-video-ml-1348154195) | `src/i_video.ml:2736` | 3 | 1 | 1 | 0 | 0 | 23.26 | 79.89 |
-| [`I_StopSong`](File-src-i-sound-ml-33806980.md#function-function-i-stopsong-function-i-stopsong-handle-src-i-sound-ml-107872333) | `src/i_sound.ml:1777` | 8 | 5 | 3 | 2 | 1 | 183.4 | 64.05 |
+| [`I_StopSong`](File-src-i-sound-ml-33806980.md#function-function-i-stopsong-function-i-stopsong-handle-src-i-sound-ml-107872333) | `src/i_sound.ml:1778` | 8 | 5 | 3 | 2 | 1 | 183.4 | 64.05 |
 | [`I_StopSound`](File-src-i-sound-ml-33806980.md#function-function-i-stopsound-function-i-stopsound-handle-src-i-sound-ml-1659252435) | `src/i_sound.ml:1635` | 5 | 4 | 2 | 1 | 1 | 110.36 | 70.18 |
 | [`I_SubmitSound`](File-src-i-sound-ml-33806980.md#function-function-i-submitsound-function-i-submitsound-src-i-sound-ml-1767705745) | `src/i_sound.ml:1567` | 7 | 4 | 2 | 1 | 1 | 87.57 | 67.7 |
 | [`I_Tactile`](File-src-i-system-ml-1632920966.md#function-function-i-tactile-function-i-tactile-on-off-total-src-i-system-ml-1923541287) | `src/i_system.ml:191` | 5 | 3 | 1 | 0 | 0 | 69.19 | 71.73 |
-| [`I_UnRegisterSong`](File-src-i-sound-ml-33806980.md#function-function-i-unregistersong-function-i-unregistersong-handle-src-i-sound-ml-919685053) | `src/i_sound.ml:1789` | 18 | 14 | 7 | 7 | 2 | 541.78 | 52.53 |
+| [`I_UnRegisterSong`](File-src-i-sound-ml-33806980.md#function-function-i-unregistersong-function-i-unregistersong-handle-src-i-sound-ml-919685053) | `src/i_sound.ml:1790` | 18 | 14 | 7 | 7 | 2 | 541.78 | 52.53 |
 | [`I_UpdateNoBlit`](File-src-i-video-ml-140536292.md#function-function-i-updatenoblit-function-i-updatenoblit-src-i-video-ml-1030797555) | `src/i_video.ml:2449` | 3 | 1 | 1 | 0 | 0 | 23.26 | 79.89 |
 | [`I_UpdateSound`](File-src-i-sound-ml-33806980.md#function-function-i-updatesound-function-i-updatesound-src-i-sound-ml-817754735) | `src/i_sound.ml:1562` | 3 | 1 | 1 | 0 | 0 | 23.26 | 79.89 |
-| [`I_UpdateSoundParams`](File-src-i-sound-ml-33806980.md#function-function-i-updatesoundparams-function-i-updatesoundparams-handle-vol-sep-pitch-src-i-sound-ml-2144610604) | `src/i_sound.ml:1662` | 9 | 9 | 4 | 3 | 1 | 496.31 | 59.77 |
+| [`I_UpdateSoundParams`](File-src-i-sound-ml-33806980.md#function-function-i-updatesoundparams-function-i-updatesoundparams-handle-vol-sep-pitch-src-i-sound-ml-2144610604) | `src/i_sound.ml:1662` | 9 | 9 | 4 | 3 | 1 | 485.97 | 59.83 |
 | [`I_WaitVBL`](File-src-i-system-ml-1632920966.md#function-function-i-waitvbl-function-i-waitvbl-count-src-i-system-ml-290254782) | `src/i_system.ml:245` | 4 | 2 | 1 | 0 | 0 | 55.35 | 74.53 |
 | [`I_ZoneBase`](File-src-i-system-ml-1632920966.md#function-function-i-zonebase-function-i-zonebase-sizeout-src-i-system-ml-1467315904) | `src/i_system.ml:117` | 7 | 4 | 3 | 2 | 1 | 178.38 | 65.4 |
 | [`IdentifyVersion`](File-src-d-main-ml-105344057.md#function-function-identifyversion-function-identifyversion-src-d-main-ml-887866944) | `src/d_main.ml:1602` | 44 | 27 | 13 | 22 | 3 | 1541.32 | 40.08 |
@@ -1448,7 +1448,7 @@ Coverage is split by documentation contract so strong API summaries cannot hide 
 | [`IGL_WriteU16`](File-src-i-gl-ml-2113703076.md#function-function-igl-writeu16-inline-function-igl-writeu16-buf-off-value-src-i-gl-ml-1426558611) | `src/i_gl.ml:637` | 5 | 3 | 1 | 0 | 0 | 171.3 | 68.98 |
 | [`IGL_WriteU32`](File-src-i-gl-ml-2113703076.md#function-function-igl-writeu32-inline-function-igl-writeu32-buf-off-value-src-i-gl-ml-1516734675) | `src/i_gl.ml:647` | 7 | 5 | 1 | 0 | 0 | 298.02 | 64.11 |
 | [`Info_StateAt`](File-src-info-ml-1415270573.md#function-function-info-stateat-function-info-stateat-s-src-info-ml-1130611297) | `src/info.ml:6643` | 7 | 8 | 4 | 3 | 1 | 230.7 | 64.48 |
-| [`Info_StateIndex`](File-src-info-ml-1415270573.md#function-function-info-stateindex-function-info-stateindex-s-src-info-ml-2114878573) | `src/info.ml:3728` | 2911 | 971 | 969 | 2 | 1 | 84888.1 | 0 |
+| [`Info_StateIndex`](File-src-info-ml-1415270573.md#function-function-info-stateindex-function-info-stateindex-s-src-info-ml-2114878573) | `src/info.ml:3728` | 2911 | 971 | 969 | 2 | 1 | 84888.11 | 0 |
 | [`InitExpand`](File-src-i-video-ml-140536292.md#function-function-initexpand-function-initexpand-src-i-video-ml-1416737831) | `src/i_video.ml:2682` | 2 | 0 | 1 | 0 | 0 | 13.93 | 85.29 |
 | [`InitExpand2`](File-src-i-video-ml-140536292.md#function-function-initexpand2-function-initexpand2-src-i-video-ml-492636399) | `src/i_video.ml:2686` | 2 | 0 | 1 | 0 | 0 | 13.93 | 85.29 |
 | [`LONG`](File-src-m-swap-ml-1401834276.md#function-function-long-function-long-x-src-m-swap-ml-300045343) | `src/m_swap.ml:51` | 4 | 3 | 2 | 1 | 1 | 65.73 | 73.87 |
@@ -1575,7 +1575,7 @@ Coverage is split by documentation contract so strong API summaries cannot hide 
 | [`MP_SetSelectedMapByName`](File-src-mp-state-ml-130741680.md#function-function-mp-setselectedmapbyname-function-mp-setselectedmapbyname-name-src-mp-state-ml-236960506) | `src/mp_state.ml:301` | 17 | 15 | 7 | 7 | 2 | 477.02 | 53.46 |
 | [`MP_StepMap`](File-src-mp-state-ml-130741680.md#function-function-mp-stepmap-function-mp-stepmap-delta-src-mp-state-ml-637040561) | `src/mp_state.ml:282` | 16 | 14 | 6 | 5 | 1 | 471.89 | 54.2 |
 | [`MP_UpdateIwadFingerprint`](File-src-mp-state-ml-130741680.md#function-function-mp-updateiwadfingerprint-function-mp-updateiwadfingerprint-src-mp-state-ml-1578752677) | `src/mp_state.ml:358` | 57 | 48 | 16 | 27 | 4 | 2282.22 | 36.03 |
-| [`myioctl`](File-src-i-sound-ml-33806980.md#function-function-myioctl-function-myioctl-fd-req-arg-src-i-sound-ml-518895515) | `src/i_sound.ml:1824` | 6 | 4 | 1 | 0 | 0 | 78.87 | 69.61 |
+| [`myioctl`](File-src-i-sound-ml-33806980.md#function-function-myioctl-function-myioctl-fd-req-arg-src-i-sound-ml-518895515) | `src/i_sound.ml:1825` | 6 | 4 | 1 | 0 | 0 | 78.87 | 69.61 |
 | [`NetbufferChecksum`](File-src-d-net-ml-529296669.md#function-function-netbufferchecksum-function-netbufferchecksum-src-d-net-ml-1545828834) | `src/d_net.ml:7071` | 21 | 20 | 7 | 7 | 2 | 1179.86 | 48.71 |
 | [`NetbufferSize`](File-src-d-net-ml-529296669.md#function-function-netbuffersize-inline-function-netbuffersize-src-d-net-ml-205698133) | `src/d_net.ml:7061` | 7 | 8 | 4 | 3 | 1 | 244.42 | 64.31 |
 | [`NetUpdate`](File-src-d-net-ml-529296669.md#function-function-netupdate-function-netupdate-src-d-net-ml-79656906) | `src/d_net.ml:6530` | 226 | 189 | 95 | 244 | 10 | 10029.81 | 7.85 |
@@ -2109,25 +2109,25 @@ Coverage is split by documentation contract so strong API summaries cannot hide 
 | [`RU_RenderScale`](File-src-r-upscaled-ml-1801241933.md#function-function-ru-renderscale-inline-function-ru-renderscale-src-r-upscaled-ml-628220563) | `src/r_upscaled.ml:313` | 3 | 1 | 1 | 0 | 0 | 27 | 79.44 |
 | [`RU_ToIntOr`](File-src-r-upscaled-ml-1801241933.md#function-function-ru-tointor-function-ru-tointor-v-fallback-src-r-upscaled-ml-1535545758) | `src/r_upscaled.ml:99` | 14 | 14 | 7 | 8 | 2 | 515.47 | 55.07 |
 | [`RU_ToUpperAscii`](File-src-r-upscaled-ml-1801241933.md#function-function-ru-toupperascii-function-ru-toupperascii-s-src-r-upscaled-ml-1440674053) | `src/r_upscaled.ml:125` | 11 | 10 | 5 | 5 | 2 | 366.3 | 58.66 |
-| [`S_AdjustSoundParams`](File-src-s-sound-ml-1485495390.md#function-function-s-adjustsoundparams-function-s-adjustsoundparams-listener-source-vol-sep-pitch-src-s-sound-ml-549454435) | `src/s_sound.ml:846` | 53 | 48 | 25 | 27 | 2 | 2920.73 | 34.76 |
-| [`S_ChangeMusic`](File-src-s-sound-ml-1485495390.md#function-function-s-changemusic-function-s-changemusic-music-id-looping-src-s-sound-ml-322855176) | `src/s_sound.ml:960` | 47 | 49 | 23 | 24 | 2 | 2027.13 | 37.28 |
-| [`S_getChannel`](File-src-s-sound-ml-1485495390.md#function-function-s-getchannel-function-s-getchannel-origin-sfxinfo-src-s-sound-ml-1594929490) | `src/s_sound.ml:912` | 33 | 24 | 11 | 15 | 3 | 940.8 | 44.58 |
+| [`S_AdjustSoundParams`](File-src-s-sound-ml-1485495390.md#function-function-s-adjustsoundparams-function-s-adjustsoundparams-listener-source-vol-sep-pitch-src-s-sound-ml-549454435) | `src/s_sound.ml:846` | 54 | 49 | 25 | 27 | 2 | 3000.76 | 34.5 |
+| [`S_ChangeMusic`](File-src-s-sound-ml-1485495390.md#function-function-s-changemusic-function-s-changemusic-music-id-looping-src-s-sound-ml-322855176) | `src/s_sound.ml:962` | 47 | 49 | 23 | 24 | 2 | 2027.13 | 37.28 |
+| [`S_getChannel`](File-src-s-sound-ml-1485495390.md#function-function-s-getchannel-function-s-getchannel-origin-sfxinfo-src-s-sound-ml-1594929490) | `src/s_sound.ml:914` | 33 | 24 | 11 | 15 | 3 | 940.8 | 44.58 |
 | [`S_Init`](File-src-s-sound-ml-1485495390.md#function-function-s-init-function-s-init-sfxvolume-musicvolume-src-s-sound-ml-1521484207) | `src/s_sound.ml:548` | 40 | 35 | 9 | 13 | 3 | 1178.89 | 42.34 |
 | [`S_MPSendPickupSoundToPlayer`](File-src-s-sound-ml-1485495390.md#function-function-s-mpsendpickupsoundtoplayer-function-s-mpsendpickupsoundtoplayer-playerslot-sound-id-src-s-sound-ml-1233481429) | `src/s_sound.ml:512` | 8 | 9 | 6 | 5 | 1 | 375 | 61.47 |
 | [`S_NetRecvPacket`](File-src-s-sound-ml-1485495390.md#function-function-s-netrecvpacket-function-s-netrecvpacket-payload-src-s-sound-ml-1226399475) | `src/s_sound.ml:523` | 17 | 17 | 8 | 7 | 1 | 973.75 | 51.16 |
-| [`S_PauseSound`](File-src-s-sound-ml-1485495390.md#function-function-s-pausesound-function-s-pausesound-src-s-sound-ml-393028293) | `src/s_sound.ml:1062` | 7 | 4 | 4 | 3 | 1 | 185.75 | 65.14 |
+| [`S_PauseSound`](File-src-s-sound-ml-1485495390.md#function-function-s-pausesound-function-s-pausesound-src-s-sound-ml-393028293) | `src/s_sound.ml:1064` | 7 | 4 | 4 | 3 | 1 | 185.75 | 65.14 |
 | [`S_PrecacheLevelAudio`](File-src-s-sound-ml-1485495390.md#function-function-s-precachelevelaudio-function-s-precachelevelaudio-src-s-sound-ml-2047139985) | `src/s_sound.ml:654` | 30 | 25 | 15 | 23 | 3 | 1242.96 | 44.09 |
-| [`S_ResumeSound`](File-src-s-sound-ml-1485495390.md#function-function-s-resumesound-function-s-resumesound-src-s-sound-ml-1362018613) | `src/s_sound.ml:1072` | 7 | 4 | 4 | 3 | 1 | 181.11 | 65.22 |
-| [`S_SetMusicVolume`](File-src-s-sound-ml-1485495390.md#function-function-s-setmusicvolume-function-s-setmusicvolume-volume-src-s-sound-ml-197098267) | `src/s_sound.ml:1146` | 8 | 5 | 2 | 1 | 1 | 180.09 | 64.24 |
-| [`S_SetSfxVolume`](File-src-s-sound-ml-1485495390.md#function-function-s-setsfxvolume-function-s-setsfxvolume-volume-src-s-sound-ml-1453364991) | `src/s_sound.ml:1159` | 8 | 5 | 2 | 1 | 1 | 180.09 | 64.24 |
+| [`S_ResumeSound`](File-src-s-sound-ml-1485495390.md#function-function-s-resumesound-function-s-resumesound-src-s-sound-ml-1362018613) | `src/s_sound.ml:1074` | 7 | 4 | 4 | 3 | 1 | 181.11 | 65.22 |
+| [`S_SetMusicVolume`](File-src-s-sound-ml-1485495390.md#function-function-s-setmusicvolume-function-s-setmusicvolume-volume-src-s-sound-ml-197098267) | `src/s_sound.ml:1148` | 8 | 5 | 2 | 1 | 1 | 180.09 | 64.24 |
+| [`S_SetSfxVolume`](File-src-s-sound-ml-1485495390.md#function-function-s-setsfxvolume-function-s-setsfxvolume-volume-src-s-sound-ml-1453364991) | `src/s_sound.ml:1161` | 8 | 5 | 2 | 1 | 1 | 180.09 | 64.24 |
 | [`S_Start`](File-src-s-sound-ml-1485495390.md#function-function-s-start-function-s-start-src-s-sound-ml-2127533509) | `src/s_sound.ml:596` | 49 | 32 | 11 | 13 | 2 | 1751.72 | 38.94 |
-| [`S_StartMusic`](File-src-s-sound-ml-1485495390.md#function-function-s-startmusic-function-s-startmusic-music-id-src-s-sound-ml-1650381272) | `src/s_sound.ml:952` | 3 | 1 | 1 | 0 | 0 | 41.21 | 78.15 |
+| [`S_StartMusic`](File-src-s-sound-ml-1485495390.md#function-function-s-startmusic-function-s-startmusic-music-id-src-s-sound-ml-1650381272) | `src/s_sound.ml:954` | 3 | 1 | 1 | 0 | 0 | 41.21 | 78.15 |
 | [`S_StartSound`](File-src-s-sound-ml-1485495390.md#function-function-s-startsound-function-s-startsound-origin-sound-id-src-s-sound-ml-870392446) | `src/s_sound.ml:694` | 3 | 1 | 1 | 0 | 0 | 56.47 | 77.19 |
 | [`S_StartSoundAtVolume`](File-src-s-sound-ml-1485495390.md#function-function-s-startsoundatvolume-function-s-startsoundatvolume-origin-p-sfx-id-volume-src-s-sound-ml-630858307) | `src/s_sound.ml:703` | 74 | 70 | 28 | 33 | 2 | 3635.38 | 30.53 |
 | [`S_StopChannel`](File-src-s-sound-ml-1485495390.md#function-function-s-stopchannel-function-s-stopchannel-cnum-src-s-sound-ml-38265896) | `src/s_sound.ml:817` | 17 | 13 | 9 | 9 | 2 | 655.39 | 52.23 |
-| [`S_StopMusic`](File-src-s-sound-ml-1485495390.md#function-function-s-stopmusic-function-s-stopmusic-src-s-sound-ml-1567617527) | `src/s_sound.ml:1019` | 35 | 30 | 18 | 18 | 2 | 1373.81 | 41.92 |
+| [`S_StopMusic`](File-src-s-sound-ml-1485495390.md#function-function-s-stopmusic-function-s-stopmusic-src-s-sound-ml-1567617527) | `src/s_sound.ml:1021` | 35 | 30 | 18 | 18 | 2 | 1373.81 | 41.92 |
 | [`S_StopSound`](File-src-s-sound-ml-1485495390.md#function-function-s-stopsound-function-s-stopsound-origin-src-s-sound-ml-636591881) | `src/s_sound.ml:801` | 12 | 8 | 5 | 5 | 2 | 289.51 | 58.55 |
-| [`S_UpdateSounds`](File-src-s-sound-ml-1485495390.md#function-function-s-updatesounds-function-s-updatesounds-listener-p-src-s-sound-ml-1885139350) | `src/s_sound.ml:1083` | 54 | 41 | 20 | 47 | 5 | 1964.43 | 36.46 |
+| [`S_UpdateSounds`](File-src-s-sound-ml-1485495390.md#function-function-s-updatesounds-function-s-updatesounds-listener-p-src-s-sound-ml-1885139350) | `src/s_sound.ml:1085` | 54 | 41 | 20 | 47 | 5 | 1964.43 | 36.46 |
 | [`SHORT`](File-src-m-swap-ml-1401834276.md#function-function-short-function-short-x-src-m-swap-ml-1513256323) | `src/m_swap.ml:44` | 4 | 3 | 2 | 1 | 1 | 65.73 | 73.87 |
 | [`SlopeDiv`](File-src-tables-ml-1959718242.md#function-function-slopediv-function-slopediv-num-den-src-tables-ml-1863100150) | `src/tables.ml:65` | 22 | 16 | 5 | 4 | 1 | 519.54 | 51.03 |
 | [`ST_calcPainOffset`](File-src-st-stuff-ml-811030939.md#function-function-st-calcpainoffset-function-st-calcpainoffset-src-st-stuff-ml-77405746) | `src/st_stuff.ml:652` | 13 | 13 | 5 | 4 | 1 | 377.83 | 56.98 |

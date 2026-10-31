@@ -19,7 +19,7 @@ Reachable from entry: **yes**
 - `r_main.ml` → [src/r_main.ml](File-src-r-main-ml-1902335243.md)
 - `r_sky.ml` → [src/r_sky.ml](File-src-r-sky-ml-918225537.md)
 - `r_upscaled.ml` → [src/r_upscaled.ml](File-src-r-upscaled-ml-1801241933.md)
-- `std/math.ml` → `../MiniLangCompilerOptimization/MiniLangCompilerPy/std/math.ml` — external dependency
+- `std/math.ml` → `../MiniLangCompilerML/std/math.ml` — external dependency
 - `w_wad.ml` → [src/w_wad.ml](File-src-w-wad-ml-893006035.md)
 - `z_zone.ml` → [src/z_zone.ml](File-src-z-zone-ml-1788911354.md)
 

@@ -37,8 +37,8 @@ Reachable from entry: **yes**
 - `s_sound.ml` → [src/s_sound.ml](File-src-s-sound-ml-1485495390.md)
 - `sounds.ml` → [src/sounds.ml](File-src-sounds-ml-1875364049.md)
 - `st_stuff.ml` → [src/st_stuff.ml](File-src-st-stuff-ml-811030939.md)
-- `std/fs.ml` as `fs` → `../MiniLangCompilerOptimization/MiniLangCompilerPy/std/fs.ml` — external dependency
-- `std/math.ml` → `../MiniLangCompilerOptimization/MiniLangCompilerPy/std/math.ml` — external dependency
+- `std/fs.ml` as `fs` → `../MiniLangCompilerML/std/fs.ml` — external dependency
+- `std/math.ml` → `../MiniLangCompilerML/std/math.ml` — external dependency
 - `v_video.ml` → [src/v_video.ml](File-src-v-video-ml-592999939.md)
 - `w_wad.ml` → [src/w_wad.ml](File-src-w-wad-ml-893006035.md)
 - `wi_stuff.ml` → [src/wi_stuff.ml](File-src-wi-stuff-ml-450049266.md)

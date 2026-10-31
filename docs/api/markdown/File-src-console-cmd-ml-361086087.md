@@ -19,8 +19,8 @@ Reachable from entry: **yes**
 - `p_inter.ml` → [src/p_inter.ml](File-src-p-inter-ml-1430401638.md)
 - `p_mobj.ml` → [src/p_mobj.ml](File-src-p-mobj-ml-1335564114.md)
 - `p_tick.ml` → [src/p_tick.ml](File-src-p-tick-ml-887781845.md)
-- `std/math.ml` → `../MiniLangCompilerOptimization/MiniLangCompilerPy/std/math.ml` — external dependency
-- `std/string.ml` as `str` → `../MiniLangCompilerOptimization/MiniLangCompilerPy/std/string.ml` — external dependency
+- `std/math.ml` → `../MiniLangCompilerML/std/math.ml` — external dependency
+- `std/string.ml` as `str` → `../MiniLangCompilerML/std/string.ml` — external dependency
 
 ## Declarations
 

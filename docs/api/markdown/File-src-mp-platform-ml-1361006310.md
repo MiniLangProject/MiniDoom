@@ -12,11 +12,11 @@ Reachable from entry: **yes**
 
 - `doomstat.ml` → [src/doomstat.ml](File-src-doomstat-ml-1652708088.md)
 - `mp_state.ml` → [src/mp_state.ml](File-src-mp-state-ml-130741680.md)
-- `std/fs.ml` as `fs` → `../MiniLangCompilerOptimization/MiniLangCompilerPy/std/fs.ml` — external dependency
-- `std/math.ml` → `../MiniLangCompilerOptimization/MiniLangCompilerPy/std/math.ml` — external dependency
-- `std/net.ml` as `net` → `../MiniLangCompilerOptimization/MiniLangCompilerPy/std/net.ml` — external dependency
-- `std/string.ml` as `str` → `../MiniLangCompilerOptimization/MiniLangCompilerPy/std/string.ml` — external dependency
-- `std/time.ml` as `time` → `../MiniLangCompilerOptimization/MiniLangCompilerPy/std/time.ml` — external dependency
+- `std/fs.ml` as `fs` → `../MiniLangCompilerML/std/fs.ml` — external dependency
+- `std/math.ml` → `../MiniLangCompilerML/std/math.ml` — external dependency
+- `std/net.ml` as `net` → `../MiniLangCompilerML/std/net.ml` — external dependency
+- `std/string.ml` as `str` → `../MiniLangCompilerML/std/string.ml` — external dependency
+- `std/time.ml` as `time` → `../MiniLangCompilerML/std/time.ml` — external dependency
 
 ## Declarations
 

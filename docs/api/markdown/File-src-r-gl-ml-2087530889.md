@@ -21,8 +21,8 @@ Reachable from entry: **yes**
 - `r_sky.ml` → [src/r_sky.ml](File-src-r-sky-ml-918225537.md)
 - `r_state.ml` → [src/r_state.ml](File-src-r-state-ml-691819649.md)
 - `r_upscaled.ml` → [src/r_upscaled.ml](File-src-r-upscaled-ml-1801241933.md)
-- `std/math.ml` → `../MiniLangCompilerOptimization/MiniLangCompilerPy/std/math.ml` — external dependency
-- `std/time.ml` → `../MiniLangCompilerOptimization/MiniLangCompilerPy/std/time.ml` — external dependency
+- `std/math.ml` → `../MiniLangCompilerML/std/math.ml` — external dependency
+- `std/time.ml` → `../MiniLangCompilerML/std/time.ml` — external dependency
 - `tables.ml` → [src/tables.ml](File-src-tables-ml-1959718242.md)
 - `w_wad.ml` → [src/w_wad.ml](File-src-w-wad-ml-893006035.md)
 

@@ -20,7 +20,7 @@ Reachable from entry: **yes**
 - `p_local.ml` → [src/p_local.ml](File-src-p-local-ml-1043095437.md)
 - `r_main.ml` → [src/r_main.ml](File-src-r-main-ml-1902335243.md)
 - `sounds.ml` → [src/sounds.ml](File-src-sounds-ml-1875364049.md)
-- `std/math.ml` → `../MiniLangCompilerOptimization/MiniLangCompilerPy/std/math.ml` — external dependency
+- `std/math.ml` → `../MiniLangCompilerML/std/math.ml` — external dependency
 - `w_wad.ml` → [src/w_wad.ml](File-src-w-wad-ml-893006035.md)
 - `z_zone.ml` → [src/z_zone.ml](File-src-z-zone-ml-1788911354.md)
 
@@ -637,7 +637,7 @@ Stops the previous track, caches and registers the requested music lump, then st
 | `looping` | `dynamic` | — | Looping value supplied to `S_ChangeMusic`. |
 
 
-[View source](https://github.com/MiniLangProject/MiniDoom/blob/main/src/s_sound.ml#L960)
+[View source](https://github.com/MiniLangProject/MiniDoom/blob/main/src/s_sound.ml#L962)
 
 <a id="global-global-s-clipping-dist-s-clipping-dist-src-s-sound-ml-258256363"></a>
 ### s_clipping_dist
@@ -714,7 +714,7 @@ Reserves an empty or same-origin voice, otherwise replaces an eligible channel b
 | `sfxinfo` | `dynamic` | — | Sfxinfo value supplied to `S_getChannel`. |
 
 
-[View source](https://github.com/MiniLangProject/MiniDoom/blob/main/src/s_sound.ml#L912)
+[View source](https://github.com/MiniLangProject/MiniDoom/blob/main/src/s_sound.ml#L914)
 
 <a id="function-function-s-init-function-s-init-sfxvolume-musicvolume-src-s-sound-ml-1521484207"></a>
 ### S_Init
@@ -800,7 +800,7 @@ function S_PauseSound()
 Pauses the active music handle exactly once and records the paused state.
 
 
-[View source](https://github.com/MiniLangProject/MiniDoom/blob/main/src/s_sound.ml#L1062)
+[View source](https://github.com/MiniLangProject/MiniDoom/blob/main/src/s_sound.ml#L1064)
 
 <a id="function-function-s-precachelevelaudio-function-s-precachelevelaudio-src-s-sound-ml-2047139985"></a>
 ### S_PrecacheLevelAudio
@@ -824,7 +824,7 @@ function S_ResumeSound()
 Resumes a previously paused music handle and clears the paused state.
 
 
-[View source](https://github.com/MiniLangProject/MiniDoom/blob/main/src/s_sound.ml#L1072)
+[View source](https://github.com/MiniLangProject/MiniDoom/blob/main/src/s_sound.ml#L1074)
 
 <a id="function-function-s-setmusicvolume-function-s-setmusicvolume-volume-src-s-sound-ml-197098267"></a>
 ### S_SetMusicVolume
@@ -840,7 +840,7 @@ Clamps and stores music volume, then forwards only the requested level to the pl
 | `volume` | `dynamic` | — | Volume value supplied to `S_SetMusicVolume`. |
 
 
-[View source](https://github.com/MiniLangProject/MiniDoom/blob/main/src/s_sound.ml#L1146)
+[View source](https://github.com/MiniLangProject/MiniDoom/blob/main/src/s_sound.ml#L1148)
 
 <a id="function-function-s-setsfxvolume-function-s-setsfxvolume-volume-src-s-sound-ml-1453364991"></a>
 ### S_SetSfxVolume
@@ -856,7 +856,7 @@ Clamps and stores effects volume and forwards it to the platform mixer.
 | `volume` | `dynamic` | — | Volume value supplied to `S_SetSfxVolume`. |
 
 
-[View source](https://github.com/MiniLangProject/MiniDoom/blob/main/src/s_sound.ml#L1159)
+[View source](https://github.com/MiniLangProject/MiniDoom/blob/main/src/s_sound.ml#L1161)
 
 <a id="function-function-s-start-function-s-start-src-s-sound-ml-2127533509"></a>
 ### S_Start
@@ -884,7 +884,7 @@ Starts a non-looping music track through the common change-music path.
 | `music_id` | `dynamic` | — | Music id value supplied to `S_StartMusic`. |
 
 
-[View source](https://github.com/MiniLangProject/MiniDoom/blob/main/src/s_sound.ml#L952)
+[View source](https://github.com/MiniLangProject/MiniDoom/blob/main/src/s_sound.ml#L954)
 
 <a id="function-function-s-startsound-function-s-startsound-origin-sound-id-src-s-sound-ml-870392446"></a>
 ### S_StartSound
@@ -959,7 +959,7 @@ function S_StopMusic()
 Resumes if needed, stops and unregisters the active song, retags its lump cache, and clears music ownership state.
 
 
-[View source](https://github.com/MiniLangProject/MiniDoom/blob/main/src/s_sound.ml#L1019)
+[View source](https://github.com/MiniLangProject/MiniDoom/blob/main/src/s_sound.ml#L1021)
 
 <a id="function-function-s-stopsound-function-s-stopsound-origin-src-s-sound-ml-636591881"></a>
 ### S_StopSound
@@ -991,7 +991,7 @@ Recomputes positional parameters for playing voices and releases finished or new
 | `listener_p` | `dynamic` | — | Listener p value supplied to `S_UpdateSounds`. |
 
 
-[View source](https://github.com/MiniLangProject/MiniDoom/blob/main/src/s_sound.ml#L1083)
+[View source](https://github.com/MiniLangProject/MiniDoom/blob/main/src/s_sound.ml#L1085)
 
 <a id="global-global-snd-musicvolume-snd-musicvolume-src-s-sound-ml-1102623227"></a>
 ### snd_MusicVolume

@@ -12,7 +12,7 @@ Reachable from entry: **yes**
 
 - `doomtype.ml` → [src/doomtype.ml](File-src-doomtype-ml-372549946.md)
 - `i_system.ml` → [src/i_system.ml](File-src-i-system-ml-1632920966.md)
-- `std/math.ml` → `../MiniLangCompilerOptimization/MiniLangCompilerPy/std/math.ml` — external dependency
+- `std/math.ml` → `../MiniLangCompilerML/std/math.ml` — external dependency
 - `stdlib.ml` → [src/stdlib.ml](File-src-stdlib-ml-366721133.md)
 
 ## Declarations

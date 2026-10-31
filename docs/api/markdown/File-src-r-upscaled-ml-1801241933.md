@@ -12,8 +12,8 @@ Reachable from entry: **yes**
 
 - `m_argv.ml` → [src/m_argv.ml](File-src-m-argv-ml-728984635.md)
 - `r_renderer.ml` → [src/r_renderer.ml](File-src-r-renderer-ml-72894217.md)
-- `std/fs.ml` as `fs` → `../MiniLangCompilerOptimization/MiniLangCompilerPy/std/fs.ml` — external dependency
-- `std/math.ml` → `../MiniLangCompilerOptimization/MiniLangCompilerPy/std/math.ml` — external dependency
+- `std/fs.ml` as `fs` → `../MiniLangCompilerML/std/fs.ml` — external dependency
+- `std/math.ml` → `../MiniLangCompilerML/std/math.ml` — external dependency
 
 ## Declarations
 

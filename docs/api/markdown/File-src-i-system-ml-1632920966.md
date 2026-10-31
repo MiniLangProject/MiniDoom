@@ -20,8 +20,8 @@ Reachable from entry: **yes**
 - `i_video.ml` → [src/i_video.ml](File-src-i-video-ml-140536292.md)
 - `m_misc.ml` → [src/m_misc.ml](File-src-m-misc-ml-906836777.md)
 - `mp_platform.ml` → [src/mp_platform.ml](File-src-mp-platform-ml-1361006310.md)
-- `std/math.ml` → `../MiniLangCompilerOptimization/MiniLangCompilerPy/std/math.ml` — external dependency
-- `std/time.ml` → `../MiniLangCompilerOptimization/MiniLangCompilerPy/std/time.ml` — external dependency
+- `std/math.ml` → `../MiniLangCompilerML/std/math.ml` — external dependency
+- `std/time.ml` → `../MiniLangCompilerML/std/time.ml` — external dependency
 
 ## Declarations
 

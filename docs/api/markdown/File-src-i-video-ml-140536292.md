@@ -19,9 +19,9 @@ Reachable from entry: **yes**
 - `m_argv.ml` → [src/m_argv.ml](File-src-m-argv-ml-728984635.md)
 - `r_hires.ml` → [src/r_hires.ml](File-src-r-hires-ml-694005807.md)
 - `r_upscaled.ml` → [src/r_upscaled.ml](File-src-r-upscaled-ml-1801241933.md)
-- `std/fs.ml` as `fs` → `../MiniLangCompilerOptimization/MiniLangCompilerPy/std/fs.ml` — external dependency
-- `std/math.ml` → `../MiniLangCompilerOptimization/MiniLangCompilerPy/std/math.ml` — external dependency
-- `std/time.ml` → `../MiniLangCompilerOptimization/MiniLangCompilerPy/std/time.ml` — external dependency
+- `std/fs.ml` as `fs` → `../MiniLangCompilerML/std/fs.ml` — external dependency
+- `std/math.ml` → `../MiniLangCompilerML/std/math.ml` — external dependency
+- `std/time.ml` → `../MiniLangCompilerML/std/time.ml` — external dependency
 - `v_video.ml` → [src/v_video.ml](File-src-v-video-ml-592999939.md)
 
 ## Declarations

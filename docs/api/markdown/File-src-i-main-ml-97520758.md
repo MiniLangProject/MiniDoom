@@ -13,8 +13,8 @@ Reachable from entry: **yes**
 - `d_main.ml` → [src/d_main.ml](File-src-d-main-ml-105344057.md)
 - `doomdef.ml` → [src/doomdef.ml](File-src-doomdef-ml-460406769.md)
 - `m_argv.ml` → [src/m_argv.ml](File-src-m-argv-ml-728984635.md)
-- `std/fs.ml` as `fs` → `../MiniLangCompilerOptimization/MiniLangCompilerPy/std/fs.ml` — external dependency
-- `std/math.ml` → `../MiniLangCompilerOptimization/MiniLangCompilerPy/std/math.ml` — external dependency
+- `std/fs.ml` as `fs` → `../MiniLangCompilerML/std/fs.ml` — external dependency
+- `std/math.ml` → `../MiniLangCompilerML/std/math.ml` — external dependency
 
 ## Declarations
 

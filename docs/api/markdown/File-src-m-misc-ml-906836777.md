@@ -22,7 +22,7 @@ Reachable from entry: **yes**
 - `m_misc.ml` → [src/m_misc.ml](File-src-m-misc-ml-906836777.md)
 - `m_swap.ml` → [src/m_swap.ml](File-src-m-swap-ml-1401834276.md)
 - `mp_state.ml` → [src/mp_state.ml](File-src-mp-state-ml-130741680.md)
-- `std/fs.ml` as `fs` → `../MiniLangCompilerOptimization/MiniLangCompilerPy/std/fs.ml` — external dependency
+- `std/fs.ml` as `fs` → `../MiniLangCompilerML/std/fs.ml` — external dependency
 - `v_video.ml` → [src/v_video.ml](File-src-v-video-ml-592999939.md)
 - `w_wad.ml` → [src/w_wad.ml](File-src-w-wad-ml-893006035.md)
 - `z_zone.ml` → [src/z_zone.ml](File-src-z-zone-ml-1788911354.md)

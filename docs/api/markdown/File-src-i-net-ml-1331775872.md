@@ -16,7 +16,7 @@ Reachable from entry: **yes**
 - `i_system.ml` → [src/i_system.ml](File-src-i-system-ml-1632920966.md)
 - `m_argv.ml` → [src/m_argv.ml](File-src-m-argv-ml-728984635.md)
 - `mp_platform.ml` → [src/mp_platform.ml](File-src-mp-platform-ml-1361006310.md)
-- `std/math.ml` → `../MiniLangCompilerOptimization/MiniLangCompilerPy/std/math.ml` — external dependency
+- `std/math.ml` → `../MiniLangCompilerML/std/math.ml` — external dependency
 
 ## Declarations
 

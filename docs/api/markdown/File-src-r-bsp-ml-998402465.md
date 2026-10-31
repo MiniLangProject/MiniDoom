@@ -18,8 +18,8 @@ Reachable from entry: **yes**
 - `r_plane.ml` → [src/r_plane.ml](File-src-r-plane-ml-1848108848.md)
 - `r_state.ml` → [src/r_state.ml](File-src-r-state-ml-691819649.md)
 - `r_things.ml` → [src/r_things.ml](File-src-r-things-ml-545677447.md)
-- `std/math.ml` → `../MiniLangCompilerOptimization/MiniLangCompilerPy/std/math.ml` — external dependency
-- `std/time.ml` → `../MiniLangCompilerOptimization/MiniLangCompilerPy/std/time.ml` — external dependency
+- `std/math.ml` → `../MiniLangCompilerML/std/math.ml` — external dependency
+- `std/time.ml` → `../MiniLangCompilerML/std/time.ml` — external dependency
 
 ## Declarations
 

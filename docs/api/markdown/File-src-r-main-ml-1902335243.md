@@ -22,8 +22,8 @@ Reachable from entry: **yes**
 - `r_local.ml` → [src/r_local.ml](File-src-r-local-ml-797040731.md)
 - `r_renderer.ml` → [src/r_renderer.ml](File-src-r-renderer-ml-72894217.md)
 - `r_sky.ml` → [src/r_sky.ml](File-src-r-sky-ml-918225537.md)
-- `std/math.ml` → `../MiniLangCompilerOptimization/MiniLangCompilerPy/std/math.ml` — external dependency
-- `std/time.ml` → `../MiniLangCompilerOptimization/MiniLangCompilerPy/std/time.ml` — external dependency
+- `std/math.ml` → `../MiniLangCompilerML/std/math.ml` — external dependency
+- `std/time.ml` → `../MiniLangCompilerML/std/time.ml` — external dependency
 
 ## Declarations
 

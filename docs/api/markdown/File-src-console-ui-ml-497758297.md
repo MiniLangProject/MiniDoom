@@ -15,9 +15,9 @@ Reachable from entry: **yes**
 - `doomdef.ml` → [src/doomdef.ml](File-src-doomdef-ml-460406769.md)
 - `doomstat.ml` → [src/doomstat.ml](File-src-doomstat-ml-1652708088.md)
 - `hu_lib.ml` → [src/hu_lib.ml](File-src-hu-lib-ml-937975676.md)
-- `std/math.ml` → `../MiniLangCompilerOptimization/MiniLangCompilerPy/std/math.ml` — external dependency
-- `std/string.ml` as `str` → `../MiniLangCompilerOptimization/MiniLangCompilerPy/std/string.ml` — external dependency
-- `std/time.ml` → `../MiniLangCompilerOptimization/MiniLangCompilerPy/std/time.ml` — external dependency
+- `std/math.ml` → `../MiniLangCompilerML/std/math.ml` — external dependency
+- `std/string.ml` as `str` → `../MiniLangCompilerML/std/string.ml` — external dependency
+- `std/time.ml` → `../MiniLangCompilerML/std/time.ml` — external dependency
 - `v_video.ml` → [src/v_video.ml](File-src-v-video-ml-592999939.md)
 
 ## Declarations

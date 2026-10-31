@@ -25,7 +25,7 @@ Reachable from entry: **yes**
 - `r_state.ml` → [src/r_state.ml](File-src-r-state-ml-691819649.md)
 - `s_sound.ml` → [src/s_sound.ml](File-src-s-sound-ml-1485495390.md)
 - `sounds.ml` → [src/sounds.ml](File-src-sounds-ml-1875364049.md)
-- `std/math.ml` → `../MiniLangCompilerOptimization/MiniLangCompilerPy/std/math.ml` — external dependency
+- `std/math.ml` → `../MiniLangCompilerML/std/math.ml` — external dependency
 - `w_wad.ml` → [src/w_wad.ml](File-src-w-wad-ml-893006035.md)
 - `z_zone.ml` → [src/z_zone.ml](File-src-z-zone-ml-1788911354.md)
 

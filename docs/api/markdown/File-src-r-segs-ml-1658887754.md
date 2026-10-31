@@ -15,7 +15,7 @@ Reachable from entry: **yes**
 - `i_system.ml` → [src/i_system.ml](File-src-i-system-ml-1632920966.md)
 - `r_local.ml` → [src/r_local.ml](File-src-r-local-ml-797040731.md)
 - `r_sky.ml` → [src/r_sky.ml](File-src-r-sky-ml-918225537.md)
-- `std/math.ml` → `../MiniLangCompilerOptimization/MiniLangCompilerPy/std/math.ml` — external dependency
+- `std/math.ml` → `../MiniLangCompilerML/std/math.ml` — external dependency
 
 ## Declarations
 
