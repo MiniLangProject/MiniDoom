@@ -3,7 +3,7 @@ name = "MiniDoom"
 description = "API and implementation reference for the MiniLang DOOM engine port, including gameplay, renderers, audio, console, platform integration, and multiplayer."
 entry = "src/i_main.ml"
 source_roots = ["src"]
-include = ["src"]
+include = ["src", "../MiniLangCompilerML"]
 exclude = ["build", "docs/api"]
 target = "windows-x64"
 
