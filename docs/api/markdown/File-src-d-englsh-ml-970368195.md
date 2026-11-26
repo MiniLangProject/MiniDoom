@@ -82,22 +82,11 @@ Defines the amstr markscleared text used by the d englsh subsystem.
 
 [View source](https://github.com/MiniLangProject/MiniDoom/blob/main/src/d_englsh.ml#L488)
 
-<a id="constant-constant-c1text-const-c1text-you-have-entered-deeply-into-the-infested-starport-but-something-is-wrong-the-monsters-have-brought-their-own-reality-with-them-and-the-starport-s-technology-is-being-subverted-by-their-presence-ahead-you-see-an-outpost-of-hell-a-fortified-zone-if-you-can-get-past-it-you-can-penetrate-into-the-haunted-heart-of-the-starbase-and-find-the-controlling-switch-which-holds-earth-s-population-hostage-src-d-englsh-ml-344585116"></a>
+<a id="constant-constant-c1text-const-c1text-you-have-entered-deeply-into-the-infested-nstarport-but-something-is-wrong-the-nmonsters-have-brought-their-own-reality-nwith-them-and-the-starport-s-technology-nis-being-subverted-by-their-presence-n-nahead-you-see-an-outpost-of-hell-a-nfortified-zone-if-you-can-get-past-it-nyou-can-penetrate-into-the-haunted-heart-nof-the-starbase-and-find-the-controlling-nswitch-which-holds-earth-s-population-nhostage-src-d-englsh-ml-55903992"></a>
 ### C1TEXT
 
 ```ml
-const C1TEXT = "YOU HAVE ENTERED DEEPLY INTO THE INFESTED
-STARPORT. BUT SOMETHING IS WRONG. THE
-MONSTERS HAVE BROUGHT THEIR OWN REALITY
-WITH THEM, AND THE STARPORT'S TECHNOLOGY
-IS BEING SUBVERTED BY THEIR PRESENCE.
-
-AHEAD, YOU SEE AN OUTPOST OF HELL, A
-FORTIFIED ZONE. IF YOU CAN GET PAST IT,
-YOU CAN PENETRATE INTO THE HAUNTED HEART
-OF THE STARBASE AND FIND THE CONTROLLING
-SWITCH WHICH HOLDS EARTH'S POPULATION
-HOSTAGE."
+const C1TEXT = "YOU HAVE ENTERED DEEPLY INTO THE INFESTED\nSTARPORT. BUT SOMETHING IS WRONG. THE\nMONSTERS HAVE BROUGHT THEIR OWN REALITY\nWITH THEM, AND THE STARPORT'S TECHNOLOGY\nIS BEING SUBVERTED BY THEIR PRESENCE.\n\nAHEAD, YOU SEE AN OUTPOST OF HELL, A\nFORTIFIED ZONE. IF YOU CAN GET PAST IT,\nYOU CAN PENETRATE INTO THE HAUNTED HEART\nOF THE STARBASE AND FIND THE CONTROLLING\nSWITCH WHICH HOLDS EARTH'S POPULATION\nHOSTAGE."
 ```
 
 Defines the c1 text text used by the d englsh subsystem.
@@ -105,27 +94,11 @@ Defines the c1 text text used by the d englsh subsystem.
 
 [View source](https://github.com/MiniLangProject/MiniDoom/blob/main/src/d_englsh.ml#L522)
 
-<a id="constant-constant-c2text-const-c2text-you-have-won-your-victory-has-enabled-humankind-to-evacuate-earth-and-escape-the-nightmare-now-you-are-the-only-human-left-on-the-face-of-the-planet-cannibal-mutations-carnivorous-aliens-and-evil-spirits-are-your-only-neighbors-you-sit-back-and-wait-for-death-content-that-you-have-saved-your-species-but-then-earth-control-beams-down-a-message-from-space-sensors-have-located-the-source-of-the-alien-invasion-if-you-go-there-you-may-be-able-to-block-their-entry-the-alien-base-is-in-the-heart-of-your-own-home-city-not-far-from-the-starport-slowly-and-painfully-you-get-up-and-return-to-the-fray-src-d-englsh-ml-1193280640"></a>
+<a id="constant-constant-c2text-const-c2text-you-have-won-your-victory-has-enabled-nhumankind-to-evacuate-earth-and-escape-nthe-nightmare-now-you-are-the-only-nhuman-left-on-the-face-of-the-planet-ncannibal-mutations-carnivorous-aliens-nand-evil-spirits-are-your-only-neighbors-nyou-sit-back-and-wait-for-death-content-nthat-you-have-saved-your-species-n-nbut-then-earth-control-beams-down-a-nmessage-from-space-sensors-have-located-nthe-source-of-the-alien-invasion-if-you-ngo-there-you-may-be-able-to-block-their-nentry-the-alien-base-is-in-the-heart-of-nyour-own-home-city-not-far-from-the-nstarport-slowly-and-painfully-you-get-nup-and-return-to-the-fray-src-d-englsh-ml-1559273882"></a>
 ### C2TEXT
 
 ```ml
-const C2TEXT = "YOU HAVE WON! YOUR VICTORY HAS ENABLED
-HUMANKIND TO EVACUATE EARTH AND ESCAPE
-THE NIGHTMARE.  NOW YOU ARE THE ONLY
-HUMAN LEFT ON THE FACE OF THE PLANET.
-CANNIBAL MUTATIONS, CARNIVOROUS ALIENS,
-AND EVIL SPIRITS ARE YOUR ONLY NEIGHBORS.
-YOU SIT BACK AND WAIT FOR DEATH, CONTENT
-THAT YOU HAVE SAVED YOUR SPECIES.
-
-BUT THEN, EARTH CONTROL BEAMS DOWN A
-MESSAGE FROM SPACE: \"SENSORS HAVE LOCATED
-THE SOURCE OF THE ALIEN INVASION. IF YOU
-GO THERE, YOU MAY BE ABLE TO BLOCK THEIR
-ENTRY.  THE ALIEN BASE IS IN THE HEART OF
-YOUR OWN HOME CITY, NOT FAR FROM THE
-STARPORT.\" SLOWLY AND PAINFULLY YOU GET
-UP AND RETURN TO THE FRAY."
+const C2TEXT = "YOU HAVE WON! YOUR VICTORY HAS ENABLED\nHUMANKIND TO EVACUATE EARTH AND ESCAPE\nTHE NIGHTMARE.  NOW YOU ARE THE ONLY\nHUMAN LEFT ON THE FACE OF THE PLANET.\nCANNIBAL MUTATIONS, CARNIVOROUS ALIENS,\nAND EVIL SPIRITS ARE YOUR ONLY NEIGHBORS.\nYOU SIT BACK AND WAIT FOR DEATH, CONTENT\nTHAT YOU HAVE SAVED YOUR SPECIES.\n\nBUT THEN, EARTH CONTROL BEAMS DOWN A\nMESSAGE FROM SPACE: \"SENSORS HAVE LOCATED\nTHE SOURCE OF THE ALIEN INVASION. IF YOU\nGO THERE, YOU MAY BE ABLE TO BLOCK THEIR\nENTRY.  THE ALIEN BASE IS IN THE HEART OF\nYOUR OWN HOME CITY, NOT FAR FROM THE\nSTARPORT.\" SLOWLY AND PAINFULLY YOU GET\nUP AND RETURN TO THE FRAY."
 ```
 
 Defines the c2 text text used by the d englsh subsystem.
@@ -133,19 +106,11 @@ Defines the c2 text text used by the d englsh subsystem.
 
 [View source](https://github.com/MiniLangProject/MiniDoom/blob/main/src/d_englsh.ml#L524)
 
-<a id="constant-constant-c3text-const-c3text-you-are-at-the-corrupt-heart-of-the-city-surrounded-by-the-corpses-of-your-enemies-you-see-no-way-to-destroy-the-creatures-entryway-on-this-side-so-you-clench-your-teeth-and-plunge-through-it-there-must-be-a-way-to-close-it-on-the-other-side-what-do-you-care-if-you-ve-got-to-go-through-hell-to-get-to-it-src-d-englsh-ml-1543220086"></a>
+<a id="constant-constant-c3text-const-c3text-you-are-at-the-corrupt-heart-of-the-city-nsurrounded-by-the-corpses-of-your-enemies-nyou-see-no-way-to-destroy-the-creatures-nentryway-on-this-side-so-you-clench-your-nteeth-and-plunge-through-it-n-nthere-must-be-a-way-to-close-it-on-the-nother-side-what-do-you-care-if-you-ve-ngot-to-go-through-hell-to-get-to-it-src-d-englsh-ml-1886276278"></a>
 ### C3TEXT
 
 ```ml
-const C3TEXT = "YOU ARE AT THE CORRUPT HEART OF THE CITY,
-SURROUNDED BY THE CORPSES OF YOUR ENEMIES.
-YOU SEE NO WAY TO DESTROY THE CREATURES'
-ENTRYWAY ON THIS SIDE, SO YOU CLENCH YOUR
-TEETH AND PLUNGE THROUGH IT.
-
-THERE MUST BE A WAY TO CLOSE IT ON THE
-OTHER SIDE. WHAT DO YOU CARE IF YOU'VE
-GOT TO GO THROUGH HELL TO GET TO IT?"
+const C3TEXT = "YOU ARE AT THE CORRUPT HEART OF THE CITY,\nSURROUNDED BY THE CORPSES OF YOUR ENEMIES.\nYOU SEE NO WAY TO DESTROY THE CREATURES'\nENTRYWAY ON THIS SIDE, SO YOU CLENCH YOUR\nTEETH AND PLUNGE THROUGH IT.\n\nTHERE MUST BE A WAY TO CLOSE IT ON THE\nOTHER SIDE. WHAT DO YOU CARE IF YOU'VE\nGOT TO GO THROUGH HELL TO GET TO IT?"
 ```
 
 Defines the c3 text text used by the d englsh subsystem.
@@ -153,26 +118,11 @@ Defines the c3 text text used by the d englsh subsystem.
 
 [View source](https://github.com/MiniLangProject/MiniDoom/blob/main/src/d_englsh.ml#L526)
 
-<a id="constant-constant-c4text-const-c4text-the-horrendous-visage-of-the-biggest-demon-you-ve-ever-seen-crumbles-before-you-after-you-pump-your-rockets-into-his-exposed-brain-the-monster-shrivels-up-and-dies-its-thrashing-limbs-devastating-untold-miles-of-hell-s-surface-you-ve-done-it-the-invasion-is-over-earth-is-saved-hell-is-a-wreck-you-wonder-where-bad-folks-will-go-when-they-die-now-wiping-the-sweat-from-your-forehead-you-begin-the-long-trek-back-home-rebuilding-earth-ought-to-be-a-lot-more-fun-than-ruining-it-was-src-d-englsh-ml-2024983070"></a>
+<a id="constant-constant-c4text-const-c4text-the-horrendous-visage-of-the-biggest-ndemon-you-ve-ever-seen-crumbles-before-nyou-after-you-pump-your-rockets-into-nhis-exposed-brain-the-monster-shrivels-nup-and-dies-its-thrashing-limbs-ndevastating-untold-miles-of-hell-s-nsurface-n-nyou-ve-done-it-the-invasion-is-over-nearth-is-saved-hell-is-a-wreck-you-nwonder-where-bad-folks-will-go-when-they-ndie-now-wiping-the-sweat-from-your-nforehead-you-begin-the-long-trek-back-nhome-rebuilding-earth-ought-to-be-a-nlot-more-fun-than-ruining-it-was-n-src-d-englsh-ml-2097641798"></a>
 ### C4TEXT
 
 ```ml
-const C4TEXT = "THE HORRENDOUS VISAGE OF THE BIGGEST
-DEMON YOU'VE EVER SEEN CRUMBLES BEFORE
-YOU, AFTER YOU PUMP YOUR ROCKETS INTO
-HIS EXPOSED BRAIN. THE MONSTER SHRIVELS
-UP AND DIES, ITS THRASHING LIMBS
-DEVASTATING UNTOLD MILES OF HELL'S
-SURFACE.
-
-YOU'VE DONE IT. THE INVASION IS OVER.
-EARTH IS SAVED. HELL IS A WRECK. YOU
-WONDER WHERE BAD FOLKS WILL GO WHEN THEY
-DIE, NOW. WIPING THE SWEAT FROM YOUR
-FOREHEAD YOU BEGIN THE LONG TREK BACK
-HOME. REBUILDING EARTH OUGHT TO BE A
-LOT MORE FUN THAN RUINING IT WAS.
-"
+const C4TEXT = "THE HORRENDOUS VISAGE OF THE BIGGEST\nDEMON YOU'VE EVER SEEN CRUMBLES BEFORE\nYOU, AFTER YOU PUMP YOUR ROCKETS INTO\nHIS EXPOSED BRAIN. THE MONSTER SHRIVELS\nUP AND DIES, ITS THRASHING LIMBS\nDEVASTATING UNTOLD MILES OF HELL'S\nSURFACE.\n\nYOU'VE DONE IT. THE INVASION IS OVER.\nEARTH IS SAVED. HELL IS A WRECK. YOU\nWONDER WHERE BAD FOLKS WILL GO WHEN THEY\nDIE, NOW. WIPING THE SWEAT FROM YOUR\nFOREHEAD YOU BEGIN THE LONG TREK BACK\nHOME. REBUILDING EARTH OUGHT TO BE A\nLOT MORE FUN THAN RUINING IT WAS.\n"
 ```
 
 Defines the c4 text text used by the d englsh subsystem.
@@ -180,15 +130,11 @@ Defines the c4 text text used by the d englsh subsystem.
 
 [View source](https://github.com/MiniLangProject/MiniDoom/blob/main/src/d_englsh.ml#L528)
 
-<a id="constant-constant-c5text-const-c5text-congratulations-you-ve-found-the-secret-level-looks-like-it-s-been-built-by-humans-rather-than-demons-you-wonder-who-the-inmates-of-this-corner-of-hell-will-be-src-d-englsh-ml-947914600"></a>
+<a id="constant-constant-c5text-const-c5text-congratulations-you-ve-found-the-secret-nlevel-looks-like-it-s-been-built-by-nhumans-rather-than-demons-you-wonder-nwho-the-inmates-of-this-corner-of-hell-nwill-be-src-d-englsh-ml-848857492"></a>
 ### C5TEXT
 
 ```ml
-const C5TEXT = "CONGRATULATIONS, YOU'VE FOUND THE SECRET
-LEVEL! LOOKS LIKE IT'S BEEN BUILT BY
-HUMANS, RATHER THAN DEMONS. YOU WONDER
-WHO THE INMATES OF THIS CORNER OF HELL
-WILL BE."
+const C5TEXT = "CONGRATULATIONS, YOU'VE FOUND THE SECRET\nLEVEL! LOOKS LIKE IT'S BEEN BUILT BY\nHUMANS, RATHER THAN DEMONS. YOU WONDER\nWHO THE INMATES OF THIS CORNER OF HELL\nWILL BE."
 ```
 
 Defines the c5 text text used by the d englsh subsystem.
@@ -196,14 +142,11 @@ Defines the c5 text text used by the d englsh subsystem.
 
 [View source](https://github.com/MiniLangProject/MiniDoom/blob/main/src/d_englsh.ml#L530)
 
-<a id="constant-constant-c6text-const-c6text-congratulations-you-ve-found-the-super-secret-level-you-d-better-blaze-through-this-one-src-d-englsh-ml-1859897734"></a>
+<a id="constant-constant-c6text-const-c6text-congratulations-you-ve-found-the-nsuper-secret-level-you-d-better-nblaze-through-this-one-n-src-d-englsh-ml-1500149506"></a>
 ### C6TEXT
 
 ```ml
-const C6TEXT = "CONGRATULATIONS, YOU'VE FOUND THE
-SUPER SECRET LEVEL!  YOU'D BETTER
-BLAZE THROUGH THIS ONE!
-"
+const C6TEXT = "CONGRATULATIONS, YOU'VE FOUND THE\nSUPER SECRET LEVEL!  YOU'D BETTER\nBLAZE THROUGH THIS ONE!\n"
 ```
 
 Defines the c6 text text used by the d englsh subsystem.
@@ -415,12 +358,11 @@ Defines the cc zombie text used by the d englsh subsystem.
 
 [View source](https://github.com/MiniLangProject/MiniDoom/blob/main/src/d_englsh.ml#L558)
 
-<a id="constant-constant-d-cdrom-const-d-cdrom-cd-rom-version-default-cfg-from-c-doomdata-src-d-englsh-ml-723439440"></a>
+<a id="constant-constant-d-cdrom-const-d-cdrom-cd-rom-version-default-cfg-from-c-doomdata-n-src-d-englsh-ml-33972740"></a>
 ### D_CDROM
 
 ```ml
-const D_CDROM = "CD-ROM Version: default.cfg from c:\\doomdata
-"
+const D_CDROM = "CD-ROM Version: default.cfg from c:\\doomdata\n"
 ```
 
 Defines the d cdrom text used by the d englsh subsystem.
@@ -428,12 +370,11 @@ Defines the d cdrom text used by the d englsh subsystem.
 
 [View source](https://github.com/MiniLangProject/MiniDoom/blob/main/src/d_englsh.ml#L24)
 
-<a id="constant-constant-d-devstr-const-d-devstr-development-mode-on-src-d-englsh-ml-1664566412"></a>
+<a id="constant-constant-d-devstr-const-d-devstr-development-mode-on-n-src-d-englsh-ml-2085388120"></a>
 ### D_DEVSTR
 
 ```ml
-const D_DEVSTR = "Development mode ON.
-"
+const D_DEVSTR = "Development mode ON.\n"
 ```
 
 Defines the d devstr text used by the d englsh subsystem.
@@ -477,26 +418,11 @@ Defines the dosy text used by the d englsh subsystem.
 
 [View source](https://github.com/MiniLangProject/MiniDoom/blob/main/src/d_englsh.ml#L58)
 
-<a id="constant-constant-e1text-const-e1text-once-you-beat-the-big-badasses-and-clean-out-the-moon-base-you-re-supposed-to-win-aren-t-you-aren-t-you-where-s-your-fat-reward-and-ticket-home-what-the-hell-is-this-it-s-not-supposed-to-end-this-way-it-stinks-like-rotten-meat-but-looks-like-the-lost-deimos-base-looks-like-you-re-stuck-on-the-shores-of-hell-the-only-way-out-is-through-to-continue-the-doom-experience-play-the-shores-of-hell-and-its-amazing-sequel-inferno-src-d-englsh-ml-952347064"></a>
+<a id="constant-constant-e1text-const-e1text-once-you-beat-the-big-badasses-and-nclean-out-the-moon-base-you-re-supposed-nto-win-aren-t-you-aren-t-you-where-s-nyour-fat-reward-and-ticket-home-what-nthe-hell-is-this-it-s-not-supposed-to-nend-this-way-n-nit-stinks-like-rotten-meat-but-looks-nlike-the-lost-deimos-base-looks-like-nyou-re-stuck-on-the-shores-of-hell-nthe-only-way-out-is-through-n-nto-continue-the-doom-experience-play-nthe-shores-of-hell-and-its-amazing-nsequel-inferno-n-src-d-englsh-ml-1813733938"></a>
 ### E1TEXT
 
 ```ml
-const E1TEXT = "Once you beat the big badasses and
-clean out the moon base you're supposed
-to win, aren't you? Aren't you? Where's
-your fat reward and ticket home? What
-the hell is this? It's not supposed to
-end this way!
-
-It stinks like rotten meat, but looks
-like the lost Deimos base.  Looks like
-you're stuck on The Shores of Hell.
-The only way out is through.
-
-To continue the DOOM experience, play
-The Shores of Hell and its amazing
-sequel, Inferno!
-"
+const E1TEXT = "Once you beat the big badasses and\nclean out the moon base you're supposed\nto win, aren't you? Aren't you? Where's\nyour fat reward and ticket home? What\nthe hell is this? It's not supposed to\nend this way!\n\nIt stinks like rotten meat, but looks\nlike the lost Deimos base.  Looks like\nyou're stuck on The Shores of Hell.\nThe only way out is through.\n\nTo continue the DOOM experience, play\nThe Shores of Hell and its amazing\nsequel, Inferno!\n"
 ```
 
 Defines the e1 text text used by the d englsh subsystem.
@@ -504,27 +430,11 @@ Defines the e1 text text used by the d englsh subsystem.
 
 [View source](https://github.com/MiniLangProject/MiniDoom/blob/main/src/d_englsh.ml#L514)
 
-<a id="constant-constant-e2text-const-e2text-you-ve-done-it-the-hideous-cyber-demon-lord-that-ruled-the-lost-deimos-moon-base-has-been-slain-and-you-are-triumphant-but-where-are-you-you-clamber-to-the-edge-of-the-moon-and-look-down-to-see-the-awful-truth-deimos-floats-above-hell-itself-you-ve-never-heard-of-anyone-escaping-from-hell-but-you-ll-make-the-bastards-sorry-they-ever-heard-of-you-quickly-you-rappel-down-to-the-surface-of-hell-now-it-s-on-to-the-final-chapter-of-doom-inferno-src-d-englsh-ml-560288745"></a>
+<a id="constant-constant-e2text-const-e2text-you-ve-done-it-the-hideous-cyber-ndemon-lord-that-ruled-the-lost-deimos-nmoon-base-has-been-slain-and-you-nare-triumphant-but-where-are-nyou-you-clamber-to-the-edge-of-the-nmoon-and-look-down-to-see-the-awful-ntruth-n-ndeimos-floats-above-hell-itself-nyou-ve-never-heard-of-anyone-escaping-nfrom-hell-but-you-ll-make-the-bastards-nsorry-they-ever-heard-of-you-quickly-nyou-rappel-down-to-the-surface-of-nhell-n-nnow-it-s-on-to-the-final-chapter-of-ndoom-inferno-src-d-englsh-ml-76651925"></a>
 ### E2TEXT
 
 ```ml
-const E2TEXT = "You've done it! The hideous cyber-
-demon lord that ruled the lost Deimos
-moon base has been slain and you
-are triumphant! But ... where are
-you? You clamber to the edge of the
-moon and look down to see the awful
-truth.
-
-Deimos floats above Hell itself!
-You've never heard of anyone escaping
-from Hell, but you'll make the bastards
-sorry they ever heard of you! Quickly,
-you rappel down to  the surface of
-Hell.
-
-Now, it's on to the final chapter of
-DOOM! -- Inferno."
+const E2TEXT = "You've done it! The hideous cyber-\ndemon lord that ruled the lost Deimos\nmoon base has been slain and you\nare triumphant! But ... where are\nyou? You clamber to the edge of the\nmoon and look down to see the awful\ntruth.\n\nDeimos floats above Hell itself!\nYou've never heard of anyone escaping\nfrom Hell, but you'll make the bastards\nsorry they ever heard of you! Quickly,\nyou rappel down to  the surface of\nHell.\n\nNow, it's on to the final chapter of\nDOOM! -- Inferno."
 ```
 
 Defines the e2 text text used by the d englsh subsystem.
@@ -532,27 +442,11 @@ Defines the e2 text text used by the d englsh subsystem.
 
 [View source](https://github.com/MiniLangProject/MiniDoom/blob/main/src/d_englsh.ml#L516)
 
-<a id="constant-constant-e3text-const-e3text-the-loathsome-spiderdemon-that-masterminded-the-invasion-of-the-moon-bases-and-caused-so-much-death-has-had-its-ass-kicked-for-all-time-a-hidden-doorway-opens-and-you-enter-you-ve-proven-too-tough-for-hell-to-contain-and-now-hell-at-last-plays-fair-for-you-emerge-from-the-door-to-see-the-green-fields-of-earth-home-at-last-you-wonder-what-s-been-happening-on-earth-while-you-were-battling-evil-unleashed-it-s-good-that-no-hell-spawn-could-have-come-through-that-door-with-you-src-d-englsh-ml-691950820"></a>
+<a id="constant-constant-e3text-const-e3text-the-loathsome-spiderdemon-that-nmasterminded-the-invasion-of-the-moon-nbases-and-caused-so-much-death-has-had-nits-ass-kicked-for-all-time-n-na-hidden-doorway-opens-and-you-enter-nyou-ve-proven-too-tough-for-hell-to-ncontain-and-now-hell-at-last-plays-nfair-for-you-emerge-from-the-door-nto-see-the-green-fields-of-earth-nhome-at-last-n-nyou-wonder-what-s-been-happening-on-nearth-while-you-were-battling-evil-nunleashed-it-s-good-that-no-hell-nspawn-could-have-come-through-that-ndoor-with-you-src-d-englsh-ml-1524989022"></a>
 ### E3TEXT
 
 ```ml
-const E3TEXT = "The loathsome spiderdemon that
-masterminded the invasion of the moon
-bases and caused so much death has had
-its ass kicked for all time.
-
-A hidden doorway opens and you enter.
-You've proven too tough for Hell to
-contain, and now Hell at last plays
-fair -- for you emerge from the door
-to see the green fields of Earth!
-Home at last.
-
-You wonder what's been happening on
-Earth while you were battling evil
-unleashed. It's good that no Hell-
-spawn could have come through that
-door with you ..."
+const E3TEXT = "The loathsome spiderdemon that\nmasterminded the invasion of the moon\nbases and caused so much death has had\nits ass kicked for all time.\n\nA hidden doorway opens and you enter.\nYou've proven too tough for Hell to\ncontain, and now Hell at last plays\nfair -- for you emerge from the door\nto see the green fields of Earth!\nHome at last.\n\nYou wonder what's been happening on\nEarth while you were battling evil\nunleashed. It's good that no Hell-\nspawn could have come through that\ndoor with you ..."
 ```
 
 Defines the e3 text text used by the d englsh subsystem.
@@ -560,26 +454,11 @@ Defines the e3 text text used by the d englsh subsystem.
 
 [View source](https://github.com/MiniLangProject/MiniDoom/blob/main/src/d_englsh.ml#L518)
 
-<a id="constant-constant-e4text-const-e4text-the-spider-mastermind-must-have-sent-forth-its-legions-of-hellspawn-before-your-final-confrontation-with-that-terrible-beast-from-hell-but-you-stepped-forward-and-brought-forth-eternal-damnation-and-suffering-upon-the-horde-as-a-true-hero-would-in-the-face-of-something-so-evil-besides-someone-was-gonna-pay-for-what-happened-to-daisy-your-pet-rabbit-but-now-you-see-spread-before-you-more-potential-pain-and-gibbitude-as-a-nation-of-demons-run-amok-among-our-cities-next-stop-hell-on-earth-src-d-englsh-ml-1727151941"></a>
+<a id="constant-constant-e4text-const-e4text-the-spider-mastermind-must-have-sent-forth-nits-legions-of-hellspawn-before-your-nfinal-confrontation-with-that-terrible-nbeast-from-hell-but-you-stepped-forward-nand-brought-forth-eternal-damnation-and-nsuffering-upon-the-horde-as-a-true-hero-nwould-in-the-face-of-something-so-evil-n-nbesides-someone-was-gonna-pay-for-what-nhappened-to-daisy-your-pet-rabbit-n-nbut-now-you-see-spread-before-you-more-npotential-pain-and-gibbitude-as-a-nation-nof-demons-run-amok-among-our-cities-n-nnext-stop-hell-on-earth-src-d-englsh-ml-2104961269"></a>
 ### E4TEXT
 
 ```ml
-const E4TEXT = "the spider mastermind must have sent forth
-its legions of hellspawn before your
-final confrontation with that terrible
-beast from hell.  but you stepped forward
-and brought forth eternal damnation and
-suffering upon the horde as a true hero
-would in the face of something so evil.
-
-besides, someone was gonna pay for what
-happened to daisy, your pet rabbit.
-
-but now, you see spread before you more
-potential pain and gibbitude as a nation
-of demons run amok among our cities.
-
-next stop, hell on earth!"
+const E4TEXT = "the spider mastermind must have sent forth\nits legions of hellspawn before your\nfinal confrontation with that terrible\nbeast from hell.  but you stepped forward\nand brought forth eternal damnation and\nsuffering upon the horde as a true hero\nwould in the face of something so evil.\n\nbesides, someone was gonna pay for what\nhappened to daisy, your pet rabbit.\n\nbut now, you see spread before you more\npotential pain and gibbitude as a nation\nof demons run amok among our cities.\n\nnext stop, hell on earth!"
 ```
 
 Defines the e4 text text used by the d englsh subsystem.
@@ -599,13 +478,11 @@ Defines the emptystring text used by the d englsh subsystem.
 
 [View source](https://github.com/MiniLangProject/MiniDoom/blob/main/src/d_englsh.ml#L74)
 
-<a id="constant-constant-endgame-const-endgame-are-you-sure-you-want-to-end-the-game-press-y-or-n-src-d-englsh-ml-2082403757"></a>
+<a id="constant-constant-endgame-const-endgame-are-you-sure-you-want-to-end-the-game-n-npress-y-or-n-src-d-englsh-ml-1597324169"></a>
 ### ENDGAME
 
 ```ml
-const ENDGAME = "are you sure you want to end the game?
-
-press y or n."
+const ENDGAME = "are you sure you want to end the game?\n\npress y or n."
 ```
 
 Defines the endgame text used by the d englsh subsystem.
@@ -2245,13 +2122,11 @@ Defines the hustr talktoself5 text used by the d englsh subsystem.
 
 [View source](https://github.com/MiniLangProject/MiniDoom/blob/main/src/d_englsh.ml#L458)
 
-<a id="constant-constant-loadnet-const-loadnet-you-can-t-do-load-while-in-a-net-game-press-a-key-src-d-englsh-ml-1644321890"></a>
+<a id="constant-constant-loadnet-const-loadnet-you-can-t-do-load-while-in-a-net-game-n-npress-a-key-src-d-englsh-ml-16979250"></a>
 ### LOADNET
 
 ```ml
-const LOADNET = "you can't do load while in a net game!
-
-press a key."
+const LOADNET = "you can't do load while in a net game!\n\npress a key."
 ```
 
 Defines the loadnet text used by the d englsh subsystem.
@@ -2283,13 +2158,11 @@ Defines the msgon text used by the d englsh subsystem.
 
 [View source](https://github.com/MiniLangProject/MiniDoom/blob/main/src/d_englsh.ml#L52)
 
-<a id="constant-constant-netend-const-netend-you-can-t-end-a-netgame-press-a-key-src-d-englsh-ml-1899418010"></a>
+<a id="constant-constant-netend-const-netend-you-can-t-end-a-netgame-n-npress-a-key-src-d-englsh-ml-333715594"></a>
 ### NETEND
 
 ```ml
-const NETEND = "you can't end a netgame!
-
-press a key."
+const NETEND = "you can't end a netgame!\n\npress a key."
 ```
 
 Defines the netend text used by the d englsh subsystem.
@@ -2297,14 +2170,11 @@ Defines the netend text used by the d englsh subsystem.
 
 [View source](https://github.com/MiniLangProject/MiniDoom/blob/main/src/d_englsh.ml#L54)
 
-<a id="constant-constant-newgame-const-newgame-you-can-t-start-a-new-game-while-in-a-network-game-press-a-key-src-d-englsh-ml-517480156"></a>
+<a id="constant-constant-newgame-const-newgame-you-can-t-start-a-new-game-nwhile-in-a-network-game-n-npress-a-key-src-d-englsh-ml-1252040924"></a>
 ### NEWGAME
 
 ```ml
-const NEWGAME = "you can't start a new game
-while in a network game.
-
-press a key."
+const NEWGAME = "you can't start a new game\nwhile in a network game.\n\npress a key."
 ```
 
 Defines the newgame text used by the d englsh subsystem.
@@ -2312,14 +2182,11 @@ Defines the newgame text used by the d englsh subsystem.
 
 [View source](https://github.com/MiniLangProject/MiniDoom/blob/main/src/d_englsh.ml#L44)
 
-<a id="constant-constant-nightmare-const-nightmare-are-you-sure-this-skill-level-isn-t-even-remotely-fair-press-y-or-n-src-d-englsh-ml-17929846"></a>
+<a id="constant-constant-nightmare-const-nightmare-are-you-sure-this-skill-level-nisn-t-even-remotely-fair-n-npress-y-or-n-src-d-englsh-ml-1682285508"></a>
 ### NIGHTMARE
 
 ```ml
-const NIGHTMARE = "are you sure? this skill level
-isn't even remotely fair.
-
-press y or n."
+const NIGHTMARE = "are you sure? this skill level\nisn't even remotely fair.\n\npress y or n."
 ```
 
 Defines the nightmare text used by the d englsh subsystem.
@@ -2327,22 +2194,11 @@ Defines the nightmare text used by the d englsh subsystem.
 
 [View source](https://github.com/MiniLangProject/MiniDoom/blob/main/src/d_englsh.ml#L46)
 
-<a id="constant-constant-p1text-const-p1text-you-gloat-over-the-steaming-carcass-of-the-guardian-with-its-death-you-ve-wrested-the-accelerator-from-the-stinking-claws-of-hell-you-relax-and-glance-around-the-room-damn-there-was-supposed-to-be-at-least-one-working-prototype-but-you-can-t-see-it-the-demons-must-have-taken-it-you-must-find-the-prototype-or-all-your-struggles-will-have-been-wasted-keep-moving-keep-fighting-keep-killing-oh-yes-keep-living-too-src-d-englsh-ml-463204244"></a>
+<a id="constant-constant-p1text-const-p1text-you-gloat-over-the-steaming-carcass-of-the-nguardian-with-its-death-you-ve-wrested-nthe-accelerator-from-the-stinking-claws-nof-hell-you-relax-and-glance-around-the-nroom-damn-there-was-supposed-to-be-at-nleast-one-working-prototype-but-you-can-t-nsee-it-the-demons-must-have-taken-it-n-nyou-must-find-the-prototype-or-all-your-nstruggles-will-have-been-wasted-keep-nmoving-keep-fighting-keep-killing-noh-yes-keep-living-too-src-d-englsh-ml-2058808600"></a>
 ### P1TEXT
 
 ```ml
-const P1TEXT = "You gloat over the steaming carcass of the
-Guardian.  With its death, you've wrested
-the Accelerator from the stinking claws
-of Hell.  You relax and glance around the
-room.  Damn!  There was supposed to be at
-least one working prototype, but you can't
-see it. The demons must have taken it.
-
-You must find the prototype, or all your
-struggles will have been wasted. Keep
-moving, keep fighting, keep killing.
-Oh yes, keep living, too."
+const P1TEXT = "You gloat over the steaming carcass of the\nGuardian.  With its death, you've wrested\nthe Accelerator from the stinking claws\nof Hell.  You relax and glance around the\nroom.  Damn!  There was supposed to be at\nleast one working prototype, but you can't\nsee it. The demons must have taken it.\n\nYou must find the prototype, or all your\nstruggles will have been wasted. Keep\nmoving, keep fighting, keep killing.\nOh yes, keep living, too."
 ```
 
 Defines the p1 text text used by the d englsh subsystem.
@@ -2350,16 +2206,11 @@ Defines the p1 text text used by the d englsh subsystem.
 
 [View source](https://github.com/MiniLangProject/MiniDoom/blob/main/src/d_englsh.ml#L534)
 
-<a id="constant-constant-p2text-const-p2text-even-the-deadly-arch-vile-labyrinth-could-not-stop-you-and-you-ve-gotten-to-the-prototype-accelerator-which-is-soon-efficiently-and-permanently-deactivated-you-re-good-at-that-kind-of-thing-src-d-englsh-ml-1092297153"></a>
+<a id="constant-constant-p2text-const-p2text-even-the-deadly-arch-vile-labyrinth-could-nnot-stop-you-and-you-ve-gotten-to-the-nprototype-accelerator-which-is-soon-nefficiently-and-permanently-deactivated-n-nyou-re-good-at-that-kind-of-thing-src-d-englsh-ml-346507343"></a>
 ### P2TEXT
 
 ```ml
-const P2TEXT = "Even the deadly Arch-Vile labyrinth could
-not stop you, and you've gotten to the
-prototype Accelerator which is soon
-efficiently and permanently deactivated.
-
-You're good at that kind of thing."
+const P2TEXT = "Even the deadly Arch-Vile labyrinth could\nnot stop you, and you've gotten to the\nprototype Accelerator which is soon\nefficiently and permanently deactivated.\n\nYou're good at that kind of thing."
 ```
 
 Defines the p2 text text used by the d englsh subsystem.
@@ -2367,20 +2218,11 @@ Defines the p2 text text used by the d englsh subsystem.
 
 [View source](https://github.com/MiniLangProject/MiniDoom/blob/main/src/d_englsh.ml#L536)
 
-<a id="constant-constant-p3text-const-p3text-you-ve-bashed-and-battered-your-way-into-the-heart-of-the-devil-hive-time-for-a-search-and-destroy-mission-aimed-at-the-gatekeeper-whose-foul-offspring-is-cascading-to-earth-yeah-he-s-bad-but-you-know-who-s-worse-grinning-evilly-you-check-your-gear-and-get-ready-to-give-the-bastard-a-little-hell-of-your-own-making-src-d-englsh-ml-1650298103"></a>
+<a id="constant-constant-p3text-const-p3text-you-ve-bashed-and-battered-your-way-into-nthe-heart-of-the-devil-hive-time-for-a-nsearch-and-destroy-mission-aimed-at-the-ngatekeeper-whose-foul-offspring-is-ncascading-to-earth-yeah-he-s-bad-but-nyou-know-who-s-worse-n-ngrinning-evilly-you-check-your-gear-and-nget-ready-to-give-the-bastard-a-little-hell-nof-your-own-making-src-d-englsh-ml-838639201"></a>
 ### P3TEXT
 
 ```ml
-const P3TEXT = "You've bashed and battered your way into
-the heart of the devil-hive.  Time for a
-Search-and-Destroy mission, aimed at the
-Gatekeeper, whose foul offspring is
-cascading to Earth.  Yeah, he's bad. But
-you know who's worse!
-
-Grinning evilly, you check your gear, and
-get ready to give the bastard a little Hell
-of your own making!"
+const P3TEXT = "You've bashed and battered your way into\nthe heart of the devil-hive.  Time for a\nSearch-and-Destroy mission, aimed at the\nGatekeeper, whose foul offspring is\ncascading to Earth.  Yeah, he's bad. But\nyou know who's worse!\n\nGrinning evilly, you check your gear, and\nget ready to give the bastard a little Hell\nof your own making!"
 ```
 
 Defines the p3 text text used by the d englsh subsystem.
@@ -2388,22 +2230,11 @@ Defines the p3 text text used by the d englsh subsystem.
 
 [View source](https://github.com/MiniLangProject/MiniDoom/blob/main/src/d_englsh.ml#L538)
 
-<a id="constant-constant-p4text-const-p4text-the-gatekeeper-s-evil-face-is-splattered-all-over-the-place-as-its-tattered-corpse-collapses-an-inverted-gate-forms-and-sucks-down-the-shards-of-the-last-prototype-accelerator-not-to-mention-the-few-remaining-demons-you-re-done-hell-has-gone-back-to-pounding-bad-dead-folks-instead-of-good-live-ones-remember-to-tell-your-grandkids-to-put-a-rocket-launcher-in-your-coffin-if-you-go-to-hell-when-you-die-you-ll-need-it-for-some-final-cleaning-up-src-d-englsh-ml-461590001"></a>
+<a id="constant-constant-p4text-const-p4text-the-gatekeeper-s-evil-face-is-splattered-nall-over-the-place-as-its-tattered-corpse-ncollapses-an-inverted-gate-forms-and-nsucks-down-the-shards-of-the-last-nprototype-accelerator-not-to-mention-the-nfew-remaining-demons-you-re-done-hell-nhas-gone-back-to-pounding-bad-dead-folks-ninstead-of-good-live-ones-remember-to-ntell-your-grandkids-to-put-a-rocket-nlauncher-in-your-coffin-if-you-go-to-hell-nwhen-you-die-you-ll-need-it-for-some-nfinal-cleaning-up-src-d-englsh-ml-1257683131"></a>
 ### P4TEXT
 
 ```ml
-const P4TEXT = "The Gatekeeper's evil face is splattered
-all over the place.  As its tattered corpse
-collapses, an inverted Gate forms and
-sucks down the shards of the last
-prototype Accelerator, not to mention the
-few remaining demons.  You're done. Hell
-has gone back to pounding bad dead folks 
-instead of good live ones.  Remember to
-tell your grandkids to put a rocket
-launcher in your coffin. If you go to Hell
-when you die, you'll need it for some
-final cleaning-up ..."
+const P4TEXT = "The Gatekeeper's evil face is splattered\nall over the place.  As its tattered corpse\ncollapses, an inverted Gate forms and\nsucks down the shards of the last\nprototype Accelerator, not to mention the\nfew remaining demons.  You're done. Hell\nhas gone back to pounding bad dead folks \ninstead of good live ones.  Remember to\ntell your grandkids to put a rocket\nlauncher in your coffin. If you go to Hell\nwhen you die, you'll need it for some\nfinal cleaning-up ..."
 ```
 
 Defines the p4 text text used by the d englsh subsystem.
@@ -2411,14 +2242,11 @@ Defines the p4 text text used by the d englsh subsystem.
 
 [View source](https://github.com/MiniLangProject/MiniDoom/blob/main/src/d_englsh.ml#L540)
 
-<a id="constant-constant-p5text-const-p5text-you-ve-found-the-second-hardest-level-we-got-hope-you-have-a-saved-game-a-level-or-two-previous-if-not-be-prepared-to-die-aplenty-for-master-marines-only-src-d-englsh-ml-392663109"></a>
+<a id="constant-constant-p5text-const-p5text-you-ve-found-the-second-hardest-level-we-ngot-hope-you-have-a-saved-game-a-level-or-ntwo-previous-if-not-be-prepared-to-die-naplenty-for-master-marines-only-src-d-englsh-ml-1018652475"></a>
 ### P5TEXT
 
 ```ml
-const P5TEXT = "You've found the second-hardest level we
-got. Hope you have a saved game a level or
-two previous.  If not, be prepared to die
-aplenty. For master marines only."
+const P5TEXT = "You've found the second-hardest level we\ngot. Hope you have a saved game a level or\ntwo previous.  If not, be prepared to die\naplenty. For master marines only."
 ```
 
 Defines the p5 text text used by the d englsh subsystem.
@@ -2426,13 +2254,11 @@ Defines the p5 text text used by the d englsh subsystem.
 
 [View source](https://github.com/MiniLangProject/MiniDoom/blob/main/src/d_englsh.ml#L542)
 
-<a id="constant-constant-p6text-const-p6text-betcha-wondered-just-what-was-the-hardest-level-we-had-ready-for-ya-now-you-know-no-one-gets-out-alive-src-d-englsh-ml-1423818896"></a>
+<a id="constant-constant-p6text-const-p6text-betcha-wondered-just-what-was-the-hardest-nlevel-we-had-ready-for-ya-now-you-know-nno-one-gets-out-alive-src-d-englsh-ml-1131398096"></a>
 ### P6TEXT
 
 ```ml
-const P6TEXT = "Betcha wondered just what WAS the hardest
-level we had ready for ya?  Now you know.
-No one gets out alive."
+const P6TEXT = "Betcha wondered just what WAS the hardest\nlevel we had ready for ya?  Now you know.\nNo one gets out alive."
 ```
 
 Defines the p6 text text used by the d englsh subsystem.
@@ -2920,13 +2746,11 @@ Defines the pressyn text used by the d englsh subsystem.
 
 [View source](https://github.com/MiniLangProject/MiniDoom/blob/main/src/d_englsh.ml#L28)
 
-<a id="constant-constant-qloadnet-const-qloadnet-you-can-t-quickload-during-a-netgame-press-a-key-src-d-englsh-ml-836477893"></a>
+<a id="constant-constant-qloadnet-const-qloadnet-you-can-t-quickload-during-a-netgame-n-npress-a-key-src-d-englsh-ml-2050817249"></a>
 ### QLOADNET
 
 ```ml
-const QLOADNET = "you can't quickload during a netgame!
-
-press a key."
+const QLOADNET = "you can't quickload during a netgame!\n\npress a key."
 ```
 
 Defines the qloadnet text used by the d englsh subsystem.
@@ -2934,15 +2758,11 @@ Defines the qloadnet text used by the d englsh subsystem.
 
 [View source](https://github.com/MiniLangProject/MiniDoom/blob/main/src/d_englsh.ml#L34)
 
-<a id="constant-constant-qlprompt-const-qlprompt-do-you-want-to-quickload-the-game-named-s-press-y-or-n-src-d-englsh-ml-2089579453"></a>
+<a id="constant-constant-qlprompt-const-qlprompt-do-you-want-to-quickload-the-game-named-n-n-s-n-npress-y-or-n-src-d-englsh-ml-2018343545"></a>
 ### QLPROMPT
 
 ```ml
-const QLPROMPT = "do you want to quickload the game named
-
-'%s'?
-
-press y or n."
+const QLPROMPT = "do you want to quickload the game named\n\n'%s'?\n\npress y or n."
 ```
 
 Defines the qlprompt text used by the d englsh subsystem.
@@ -2950,13 +2770,11 @@ Defines the qlprompt text used by the d englsh subsystem.
 
 [View source](https://github.com/MiniLangProject/MiniDoom/blob/main/src/d_englsh.ml#L42)
 
-<a id="constant-constant-qsavespot-const-qsavespot-you-haven-t-picked-a-quicksave-slot-yet-press-a-key-src-d-englsh-ml-879695424"></a>
+<a id="constant-constant-qsavespot-const-qsavespot-you-haven-t-picked-a-quicksave-slot-yet-n-npress-a-key-src-d-englsh-ml-1371336672"></a>
 ### QSAVESPOT
 
 ```ml
-const QSAVESPOT = "you haven't picked a quicksave slot yet!
-
-press a key."
+const QSAVESPOT = "you haven't picked a quicksave slot yet!\n\npress a key."
 ```
 
 Defines the qsavespot text used by the d englsh subsystem.
@@ -2964,15 +2782,11 @@ Defines the qsavespot text used by the d englsh subsystem.
 
 [View source](https://github.com/MiniLangProject/MiniDoom/blob/main/src/d_englsh.ml#L36)
 
-<a id="constant-constant-qsprompt-const-qsprompt-quicksave-over-your-game-named-s-press-y-or-n-src-d-englsh-ml-323973015"></a>
+<a id="constant-constant-qsprompt-const-qsprompt-quicksave-over-your-game-named-n-n-s-n-npress-y-or-n-src-d-englsh-ml-2030830155"></a>
 ### QSPROMPT
 
 ```ml
-const QSPROMPT = "quicksave over your game named
-
-'%s'?
-
-press y or n."
+const QSPROMPT = "quicksave over your game named\n\n'%s'?\n\npress y or n."
 ```
 
 Defines the qsprompt text used by the d englsh subsystem.
@@ -2980,12 +2794,11 @@ Defines the qsprompt text used by the d englsh subsystem.
 
 [View source](https://github.com/MiniLangProject/MiniDoom/blob/main/src/d_englsh.ml#L40)
 
-<a id="constant-constant-quitmsg-const-quitmsg-are-you-sure-you-want-to-quit-this-great-game-src-d-englsh-ml-821192948"></a>
+<a id="constant-constant-quitmsg-const-quitmsg-are-you-sure-you-want-to-nquit-this-great-game-src-d-englsh-ml-1503775886"></a>
 ### QUITMSG
 
 ```ml
-const QUITMSG = "are you sure you want to
-quit this great game?"
+const QUITMSG = "are you sure you want to\nquit this great game?"
 ```
 
 Defines the quitmsg text used by the d englsh subsystem.
@@ -2993,13 +2806,11 @@ Defines the quitmsg text used by the d englsh subsystem.
 
 [View source](https://github.com/MiniLangProject/MiniDoom/blob/main/src/d_englsh.ml#L30)
 
-<a id="constant-constant-savedead-const-savedead-you-can-t-save-if-you-aren-t-playing-press-a-key-src-d-englsh-ml-1309221173"></a>
+<a id="constant-constant-savedead-const-savedead-you-can-t-save-if-you-aren-t-playing-n-npress-a-key-src-d-englsh-ml-1748228753"></a>
 ### SAVEDEAD
 
 ```ml
-const SAVEDEAD = "you can't save if you aren't playing!
-
-press a key."
+const SAVEDEAD = "you can't save if you aren't playing!\n\npress a key."
 ```
 
 Defines the savedead text used by the d englsh subsystem.
@@ -3151,15 +2962,11 @@ Defines the ststr nomus text used by the d englsh subsystem.
 
 [View source](https://github.com/MiniLangProject/MiniDoom/blob/main/src/d_englsh.ml#L492)
 
-<a id="constant-constant-swstring-const-swstring-this-is-the-shareware-version-of-doom-you-need-to-order-the-entire-trilogy-press-a-key-src-d-englsh-ml-899306797"></a>
+<a id="constant-constant-swstring-const-swstring-this-is-the-shareware-version-of-doom-n-nyou-need-to-order-the-entire-trilogy-n-npress-a-key-src-d-englsh-ml-40919405"></a>
 ### SWSTRING
 
 ```ml
-const SWSTRING = "this is the shareware version of doom.
-
-you need to order the entire trilogy.
-
-press a key."
+const SWSTRING = "this is the shareware version of doom.\n\nyou need to order the entire trilogy.\n\npress a key."
 ```
 
 Defines the swstring text used by the d englsh subsystem.
@@ -3167,22 +2974,11 @@ Defines the swstring text used by the d englsh subsystem.
 
 [View source](https://github.com/MiniLangProject/MiniDoom/blob/main/src/d_englsh.ml#L48)
 
-<a id="constant-constant-t1text-const-t1text-you-ve-fought-your-way-out-of-the-infested-experimental-labs-it-seems-that-uac-has-once-again-gulped-it-down-with-their-high-turnover-it-must-be-hard-for-poor-old-uac-to-buy-corporate-health-insurance-nowadays-ahead-lies-the-military-complex-now-swarming-with-diseased-horrors-hot-to-get-their-teeth-into-you-with-luck-the-complex-still-has-some-warlike-ordnance-laying-around-src-d-englsh-ml-418935174"></a>
+<a id="constant-constant-t1text-const-t1text-you-ve-fought-your-way-out-of-the-infested-nexperimental-labs-it-seems-that-uac-has-nonce-again-gulped-it-down-with-their-nhigh-turnover-it-must-be-hard-for-poor-nold-uac-to-buy-corporate-health-insurance-nnowadays-n-nahead-lies-the-military-complex-now-nswarming-with-diseased-horrors-hot-to-get-ntheir-teeth-into-you-with-luck-the-ncomplex-still-has-some-warlike-ordnance-nlaying-around-src-d-englsh-ml-233884674"></a>
 ### T1TEXT
 
 ```ml
-const T1TEXT = "You've fought your way out of the infested
-experimental labs.   It seems that UAC has
-once again gulped it down.  With their
-high turnover, it must be hard for poor
-old UAC to buy corporate health insurance
-nowadays..
-
-Ahead lies the military complex, now
-swarming with diseased horrors hot to get
-their teeth into you. With luck, the
-complex still has some warlike ordnance
-laying around."
+const T1TEXT = "You've fought your way out of the infested\nexperimental labs.   It seems that UAC has\nonce again gulped it down.  With their\nhigh turnover, it must be hard for poor\nold UAC to buy corporate health insurance\nnowadays..\n\nAhead lies the military complex, now\nswarming with diseased horrors hot to get\ntheir teeth into you. With luck, the\ncomplex still has some warlike ordnance\nlaying around."
 ```
 
 Defines the t1 text text used by the d englsh subsystem.
@@ -3190,19 +2986,11 @@ Defines the t1 text text used by the d englsh subsystem.
 
 [View source](https://github.com/MiniLangProject/MiniDoom/blob/main/src/d_englsh.ml#L546)
 
-<a id="constant-constant-t2text-const-t2text-you-hear-the-grinding-of-heavy-machinery-ahead-you-sure-hope-they-re-not-stamping-out-new-hellspawn-but-you-re-ready-to-ream-out-a-whole-herd-if-you-have-to-they-might-be-planning-a-blood-feast-but-you-feel-about-as-mean-as-two-thousand-maniacs-packed-into-one-mad-killer-you-don-t-plan-to-go-down-easy-src-d-englsh-ml-1918612344"></a>
+<a id="constant-constant-t2text-const-t2text-you-hear-the-grinding-of-heavy-machinery-nahead-you-sure-hope-they-re-not-stamping-nout-new-hellspawn-but-you-re-ready-to-nream-out-a-whole-herd-if-you-have-to-nthey-might-be-planning-a-blood-feast-but-nyou-feel-about-as-mean-as-two-thousand-nmaniacs-packed-into-one-mad-killer-n-nyou-don-t-plan-to-go-down-easy-src-d-englsh-ml-500223506"></a>
 ### T2TEXT
 
 ```ml
-const T2TEXT = "You hear the grinding of heavy machinery
-ahead.  You sure hope they're not stamping
-out new hellspawn, but you're ready to
-ream out a whole herd if you have to.
-They might be planning a blood feast, but
-you feel about as mean as two thousand
-maniacs packed into one mad killer.
-
-You don't plan to go down easy."
+const T2TEXT = "You hear the grinding of heavy machinery\nahead.  You sure hope they're not stamping\nout new hellspawn, but you're ready to\nream out a whole herd if you have to.\nThey might be planning a blood feast, but\nyou feel about as mean as two thousand\nmaniacs packed into one mad killer.\n\nYou don't plan to go down easy."
 ```
 
 Defines the t2 text text used by the d englsh subsystem.
@@ -3210,18 +2998,11 @@ Defines the t2 text text used by the d englsh subsystem.
 
 [View source](https://github.com/MiniLangProject/MiniDoom/blob/main/src/d_englsh.ml#L548)
 
-<a id="constant-constant-t3text-const-t3text-the-vista-opening-ahead-looks-real-damn-familiar-smells-familiar-too-like-fried-excrement-you-didn-t-like-this-place-before-and-you-sure-as-hell-ain-t-planning-to-like-it-now-the-more-you-brood-on-it-the-madder-you-get-hefting-your-gun-an-evil-grin-trickles-onto-your-face-time-to-take-some-names-src-d-englsh-ml-441066534"></a>
+<a id="constant-constant-t3text-const-t3text-the-vista-opening-ahead-looks-real-damn-nfamiliar-smells-familiar-too-like-nfried-excrement-you-didn-t-like-this-nplace-before-and-you-sure-as-hell-ain-t-nplanning-to-like-it-now-the-more-you-nbrood-on-it-the-madder-you-get-nhefting-your-gun-an-evil-grin-trickles-nonto-your-face-time-to-take-some-names-src-d-englsh-ml-906308094"></a>
 ### T3TEXT
 
 ```ml
-const T3TEXT = "The vista opening ahead looks real damn
-familiar. Smells familiar, too -- like
-fried excrement. You didn't like this
-place before, and you sure as hell ain't
-planning to like it now. The more you
-brood on it, the madder you get.
-Hefting your gun, an evil grin trickles
-onto your face. Time to take some names."
+const T3TEXT = "The vista opening ahead looks real damn\nfamiliar. Smells familiar, too -- like\nfried excrement. You didn't like this\nplace before, and you sure as hell ain't\nplanning to like it now. The more you\nbrood on it, the madder you get.\nHefting your gun, an evil grin trickles\nonto your face. Time to take some names."
 ```
 
 Defines the t3 text text used by the d englsh subsystem.
@@ -3229,21 +3010,11 @@ Defines the t3 text text used by the d englsh subsystem.
 
 [View source](https://github.com/MiniLangProject/MiniDoom/blob/main/src/d_englsh.ml#L550)
 
-<a id="constant-constant-t4text-const-t4text-suddenly-all-is-silent-from-one-horizon-to-the-other-the-agonizing-echo-of-hell-fades-away-the-nightmare-sky-turns-to-blue-the-heaps-of-monster-corpses-start-to-evaporate-along-with-the-evil-stench-that-filled-the-air-jeeze-maybe-you-ve-done-it-have-you-really-won-something-rumbles-in-the-distance-a-blue-light-begins-to-glow-inside-the-ruined-skull-of-the-demon-spitter-src-d-englsh-ml-177686768"></a>
+<a id="constant-constant-t4text-const-t4text-suddenly-all-is-silent-from-one-horizon-nto-the-other-the-agonizing-echo-of-hell-nfades-away-the-nightmare-sky-turns-to-nblue-the-heaps-of-monster-corpses-start-nto-evaporate-along-with-the-evil-stench-nthat-filled-the-air-jeeze-maybe-you-ve-ndone-it-have-you-really-won-n-nsomething-rumbles-in-the-distance-na-blue-light-begins-to-glow-inside-the-nruined-skull-of-the-demon-spitter-src-d-englsh-ml-318947172"></a>
 ### T4TEXT
 
 ```ml
-const T4TEXT = "Suddenly, all is silent, from one horizon
-to the other. The agonizing echo of Hell
-fades away, the nightmare sky turns to
-blue, the heaps of monster corpses start 
-to evaporate along with the evil stench 
-that filled the air. Jeeze, maybe you've
-done it. Have you really won?
-
-Something rumbles in the distance.
-A blue light begins to glow inside the
-ruined skull of the demon-spitter."
+const T4TEXT = "Suddenly, all is silent, from one horizon\nto the other. The agonizing echo of Hell\nfades away, the nightmare sky turns to\nblue, the heaps of monster corpses start \nto evaporate along with the evil stench \nthat filled the air. Jeeze, maybe you've\ndone it. Have you really won?\n\nSomething rumbles in the distance.\nA blue light begins to glow inside the\nruined skull of the demon-spitter."
 ```
 
 Defines the t4 text text used by the d englsh subsystem.
@@ -3251,15 +3022,11 @@ Defines the t4 text text used by the d englsh subsystem.
 
 [View source](https://github.com/MiniLangProject/MiniDoom/blob/main/src/d_englsh.ml#L552)
 
-<a id="constant-constant-t5text-const-t5text-what-now-looks-totally-different-kind-of-like-king-tut-s-condo-well-whatever-s-here-can-t-be-any-worse-than-usual-can-it-or-maybe-it-s-best-to-let-sleeping-gods-lie-src-d-englsh-ml-1323557568"></a>
+<a id="constant-constant-t5text-const-t5text-what-now-looks-totally-different-kind-nof-like-king-tut-s-condo-well-nwhatever-s-here-can-t-be-any-worse-nthan-usual-can-it-or-maybe-it-s-best-nto-let-sleeping-gods-lie-src-d-englsh-ml-50001640"></a>
 ### T5TEXT
 
 ```ml
-const T5TEXT = "What now? Looks totally different. Kind
-of like King Tut's condo. Well,
-whatever's here can't be any worse
-than usual. Can it?  Or maybe it's best
-to let sleeping gods lie.."
+const T5TEXT = "What now? Looks totally different. Kind\nof like King Tut's condo. Well,\nwhatever's here can't be any worse\nthan usual. Can it?  Or maybe it's best\nto let sleeping gods lie.."
 ```
 
 Defines the t5 text text used by the d englsh subsystem.
@@ -3267,20 +3034,11 @@ Defines the t5 text text used by the d englsh subsystem.
 
 [View source](https://github.com/MiniLangProject/MiniDoom/blob/main/src/d_englsh.ml#L554)
 
-<a id="constant-constant-t6text-const-t6text-time-for-a-vacation-you-ve-burst-the-bowels-of-hell-and-by-golly-you-re-ready-for-a-break-you-mutter-to-yourself-maybe-someone-else-can-kick-hell-s-ass-next-time-around-ahead-lies-a-quiet-town-with-peaceful-flowing-water-quaint-buildings-and-presumably-no-hellspawn-as-you-step-off-the-transport-you-hear-the-stomp-of-a-cyberdemon-s-iron-shoe-src-d-englsh-ml-1873904087"></a>
+<a id="constant-constant-t6text-const-t6text-time-for-a-vacation-you-ve-burst-the-nbowels-of-hell-and-by-golly-you-re-ready-nfor-a-break-you-mutter-to-yourself-nmaybe-someone-else-can-kick-hell-s-ass-nnext-time-around-ahead-lies-a-quiet-town-nwith-peaceful-flowing-water-quaint-nbuildings-and-presumably-no-hellspawn-n-nas-you-step-off-the-transport-you-hear-nthe-stomp-of-a-cyberdemon-s-iron-shoe-src-d-englsh-ml-1385886495"></a>
 ### T6TEXT
 
 ```ml
-const T6TEXT = "Time for a vacation. You've burst the
-bowels of hell and by golly you're ready
-for a break. You mutter to yourself,
-Maybe someone else can kick Hell's ass
-next time around. Ahead lies a quiet town,
-with peaceful flowing water, quaint
-buildings, and presumably no Hellspawn.
-
-As you step off the transport, you hear
-the stomp of a cyberdemon's iron shoe."
+const T6TEXT = "Time for a vacation. You've burst the\nbowels of hell and by golly you're ready\nfor a break. You mutter to yourself,\nMaybe someone else can kick Hell's ass\nnext time around. Ahead lies a quiet town,\nwith peaceful flowing water, quaint\nbuildings, and presumably no Hellspawn.\n\nAs you step off the transport, you hear\nthe stomp of a cyberdemon's iron shoe."
 ```
 
 Defines the t6 text text used by the d englsh subsystem.

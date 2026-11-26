@@ -195,11 +195,11 @@ Saves one already clipped volatile flat leaf for fast per-frame drawing.
 
 [View source](https://github.com/MiniLangProject/MiniDoom/blob/main/src/r_gl.ml#L5294)
 
-<a id="constant-constant-rgl-angle-full-const-rgl-angle-full-4294967296-src-r-gl-ml-1245714333"></a>
+<a id="constant-constant-rgl-angle-full-const-rgl-angle-full-4294967296-src-r-gl-ml-2975193"></a>
 ### RGL_ANGLE_FULL
 
 ```ml
-const RGL_ANGLE_FULL = 4294967296.
+const RGL_ANGLE_FULL = 4294967296
 ```
 
 Defines rgl angle full for the r gl subsystem.
@@ -589,11 +589,11 @@ Returns a keyed GL texture or uploads indexed asset pixels once with requested a
 
 [View source](https://github.com/MiniLangProject/MiniDoom/blob/main/src/r_gl.ml#L3068)
 
-<a id="constant-constant-rgl-camera-back-offset-const-rgl-camera-back-offset-0-src-r-gl-ml-1452417777"></a>
+<a id="constant-constant-rgl-camera-back-offset-const-rgl-camera-back-offset-0-src-r-gl-ml-284993757"></a>
 ### RGL_CAMERA_BACK_OFFSET
 
 ```ml
-const RGL_CAMERA_BACK_OFFSET = 0.
+const RGL_CAMERA_BACK_OFFSET = 0
 ```
 
 Defines rgl camera back offset for the r gl subsystem.
@@ -2382,11 +2382,11 @@ Tracks the mutable rgl flat native texture revision value used by the r gl subsy
 
 [View source](https://github.com/MiniLangProject/MiniDoom/blob/main/src/r_gl.ml#L258)
 
-<a id="constant-constant-rgl-flat-spatial-batch-cell-const-rgl-flat-spatial-batch-cell-4096-src-r-gl-ml-360468538"></a>
+<a id="constant-constant-rgl-flat-spatial-batch-cell-const-rgl-flat-spatial-batch-cell-4096-src-r-gl-ml-806867036"></a>
 ### RGL_FLAT_SPATIAL_BATCH_CELL
 
 ```ml
-const RGL_FLAT_SPATIAL_BATCH_CELL = 4096.
+const RGL_FLAT_SPATIAL_BATCH_CELL = 4096
 ```
 
 Defines rgl flat spatial batch cell for the r gl subsystem.
@@ -2532,11 +2532,11 @@ Stores the rgl frame mobjs collection used by the r gl subsystem.
 
 [View source](https://github.com/MiniLangProject/MiniDoom/blob/main/src/r_gl.ml#L290)
 
-<a id="constant-constant-rgl-geom-fix-scale-const-rgl-geom-fix-scale-65536-src-r-gl-ml-853727598"></a>
+<a id="constant-constant-rgl-geom-fix-scale-const-rgl-geom-fix-scale-65536-src-r-gl-ml-1200525360"></a>
 ### RGL_GEOM_FIX_SCALE
 
 ```ml
-const RGL_GEOM_FIX_SCALE = 65536.
+const RGL_GEOM_FIX_SCALE = 65536
 ```
 
 Defines rgl geom fix scale for the r gl subsystem.
@@ -4168,11 +4168,11 @@ Orders static batch groups by numeric key so texture binds stay clustered.
 
 [View source](https://github.com/MiniLangProject/MiniDoom/blob/main/src/r_gl.ml#L608)
 
-<a id="constant-constant-rgl-spatial-batch-cell-const-rgl-spatial-batch-cell-1024-src-r-gl-ml-1344893320"></a>
+<a id="constant-constant-rgl-spatial-batch-cell-const-rgl-spatial-batch-cell-1024-src-r-gl-ml-1614279266"></a>
 ### RGL_SPATIAL_BATCH_CELL
 
 ```ml
-const RGL_SPATIAL_BATCH_CELL = 1024.
+const RGL_SPATIAL_BATCH_CELL = 1024
 ```
 
 Defines rgl spatial batch cell for the r gl subsystem.
@@ -4180,11 +4180,11 @@ Defines rgl spatial batch cell for the r gl subsystem.
 
 [View source](https://github.com/MiniLangProject/MiniDoom/blob/main/src/r_gl.ml#L319)
 
-<a id="constant-constant-rgl-spatial-batch-origin-const-rgl-spatial-batch-origin-32768-src-r-gl-ml-2137470579"></a>
+<a id="constant-constant-rgl-spatial-batch-origin-const-rgl-spatial-batch-origin-32768-src-r-gl-ml-2124065287"></a>
 ### RGL_SPATIAL_BATCH_ORIGIN
 
 ```ml
-const RGL_SPATIAL_BATCH_ORIGIN = 32768.
+const RGL_SPATIAL_BATCH_ORIGIN = 32768
 ```
 
 Defines rgl spatial batch origin for the r gl subsystem.
@@ -5300,11 +5300,11 @@ Builds a combined texture and spatial key for static wall batching.
 
 [View source](https://github.com/MiniLangProject/MiniDoom/blob/main/src/r_gl.ml#L589)
 
-<a id="constant-constant-rgl-world-sprite-foot-lift-const-rgl-world-sprite-foot-lift-4-src-r-gl-ml-2120314361"></a>
+<a id="constant-constant-rgl-world-sprite-foot-lift-const-rgl-world-sprite-foot-lift-4-src-r-gl-ml-1319002149"></a>
 ### RGL_WORLD_SPRITE_FOOT_LIFT
 
 ```ml
-const RGL_WORLD_SPRITE_FOOT_LIFT = 4.
+const RGL_WORLD_SPRITE_FOOT_LIFT = 4
 ```
 
 Defines rgl world sprite foot lift for the r gl subsystem.
@@ -5312,11 +5312,11 @@ Defines rgl world sprite foot lift for the r gl subsystem.
 
 [View source](https://github.com/MiniLangProject/MiniDoom/blob/main/src/r_gl.ml#L42)
 
-<a id="constant-constant-rgl-world-view-distance-const-rgl-world-view-distance-12288-src-r-gl-ml-1417550196"></a>
+<a id="constant-constant-rgl-world-view-distance-const-rgl-world-view-distance-12288-src-r-gl-ml-1434281934"></a>
 ### RGL_WORLD_VIEW_DISTANCE
 
 ```ml
-const RGL_WORLD_VIEW_DISTANCE = 12288.
+const RGL_WORLD_VIEW_DISTANCE = 12288
 ```
 
 Keeps MAP32's roughly 7000-unit sightlines inside both the GL frustum and sprite culler with safe margin. Defines rgl world view distance for the r gl subsystem.

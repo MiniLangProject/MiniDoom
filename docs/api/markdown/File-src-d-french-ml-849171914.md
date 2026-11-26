@@ -82,22 +82,11 @@ Defines the amstr markscleared text used by the d french subsystem.
 
 [View source](https://github.com/MiniLangProject/MiniDoom/blob/main/src/d_french.ml#L342)
 
-<a id="constant-constant-c1text-const-c1text-vous-etes-au-plus-profond-de-l-astroport-infeste-de-monstres-mais-quelque-chose-ne-va-pas-ils-ont-apporte-leur-propre-realite-et-la-technologie-de-l-astroport-est-affectee-par-leur-presence-devant-vous-vous-voyez-un-poste-avance-de-l-enfer-une-zone-fortifiee-si-vous-pouvez-passer-vous-pourrez-penetrer-au-coeur-de-la-base-hantee-et-trouver-l-interrupteur-de-controle-qui-garde-la-population-de-la-terre-en-otage-src-d-french-ml-1778876201"></a>
+<a id="constant-constant-c1text-const-c1text-vous-etes-au-plus-profond-de-l-astroport-ninfeste-de-monstres-mais-quelque-chose-nne-va-pas-ils-ont-apporte-leur-propre-nrealite-et-la-technologie-de-l-astroport-nest-affectee-par-leur-presence-n-ndevant-vous-vous-voyez-un-poste-avance-nde-l-enfer-une-zone-fortifiee-si-vous-npouvez-passer-vous-pourrez-penetrer-au-ncoeur-de-la-base-hantee-et-trouver-nl-interrupteur-de-controle-qui-garde-la-npopulation-de-la-terre-en-otage-src-d-french-ml-230700199"></a>
 ### C1TEXT
 
 ```ml
-const C1TEXT = "VOUS ETES AU PLUS PROFOND DE L'ASTROPORT
-INFESTE DE MONSTRES, MAIS QUELQUE CHOSE
-NE VA PAS. ILS ONT APPORTE LEUR PROPRE
-REALITE, ET LA TECHNOLOGIE DE L'ASTROPORT
-EST AFFECTEE PAR LEUR PRESENCE.
-
-DEVANT VOUS, VOUS VOYEZ UN POSTE AVANCE
-DE L'ENFER, UNE ZONE FORTIFIEE. SI VOUS
-POUVEZ PASSER, VOUS POURREZ PENETRER AU
-COEUR DE LA BASE HANTEE ET TROUVER 
-L'INTERRUPTEUR DE CONTROLE QUI GARDE LA 
-POPULATION DE LA TERRE EN OTAGE."
+const C1TEXT = "VOUS ETES AU PLUS PROFOND DE L'ASTROPORT\nINFESTE DE MONSTRES, MAIS QUELQUE CHOSE\nNE VA PAS. ILS ONT APPORTE LEUR PROPRE\nREALITE, ET LA TECHNOLOGIE DE L'ASTROPORT\nEST AFFECTEE PAR LEUR PRESENCE.\n\nDEVANT VOUS, VOUS VOYEZ UN POSTE AVANCE\nDE L'ENFER, UNE ZONE FORTIFIEE. SI VOUS\nPOUVEZ PASSER, VOUS POURREZ PENETRER AU\nCOEUR DE LA BASE HANTEE ET TROUVER \nL'INTERRUPTEUR DE CONTROLE QUI GARDE LA \nPOPULATION DE LA TERRE EN OTAGE."
 ```
 
 Defines the c1 text text used by the d french subsystem.
@@ -105,27 +94,11 @@ Defines the c1 text text used by the d french subsystem.
 
 [View source](https://github.com/MiniLangProject/MiniDoom/blob/main/src/d_french.ml#L374)
 
-<a id="constant-constant-c2text-const-c2text-vous-avez-gagne-votre-victoire-a-permis-a-l-humanite-d-evacuer-la-terre-et-d-echapper-au-cauchemar-vous-etes-maintenant-le-dernier-humain-a-la-surface-de-la-planete-vous-etes-entoure-de-mutants-cannibales-d-extraterrestres-carnivores-et-d-esprits-du-mal-vous-attendez-calmement-la-mort-heureux-d-avoir-pu-sauver-votre-race-mais-un-message-vous-parvient-soudain-de-l-espace-nos-capteurs-ont-localise-la-source-de-l-invasion-extraterrestre-si-vous-y-allez-vous-pourrez-peut-etre-les-arreter-leur-base-est-situee-au-coeur-de-votre-ville-natale-pres-de-l-astroport-vous-vous-relevez-lentement-et-peniblement-et-vous-repartez-pour-le-front-src-d-french-ml-1038681320"></a>
+<a id="constant-constant-c2text-const-c2text-vous-avez-gagne-votre-victoire-a-permis-na-l-humanite-d-evacuer-la-terre-et-nd-echapper-au-cauchemar-vous-etes-nmaintenant-le-dernier-humain-a-la-surface-nde-la-planete-vous-etes-entoure-de-nmutants-cannibales-d-extraterrestres-ncarnivores-et-d-esprits-du-mal-vous-nattendez-calmement-la-mort-heureux-nd-avoir-pu-sauver-votre-race-nmais-un-message-vous-parvient-soudain-nde-l-espace-nos-capteurs-ont-localise-nla-source-de-l-invasion-extraterrestre-nsi-vous-y-allez-vous-pourrez-peut-etre-nles-arreter-leur-base-est-situee-au-coeur-nde-votre-ville-natale-pres-de-l-astroport-nvous-vous-relevez-lentement-et-peniblement-net-vous-repartez-pour-le-front-src-d-french-ml-911941058"></a>
 ### C2TEXT
 
 ```ml
-const C2TEXT = "VOUS AVEZ GAGNE! VOTRE VICTOIRE A PERMIS
-A L'HUMANITE D'EVACUER LA TERRE ET 
-D'ECHAPPER AU CAUCHEMAR. VOUS ETES 
-MAINTENANT LE DERNIER HUMAIN A LA SURFACE 
-DE LA PLANETE. VOUS ETES ENTOURE DE 
-MUTANTS CANNIBALES, D'EXTRATERRESTRES 
-CARNIVORES ET D'ESPRITS DU MAL. VOUS 
-ATTENDEZ CALMEMENT LA MORT, HEUREUX 
-D'AVOIR PU SAUVER VOTRE RACE.
-MAIS UN MESSAGE VOUS PARVIENT SOUDAIN
-DE L'ESPACE: \"NOS CAPTEURS ONT LOCALISE
-LA SOURCE DE L'INVASION EXTRATERRESTRE.
-SI VOUS Y ALLEZ, VOUS POURREZ PEUT-ETRE
-LES ARRETER. LEUR BASE EST SITUEE AU COEUR
-DE VOTRE VILLE NATALE, PRES DE L'ASTROPORT.
-VOUS VOUS RELEVEZ LENTEMENT ET PENIBLEMENT
-ET VOUS REPARTEZ POUR LE FRONT."
+const C2TEXT = "VOUS AVEZ GAGNE! VOTRE VICTOIRE A PERMIS\nA L'HUMANITE D'EVACUER LA TERRE ET \nD'ECHAPPER AU CAUCHEMAR. VOUS ETES \nMAINTENANT LE DERNIER HUMAIN A LA SURFACE \nDE LA PLANETE. VOUS ETES ENTOURE DE \nMUTANTS CANNIBALES, D'EXTRATERRESTRES \nCARNIVORES ET D'ESPRITS DU MAL. VOUS \nATTENDEZ CALMEMENT LA MORT, HEUREUX \nD'AVOIR PU SAUVER VOTRE RACE.\nMAIS UN MESSAGE VOUS PARVIENT SOUDAIN\nDE L'ESPACE: \"NOS CAPTEURS ONT LOCALISE\nLA SOURCE DE L'INVASION EXTRATERRESTRE.\nSI VOUS Y ALLEZ, VOUS POURREZ PEUT-ETRE\nLES ARRETER. LEUR BASE EST SITUEE AU COEUR\nDE VOTRE VILLE NATALE, PRES DE L'ASTROPORT.\nVOUS VOUS RELEVEZ LENTEMENT ET PENIBLEMENT\nET VOUS REPARTEZ POUR LE FRONT."
 ```
 
 Defines the c2 text text used by the d french subsystem.
@@ -133,19 +106,11 @@ Defines the c2 text text used by the d french subsystem.
 
 [View source](https://github.com/MiniLangProject/MiniDoom/blob/main/src/d_french.ml#L376)
 
-<a id="constant-constant-c3text-const-c3text-vous-etes-au-coeur-de-la-cite-corrompue-entoure-par-les-cadavres-de-vos-ennemis-vous-ne-voyez-pas-comment-detruire-la-porte-des-creatures-de-ce-cote-vous-serrez-les-dents-et-plongez-dans-l-ouverture-il-doit-y-avoir-un-moyen-de-la-fermer-de-l-autre-cote-vous-acceptez-de-traverser-l-enfer-pour-le-faire-src-d-french-ml-594394536"></a>
+<a id="constant-constant-c3text-const-c3text-vous-etes-au-coeur-de-la-cite-corrompue-nentoure-par-les-cadavres-de-vos-ennemis-nvous-ne-voyez-pas-comment-detruire-la-porte-ndes-creatures-de-ce-cote-vous-serrez-nles-dents-et-plongez-dans-l-ouverture-n-nil-doit-y-avoir-un-moyen-de-la-fermer-nde-l-autre-cote-vous-acceptez-de-ntraverser-l-enfer-pour-le-faire-src-d-french-ml-199173310"></a>
 ### C3TEXT
 
 ```ml
-const C3TEXT = "VOUS ETES AU COEUR DE LA CITE CORROMPUE,
-ENTOURE PAR LES CADAVRES DE VOS ENNEMIS.
-VOUS NE VOYEZ PAS COMMENT DETRUIRE LA PORTE
-DES CREATURES DE CE COTE. VOUS SERREZ
-LES DENTS ET PLONGEZ DANS L'OUVERTURE.
-
-IL DOIT Y AVOIR UN MOYEN DE LA FERMER
-DE L'AUTRE COTE. VOUS ACCEPTEZ DE
-TRAVERSER L'ENFER POUR LE FAIRE?"
+const C3TEXT = "VOUS ETES AU COEUR DE LA CITE CORROMPUE,\nENTOURE PAR LES CADAVRES DE VOS ENNEMIS.\nVOUS NE VOYEZ PAS COMMENT DETRUIRE LA PORTE\nDES CREATURES DE CE COTE. VOUS SERREZ\nLES DENTS ET PLONGEZ DANS L'OUVERTURE.\n\nIL DOIT Y AVOIR UN MOYEN DE LA FERMER\nDE L'AUTRE COTE. VOUS ACCEPTEZ DE\nTRAVERSER L'ENFER POUR LE FAIRE?"
 ```
 
 Defines the c3 text text used by the d french subsystem.
@@ -153,26 +118,11 @@ Defines the c3 text text used by the d french subsystem.
 
 [View source](https://github.com/MiniLangProject/MiniDoom/blob/main/src/d_french.ml#L378)
 
-<a id="constant-constant-c4text-const-c4text-le-visage-horrible-d-un-demon-d-une-taille-incroyable-s-effondre-devant-vous-lorsque-vous-tirez-une-salve-de-roquettes-dans-son-cerveau-le-monstre-se-ratatine-ses-membres-dechiquetes-se-repandant-sur-des-centaines-de-kilometres-a-la-surface-de-l-enfer-vous-avez-reussi-l-invasion-n-aura-pas-lieu-la-terre-est-sauvee-l-enfer-est-aneanti-en-vous-demandant-ou-iront-maintenant-les-damnes-vous-essuyez-votre-front-couvert-de-sueur-et-repartez-vers-la-terre-sa-reconstruction-sera-beaucoup-plus-drole-que-sa-destruction-src-d-french-ml-1950689357"></a>
+<a id="constant-constant-c4text-const-c4text-le-visage-horrible-d-un-demon-d-une-ntaille-incroyable-s-effondre-devant-nvous-lorsque-vous-tirez-une-salve-de-nroquettes-dans-son-cerveau-le-monstre-nse-ratatine-ses-membres-dechiquetes-nse-repandant-sur-des-centaines-de-nkilometres-a-la-surface-de-l-enfer-n-nvous-avez-reussi-l-invasion-n-aura-npas-lieu-la-terre-est-sauvee-l-enfer-nest-aneanti-en-vous-demandant-ou-iront-nmaintenant-les-damnes-vous-essuyez-nvotre-front-couvert-de-sueur-et-repartez-nvers-la-terre-sa-reconstruction-sera-nbeaucoup-plus-drole-que-sa-destruction-n-src-d-french-ml-538041405"></a>
 ### C4TEXT
 
 ```ml
-const C4TEXT = "LE VISAGE HORRIBLE D'UN DEMON D'UNE
-TAILLE INCROYABLE S'EFFONDRE DEVANT
-VOUS LORSQUE VOUS TIREZ UNE SALVE DE
-ROQUETTES DANS SON CERVEAU. LE MONSTRE
-SE RATATINE, SES MEMBRES DECHIQUETES
-SE REPANDANT SUR DES CENTAINES DE
-KILOMETRES A LA SURFACE DE L'ENFER.
-
-VOUS AVEZ REUSSI. L'INVASION N'AURA.
-PAS LIEU. LA TERRE EST SAUVEE. L'ENFER
-EST ANEANTI. EN VOUS DEMANDANT OU IRONT
-MAINTENANT LES DAMNES, VOUS ESSUYEZ
-VOTRE FRONT COUVERT DE SUEUR ET REPARTEZ
-VERS LA TERRE. SA RECONSTRUCTION SERA
-BEAUCOUP PLUS DROLE QUE SA DESTRUCTION.
-"
+const C4TEXT = "LE VISAGE HORRIBLE D'UN DEMON D'UNE\nTAILLE INCROYABLE S'EFFONDRE DEVANT\nVOUS LORSQUE VOUS TIREZ UNE SALVE DE\nROQUETTES DANS SON CERVEAU. LE MONSTRE\nSE RATATINE, SES MEMBRES DECHIQUETES\nSE REPANDANT SUR DES CENTAINES DE\nKILOMETRES A LA SURFACE DE L'ENFER.\n\nVOUS AVEZ REUSSI. L'INVASION N'AURA.\nPAS LIEU. LA TERRE EST SAUVEE. L'ENFER\nEST ANEANTI. EN VOUS DEMANDANT OU IRONT\nMAINTENANT LES DAMNES, VOUS ESSUYEZ\nVOTRE FRONT COUVERT DE SUEUR ET REPARTEZ\nVERS LA TERRE. SA RECONSTRUCTION SERA\nBEAUCOUP PLUS DROLE QUE SA DESTRUCTION.\n"
 ```
 
 Defines the c4 text text used by the d french subsystem.
@@ -180,15 +130,11 @@ Defines the c4 text text used by the d french subsystem.
 
 [View source](https://github.com/MiniLangProject/MiniDoom/blob/main/src/d_french.ml#L380)
 
-<a id="constant-constant-c5text-const-c5text-felicitations-vous-avez-trouve-le-niveau-secret-il-semble-avoir-ete-construit-par-les-humains-vous-vous-demandez-quels-peuvent-etre-les-habitants-de-ce-coin-perdu-de-l-enfer-src-d-french-ml-1681565603"></a>
+<a id="constant-constant-c5text-const-c5text-felicitations-vous-avez-trouve-le-nniveau-secret-il-semble-avoir-ete-nconstruit-par-les-humains-vous-vous-ndemandez-quels-peuvent-etre-les-nhabitants-de-ce-coin-perdu-de-l-enfer-src-d-french-ml-182005159"></a>
 ### C5TEXT
 
 ```ml
-const C5TEXT = "FELICITATIONS! VOUS AVEZ TROUVE LE
-NIVEAU SECRET! IL SEMBLE AVOIR ETE
-CONSTRUIT PAR LES HUMAINS. VOUS VOUS
-DEMANDEZ QUELS PEUVENT ETRE LES
-HABITANTS DE CE COIN PERDU DE L'ENFER."
+const C5TEXT = "FELICITATIONS! VOUS AVEZ TROUVE LE\nNIVEAU SECRET! IL SEMBLE AVOIR ETE\nCONSTRUIT PAR LES HUMAINS. VOUS VOUS\nDEMANDEZ QUELS PEUVENT ETRE LES\nHABITANTS DE CE COIN PERDU DE L'ENFER."
 ```
 
 Defines the c5 text text used by the d french subsystem.
@@ -196,14 +142,11 @@ Defines the c5 text text used by the d french subsystem.
 
 [View source](https://github.com/MiniLangProject/MiniDoom/blob/main/src/d_french.ml#L382)
 
-<a id="constant-constant-c6text-const-c6text-felicitations-vous-avez-decouvert-le-niveau-super-secret-vous-feriez-mieux-de-foncer-dans-celui-la-src-d-french-ml-2009874759"></a>
+<a id="constant-constant-c6text-const-c6text-felicitations-vous-avez-decouvert-nle-niveau-super-secret-vous-feriez-nmieux-de-foncer-dans-celui-la-n-src-d-french-ml-2093692845"></a>
 ### C6TEXT
 
 ```ml
-const C6TEXT = "FELICITATIONS! VOUS AVEZ DECOUVERT
-LE NIVEAU SUPER SECRET! VOUS FERIEZ
-MIEUX DE FONCER DANS CELUI-LA!
-"
+const C6TEXT = "FELICITATIONS! VOUS AVEZ DECOUVERT\nLE NIVEAU SUPER SECRET! VOUS FERIEZ\nMIEUX DE FONCER DANS CELUI-LA!\n"
 ```
 
 Defines the c6 text text used by the d french subsystem.
@@ -415,12 +358,11 @@ Defines the cc zombie text used by the d french subsystem.
 
 [View source](https://github.com/MiniLangProject/MiniDoom/blob/main/src/d_french.ml#L386)
 
-<a id="constant-constant-d-cdrom-const-d-cdrom-version-cd-rom-default-cfg-dans-c-doomdata-src-d-french-ml-1231462769"></a>
+<a id="constant-constant-d-cdrom-const-d-cdrom-version-cd-rom-default-cfg-dans-c-doomdata-n-src-d-french-ml-1241566893"></a>
 ### D_CDROM
 
 ```ml
-const D_CDROM = "VERSION CD-ROM: DEFAULT.CFG DANS C:\\DOOMDATA
-"
+const D_CDROM = "VERSION CD-ROM: DEFAULT.CFG DANS C:\\DOOMDATA\n"
 ```
 
 Defines the d cdrom text used by the d french subsystem.
@@ -428,12 +370,11 @@ Defines the d cdrom text used by the d french subsystem.
 
 [View source](https://github.com/MiniLangProject/MiniDoom/blob/main/src/d_french.ml#L24)
 
-<a id="constant-constant-d-devstr-const-d-devstr-mode-developpement-on-src-d-french-ml-417935924"></a>
+<a id="constant-constant-d-devstr-const-d-devstr-mode-developpement-on-n-src-d-french-ml-474691814"></a>
 ### D_DEVSTR
 
 ```ml
-const D_DEVSTR = "MODE DEVELOPPEMENT ON.
-"
+const D_DEVSTR = "MODE DEVELOPPEMENT ON.\n"
 ```
 
 Defines the d devstr text used by the d french subsystem.
@@ -477,25 +418,11 @@ Defines the dosy text used by the d french subsystem.
 
 [View source](https://github.com/MiniLangProject/MiniDoom/blob/main/src/d_french.ml#L58)
 
-<a id="constant-constant-e1text-const-e1text-apres-avoir-vaincu-les-gros-mechants-et-nettoye-la-base-lunaire-vous-avez-gagne-non-pas-vrai-ou-est-donc-votre-recompense-et-votre-billet-de-retour-qu-est-que-ca-veut-dire-cen-est-pas-la-fin-esperee-ca-sent-la-viande-putrefiee-mais-on-dirait-la-base-deimos-vous-etes-apparemment-bloque-aux-portes-de-l-enfer-la-seule-issue-est-de-l-autre-cote-pour-vivre-la-suite-de-doom-jouez-a-aux-portes-de-l-enfer-et-a-l-episode-suivant-l-enfer-src-d-french-ml-242231546"></a>
+<a id="constant-constant-e1text-const-e1text-apres-avoir-vaincu-les-gros-mechants-net-nettoye-la-base-lunaire-vous-avez-ngagne-non-pas-vrai-ou-est-donc-votre-n-recompense-et-votre-billet-de-nretour-qu-est-que-ca-veut-dire-cen-est-pas-la-fin-esperee-n-nca-sent-la-viande-putrefiee-mais-non-dirait-la-base-deimos-vous-etes-napparemment-bloque-aux-portes-de-l-enfer-nla-seule-issue-est-de-l-autre-cote-n-npour-vivre-la-suite-de-doom-jouez-na-aux-portes-de-l-enfer-et-a-nl-episode-suivant-l-enfer-n-src-d-french-ml-1361325834"></a>
 ### E1TEXT
 
 ```ml
-const E1TEXT = "APRES AVOIR VAINCU LES GROS MECHANTS
-ET NETTOYE LA BASE LUNAIRE, VOUS AVEZ
-GAGNE, NON? PAS VRAI? OU EST DONC VOTRE
- RECOMPENSE ET VOTRE BILLET DE
-RETOUR? QU'EST-QUE CA VEUT DIRE?CEN'EST PAS LA FIN ESPEREE!
-
-CA SENT LA VIANDE PUTREFIEE, MAIS
-ON DIRAIT LA BASE DEIMOS. VOUS ETES
-APPAREMMENT BLOQUE AUX PORTES DE L'ENFER.
-LA SEULE ISSUE EST DE L'AUTRE COTE.
-
-POUR VIVRE LA SUITE DE DOOM, JOUEZ
-A 'AUX PORTES DE L'ENFER' ET A
-L'EPISODE SUIVANT, 'L'ENFER'!
-"
+const E1TEXT = "APRES AVOIR VAINCU LES GROS MECHANTS\nET NETTOYE LA BASE LUNAIRE, VOUS AVEZ\nGAGNE, NON? PAS VRAI? OU EST DONC VOTRE\n RECOMPENSE ET VOTRE BILLET DE\nRETOUR? QU'EST-QUE CA VEUT DIRE?CEN'EST PAS LA FIN ESPEREE!\n\nCA SENT LA VIANDE PUTREFIEE, MAIS\nON DIRAIT LA BASE DEIMOS. VOUS ETES\nAPPAREMMENT BLOQUE AUX PORTES DE L'ENFER.\nLA SEULE ISSUE EST DE L'AUTRE COTE.\n\nPOUR VIVRE LA SUITE DE DOOM, JOUEZ\nA 'AUX PORTES DE L'ENFER' ET A\nL'EPISODE SUIVANT, 'L'ENFER'!\n"
 ```
 
 Defines the e1 text text used by the d french subsystem.
@@ -503,27 +430,11 @@ Defines the e1 text text used by the d french subsystem.
 
 [View source](https://github.com/MiniLangProject/MiniDoom/blob/main/src/d_french.ml#L368)
 
-<a id="constant-constant-e2text-const-e2text-vous-avez-reussi-l-infame-demon-qui-controlait-la-base-lunaire-de-deimos-est-mort-et-vous-avez-triomphe-mais-ou-etes-vous-vous-grimpez-jusqu-au-bord-de-la-lune-et-vous-decouvrez-l-atroce-verite-deimos-est-au-dessus-de-l-enfer-vous-savez-que-personne-ne-s-en-est-jamais-echappe-mais-ces-fumiers-vont-regretter-de-vous-avoir-connu-vous-redescendez-rapidement-vers-la-surface-de-l-enfer-voici-maintenant-le-chapitre-final-de-doom-l-enfer-src-d-french-ml-1267191341"></a>
+<a id="constant-constant-e2text-const-e2text-vous-avez-reussi-l-infame-demon-nqui-controlait-la-base-lunaire-de-ndeimos-est-mort-et-vous-avez-ntriomphe-mais-ou-etes-vous-nvous-grimpez-jusqu-au-bord-de-la-nlune-et-vous-decouvrez-l-atroce-nverite-n-ndeimos-est-au-dessus-de-l-enfer-nvous-savez-que-personne-ne-s-en-nest-jamais-echappe-mais-ces-fumiers-nvont-regretter-de-vous-avoir-connu-nvous-redescendez-rapidement-vers-nla-surface-de-l-enfer-n-nvoici-maintenant-le-chapitre-final-de-ndoom-l-enfer-src-d-french-ml-2017510685"></a>
 ### E2TEXT
 
 ```ml
-const E2TEXT = "VOUS AVEZ REUSSI. L'INFAME DEMON
-QUI CONTROLAIT LA BASE LUNAIRE DE
-DEIMOS EST MORT, ET VOUS AVEZ
-TRIOMPHE! MAIS... OU ETES-VOUS?
-VOUS GRIMPEZ JUSQU'AU BORD DE LA
-LUNE ET VOUS DECOUVREZ L'ATROCE
-VERITE.
-
-DEIMOS EST AU-DESSUS DE L'ENFER!
-VOUS SAVEZ QUE PERSONNE NE S'EN
-EST JAMAIS ECHAPPE, MAIS CES FUMIERS
-VONT REGRETTER DE VOUS AVOIR CONNU!
-VOUS REDESCENDEZ RAPIDEMENT VERS
-LA SURFACE DE L'ENFER.
-
-VOICI MAINTENANT LE CHAPITRE FINAL DE
-DOOM! -- L'ENFER."
+const E2TEXT = "VOUS AVEZ REUSSI. L'INFAME DEMON\nQUI CONTROLAIT LA BASE LUNAIRE DE\nDEIMOS EST MORT, ET VOUS AVEZ\nTRIOMPHE! MAIS... OU ETES-VOUS?\nVOUS GRIMPEZ JUSQU'AU BORD DE LA\nLUNE ET VOUS DECOUVREZ L'ATROCE\nVERITE.\n\nDEIMOS EST AU-DESSUS DE L'ENFER!\nVOUS SAVEZ QUE PERSONNE NE S'EN\nEST JAMAIS ECHAPPE, MAIS CES FUMIERS\nVONT REGRETTER DE VOUS AVOIR CONNU!\nVOUS REDESCENDEZ RAPIDEMENT VERS\nLA SURFACE DE L'ENFER.\n\nVOICI MAINTENANT LE CHAPITRE FINAL DE\nDOOM! -- L'ENFER."
 ```
 
 Defines the e2 text text used by the d french subsystem.
@@ -531,27 +442,11 @@ Defines the e2 text text used by the d french subsystem.
 
 [View source](https://github.com/MiniLangProject/MiniDoom/blob/main/src/d_french.ml#L370)
 
-<a id="constant-constant-e3text-const-e3text-le-demon-arachneen-et-repugnant-qui-a-dirige-l-invasion-des-bases-lunaires-et-seme-la-mort-vient-de-se-faire-pulveriser-une-fois-pour-toutes-une-porte-secrete-s-ouvre-vous-entrez-vous-avez-prouve-que-vous-pouviez-resister-aux-horreurs-de-l-enfer-il-sait-etre-beau-joueur-et-lorsque-vous-sortez-vous-revoyez-les-vertes-prairies-de-la-terre-votre-planete-vous-vous-demandez-ce-qui-s-est-passe-sur-terre-pendant-que-vous-avez-combattu-le-demon-heureusement-aucun-germe-du-mal-n-a-franchi-cette-porte-avec-vous-src-d-french-ml-41708811"></a>
+<a id="constant-constant-e3text-const-e3text-le-demon-arachneen-et-repugnant-nqui-a-dirige-l-invasion-des-bases-nlunaires-et-seme-la-mort-vient-de-se-nfaire-pulveriser-une-fois-pour-toutes-n-nune-porte-secrete-s-ouvre-vous-entrez-nvous-avez-prouve-que-vous-pouviez-nresister-aux-horreurs-de-l-enfer-nil-sait-etre-beau-joueur-et-lorsque-nvous-sortez-vous-revoyez-les-vertes-nprairies-de-la-terre-votre-planete-n-nvous-vous-demandez-ce-qui-s-est-passe-nsur-terre-pendant-que-vous-avez-ncombattu-le-demon-heureusement-naucun-germe-du-mal-n-a-franchi-ncette-porte-avec-vous-src-d-french-ml-2002367721"></a>
 ### E3TEXT
 
 ```ml
-const E3TEXT = "LE DEMON ARACHNEEN ET REPUGNANT
-QUI A DIRIGE L'INVASION DES BASES
-LUNAIRES ET SEME LA MORT VIENT DE SE
-FAIRE PULVERISER UNE FOIS POUR TOUTES.
-
-UNE PORTE SECRETE S'OUVRE. VOUS ENTREZ.
-VOUS AVEZ PROUVE QUE VOUS POUVIEZ
-RESISTER AUX HORREURS DE L'ENFER.
-IL SAIT ETRE BEAU JOUEUR, ET LORSQUE
-VOUS SORTEZ, VOUS REVOYEZ LES VERTES
-PRAIRIES DE LA TERRE, VOTRE PLANETE.
-
-VOUS VOUS DEMANDEZ CE QUI S'EST PASSE
-SUR TERRE PENDANT QUE VOUS AVEZ
-COMBATTU LE DEMON. HEUREUSEMENT,
-AUCUN GERME DU MAL N'A FRANCHI
-CETTE PORTE AVEC VOUS..."
+const E3TEXT = "LE DEMON ARACHNEEN ET REPUGNANT\nQUI A DIRIGE L'INVASION DES BASES\nLUNAIRES ET SEME LA MORT VIENT DE SE\nFAIRE PULVERISER UNE FOIS POUR TOUTES.\n\nUNE PORTE SECRETE S'OUVRE. VOUS ENTREZ.\nVOUS AVEZ PROUVE QUE VOUS POUVIEZ\nRESISTER AUX HORREURS DE L'ENFER.\nIL SAIT ETRE BEAU JOUEUR, ET LORSQUE\nVOUS SORTEZ, VOUS REVOYEZ LES VERTES\nPRAIRIES DE LA TERRE, VOTRE PLANETE.\n\nVOUS VOUS DEMANDEZ CE QUI S'EST PASSE\nSUR TERRE PENDANT QUE VOUS AVEZ\nCOMBATTU LE DEMON. HEUREUSEMENT,\nAUCUN GERME DU MAL N'A FRANCHI\nCETTE PORTE AVEC VOUS..."
 ```
 
 Defines the e3 text text used by the d french subsystem.
@@ -571,13 +466,11 @@ Defines the emptystring text used by the d french subsystem.
 
 [View source](https://github.com/MiniLangProject/MiniDoom/blob/main/src/d_french.ml#L74)
 
-<a id="constant-constant-endgame-const-endgame-vous-voulez-vraiment-mettre-fin-au-jeu-appuyez-sur-y-ou-n-src-d-french-ml-1311495606"></a>
+<a id="constant-constant-endgame-const-endgame-vous-voulez-vraiment-mettre-fin-au-jeu-n-nappuyez-sur-y-ou-n-src-d-french-ml-294381482"></a>
 ### ENDGAME
 
 ```ml
-const ENDGAME = "VOUS VOULEZ VRAIMENT METTRE FIN AU JEU?
-
-APPUYEZ SUR Y OU N"
+const ENDGAME = "VOUS VOULEZ VRAIMENT METTRE FIN AU JEU?\n\nAPPUYEZ SUR Y OU N"
 ```
 
 Defines the endgame text used by the d french subsystem.
@@ -2109,14 +2002,11 @@ Defines the hustr talktoself5 text used by the d french subsystem.
 
 [View source](https://github.com/MiniLangProject/MiniDoom/blob/main/src/d_french.ml#L312)
 
-<a id="constant-constant-loadnet-const-loadnet-vous-ne-pouvez-pas-charger-un-jeu-en-reseau-appuyez-sur-une-touche-src-d-french-ml-1626115525"></a>
+<a id="constant-constant-loadnet-const-loadnet-vous-ne-pouvez-pas-charger-nun-jeu-en-reseau-n-nappuyez-sur-une-touche-src-d-french-ml-736516641"></a>
 ### LOADNET
 
 ```ml
-const LOADNET = "VOUS NE POUVEZ PAS CHARGER
-UN JEU EN RESEAU!
-
-APPUYEZ SUR UNE TOUCHE."
+const LOADNET = "VOUS NE POUVEZ PAS CHARGER\nUN JEU EN RESEAU!\n\nAPPUYEZ SUR UNE TOUCHE."
 ```
 
 Defines the loadnet text used by the d french subsystem.
@@ -2148,13 +2038,11 @@ Defines the msgon text used by the d french subsystem.
 
 [View source](https://github.com/MiniLangProject/MiniDoom/blob/main/src/d_french.ml#L52)
 
-<a id="constant-constant-netend-const-netend-vous-ne-pouvez-pas-mettre-fin-a-un-jeu-sur-reseau-appuyez-sur-une-touche-src-d-french-ml-2006367687"></a>
+<a id="constant-constant-netend-const-netend-vous-ne-pouvez-pas-mettre-fin-a-un-jeu-sur-reseau-n-nappuyez-sur-une-touche-src-d-french-ml-374483747"></a>
 ### NETEND
 
 ```ml
-const NETEND = "VOUS NE POUVEZ PAS METTRE FIN A UN JEU SUR RESEAU!
-
-APPUYEZ SUR UNE TOUCHE."
+const NETEND = "VOUS NE POUVEZ PAS METTRE FIN A UN JEU SUR RESEAU!\n\nAPPUYEZ SUR UNE TOUCHE."
 ```
 
 Defines the netend text used by the d french subsystem.
@@ -2162,14 +2050,11 @@ Defines the netend text used by the d french subsystem.
 
 [View source](https://github.com/MiniLangProject/MiniDoom/blob/main/src/d_french.ml#L54)
 
-<a id="constant-constant-newgame-const-newgame-vous-ne-pouvez-pas-lancer-un-nouveau-jeu-sur-reseau-appuyez-sur-une-touche-src-d-french-ml-1758286757"></a>
+<a id="constant-constant-newgame-const-newgame-vous-ne-pouvez-pas-lancer-nun-nouveau-jeu-sur-reseau-n-nappuyez-sur-une-touche-src-d-french-ml-1552329039"></a>
 ### NEWGAME
 
 ```ml
-const NEWGAME = "VOUS NE POUVEZ PAS LANCER
-UN NOUVEAU JEU SUR RESEAU.
-
-APPUYEZ SUR UNE TOUCHE."
+const NEWGAME = "VOUS NE POUVEZ PAS LANCER\nUN NOUVEAU JEU SUR RESEAU.\n\nAPPUYEZ SUR UNE TOUCHE."
 ```
 
 Defines the newgame text used by the d french subsystem.
@@ -2177,12 +2062,11 @@ Defines the newgame text used by the d french subsystem.
 
 [View source](https://github.com/MiniLangProject/MiniDoom/blob/main/src/d_french.ml#L44)
 
-<a id="constant-constant-nightmare-const-nightmare-vous-confirmez-ce-niveau-est-vraiment-impitoyable-nappuyez-sur-y-ou-n-src-d-french-ml-1803166258"></a>
+<a id="constant-constant-nightmare-const-nightmare-vous-confirmez-ce-niveau-est-nvraiment-impitoyable-nappuyez-sur-y-ou-n-src-d-french-ml-1534007054"></a>
 ### NIGHTMARE
 
 ```ml
-const NIGHTMARE = "VOUS CONFIRMEZ? CE NIVEAU EST
-VRAIMENT IMPITOYABLE!nAPPUYEZ SUR Y OU N"
+const NIGHTMARE = "VOUS CONFIRMEZ? CE NIVEAU EST\nVRAIMENT IMPITOYABLE!nAPPUYEZ SUR Y OU N"
 ```
 
 Defines the nightmare text used by the d french subsystem.
@@ -2286,13 +2170,11 @@ Defines the pressyn text used by the d french subsystem.
 
 [View source](https://github.com/MiniLangProject/MiniDoom/blob/main/src/d_french.ml#L28)
 
-<a id="constant-constant-qloadnet-const-qloadnet-chargement-rapide-interdit-en-reseau-appuyez-sur-une-touche-src-d-french-ml-2050977961"></a>
+<a id="constant-constant-qloadnet-const-qloadnet-chargement-rapide-interdit-en-reseau-n-nappuyez-sur-une-touche-src-d-french-ml-743182445"></a>
 ### QLOADNET
 
 ```ml
-const QLOADNET = "CHARGEMENT RAPIDE INTERDIT EN RESEAU!
-
-APPUYEZ SUR UNE TOUCHE."
+const QLOADNET = "CHARGEMENT RAPIDE INTERDIT EN RESEAU!\n\nAPPUYEZ SUR UNE TOUCHE."
 ```
 
 Defines the qloadnet text used by the d french subsystem.
@@ -2300,15 +2182,11 @@ Defines the qloadnet text used by the d french subsystem.
 
 [View source](https://github.com/MiniLangProject/MiniDoom/blob/main/src/d_french.ml#L34)
 
-<a id="constant-constant-qlprompt-const-qlprompt-voulez-vous-charger-la-sauvegarde-s-appuyez-sur-y-ou-n-src-d-french-ml-1936809687"></a>
+<a id="constant-constant-qlprompt-const-qlprompt-voulez-vous-charger-la-sauvegarde-n-n-s-n-nappuyez-sur-y-ou-n-src-d-french-ml-47191139"></a>
 ### QLPROMPT
 
 ```ml
-const QLPROMPT = "VOULEZ-VOUS CHARGER LA SAUVEGARDE
-
-'%s'?
-
-APPUYEZ SUR Y OU N"
+const QLPROMPT = "VOULEZ-VOUS CHARGER LA SAUVEGARDE\n\n'%s'?\n\nAPPUYEZ SUR Y OU N"
 ```
 
 Defines the qlprompt text used by the d french subsystem.
@@ -2316,13 +2194,11 @@ Defines the qlprompt text used by the d french subsystem.
 
 [View source](https://github.com/MiniLangProject/MiniDoom/blob/main/src/d_french.ml#L42)
 
-<a id="constant-constant-qsavespot-const-qsavespot-vous-n-avez-pas-choisi-un-emplacement-appuyez-sur-une-touche-src-d-french-ml-1986338344"></a>
+<a id="constant-constant-qsavespot-const-qsavespot-vous-n-avez-pas-choisi-un-emplacement-n-nappuyez-sur-une-touche-src-d-french-ml-1721973768"></a>
 ### QSAVESPOT
 
 ```ml
-const QSAVESPOT = "VOUS N'AVEZ PAS CHOISI UN EMPLACEMENT!
-
-APPUYEZ SUR UNE TOUCHE."
+const QSAVESPOT = "VOUS N'AVEZ PAS CHOISI UN EMPLACEMENT!\n\nAPPUYEZ SUR UNE TOUCHE."
 ```
 
 Defines the qsavespot text used by the d french subsystem.
@@ -2330,15 +2206,11 @@ Defines the qsavespot text used by the d french subsystem.
 
 [View source](https://github.com/MiniLangProject/MiniDoom/blob/main/src/d_french.ml#L36)
 
-<a id="constant-constant-qsprompt-const-qsprompt-sauvegarde-rapide-dans-le-fichier-s-appuyez-sur-y-ou-n-src-d-french-ml-1780095127"></a>
+<a id="constant-constant-qsprompt-const-qsprompt-sauvegarde-rapide-dans-le-fichier-n-n-s-n-nappuyez-sur-y-ou-n-src-d-french-ml-1430980899"></a>
 ### QSPROMPT
 
 ```ml
-const QSPROMPT = "SAUVEGARDE RAPIDE DANS LE FICHIER 
-
-'%s'?
-
-APPUYEZ SUR Y OU N"
+const QSPROMPT = "SAUVEGARDE RAPIDE DANS LE FICHIER \n\n'%s'?\n\nAPPUYEZ SUR Y OU N"
 ```
 
 Defines the qsprompt text used by the d french subsystem.
@@ -2346,12 +2218,11 @@ Defines the qsprompt text used by the d french subsystem.
 
 [View source](https://github.com/MiniLangProject/MiniDoom/blob/main/src/d_french.ml#L40)
 
-<a id="constant-constant-quitmsg-const-quitmsg-vous-voulez-vraiment-quitter-ce-super-jeu-src-d-french-ml-1590299398"></a>
+<a id="constant-constant-quitmsg-const-quitmsg-vous-voulez-vraiment-nquitter-ce-super-jeu-src-d-french-ml-958605104"></a>
 ### QUITMSG
 
 ```ml
-const QUITMSG = "VOUS VOULEZ VRAIMENT
-QUITTER CE SUPER JEU?"
+const QUITMSG = "VOUS VOULEZ VRAIMENT\nQUITTER CE SUPER JEU?"
 ```
 
 Defines the quitmsg text used by the d french subsystem.
@@ -2359,13 +2230,11 @@ Defines the quitmsg text used by the d french subsystem.
 
 [View source](https://github.com/MiniLangProject/MiniDoom/blob/main/src/d_french.ml#L30)
 
-<a id="constant-constant-savedead-const-savedead-vous-ne-pouvez-pas-sauver-si-vous-ne-jouez-pas-appuyez-sur-une-touche-src-d-french-ml-1685151337"></a>
+<a id="constant-constant-savedead-const-savedead-vous-ne-pouvez-pas-sauver-si-vous-ne-jouez-pas-n-nappuyez-sur-une-touche-src-d-french-ml-2058931245"></a>
 ### SAVEDEAD
 
 ```ml
-const SAVEDEAD = "VOUS NE POUVEZ PAS SAUVER SI VOUS NE JOUEZ PAS!
-
-APPUYEZ SUR UNE TOUCHE."
+const SAVEDEAD = "VOUS NE POUVEZ PAS SAUVER SI VOUS NE JOUEZ PAS!\n\nAPPUYEZ SUR UNE TOUCHE."
 ```
 
 Defines the savedead text used by the d french subsystem.
@@ -2517,15 +2386,11 @@ Defines the ststr nomus text used by the d french subsystem.
 
 [View source](https://github.com/MiniLangProject/MiniDoom/blob/main/src/d_french.ml#L346)
 
-<a id="constant-constant-swstring-const-swstring-ceci-est-une-version-shareware-de-doom-vous-devriez-commander-la-trilogie-complete-appuyez-sur-une-touche-src-d-french-ml-803060549"></a>
+<a id="constant-constant-swstring-const-swstring-ceci-est-une-version-shareware-de-doom-n-nvous-devriez-commander-la-trilogie-complete-n-nappuyez-sur-une-touche-src-d-french-ml-1338779145"></a>
 ### SWSTRING
 
 ```ml
-const SWSTRING = "CECI EST UNE VERSION SHAREWARE DE DOOM.
-
-VOUS DEVRIEZ COMMANDER LA TRILOGIE COMPLETE.
-
-APPUYEZ SUR UNE TOUCHE."
+const SWSTRING = "CECI EST UNE VERSION SHAREWARE DE DOOM.\n\nVOUS DEVRIEZ COMMANDER LA TRILOGIE COMPLETE.\n\nAPPUYEZ SUR UNE TOUCHE."
 ```
 
 Defines the swstring text used by the d french subsystem.

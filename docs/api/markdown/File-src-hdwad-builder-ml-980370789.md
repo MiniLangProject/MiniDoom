@@ -1303,11 +1303,11 @@ Defines up xbrz dominant direction threshold for the hdwad builder subsystem.
 
 [View source](https://github.com/MiniLangProject/MiniDoom/blob/main/src/hdwad_builder.ml#L68)
 
-<a id="constant-constant-up-xbrz-equal-color-tolerance-const-up-xbrz-equal-color-tolerance-30-src-hdwad-builder-ml-1951082172"></a>
+<a id="constant-constant-up-xbrz-equal-color-tolerance-const-up-xbrz-equal-color-tolerance-30-src-hdwad-builder-ml-1015650326"></a>
 ### UP_XBRZ_EQUAL_COLOR_TOLERANCE
 
 ```ml
-const UP_XBRZ_EQUAL_COLOR_TOLERANCE = 30.
+const UP_XBRZ_EQUAL_COLOR_TOLERANCE = 30
 ```
 
 Defines the Doom palette selection for up xbrz equal color tolerance.

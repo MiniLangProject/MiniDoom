@@ -164,11 +164,11 @@ Holds the optional finetangent resource used by the tables subsystem.
 
 [View source](https://github.com/MiniLangProject/MiniDoom/blob/main/src/tables.ml#L40)
 
-<a id="constant-constant-pi-const-pi-3-141592657-src-tables-ml-1778485115"></a>
+<a id="constant-constant-pi-const-pi-3-141593-src-tables-ml-512837286"></a>
 ### PI
 
 ```ml
-const PI = 3.141592657
+const PI = 3.141593
 ```
 
 Defines pi for the tables subsystem.
